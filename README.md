@@ -27,7 +27,11 @@
 
 ## ✨ Features
 
-- 🔌 **Drop-in OpenAI + Anthropic compatibility** — `/v1/chat/completions`, `/v1/messages`, `/v1/messages/count_tokens`, `/v1/embeddings`, `/v1/models`
+- 🔌 **Drop-in OpenAI + Anthropic compatibility** — `/v1/chat/completions`, `/v1/messages`, `/v1/messages/count_tokens`, `/v1/models`
+- 🛠️ **Tool use passthrough with cross-format conversion** — `tools` / `tool_use` / `tool_calls` flow correctly between client + upstream regardless of which SDK you use (Anthropic SDK ↔ OpenAI SDK ↔ MiniMax upstream)
+- 🔀 **Cross-format routing** — set `upstreamFormat` in `settings.minimax` (or `ROUTER_UPSTREAM_FORMAT` env) to route OpenAI clients to Anthropic upstream or vice versa; body + non-stream response converted automatically
+- 📺 **OpenAI `stream_options.include_usage` auto-injected** — accurate per-client cost tracking even if the client forgets to set it
+- 💡 **`reasoning_split` default** — when set, MiniMax-M3 always returns structured `reasoning_content` + `reasoning_details` (no `<think>` tags in `content`)
 - 🔐 **Two-tier auth** — separate `api_key` for proxy traffic, `admin_key` for management routes
 - 🧠 **Multi-account state machine** — sticky + round-robin selection, exponential backoff, per-model locks, automatic cooldown on 429/5xx
 - 🌍 **Region-aware** — `MINIMAX_REGION=intl|cn` switch
@@ -38,7 +42,7 @@
 - 🪶 **RTK compression + Caveman mode + dual cache injection** — per-setting toggles in dashboard
 - 🌊 **SSE stream pass-through** — OpenAI + Anthropic streaming with usage extraction on flush
 - 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 163+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 211+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🛣️ Roadmap
 
@@ -51,6 +55,7 @@
 | 5 | **v0.5** | ✅ shipped | Quota scheduler, dashboard UI (7 pages), SSE stream usage extraction |
 | 6 | **v0.6** | ✅ shipped | Full transport (relay + http/socks + env), Dockerfile, Caddyfile, VPS docs |
 | 7 | **v0.7** | ✅ shipped | Drop multi-tenant: client_keys vs accounts split, per-key usage, single-user self-host model |
+| 8 | **v0.8** | ✅ shipped | Cross-format tool conversion (OpenAI↔Anthropic), `stream_options.include_usage` auto-injection, MiniMax `base_resp` status code mapping, `/v1/embeddings` → 501, `reasoning_split` toggle |
 
 ## 🚀 Quick Start
 
@@ -164,12 +169,15 @@ src/
 │   ├── minimax.ts            # PROVIDER const, upstreamUrl/Headers helpers
 │   ├── baseUrl.ts            # intl vs cn base URL
 │   ├── headers.ts            # OpenAI Bearer vs Anthropic x-api-key
-│   ├── alias.ts              # model alias + thinking transform
+│   ├── alias.ts              # model alias + thinking + M3 max_completion_tokens + reasoning_split
 │   ├── listModels.ts         # /v1/models fetch + merge
 │   ├── pricing.ts            # per-token cost calc (incl cache)
 │   ├── parseError.ts         # base_resp.status_code extraction
 │   ├── quota.ts              # token-plan quota parser
-│   └── upstreamFetch.ts      # JSON POST wrapper over proxyAwareFetch
+│   ├── upstreamFetch.ts      # JSON POST wrapper over proxyAwareFetch
+│   └── format/               # cross-format body + response conversion
+│       ├── transform.ts      # tools/tool_choice/tool_use/tool_calls between OpenAI↔Anthropic
+│       └── negotiate.ts      # decide upstream format from client + override
 ├── rtk/                      # RTK compression pipeline
 │   ├── index.ts              # compressMessages + formatRtkLog
 │   ├── applyFilter.ts        # generic filter runner
@@ -210,6 +218,7 @@ All settings live in the `settings` table and are editable via the dashboard at 
 | `rtk` | `{enabled:true,minCompressSize:500,rawCap:10485760}` | RTK compression config (v0.4) |
 | `caveman` | `{level:"off"}` | Caveman prompt mode (v0.4) |
 | `caching` | `{autoBreakpoints:true,respectCallerMarkers:true}` | Dual cache_control (v0.4) |
+| `minimax` | `{upstreamFormat:"auto",reasoningSplitDefault:false,m3DefaultMaxCompletionTokens:131072}` | Cross-format routing + M3 defaults (v0.7) |
 | `transport` | `{relay:null,proxy:null}` | Upstream transport (v0.6) |
 | `build` | `{version:"0.2.0",schemaVersion:2}` | Self-describe |
 
@@ -218,7 +227,7 @@ Per-user setting `user_settings.account_mode` controls selection: `sticky` (sess
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (163+ tests)
+npm test              # vitest run (211+ tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
