@@ -24,6 +24,44 @@ describe("GET /health", () => {
   });
 });
 
+describe("GET / (landing page)", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "root-")), "t.db");
+    resetDb();
+  });
+
+  it("returns 200 + HTML status page when admin key missing", async () => {
+    const res = await app.request("/");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("kelola-router");
+    expect(html).toContain("needs setup");
+    expect(html).toContain("/admin");
+    expect(html).toContain("/v1/chat/completions");
+    expect(html).toContain("/v1/messages");
+  });
+
+  it("shows 'ready' when admin key is configured", async () => {
+    process.env.ROUTER_ADMIN_KEY = "ak_test";
+    const res = await app.request("/");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("ready");
+    expect(html).toContain("Open /admin");
+  });
+
+  it("reflects current state (accounts + client keys counts)", async () => {
+    const db = openDb();
+    createAccount(db, { id: "a1", label: "A", credit_type: "payg", api_key: "k" });
+    createAccount(db, { id: "a2", label: "B", credit_type: "payg", api_key: "k2", enabled: false });
+    createClientKey(db, { label: "app1", key: "rk_1" });
+    const res = await app.request("/");
+    const html = await res.text();
+    expect(html).toContain("2 (1 enabled)");
+    expect(html).toContain("Active client keys</td><td>1");
+  });
+});
+
 describe("handleProxy with auth + accounts", () => {
   beforeEach(() => {
     process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "ha-")), "t.db");
@@ -111,6 +149,7 @@ describe("POST /admin/models/fetch", () => {
   });
 
   it("503 when admin key not configured", async () => {
+    delete process.env.ROUTER_ADMIN_KEY;
     const res = await app.request("/admin/models/fetch", { method: "POST" });
     expect(res.status).toBe(503);
   });

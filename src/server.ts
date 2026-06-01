@@ -8,7 +8,7 @@ import { selectAccount } from "./accounts/selection.js";
 import { isModelLockActive } from "./accounts/state.js";
 import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/locks.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
-import { listEnabledAccounts, updateAccount, createAccount } from "./db/repos/accounts.js";
+import { listEnabledAccounts, listAccounts, updateAccount, createAccount } from "./db/repos/accounts.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
 import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
@@ -25,6 +25,7 @@ import {
 } from "./providers/format/transform.js";
 import { getUpstreamFormat } from "./providers/format/negotiate.js";
 import { getSetting, setSetting } from "./db/repos/settings.js";
+import { getAdminKey } from "./db/repos/users.js";
 import { startQuotaPuller } from "./scheduler/quotaPull.js";
 import { renderOverview } from "./dashboard/pages/overview.js";
 import { renderUsage } from "./dashboard/pages/usage.js";
@@ -236,6 +237,55 @@ app.post("/admin/models/fetch", requireAdmin, async (c) => {
   } catch (e: any) {
     return c.json({ error: e.message }, 502);
   }
+});
+
+app.get("/", (c) => {
+  const db = c.get("db");
+  const adminKey = (getAdminKey(db) ?? process.env.ROUTER_ADMIN_KEY) ? "configured" : "missing";
+  const accounts = listAccounts(db);
+  const clientKeys = db.prepare("SELECT COUNT(*) as n FROM client_keys WHERE enabled = 1").get() as { n: number };
+  return c.html(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>kelola-router</title>
+<style>body{font-family:-apple-system,sans-serif;max-width:720px;margin:40px auto;padding:0 16px;color:#222;background:#fafafa}
+h1{font-size:28px;margin-bottom:0}code{background:#eee;padding:1px 6px;border-radius:3px}
+.card{background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:16px;margin:16px 0}
+a.btn{display:inline-block;background:#007bff;color:#fff;padding:8px 16px;border-radius:4px;text-decoration:none;margin-right:8px}
+table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;text-align:left;border-bottom:1px solid #eee}
+.muted{color:#666;font-size:13px}</style>
+</head><body>
+<h1>kelola-router</h1>
+<p class="muted">Hono + better-sqlite3 proxy for MiniMax. Status: <b>${adminKey === "configured" ? "ready" : "needs setup"}</b></p>
+<div class="card">
+  <h2>Dashboard</h2>
+  <p>Admin key: <b>${adminKey}</b></p>
+  <p>${adminKey === "configured"
+    ? '<a class="btn" href="/admin">Open /admin</a>'
+    : 'Set <code>ROUTER_ADMIN_KEY</code> env var or insert into <code>settings.admin_key</code> row, then restart.'}</p>
+</div>
+<div class="card">
+  <h2>Endpoints</h2>
+  <table>
+    <tr><th>Public</th><td><a href="/health">/health</a></td></tr>
+    <tr><th>Proxy (need <code>Authorization: Bearer &lt;client_key&gt;</code>)</th>
+        <td>POST <code>/v1/chat/completions</code> (OpenAI)<br>
+            POST <code>/v1/messages</code> (Anthropic)<br>
+            POST <code>/v1/messages/count_tokens</code><br>
+            GET <code>/v1/models</code></td></tr>
+    <tr><th>Admin (need <code>x-admin-key</code>)</th>
+        <td><a href="/admin">/admin</a> · <a href="/admin/usage">/admin/usage</a> · <a href="/admin/accounts">/admin/accounts</a><br>
+            <a href="/admin/client-keys">/admin/client-keys</a> · <a href="/admin/models">/admin/models</a><br>
+            <a href="/admin/quota">/admin/quota</a> · <a href="/admin/settings">/admin/settings</a></td></tr>
+  </table>
+</div>
+<div class="card">
+  <h2>State</h2>
+  <table>
+    <tr><td>Upstream accounts (MiniMax keys in pool)</td><td>${accounts.length} (${accounts.filter((a) => a.enabled).length} enabled)</td></tr>
+    <tr><td>Active client keys</td><td>${clientKeys.n}</td></tr>
+  </table>
+  <p class="muted">No accounts or keys? <code>npx tsx scripts/add-account.ts</code> and <code>npx tsx scripts/add-client-key.ts</code>.</p>
+</div>
+</body></html>`);
 });
 
 app.get("/admin", requireAdmin, (c) => c.html(renderOverview(c.get("db"))));
