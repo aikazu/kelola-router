@@ -19,7 +19,7 @@
 - Create: `.env.example`
 - Create: `vitest.config.ts`
 
-- [ ] **Step 1: Write `package.json`**
+- [x] **Step 1: Write `package.json`**
 
 ```json
 {
@@ -49,7 +49,7 @@
 }
 ```
 
-- [ ] **Step 2: Write `tsconfig.json`**
+- [x] **Step 2: Write `tsconfig.json`**
 
 ```json
 {
@@ -74,7 +74,7 @@
 }
 ```
 
-- [ ] **Step 3: Write `.gitignore`**
+- [x] **Step 3: Write `.gitignore`**
 
 ```
 node_modules/
@@ -85,7 +85,7 @@ data/
 .DS_Store
 ```
 
-- [ ] **Step 4: Write `.env.example`**
+- [x] **Step 4: Write `.env.example`**
 
 ```
 # MiniMax API key (for testing passthrough)
@@ -99,7 +99,7 @@ PORT=20137
 MINIMAX_REGION=intl
 ```
 
-- [ ] **Step 5: Write `vitest.config.ts`**
+- [x] **Step 5: Write `vitest.config.ts`**
 
 ```ts
 import { defineConfig } from "vitest/config";
@@ -112,12 +112,12 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 6: Install deps**
+- [x] **Step 6: Install deps**
 
 Run: `npm install`
 Expected: `node_modules/` created, no errors
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git init
@@ -133,7 +133,7 @@ git commit -m "chore: project scaffold with hono + ts strict + vitest"
 - Create: `src/server.ts`
 - Create: `src/server.test.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/server.test.ts`:
 ```ts
@@ -150,12 +150,12 @@ describe("GET /health", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — `app` is not exported from `./server.js`
 
-- [ ] **Step 3: Write `src/server.ts`**
+- [x] **Step 3: Write `src/server.ts`**
 
 ```ts
 import { Hono } from "hono";
@@ -167,12 +167,12 @@ app.get("/health", (c) => c.json({ ok: true }));
 export { app };
 ```
 
-- [ ] **Step 4: Run test (expect pass)**
+- [x] **Step 4: Run test (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 1 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/server.test.ts
@@ -188,7 +188,7 @@ git commit -m "feat: Hono app with /health route"
 - Create: `src/transport/proxyFetch.ts`
 - Create: `src/transport/proxyFetch.test.ts`
 
-- [ ] **Step 1: Write failing test for direct fetch**
+- [x] **Step 1: Write failing test for direct fetch**
 
 `src/transport/proxyFetch.test.ts`:
 ```ts
@@ -231,12 +231,12 @@ describe("proxyAwareFetch (direct mode)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — `./proxyFetch.js` not found
 
-- [ ] **Step 3: Write `src/transport/types.ts`**
+- [x] **Step 3: Write `src/transport/types.ts`**
 
 ```ts
 export type ProxyKind = "http" | "socks5";
@@ -258,7 +258,7 @@ export interface TransportConfig {
 }
 ```
 
-- [ ] **Step 4: Write `src/transport/proxyFetch.ts` (v0.1: direct only)**
+- [x] **Step 4: Write `src/transport/proxyFetch.ts` (v0.1: direct only)**
 
 ```ts
 import type { TransportConfig } from "./types.js";
@@ -276,12 +276,12 @@ export async function proxyAwareFetch(
 }
 ```
 
-- [ ] **Step 5: Run test (expect pass)**
+- [x] **Step 5: Run test (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 3 tests total
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/transport/
@@ -296,7 +296,7 @@ git commit -m "feat: transport/proxyFetch with direct passthrough (v0.1)"
 - Create: `src/providers/baseUrl.ts`
 - Create: `src/providers/baseUrl.test.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/providers/baseUrl.test.ts`:
 ```ts
@@ -349,12 +349,12 @@ describe("getBaseUrl", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — `./baseUrl.js` not found
 
-- [ ] **Step 3: Write `src/providers/baseUrl.ts`**
+- [x] **Step 3: Write `src/providers/baseUrl.ts`**
 
 ```ts
 type AccountLike = { provider: "minimax"; baseUrl: string | null };
@@ -372,12 +372,12 @@ export function getBaseUrl(
 }
 ```
 
-- [ ] **Step 4: Run test (expect pass)**
+- [x] **Step 4: Run test (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 8 tests total
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/providers/baseUrl.ts src/providers/baseUrl.test.ts
@@ -392,7 +392,7 @@ git commit -m "feat: providers/baseUrl with intl/cn + override"
 - Create: `src/providers/headers.ts`
 - Create: `src/providers/headers.test.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/providers/headers.test.ts`:
 ```ts
@@ -427,12 +427,12 @@ describe("buildHeaders", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — `./headers.js` not found
 
-- [ ] **Step 3: Write `src/providers/headers.ts`**
+- [x] **Step 3: Write `src/providers/headers.ts`**
 
 ```ts
 type AccountLike = { provider: "minimax"; apiKey: string };
@@ -454,12 +454,12 @@ export function buildHeaders(
 }
 ```
 
-- [ ] **Step 4: Run test (expect pass)**
+- [x] **Step 4: Run test (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 12 tests total
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/providers/headers.ts src/providers/headers.test.ts
@@ -473,7 +473,7 @@ git commit -m "feat: providers/headers for openai + anthropic + stream"
 **Files:**
 - Modify: `src/server.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/server.test.ts` (append to existing):
 ```ts
@@ -521,12 +521,12 @@ describe("POST /v1/chat/completions", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — no `/v1/chat/completions` route yet
 
-- [ ] **Step 3: Update `src/server.ts`**
+- [x] **Step 3: Update `src/server.ts`**
 
 ```ts
 import { Hono } from "hono";
@@ -560,7 +560,7 @@ app.post("/v1/chat/completions", async (c) => {
 export { app };
 ```
 
-- [ ] **Step 4: Set MINIMAX_API_KEY in test env**
+- [x] **Step 4: Set MINIMAX_API_KEY in test env**
 
 Add to `vitest.config.ts`:
 ```ts
@@ -577,12 +577,12 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 5: Run test (expect pass)**
+- [x] **Step 5: Run test (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 13 tests total
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/server.ts src/server.test.ts vitest.config.ts
@@ -596,7 +596,7 @@ git commit -m "feat: POST /v1/chat/completions OpenAI passthrough"
 **Files:**
 - Modify: `src/server.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/server.test.ts` (append):
 ```ts
@@ -628,12 +628,12 @@ describe("POST /v1/messages", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — `/v1/messages` route missing
 
-- [ ] **Step 3: Add route to `src/server.ts`**
+- [x] **Step 3: Add route to `src/server.ts`**
 
 Append inside `app` block:
 ```ts
@@ -657,12 +657,12 @@ app.post("/v1/messages", async (c) => {
 });
 ```
 
-- [ ] **Step 4: Run test (expect pass)**
+- [x] **Step 4: Run test (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 14 tests total
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/server.test.ts
@@ -676,7 +676,7 @@ git commit -m "feat: POST /v1/messages Anthropic passthrough"
 **Files:**
 - Modify: `src/server.ts`
 
-- [ ] **Step 1: Write failing tests for all 3**
+- [x] **Step 1: Write failing tests for all 3**
 
 `src/server.test.ts` (append):
 ```ts
@@ -725,12 +725,12 @@ describe("GET /v1/models", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — 3 new tests fail (routes missing)
 
-- [ ] **Step 3: Add 3 routes to `src/server.ts`**
+- [x] **Step 3: Add 3 routes to `src/server.ts`**
 
 ```ts
 app.post("/v1/messages/count_tokens", async (c) => {
@@ -775,12 +775,12 @@ app.get("/v1/models", async (c) => {
 });
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 17 tests total
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/server.test.ts
@@ -795,7 +795,7 @@ git commit -m "feat: count_tokens, embeddings, models passthrough routes"
 - Modify: `src/server.ts`
 - Create: `src/util/log.ts`
 
-- [ ] **Step 1: Write `src/util/log.ts`**
+- [x] **Step 1: Write `src/util/log.ts`**
 
 ```ts
 import pino from "pino";
@@ -805,7 +805,7 @@ export const log = pino({
 });
 ```
 
-- [ ] **Step 2: Add listener to `src/server.ts`**
+- [x] **Step 2: Add listener to `src/server.ts`**
 
 At the bottom (after `export { app }`):
 ```ts
@@ -821,12 +821,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 ```
 
-- [ ] **Step 3: Run tests (must still pass)**
+- [x] **Step 3: Run tests (must still pass)**
 
 Run: `npm test`
 Expected: PASS — 17 tests
 
-- [ ] **Step 4: Manual smoke test**
+- [x] **Step 4: Manual smoke test**
 
 Run: `npm run dev` (in one terminal)
 In another terminal:
@@ -836,7 +836,7 @@ curl -s http://127.0.0.1:20137/health
 ```
 Stop dev server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/util/log.ts
@@ -847,17 +847,17 @@ git commit -m "feat: listener + pino logger"
 
 ## Task 1.10: Phase 1 checkpoint
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 Run: `npm test`
 Expected: 17+ tests, all green
 
-- [ ] **Step 2: Verify type check**
+- [x] **Step 2: Verify type check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors
 
-- [ ] **Step 3: Commit + push**
+- [x] **Step 3: Commit + push**
 
 ```bash
 git add .
@@ -865,7 +865,7 @@ git commit -m "chore: phase 1 v0.1 checkpoint" --allow-empty
 git push origin main
 ```
 
-- [ ] **Step 4: Tag**
+- [x] **Step 4: Tag**
 
 ```bash
 git tag v0.1

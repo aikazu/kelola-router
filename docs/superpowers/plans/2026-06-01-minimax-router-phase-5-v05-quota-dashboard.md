@@ -16,7 +16,7 @@
 - Create: `src/db/repos/requestLogs.ts`
 - Create: `src/db/repos/requestLogs.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/db/repos/requestLogs.test.ts`:
 ```ts
@@ -74,12 +74,12 @@ describe("requestLogs repo", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/db/repos/requestLogs.ts`**
+- [x] **Step 3: Write `src/db/repos/requestLogs.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -168,12 +168,12 @@ export function cleanupOldLogs(db: Database.Database, days: number): number {
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 131 tests (3 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/db/repos/requestLogs.ts src/db/repos/requestLogs.test.ts
@@ -191,7 +191,7 @@ git commit -m "feat: requestLogs repo (insert + recent + aggregate + cleanup)"
 - Create: `src/providers/quota.test.ts`
 - Create: `src/scheduler/quotaPull.test.ts`
 
-- [ ] **Step 1: Write `src/db/repos/quotaSnapshots.ts`**
+- [x] **Step 1: Write `src/db/repos/quotaSnapshots.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -233,7 +233,7 @@ export function cleanupOldQuota(db: Database.Database, days: number): number {
 }
 ```
 
-- [ ] **Step 2: Write `src/providers/quota.ts`**
+- [x] **Step 2: Write `src/providers/quota.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -313,7 +313,7 @@ function parseCodingPlanRemains(data: any, accountId: string) {
 }
 ```
 
-- [ ] **Step 3: Write `src/scheduler/quotaPull.ts`**
+- [x] **Step 3: Write `src/scheduler/quotaPull.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -353,7 +353,7 @@ export function stopQuotaPuller(): void {
 }
 ```
 
-- [ ] **Step 4: Write failing tests**
+- [x] **Step 4: Write failing tests**
 
 `src/providers/quota.test.ts`:
 ```ts
@@ -423,12 +423,12 @@ describe("pullQuota", () => {
 });
 ```
 
-- [ ] **Step 5: Run tests (expect pass)**
+- [x] **Step 5: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 134 tests (3 new)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/db/repos/quotaSnapshots.ts src/providers/quota.ts src/scheduler/ src/providers/quota.test.ts
@@ -444,7 +444,7 @@ git commit -m "feat: quota pull + storage + scheduler + semantic inversion fix"
 - Create: `src/streaming/pipeWithUsage.ts`
 - Create: `src/streaming/extractUsage.test.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/streaming/extractUsage.test.ts`:
 ```ts
@@ -482,12 +482,12 @@ describe("extractUsageFromSSE (Anthropic)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/streaming/extractUsage.ts`**
+- [x] **Step 3: Write `src/streaming/extractUsage.ts`**
 
 ```ts
 export interface SSEUsage {
@@ -555,12 +555,12 @@ function extractAnthropic(raw: string): SSEParseResult {
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 136 tests (2 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/streaming/extractUsage.ts src/streaming/extractUsage.test.ts

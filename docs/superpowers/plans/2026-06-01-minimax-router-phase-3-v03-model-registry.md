@@ -16,7 +16,7 @@
 - Create: `src/db/repos/models.ts`
 - Create: `src/db/repos/models.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/db/repos/models.test.ts`:
 ```ts
@@ -71,12 +71,12 @@ describe("models repo", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/db/repos/models.ts`**
+- [x] **Step 3: Write `src/db/repos/models.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -144,12 +144,12 @@ export function disableModel(db: Database.Database, name: string): void {
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 73 tests (6 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/db/repos/models.ts src/db/repos/models.test.ts
@@ -164,7 +164,7 @@ git commit -m "feat: models repo (CRUD + upsert + disable)"
 - Create: `src/providers/alias.ts`
 - Create: `src/providers/alias.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/providers/alias.test.ts`:
 ```ts
@@ -236,12 +236,12 @@ describe("resolveModel", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/providers/alias.ts`**
+- [x] **Step 3: Write `src/providers/alias.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -268,12 +268,12 @@ export function resolveModel(db: Database.Database, requestedName: string, _body
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 80 tests (7 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/providers/alias.ts src/providers/alias.test.ts
@@ -288,7 +288,7 @@ git commit -m "feat: providers/alias resolves model + injects thinking"
 - Create: `src/providers/pricing.ts`
 - Create: `src/providers/pricing.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/providers/pricing.test.ts`:
 ```ts
@@ -367,12 +367,12 @@ describe("calculateCost", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/providers/pricing.ts`**
+- [x] **Step 3: Write `src/providers/pricing.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -434,12 +434,12 @@ export function calculateCost(db: Database.Database, modelName: string, usage: U
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 89 tests (9 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/providers/pricing.ts src/providers/pricing.test.ts
@@ -454,7 +454,7 @@ git commit -m "feat: providers/pricing with M3 tiered + cache_write NULL handlin
 - Create: `src/providers/listModels.ts`
 - Create: `src/providers/listModels.test.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/providers/listModels.test.ts`:
 ```ts
@@ -511,12 +511,12 @@ describe("fetchModels", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/providers/listModels.ts`**
+- [x] **Step 3: Write `src/providers/listModels.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -559,12 +559,12 @@ export async function fetchModels(db: Database.Database, apiKey: string): Promis
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 92 tests (3 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/providers/listModels.ts src/providers/listModels.test.ts
@@ -579,7 +579,7 @@ git commit -m "feat: providers/listModels hits /v1/models and merges"
 - Modify: `src/server.ts`
 - Create: `src/db/repos/requestLogs.ts` (stub for next phase; needed here for cost logging)
 
-- [ ] **Step 1: Write failing integration test**
+- [x] **Step 1: Write failing integration test**
 
 `src/server.test.ts` (append):
 ```ts
@@ -624,12 +624,12 @@ describe("model resolution in proxy", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Update `handleProxy` in `src/server.ts`**
+- [x] **Step 3: Update `handleProxy` in `src/server.ts`**
 
 Add at top of function (after user extraction):
 ```ts
@@ -655,12 +655,12 @@ try {
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 94 tests (2 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/server.test.ts
@@ -674,7 +674,7 @@ git commit -m "feat: wire resolveModel + thinking injection into handleProxy"
 **Files:**
 - Modify: `src/server.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/server.test.ts` (append):
 ```ts
@@ -711,12 +711,12 @@ describe("POST /admin/models/fetch", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Add route to `src/server.ts`**
+- [x] **Step 3: Add route to `src/server.ts`**
 
 ```ts
 import { fetchModels } from "./providers/listModels.js";
@@ -734,12 +734,12 @@ app.post("/admin/models/fetch", requireAdmin, async (c) => {
 });
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 96 tests (2 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/server.test.ts
@@ -750,17 +750,17 @@ git commit -m "feat: POST /admin/models/fetch endpoint"
 
 ## Task 3.7: Phase 3 checkpoint
 
-- [ ] **Step 1: Full test suite**
+- [x] **Step 1: Full test suite**
 
 Run: `npm test`
 Expected: 96+ tests pass
 
-- [ ] **Step 2: Type check**
+- [x] **Step 2: Type check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors
 
-- [ ] **Step 3: Commit + tag**
+- [x] **Step 3: Commit + tag**
 
 ```bash
 git add .

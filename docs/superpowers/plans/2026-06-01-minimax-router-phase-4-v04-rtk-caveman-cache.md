@@ -16,7 +16,7 @@
 - Create: `src/db/repos/settings.ts`
 - Create: `src/db/repos/settings.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/db/repos/settings.test.ts`:
 ```ts
@@ -60,12 +60,12 @@ describe("settings repo", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/db/repos/settings.ts`**
+- [x] **Step 3: Write `src/db/repos/settings.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -95,12 +95,12 @@ export function setSetting(db: Database.Database, key: string, value: unknown): 
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 100 tests (4 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/db/repos/settings.ts src/db/repos/settings.test.ts
@@ -117,7 +117,7 @@ git commit -m "feat: settings repo (KV with 1s cache)"
 - Create: `src/rtk/applyFilter.ts`
 - Create: `src/rtk/{constants,applyFilter}.test.ts`
 
-- [ ] **Step 1: Write `src/rtk/constants.ts`**
+- [x] **Step 1: Write `src/rtk/constants.ts`**
 
 ```ts
 export const RAW_CAP = 10 * 1024 * 1024;
@@ -129,7 +129,7 @@ export const SMART_TRUNCATE_MIN_LINES = 250;
 export const DEDUP_LINE_MAX = 2000;
 ```
 
-- [ ] **Step 2: Write `src/rtk/types.ts`**
+- [x] **Step 2: Write `src/rtk/types.ts`**
 
 ```ts
 export interface FilterFn {
@@ -150,7 +150,7 @@ export interface CompressStats {
 }
 ```
 
-- [ ] **Step 3: Write failing test for applyFilter**
+- [x] **Step 3: Write failing test for applyFilter**
 
 `src/rtk/applyFilter.test.ts`:
 ```ts
@@ -183,7 +183,7 @@ describe("safeApply", () => {
 });
 ```
 
-- [ ] **Step 4: Write `src/rtk/applyFilter.ts`**
+- [x] **Step 4: Write `src/rtk/applyFilter.ts`**
 
 ```ts
 import type { FilterFn } from "./types.js";
@@ -202,12 +202,12 @@ export function safeApply(fn: FilterFn | undefined, text: string): string {
 }
 ```
 
-- [ ] **Step 5: Run tests (expect pass)**
+- [x] **Step 5: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 104 tests (4 new)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/rtk/
@@ -223,7 +223,7 @@ git commit -m "feat: rtk core (constants, types, applyFilter)"
 - Create: `src/rtk/filters/dedupLog.ts`
 - Create: `src/rtk/filters/{smartTruncate,dedupLog}.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/rtk/filters/smartTruncate.test.ts`:
 ```ts
@@ -257,7 +257,7 @@ describe("dedupLog", () => {
 });
 ```
 
-- [ ] **Step 2: Write `src/rtk/filters/smartTruncate.ts`**
+- [x] **Step 2: Write `src/rtk/filters/smartTruncate.ts`**
 
 ```ts
 import { SMART_TRUNCATE_HEAD, SMART_TRUNCATE_TAIL, SMART_TRUNCATE_MIN_LINES } from "../constants.js";
@@ -274,7 +274,7 @@ export const smartTruncate: FilterFn = (text: string): string => {
 smartTruncate.filterName = "smart-truncate";
 ```
 
-- [ ] **Step 3: Write `src/rtk/filters/dedupLog.ts`**
+- [x] **Step 3: Write `src/rtk/filters/dedupLog.ts`**
 
 ```ts
 import { DEDUP_LINE_MAX } from "../constants.js";
@@ -304,12 +304,12 @@ export const dedupLog: FilterFn = (text: string): string => {
 dedupLog.filterName = "dedup-log";
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 106 tests (2 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/rtk/filters/
@@ -326,7 +326,7 @@ git commit -m "feat: rtk filters (smartTruncate, dedupLog)"
 - Create: `src/rtk/index.ts`
 - Create: `src/rtk/{autodetect,index}.test.ts`
 
-- [ ] **Step 1: Write `src/rtk/registry.ts`**
+- [x] **Step 1: Write `src/rtk/registry.ts`**
 
 ```ts
 import type { FilterFn } from "./types.js";
@@ -343,7 +343,7 @@ export function getFilter(name: string): FilterFn | undefined {
 }
 ```
 
-- [ ] **Step 2: Write `src/rtk/autodetect.ts`**
+- [x] **Step 2: Write `src/rtk/autodetect.ts`**
 
 ```ts
 import { getFilter } from "./registry.js";
@@ -365,7 +365,7 @@ export function autoDetectFilter(text: string): FilterFn {
 }
 ```
 
-- [ ] **Step 3: Write failing test for compressMessages**
+- [x] **Step 3: Write failing test for compressMessages**
 
 `src/rtk/index.test.ts`:
 ```ts
@@ -422,7 +422,7 @@ describe("compressMessages", () => {
 });
 ```
 
-- [ ] **Step 4: Write `src/rtk/index.ts`**
+- [x] **Step 4: Write `src/rtk/index.ts`**
 
 ```ts
 import { RAW_CAP, MIN_COMPRESS_SIZE } from "./constants.js";
@@ -517,12 +517,12 @@ export function formatRtkLog(stats: CompressStats | null): string | null {
 }
 ```
 
-- [ ] **Step 5: Run tests (expect pass)**
+- [x] **Step 5: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 113 tests (7 new)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/rtk/
@@ -538,7 +538,7 @@ git commit -m "feat: rtk compressMessages + formatRtkLog"
 - Create: `src/caveman/index.ts`
 - Create: `src/caveman/index.test.ts`
 
-- [ ] **Step 1: Write `src/caveman/prompts.ts`**
+- [x] **Step 1: Write `src/caveman/prompts.ts`**
 
 ```ts
 export const CAVEMAN_PROMPTS: Record<string, string> = {
@@ -549,7 +549,7 @@ export const CAVEMAN_PROMPTS: Record<string, string> = {
 export type CavemanLevel = "off" | "terse" | "ultra";
 ```
 
-- [ ] **Step 2: Write failing test**
+- [x] **Step 2: Write failing test**
 
 `src/caveman/index.test.ts`:
 ```ts
@@ -603,7 +603,7 @@ describe("injectCaveman", () => {
 });
 ```
 
-- [ ] **Step 3: Write `src/caveman/index.ts`**
+- [x] **Step 3: Write `src/caveman/index.ts`**
 
 ```ts
 import { CAVEMAN_PROMPTS } from "./prompts.js";
@@ -672,12 +672,12 @@ function injectClaudeSystem(body: any, prompt: string): void {
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 119 tests (6 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/caveman/
@@ -692,7 +692,7 @@ git commit -m "feat: caveman prompt injection (Anthropic + OpenAI shapes)"
 - Create: `src/cache-injection.ts`
 - Create: `src/cache-injection.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/cache-injection.test.ts`:
 ```ts
@@ -768,12 +768,12 @@ describe("augmentRequest", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/cache-injection.ts`**
+- [x] **Step 3: Write `src/cache-injection.ts`**
 
 ```ts
 export function addDualCacheBreakpoints(body: any, respectCallerMarkers = true): void {
@@ -827,12 +827,12 @@ export async function augmentRequest(body: any, settings: { caveman?: { level: s
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 126 tests (7 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/cache-injection.ts src/cache-injection.test.ts
@@ -846,7 +846,7 @@ git commit -m "feat: dual cache_control breakpoint + augmentRequest orchestrator
 **Files:**
 - Modify: `src/server.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/server.test.ts` (append):
 ```ts
@@ -894,12 +894,12 @@ describe("augmentation in proxy", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Add to `handleProxy` in `src/server.ts`**
+- [x] **Step 3: Add to `handleProxy` in `src/server.ts`**
 
 Add imports:
 ```ts
@@ -925,12 +925,12 @@ if (rtkSetting?.enabled) {
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 128 tests (2 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/server.test.ts
@@ -941,17 +941,17 @@ git commit -m "feat: wire caveman + cache injection + RTK into handleProxy"
 
 ## Task 4.8: Phase 4 checkpoint
 
-- [ ] **Step 1: Full test suite**
+- [x] **Step 1: Full test suite**
 
 Run: `npm test`
 Expected: 128+ tests pass
 
-- [ ] **Step 2: Type check**
+- [x] **Step 2: Type check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors
 
-- [ ] **Step 3: Commit + tag**
+- [x] **Step 3: Commit + tag**
 
 ```bash
 git add .

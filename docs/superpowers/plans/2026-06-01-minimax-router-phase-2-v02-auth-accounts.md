@@ -19,7 +19,7 @@
 - Create: `src/db/migrations/001-initial.ts`
 - Create: `src/db/migrations/002-admin-key.ts`
 
-- [ ] **Step 1: Write failing test for db open + migrate**
+- [x] **Step 1: Write failing test for db open + migrate**
 
 `src/db/index.test.ts`:
 ```ts
@@ -89,12 +89,12 @@ describe("openDb", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — `./index.js` not found
 
-- [ ] **Step 3: Write `src/db/migrations/001-initial.ts`**
+- [x] **Step 3: Write `src/db/migrations/001-initial.ts`**
 
 ```ts
 export const migration_001 = {
@@ -248,7 +248,7 @@ export const migration_001 = {
 };
 ```
 
-- [ ] **Step 4: Write `src/db/migrations/002-admin-key.ts`**
+- [x] **Step 4: Write `src/db/migrations/002-admin-key.ts`**
 
 ```ts
 export const migration_002 = {
@@ -258,7 +258,7 @@ export const migration_002 = {
 };
 ```
 
-- [ ] **Step 5: Write `src/db/migrations/index.ts`**
+- [x] **Step 5: Write `src/db/migrations/index.ts`**
 
 ```ts
 import { migration_001 } from "./001-initial.js";
@@ -284,7 +284,7 @@ export function migrate(db: Database.Database): void {
 }
 ```
 
-- [ ] **Step 6: Write `src/db/index.ts`**
+- [x] **Step 6: Write `src/db/index.ts`**
 
 ```ts
 import Database from "better-sqlite3";
@@ -322,17 +322,17 @@ export function openDb(): Database.Database {
 }
 ```
 
-- [ ] **Step 7: Install better-sqlite3**
+- [x] **Step 7: Install better-sqlite3**
 
 Run: `npm install better-sqlite3 @types/better-sqlite3`
 Expected: deps installed
 
-- [ ] **Step 8: Run test (expect pass)**
+- [x] **Step 8: Run test (expect pass)**
 
 Run: `npm test`
 Expected: 20 tests (3 new)
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/db/ package.json package-lock.json
@@ -349,7 +349,7 @@ git commit -m "feat: db open + 7 tables + 11 seed models + 5 settings"
 - Create: `src/db/repos/users.test.ts`
 - Create: `src/db/repos/accounts.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/db/repos/users.test.ts`:
 ```ts
@@ -475,12 +475,12 @@ describe("accounts repo", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — repos don't exist
 
-- [ ] **Step 3: Write `src/db/repos/users.ts`**
+- [x] **Step 3: Write `src/db/repos/users.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -555,7 +555,7 @@ export function listUsers(db: Database.Database): User[] {
 }
 ```
 
-- [ ] **Step 4: Write `src/db/repos/accounts.ts`**
+- [x] **Step 4: Write `src/db/repos/accounts.ts`**
 
 ```ts
 import type Database from "better-sqlite3";
@@ -635,12 +635,12 @@ export function clearExpiredModelLocks(db: Database.Database): void {
 }
 ```
 
-- [ ] **Step 5: Run tests (expect pass)**
+- [x] **Step 5: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 31 tests (11 new)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/db/repos/
@@ -658,7 +658,7 @@ git commit -m "feat: users + accounts + model_locks repos"
 - Create: `src/accounts/state.ts`
 - Create: `src/accounts/{backoff,errorRules,state}.test.ts`
 
-- [ ] **Step 1: Write `src/accounts/types.ts`**
+- [x] **Step 1: Write `src/accounts/types.ts`**
 
 ```ts
 export type CreditType = "payg" | "token-plan";
@@ -681,7 +681,7 @@ export interface ModelLock {
 }
 ```
 
-- [ ] **Step 2: Write failing test for backoff**
+- [x] **Step 2: Write failing test for backoff**
 
 `src/accounts/backoff.test.ts`:
 ```ts
@@ -699,12 +699,12 @@ describe("getQuotaCooldown", () => {
 });
 ```
 
-- [ ] **Step 3: Run test (expect fail)**
+- [x] **Step 3: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 4: Write `src/accounts/backoff.ts`**
+- [x] **Step 4: Write `src/accounts/backoff.ts`**
 
 ```ts
 const BASE_MS = 1000;
@@ -720,7 +720,7 @@ export function getQuotaCooldown(backoffLevel: number): number {
 export const BACKOFF_MAX_LEVEL = 8;
 ```
 
-- [ ] **Step 5: Write failing test for errorRules**
+- [x] **Step 5: Write failing test for errorRules**
 
 `src/accounts/errorRules.test.ts`:
 ```ts
@@ -775,12 +775,12 @@ describe("checkFallbackError", () => {
 });
 ```
 
-- [ ] **Step 6: Run test (expect fail)**
+- [x] **Step 6: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 7: Write `src/accounts/errorRules.ts`**
+- [x] **Step 7: Write `src/accounts/errorRules.ts`**
 
 ```ts
 import { getQuotaCooldown, BACKOFF_MAX_LEVEL } from "./backoff.js";
@@ -847,7 +847,7 @@ export function checkFallbackError(
 }
 ```
 
-- [ ] **Step 8: Write failing test for state**
+- [x] **Step 8: Write failing test for state**
 
 `src/accounts/state.test.ts`:
 ```ts
@@ -901,12 +901,12 @@ describe("state machine", () => {
 });
 ```
 
-- [ ] **Step 9: Run test (expect fail)**
+- [x] **Step 9: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 10: Write `src/accounts/state.ts`**
+- [x] **Step 10: Write `src/accounts/state.ts`**
 
 ```ts
 import { checkFallbackError } from "./errorRules.js";
@@ -958,12 +958,12 @@ export function filterAvailableAccounts(accounts: AccountState[], excludeId?: st
 }
 ```
 
-- [ ] **Step 11: Run tests (expect pass)**
+- [x] **Step 11: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 50 tests (19 new)
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add src/accounts/
@@ -978,7 +978,7 @@ git commit -m "feat: accounts state machine (backoff + errorRules + state)"
 - Create: `src/accounts/selection.ts`
 - Create: `src/accounts/selection.test.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/accounts/selection.test.ts`:
 ```ts
@@ -1039,12 +1039,12 @@ describe("selectAccount", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/accounts/selection.ts`**
+- [x] **Step 3: Write `src/accounts/selection.ts`**
 
 ```ts
 import { filterAvailableAccounts } from "./state.js";
@@ -1069,12 +1069,12 @@ export function selectAccount(
 }
 ```
 
-- [ ] **Step 4: Run test (expect pass)**
+- [x] **Step 4: Run test (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 58 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/accounts/selection.ts src/accounts/selection.test.ts
@@ -1089,7 +1089,7 @@ git commit -m "feat: accounts/selection (sticky + round-robin)"
 - Create: `src/auth.ts`
 - Create: `src/auth.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/auth.test.ts`:
 ```ts
@@ -1160,12 +1160,12 @@ describe("requireAdmin", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests (expect fail)**
+- [x] **Step 2: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Write `src/auth.ts`**
+- [x] **Step 3: Write `src/auth.ts`**
 
 ```ts
 import type { Context, Next } from "hono";
@@ -1213,12 +1213,12 @@ export async function requireAdmin(c: Context, next: Next): Promise<Response | v
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 65 tests (7 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/auth.ts src/auth.test.ts
@@ -1233,7 +1233,7 @@ git commit -m "feat: auth middleware (apiKey + admin with separate keys)"
 - Create: `scripts/add-user.ts`
 - Create: `scripts/add-account.ts`
 
-- [ ] **Step 1: Write `scripts/add-user.ts`**
+- [x] **Step 1: Write `scripts/add-user.ts`**
 
 ```ts
 #!/usr/bin/env tsx
@@ -1257,7 +1257,7 @@ console.log(`  api_key:  ${user.api_key}    (use for proxy requests)`);
 console.log(`  admin_key: ${user.admin_key}    (use for /admin/* routes)`);
 ```
 
-- [ ] **Step 2: Write `scripts/add-account.ts`**
+- [x] **Step 2: Write `scripts/add-account.ts`**
 
 ```ts
 #!/usr/bin/env tsx
@@ -1297,19 +1297,19 @@ log.info({ id: account.id, label }, "account created");
 console.log(`Account created: ${account.label} (${account.id})`);
 ```
 
-- [ ] **Step 3: Install ulid**
+- [x] **Step 3: Install ulid**
 
 Run: `npm install ulid`
 Expected: dep added
 
-- [ ] **Step 4: Manual test**
+- [x] **Step 4: Manual test**
 
 Run: `ROUTER_DB_PATH=/tmp/test-cli.db tsx scripts/add-user.ts --name alice`
 Expected: prints api_key + admin_key
 Run: `ROUTER_DB_PATH=/tmp/test-cli.db tsx scripts/add-account.ts --user 1 --label "PAYG main" --credit-type payg --api-key mm_test`
 Expected: prints account id
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/ package.json package-lock.json
@@ -1323,7 +1323,7 @@ git commit -m "feat: CLI scripts (add-user, add-account)"
 **Files:**
 - Modify: `src/server.ts`
 
-- [ ] **Step 1: Write integration test for 503-no-accounts case**
+- [x] **Step 1: Write integration test for 503-no-accounts case**
 
 `src/server.test.ts` (append):
 ```ts
@@ -1368,12 +1368,12 @@ describe("handleProxy with auth + accounts", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — server.ts doesn't have auth wired
 
-- [ ] **Step 3: Rewrite `src/server.ts`**
+- [x] **Step 3: Rewrite `src/server.ts`**
 
 ```ts
 import { Hono } from "hono";
@@ -1468,12 +1468,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 67 tests (2 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/server.test.ts
@@ -1484,17 +1484,17 @@ git commit -m "feat: wire auth + account selection into handleProxy"
 
 ## Task 2.8: Phase 2 checkpoint
 
-- [ ] **Step 1: Run full suite**
+- [x] **Step 1: Run full suite**
 
 Run: `npm test`
 Expected: 67+ tests pass
 
-- [ ] **Step 2: Type check**
+- [x] **Step 2: Type check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors
 
-- [ ] **Step 3: Commit + tag**
+- [x] **Step 3: Commit + tag**
 
 ```bash
 git add .
