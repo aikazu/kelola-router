@@ -12,6 +12,7 @@ import { listEnabledAccounts, listAccounts, updateAccount, createAccount, enable
 import { createClientKey, genClientKey, enableClientKey, deleteClientKey, disableClientKey } from "./db/repos/client_keys.js";
 import { enableModel, disableModel } from "./db/repos/models.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
+import { truncateBody, headersToJson } from "./proxy/capture.js";
 import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
 import { fetchModels } from "./providers/listModels.js";
@@ -293,6 +294,9 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
           total_tokens: total, cost_usd: cost,
           latency_ms: Date.now() - startMs, status_code: resp.status,
           base_resp_code: undefined, stream: 1, rtk_bytes_saved: 0,
+          request_body: truncateBody(text),
+          request_headers: headersToJson(c.req.raw.headers),
+          response_headers: headersToJson(resp.headers),
         });
       });
       return piped;
@@ -333,6 +337,10 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
       base_resp_code: undefined,
       stream: 0,
       rtk_bytes_saved: 0,
+      request_body: truncateBody(text),
+      response_body: truncateBody(respBody),
+      request_headers: headersToJson(c.req.raw.headers),
+      response_headers: headersToJson(resp.headers),
     });
     return c.body(respBody, resp.status as any, { "content-type": resp.headers.get("content-type") ?? "application/json" });
   } catch (e: any) {
