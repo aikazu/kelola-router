@@ -1,0 +1,40 @@
+import type Database from "better-sqlite3";
+import { listAccountsByUser } from "../db/repos/accounts.js";
+import { listUsers } from "../db/repos/users.js";
+import { pullQuota } from "../providers/quota.js";
+import { cleanupOldQuota } from "../db/repos/quotaSnapshots.js";
+import { log } from "../util/log.js";
+
+let intervalHandle: NodeJS.Timeout | null = null;
+
+export function startQuotaPuller(
+  db: Database.Database,
+  intervalMs: number,
+): void {
+  if (intervalHandle) return;
+
+  const tick = async () => {
+    try {
+      for (const u of listUsers(db)) {
+        for (const a of listAccountsByUser(db, u.id)) {
+          if (!a.enabled) continue;
+          if (a.credit_type !== "token-plan") continue;
+          const r = await pullQuota(db, a);
+          if (!r.ok) log.warn({ account: a.id, error: r.error }, "quota pull failed");
+        }
+      }
+      cleanupOldQuota(db, 30);
+    } catch (e: unknown) {
+      log.error({ err: (e as Error).message }, "quota tick failed");
+    }
+  };
+
+  tick();
+  intervalHandle = setInterval(tick, intervalMs);
+  log.info({ intervalMs }, "quota puller started");
+}
+
+export function stopQuotaPuller(): void {
+  if (intervalHandle) clearInterval(intervalHandle);
+  intervalHandle = null;
+}
