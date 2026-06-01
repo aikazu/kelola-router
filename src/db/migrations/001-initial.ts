@@ -1,33 +1,25 @@
+/**
+ * Single consolidated initial migration. Final schema for fresh deploys.
+ * The older 002 (admin key) + 003 (drop users) are retained as no-op stubs
+ * for users who already have a v3 DB; new deploys only see this file.
+ */
 export const migration_001 = {
   id: 1,
   name: "initial",
   sql: `
-    CREATE TABLE IF NOT EXISTS users (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT NOT NULL,
-      api_key     TEXT NOT NULL UNIQUE,
-      enabled     BOOLEAN NOT NULL DEFAULT 1,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
     CREATE TABLE IF NOT EXISTS accounts (
-      id                  TEXT PRIMARY KEY,
-      user_id             INTEGER NOT NULL,
-      label               TEXT NOT NULL,
-      provider            TEXT NOT NULL DEFAULT 'minimax',
-      credit_type         TEXT NOT NULL,
-      api_key             TEXT NOT NULL,
-      base_url            TEXT,
-      enabled             BOOLEAN NOT NULL DEFAULT 1,
-      rate_limited_until  TEXT,
-      backoff_level       INTEGER NOT NULL DEFAULT 0,
-      last_error          TEXT,
-      status              TEXT NOT NULL DEFAULT 'active',
-      position            INTEGER NOT NULL DEFAULT 0,
-      created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      id                 TEXT PRIMARY KEY,
+      label              TEXT NOT NULL,
+      credit_type        TEXT NOT NULL CHECK (credit_type IN ('payg','token-plan')),
+      api_key            TEXT NOT NULL UNIQUE,
+      base_url           TEXT,
+      enabled            INTEGER NOT NULL DEFAULT 1,
+      rate_limited_until TEXT,
+      backoff_level      INTEGER NOT NULL DEFAULT 0,
+      last_error         TEXT,
+      status             TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','error','disabled')),
+      created_at         TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id, position);
 
     CREATE TABLE IF NOT EXISTS account_model_locks (
       account_id    TEXT NOT NULL,
@@ -37,9 +29,17 @@ export const migration_001 = {
       FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS client_keys (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      label       TEXT NOT NULL,
+      key         TEXT NOT NULL UNIQUE,
+      enabled     INTEGER NOT NULL DEFAULT 1,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS request_logs (
       id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id                 INTEGER NOT NULL,
+      client_key_id           INTEGER,
       account_id              TEXT,
       model                   TEXT NOT NULL,
       endpoint                TEXT NOT NULL,
@@ -50,21 +50,19 @@ export const migration_001 = {
       cache_read_tokens       INTEGER NOT NULL DEFAULT 0,
       total_tokens            INTEGER NOT NULL DEFAULT 0,
       cost_usd                REAL NOT NULL DEFAULT 0,
-      latency_ms              INTEGER NOT NULL,
+      latency_ms              INTEGER NOT NULL DEFAULT 0,
       ttft_ms                 INTEGER,
       status_code             INTEGER NOT NULL,
       base_resp_code          INTEGER,
-      stream                  BOOLEAN NOT NULL DEFAULT 0,
+      stream                  INTEGER NOT NULL DEFAULT 0,
       relay_path              TEXT,
       proxy_path              TEXT,
       rtk_bytes_saved         INTEGER NOT NULL DEFAULT 0,
       caveman_level           TEXT,
       error_message           TEXT,
-      created_at              TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL
+      created_at              TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE INDEX IF NOT EXISTS idx_logs_user_created ON request_logs(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_logs_client_created ON request_logs(client_key_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_logs_account_created ON request_logs(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_logs_model_created ON request_logs(model, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_logs_status ON request_logs(status_code, created_at DESC);
@@ -92,7 +90,7 @@ export const migration_001 = {
       family                TEXT,
       upstream_model        TEXT NOT NULL,
       context_window        INTEGER,
-      thinking_enabled      BOOLEAN NOT NULL DEFAULT 0,
+      thinking_enabled      INTEGER NOT NULL DEFAULT 0,
       thinking_budget       INTEGER,
       pricing_input         REAL,
       pricing_output        REAL,
@@ -101,19 +99,10 @@ export const migration_001 = {
       pricing_tiers         TEXT,
       capabilities          TEXT,
       source                TEXT NOT NULL DEFAULT 'manual',
-      enabled               BOOLEAN NOT NULL DEFAULT 1,
+      enabled               INTEGER NOT NULL DEFAULT 1,
       created_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_models_family ON models(family, enabled);
-
-    CREATE TABLE IF NOT EXISTS user_settings (
-      user_id     INTEGER NOT NULL,
-      key         TEXT NOT NULL,
-      value       TEXT NOT NULL,
-      updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (user_id, key),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
 
     CREATE TABLE IF NOT EXISTS settings (
       key         TEXT PRIMARY KEY,
@@ -125,6 +114,7 @@ export const migration_001 = {
       ('rtk', '{"enabled": true, "minCompressSize": 500, "rawCap": 10485760, "filters": ["smart-truncate", "dedup-log"]}'),
       ('caveman', '{"level": "off"}'),
       ('caching', '{"autoBreakpoints": true, "respectCallerMarkers": true}'),
+      ('minimax', '{"upstreamFormat": "auto", "reasoningSplitDefault": false, "m3DefaultMaxCompletionTokens": 131072}'),
       ('transport', '{"relay": null, "proxy": null}'),
       ('build', '{"version": "0.2.0", "schemaVersion": 2}');
 
@@ -133,7 +123,7 @@ export const migration_001 = {
         '{"base":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null},"high":{"input":1.20,"output":4.80,"cacheRead":0.24,"cacheWrite":null},"promotional":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null}}',
         'builtin'),
       ('MiniMax-M3-thinking',    'MiniMax M3 (thinking)',  'm3',   'MiniMax-M3',        1000000, 1, 0.60, 2.40, 0.12, NULL,
-        '{"base":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null},"high":{"input":1.20,"output":4.80,"cacheRead":0.24,"cacheWrite":null},"promotional":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null}}',
+        '{"base":{"input":0.60,"output":0.60,"cacheRead":0.12,"cacheWrite":null},"high":{"input":1.20,"output":1.20,"cacheRead":0.24,"cacheWrite":null},"promotional":{"input":0.30,"output":0.30,"cacheRead":0.06,"cacheWrite":null}}',
         'builtin'),
       ('MiniMax-M2.7',           'MiniMax M2.7',           'm2.7', 'MiniMax-M2.7',      204800,  0, 0.30, 1.20, 0.06, 0.375, NULL, 'builtin'),
       ('MiniMax-M2.7-thinking',  'MiniMax M2.7 (thinking)','m2.7', 'MiniMax-M2.7',      204800,  1, 0.30, 1.20, 0.06, 0.375, NULL, 'builtin'),

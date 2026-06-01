@@ -388,6 +388,7 @@ describe("cross-format proxy (OpenAI client → Anthropic upstream)", () => {
     createAccount(db, { id: "acc_xf", label: "L", credit_type: "payg", api_key: "kk" });
     db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('minimax', ?)`)
       .run(JSON.stringify({ upstreamFormat: "anthropic" }));
+    clearCache();
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
       const sent = JSON.parse((init as RequestInit).body as string);
       // Verify body was converted to Anthropic shape

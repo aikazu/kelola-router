@@ -1,21 +1,18 @@
 import type Database from "better-sqlite3";
 
 /**
- * Drop multi-tenant scaffolding (users, user_settings) and introduce
- * client_keys table: each row is a router bearer credential for one
- * client/user. The accounts table is kept (no more user_id) and becomes
- * the pool of MiniMax upstream keys for fallback.
+ * Legacy migration: drop users + user_settings, add client_keys, rebuild
+ * accounts + request_logs without user_id. No-op for fresh deploys (001
+ * already has the final schema). Kept so v1-v3 DBs upgrade to v3 state.
  */
 export const migration_003 = {
   id: 3,
-  name: "client_keys",
-  // Idempotent: only run if legacy users table still exists
+  name: "client_keys_legacy",
   condition: (db: Database.Database) => {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
     return tables.some(t => t.name === "users");
   },
   sql: `
-    -- Rebuild accounts without user_id
     CREATE TABLE accounts_new (
       id                 TEXT PRIMARY KEY,
       label              TEXT NOT NULL,
@@ -37,7 +34,6 @@ export const migration_003 = {
     DROP TABLE accounts;
     ALTER TABLE accounts_new RENAME TO accounts;
 
-    -- Rebuild request_logs: drop user_id, add client_key_id
     CREATE TABLE request_logs_new (
       id                      INTEGER PRIMARY KEY AUTOINCREMENT,
       client_key_id           INTEGER,
@@ -77,7 +73,6 @@ export const migration_003 = {
     DROP TABLE request_logs;
     ALTER TABLE request_logs_new RENAME TO request_logs;
 
-    -- New table: client_keys (router bearer credentials)
     CREATE TABLE client_keys (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       label       TEXT NOT NULL,
