@@ -24,31 +24,49 @@ export interface RequestLog {
   caveman_level: string | null;
   error_message: string | null;
   created_at: string;
+  request_body: string | null;
+  response_body: string | null;
+  request_headers: string | null;
+  response_headers: string | null;
+  error: string | null;
 }
 
-export type RequestLogInsert = Omit<RequestLog, "id" | "created_at" | "ttft_ms" | "base_resp_code" | "relay_path" | "proxy_path" | "caveman_level" | "error_message"> & {
+export type RequestLogInsert = Omit<RequestLog, "id" | "created_at" | "ttft_ms" | "base_resp_code" | "relay_path" | "proxy_path" | "caveman_level" | "error_message" | "request_body" | "response_body" | "request_headers" | "response_headers" | "error"> & {
   ttft_ms?: number | null;
   base_resp_code?: number | null;
   relay_path?: string | null;
   proxy_path?: string | null;
   caveman_level?: string | null;
   error_message?: string | null;
+  request_body?: string | null;
+  response_body?: string | null;
+  request_headers?: string | null;
+  response_headers?: string | null;
+  error?: string | null;
 };
 
 export function insertRequestLog(db: Database.Database, log: RequestLogInsert): number {
   const info = db.prepare(`
     INSERT INTO request_logs (client_key_id, account_id, model, endpoint, format, prompt_tokens, completion_tokens,
       cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, latency_ms, ttft_ms, status_code,
-      base_resp_code, stream, relay_path, proxy_path, rtk_bytes_saved, caveman_level, error_message)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      base_resp_code, stream, relay_path, proxy_path, rtk_bytes_saved, caveman_level, error_message,
+      request_body, response_body, request_headers, response_headers, error)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     log.client_key_id, log.account_id, log.model, log.endpoint, log.format,
     log.prompt_tokens, log.completion_tokens, log.cache_creation_tokens, log.cache_read_tokens, log.total_tokens,
     log.cost_usd, log.latency_ms, log.ttft_ms ?? null, log.status_code, log.base_resp_code ?? null,
     log.stream ? 1 : 0, log.relay_path ?? null, log.proxy_path ?? null, log.rtk_bytes_saved,
     log.caveman_level ?? null, log.error_message ?? null,
+    log.request_body ?? null, log.response_body ?? null,
+    log.request_headers ?? null, log.response_headers ?? null, log.error ?? null,
   );
   return info.lastInsertRowid as number;
+}
+
+export function getRequestLogById(db: Database.Database, id: number): RequestLog | null {
+  const row = db.prepare("SELECT * FROM request_logs WHERE id = ?").get(id) as RequestLog | undefined;
+  return row ?? null;
 }
 
 export interface LogFilter {
