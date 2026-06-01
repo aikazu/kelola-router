@@ -26,4 +26,23 @@ app.post("/v1/chat/completions", async (c) => {
   });
 });
 
+app.post("/v1/messages", async (c) => {
+  const body = await c.req.json();
+  const url = `${getBaseUrl({ provider: "minimax", baseUrl: null }, "anthropic")}/v1/messages`;
+  const apiKey = process.env.MINIMAX_API_KEY ?? "mm_test";
+  const headers = buildHeaders(
+    { provider: "minimax", apiKey },
+    body.stream === true,
+    "anthropic",
+  );
+  const resp = await proxyAwareFetch(
+    url,
+    { method: "POST", headers, body: JSON.stringify(body) },
+    { relay: null, proxy: null },
+  );
+  return c.body(await resp.text(), resp.status as any, {
+    "content-type": resp.headers.get("content-type") ?? "application/json",
+  });
+});
+
 export { app };
