@@ -6,3 +6,5 @@ data/
 .DS_Store
 docs/idea/
 .superpowers
+client/dist/
+client/node_modules/

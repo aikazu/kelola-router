@@ -1,0 +1,47 @@
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../lib/api";
+import { Icon, type IconName } from "../components/Icon";
+
+interface NavItem { key: string; label: string; href: string; icon: IconName; }
+
+const NAV: NavItem[] = [
+  { key: "overview", label: "Overview", href: "/admin", icon: "overview" },
+  { key: "usage", label: "Usage", href: "/admin/usage", icon: "usage" },
+  { key: "client-keys", label: "Client keys", href: "/admin/client-keys", icon: "client-keys" },
+  { key: "accounts", label: "Upstream", href: "/admin/accounts", icon: "accounts" },
+  { key: "models", label: "Models", href: "/admin/models", icon: "models" },
+  { key: "quota", label: "Quota", href: "/admin/quota", icon: "quota" },
+  { key: "settings", label: "Settings", href: "/admin/settings", icon: "settings" },
+];
+
+export function Sidebar({ current }: { current: string }) {
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => apiFetch<{ authed: boolean; passwordSet: boolean }>("/api/me"),
+    retry: false,
+  });
+  return (
+    <aside class="sidebar">
+      <div class="brand">
+        kelola-router
+        <span class="brand-tag">{me?.passwordSet ? "PROTECTED" : "OPEN MODE"}</span>
+      </div>
+      <nav class="nav">
+        {NAV.map(n => (
+          <a key={n.key} href={`#${n.href}`} class={`nav-item${n.key === current ? " active" : ""}`}>
+            <span class="nav-icon"><Icon name={n.icon} /></span>
+            <span class="nav-label">{n.label}</span>
+          </a>
+        ))}
+      </nav>
+      <div class="user-card">
+        <span>v0.9</span>
+        {me?.passwordSet && (
+          <button onClick={() => apiFetch("/api/logout", { method: "POST" }).then(() => location.reload())}>
+            Sign out
+          </button>
+        )}
+      </div>
+    </aside>
+  );
+}
