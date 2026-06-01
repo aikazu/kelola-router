@@ -47,3 +47,56 @@ describe("checkFallbackError", () => {
     expect(d.cooldownMs).toBe(5000);
   });
 });
+
+describe("MiniMax base_resp.status_code mapping", () => {
+  it("1002 (rate limit) → exponential backoff", () => {
+    const d = checkFallbackError(200, "", 1002, 0);
+    expect(d.cooldownMs).toBeGreaterThan(0);
+    expect(d.newBackoffLevel).toBe(1);
+  });
+
+  it("1008 (insufficient balance) → permanent disable (cooldown 0, source=balance)", () => {
+    const d = checkFallbackError(200, "", 1008, 0);
+    expect(d.cooldownMs).toBe(0);
+    expect(d.source).toBe("balance");
+  });
+
+  it("1004 (auth fail) → no cooldown", () => {
+    const d = checkFallbackError(200, "", 1004, 0);
+    expect(d.cooldownMs).toBe(0);
+  });
+
+  it("1001 (timeout) → short retry cooldown", () => {
+    const d = checkFallbackError(200, "", 1001, 0);
+    expect(d.cooldownMs).toBeGreaterThan(0);
+    expect(d.cooldownMs).toBeLessThan(60_000);
+  });
+
+  it("1013 (internal) → default 5s cooldown", () => {
+    const d = checkFallbackError(200, "", 1013, 0);
+    expect(d.cooldownMs).toBe(5000);
+  });
+
+  it("1027 (output error) → short backoff", () => {
+    const d = checkFallbackError(200, "", 1027, 0);
+    expect(d.cooldownMs).toBeGreaterThan(0);
+  });
+
+  it("1039 (token limit) → no cooldown, source=token-limit", () => {
+    const d = checkFallbackError(200, "", 1039, 0);
+    expect(d.cooldownMs).toBe(0);
+    expect(d.source).toBe("token-limit");
+  });
+
+  it("2013 (param error) → no cooldown, source=param", () => {
+    const d = checkFallbackError(200, "", 2013, 0);
+    expect(d.cooldownMs).toBe(0);
+    expect(d.source).toBe("param");
+  });
+
+  it("unknown base_resp code → falls through to default 5s", () => {
+    const d = checkFallbackError(200, "", 9999, 0);
+    expect(d.cooldownMs).toBe(5000);
+    expect(d.source).toBe("default");
+  });
+});
