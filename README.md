@@ -33,10 +33,12 @@
 - 🌍 **Region-aware** — `MINIMAX_REGION=intl|cn` switch
 - 🗃️ **SQLite-WAL storage** — zero-config persistence with idempotent migrations
 - 📊 **Per-request telemetry** — token usage, latency, cache hits, account attribution
+- 👥 **Client keys with per-key usage** — one bearer = one client identity; admin can see per-key breakdown on `/admin/usage`
+- 🔁 **Pool fallback across upstream MiniMax keys** — admin adds N MiniMax keys; router fans out + backoffs + locks per-model
 - 🪶 **RTK compression + Caveman mode + dual cache injection** — per-setting toggles in dashboard
 - 🌊 **SSE stream pass-through** — OpenAI + Anthropic streaming with usage extraction on flush
-- 🛠️ **CLI scripts** — `add-user`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 170+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
+- 🧪 **Strict TDD** — 163+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🛣️ Roadmap
 
@@ -46,8 +48,9 @@
 | 2 | **v0.2** | ✅ shipped | SQLite, auth, multi-account state machine, CLI |
 | 3 | **v0.3** | ✅ shipped | Model registry, alias resolution, tiered pricing, live fetch |
 | 4 | **v0.4** | ✅ shipped | RTK compression, Caveman mode, dual cache injection |
-| 5 | **v0.5** | ✅ shipped | Quota scheduler, dashboard UI (6 pages), SSE stream usage extraction |
+| 5 | **v0.5** | ✅ shipped | Quota scheduler, dashboard UI (7 pages), SSE stream usage extraction |
 | 6 | **v0.6** | ✅ shipped | Full transport (relay + http/socks + env), Dockerfile, Caddyfile, VPS docs |
+| 7 | **v0.7** | ✅ shipped | Drop multi-tenant: client_keys vs accounts split, per-key usage, single-user self-host model |
 
 ## 🚀 Quick Start
 
@@ -73,19 +76,28 @@ cp .env.example .env
 # edit .env: set MINIMAX_API_KEY + region
 ```
 
-### Bootstrap a user + account
+### Bootstrap: client keys + MiniMax accounts
+
+The router has TWO independent concepts:
+
+| Concept | Table | Created via | Purpose |
+|---|---|---|---|
+| **Client key** | `client_keys` | `npm run add-client-key` | Bearer credential for one client/app. Per-key usage tracking. |
+| **MiniMax account** | `accounts` | `npm run add-account` | Upstream MiniMax API key. Pool of N for fallback + quota. |
 
 ```bash
-# 1. create user (prints api_key + admin_key)
-ROUTER_DB_PATH=./data/router.db npm run add-user -- --name alice
+# 1. create a client key (one per app/user that calls the router)
+ROUTER_DB_PATH=./data/router.db npm run add-client-key -- --label myapp
+# → rk_xxxx    (use as: Authorization: Bearer rk_xxxx)
 
-# 2. add an account
+# 2. add an upstream MiniMax key (one per MiniMax account; pool for fallback)
 ROUTER_DB_PATH=./data/router.db npm run add-account -- \
-  --user 1 \
   --label "PAYG main" \
   --credit-type payg \
   --api-key mm_your_real_key
 ```
+
+Admin key is configured via `ROUTER_ADMIN_KEY` env or `settings.admin_key` row in the DB. Without it, `/admin/*` returns 503.
 
 ### Run the server
 
@@ -101,7 +113,7 @@ npm run build && npm start
 # health
 curl http://127.0.0.1:20137/health
 
-# chat completion (using your api_key from add-user)
+# chat completion (using the client_key from add-client-key)
 curl -X POST http://127.0.0.1:20137/v1/chat/completions \
   -H "Authorization: Bearer rk_your_api_key" \
   -H "Content-Type: application/json" \
@@ -133,7 +145,7 @@ curl -X POST http://127.0.0.1:20137/v1/chat/completions \
 ```
 src/
 ├── server.ts                 # Hono app + listener
-├── auth.ts                   # api_key + admin_key middleware
+├── auth.ts                   # client_key + admin_key middleware
 ├── util/
 │   ├── env.ts                # typed env getters (HOST, PORT, REGION, DB_PATH, LOG_LEVEL)
 │   └── log.ts                # pino instance
@@ -146,8 +158,8 @@ src/
 │   └── locks.ts              # per-(account, model) cooldown CRUD
 ├── db/
 │   ├── index.ts              # openDb (WAL, FK, busy_timeout)
-│   ├── migrations/           # 001-initial, 002-admin-key
-│   └── repos/                # users, accounts, models, requestLogs, quotaSnapshots, settings
+│   ├── migrations/           # 001-initial, 002-admin-key, 003-drop-users (adds client_keys)
+│   └── repos/                # client_keys, accounts, models, requestLogs, quotaSnapshots, settings, users (admin key only)
 ├── providers/                # provider-specific behavior
 │   ├── minimax.ts            # PROVIDER const, upstreamUrl/Headers helpers
 │   ├── baseUrl.ts            # intl vs cn base URL
@@ -181,11 +193,11 @@ src/
 ├── dashboard/
 │   ├── layout.ts             # shell + nav
 │   ├── render.ts             # page() with active-nav class
-│   └── pages/                # overview, usage, accounts, models, quota, settings
+│   └── pages/                # overview, usage, client-keys, accounts, models, quota, settings
 └── scheduler/
     └── quotaPull.ts          # periodic /v1/token_plan/remains puller
 
-scripts/                      # CLI: add-user, add-account, seed-models, reset
+scripts/                      # CLI: add-client-key, add-account, seed-models, reset
 tests/                        # mirror src/
 ```
 
@@ -201,19 +213,19 @@ All settings live in the `settings` table and are editable via the dashboard at 
 | `transport` | `{relay:null,proxy:null}` | Upstream transport (v0.6) |
 | `build` | `{version:"0.2.0",schemaVersion:2}` | Self-describe |
 
-Per-user setting `user_settings.account_mode` controls selection: `sticky` (session-pinned) or `round-robin` (default). Sticky key is read from header `x-router-key`.
+Per-user setting `user_settings.account_mode` controls selection: `sticky` (session-pinned) or `round-robin` (default). Sticky key is read from header `x-router-key`. *(deprecated in v0.7 — single-user model)*
 
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (170+ tests)
+npm test              # vitest run (163+ tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
 
 # CLI scripts
-npm run add-user -- --name alice
-npm run add-account -- --user 1 --label "main" --credit-type payg --api-key mm_xxx
+npm run add-client-key -- --label myapp
+npm run add-account -- --label "main" --credit-type payg --api-key mm_xxx
 npx tsx scripts/seed-models.ts   # idempotent: upsert 9 builtin MiniMax models
 npx tsx scripts/reset.ts --yes   # delete db + WAL/SHM sidecars
 ```
