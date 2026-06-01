@@ -2,7 +2,7 @@ export const migration_001 = {
   id: 1,
   name: "initial",
   sql: `
-    CREATE TABLE users (
+    CREATE TABLE IF NOT EXISTS users (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       name        TEXT NOT NULL,
       api_key     TEXT NOT NULL UNIQUE,
@@ -10,7 +10,7 @@ export const migration_001 = {
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE accounts (
+    CREATE TABLE IF NOT EXISTS accounts (
       id                  TEXT PRIMARY KEY,
       user_id             INTEGER NOT NULL,
       label               TEXT NOT NULL,
@@ -27,9 +27,9 @@ export const migration_001 = {
       created_at          TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
-    CREATE INDEX idx_accounts_user ON accounts(user_id, position);
+    CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id, position);
 
-    CREATE TABLE account_model_locks (
+    CREATE TABLE IF NOT EXISTS account_model_locks (
       account_id    TEXT NOT NULL,
       model         TEXT NOT NULL,
       locked_until  TEXT NOT NULL,
@@ -37,7 +37,7 @@ export const migration_001 = {
       FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE request_logs (
+    CREATE TABLE IF NOT EXISTS request_logs (
       id                      INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id                 INTEGER NOT NULL,
       account_id              TEXT,
@@ -64,12 +64,12 @@ export const migration_001 = {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL
     );
-    CREATE INDEX idx_logs_user_created ON request_logs(user_id, created_at DESC);
-    CREATE INDEX idx_logs_account_created ON request_logs(account_id, created_at DESC);
-    CREATE INDEX idx_logs_model_created ON request_logs(model, created_at DESC);
-    CREATE INDEX idx_logs_status ON request_logs(status_code, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_logs_user_created ON request_logs(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_logs_account_created ON request_logs(account_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_logs_model_created ON request_logs(model, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_logs_status ON request_logs(status_code, created_at DESC);
 
-    CREATE TABLE quota_snapshots (
+    CREATE TABLE IF NOT EXISTS quota_snapshots (
       id                INTEGER PRIMARY KEY AUTOINCREMENT,
       account_id        TEXT NOT NULL,
       source            TEXT NOT NULL,
@@ -83,9 +83,9 @@ export const migration_001 = {
       fetched_at        TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
     );
-    CREATE INDEX idx_quota_account_fetched ON quota_snapshots(account_id, fetched_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_quota_account_fetched ON quota_snapshots(account_id, fetched_at DESC);
 
-    CREATE TABLE models (
+    CREATE TABLE IF NOT EXISTS models (
       id                    INTEGER PRIMARY KEY AUTOINCREMENT,
       name                  TEXT NOT NULL UNIQUE,
       display_name          TEXT,
@@ -104,9 +104,9 @@ export const migration_001 = {
       enabled               BOOLEAN NOT NULL DEFAULT 1,
       created_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE INDEX idx_models_family ON models(family, enabled);
+    CREATE INDEX IF NOT EXISTS idx_models_family ON models(family, enabled);
 
-    CREATE TABLE user_settings (
+    CREATE TABLE IF NOT EXISTS user_settings (
       user_id     INTEGER NOT NULL,
       key         TEXT NOT NULL,
       value       TEXT NOT NULL,
@@ -115,20 +115,20 @@ export const migration_001 = {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE settings (
+    CREATE TABLE IF NOT EXISTS settings (
       key         TEXT PRIMARY KEY,
       value       TEXT NOT NULL,
       updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    INSERT INTO settings (key, value) VALUES
+    INSERT OR IGNORE INTO settings (key, value) VALUES
       ('rtk', '{"enabled": true, "minCompressSize": 500, "rawCap": 10485760, "filters": ["smart-truncate", "dedup-log"]}'),
       ('caveman', '{"level": "off"}'),
       ('caching', '{"autoBreakpoints": true, "respectCallerMarkers": true}'),
       ('transport', '{"relay": null, "proxy": null}'),
       ('build', '{"version": "0.2.0", "schemaVersion": 2}');
 
-    INSERT INTO models (name, display_name, family, upstream_model, context_window, thinking_enabled, pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, source) VALUES
+    INSERT OR IGNORE INTO models (name, display_name, family, upstream_model, context_window, thinking_enabled, pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, source) VALUES
       ('MiniMax-M3',             'MiniMax M3',             'm3',   'MiniMax-M3',        1000000, 0, 0.60, 2.40, 0.12, NULL,
         '{"base":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null},"high":{"input":1.20,"output":4.80,"cacheRead":0.24,"cacheWrite":null},"promotional":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null}}',
         'builtin'),
