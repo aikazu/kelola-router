@@ -8,7 +8,9 @@ import { proxyAwareFetch } from "./transport/proxyFetch.js";
 import { selectAccount } from "./accounts/selection.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
 import { updateAccount } from "./db/repos/accounts.js";
+import { insertRequestLog } from "./db/repos/requestLogs.js";
 import { resolveModel } from "./providers/alias.js";
+import { calculateCost } from "./providers/pricing.js";
 import { fetchModels } from "./providers/listModels.js";
 import { log } from "./util/log.js";
 import { augmentRequest } from "./cache-injection.js";
@@ -26,6 +28,7 @@ function getDb(): Database.Database {
 const app = new Hono();
 app.use("*", async (c, next) => {
   c.set("db", getDb());
+  c.set("startTime", Date.now());
   await next();
 });
 
@@ -98,9 +101,31 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
       });
     }
     updateAccount(c.get("db"), account.id, { rate_limited_until: null, backoff_level: 0, last_error: null, status: "active" });
-    return c.body(await resp.text(), resp.status as any, {
-      "content-type": resp.headers.get("content-type") ?? "application/json",
+    let respBody = await resp.text();
+    let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cache_creation_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } = {};
+    try { usage = JSON.parse(respBody).usage ?? {}; } catch {}
+    const cost = calculateCost(c.get("db"), body.model, {
+      prompt_tokens: usage.prompt_tokens ?? 0,
+      completion_tokens: usage.completion_tokens ?? 0,
+      cache_creation_tokens: usage.cache_creation_tokens ?? 0,
+      cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
     });
+    insertRequestLog(c.get("db"), {
+      user_id: user.id, account_id: account.id, model: body.model,
+      endpoint: upstreamPath, format,
+      prompt_tokens: usage.prompt_tokens ?? 0,
+      completion_tokens: usage.completion_tokens ?? 0,
+      cache_creation_tokens: usage.cache_creation_tokens ?? 0,
+      cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
+      total_tokens: usage.total_tokens ?? 0,
+      cost_usd: cost,
+      latency_ms: Date.now() - c.get("startTime"),
+      status_code: resp.status,
+      base_resp_code: undefined,
+      stream: 0,
+      rtk_bytes_saved: 0,
+    });
+    return c.body(respBody, resp.status as any, { "content-type": resp.headers.get("content-type") ?? "application/json" });
   } catch (e: any) {
     log.error({ err: e.message }, "upstream unreachable");
     return c.json({ error: `upstream unreachable: ${e.message}` }, 502);

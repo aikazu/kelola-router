@@ -9,6 +9,7 @@ declare module "hono" {
   interface ContextVariableMap {
     db: Db;
     user: UserWithAccounts;
+    startTime: number;
   }
 }
 

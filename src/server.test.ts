@@ -138,6 +138,37 @@ describe("model resolution in proxy", () => {
   });
 });
 
+describe("request logging", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "rl-")), "t.db");
+    resetDb();
+  });
+
+  it("logs non-stream request with cost", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    createAccount(db, { id: "a1", user_id: u.id, label: "L", credit_type: "payg", api_key: "kk" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({
+        id: "x", model: "MiniMax-M2.7",
+        choices: [{ message: { content: "ok" } }],
+        usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+      }), { status: 200 }),
+    );
+    const req = new Request("http://localhost/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M2.7", messages: [{ role: "user", content: "hi" }] }),
+    });
+    await app.request(req);
+    const logs = db.prepare(`SELECT * FROM request_logs`).all() as any[];
+    expect(logs.length).toBe(1);
+    expect(logs[0].prompt_tokens).toBe(100);
+    expect(logs[0].completion_tokens).toBe(50);
+    expect(logs[0].cost_usd).toBeGreaterThan(0);
+  });
+});
+
 describe("augmentation in proxy", () => {
   beforeEach(() => {
     process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "aug-")), "t.db");
