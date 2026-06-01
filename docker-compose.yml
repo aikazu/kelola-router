@@ -1,6 +1,7 @@
 services:
   router:
     build: .
+    image: kelola-router:local
     container_name: kelola-router
     restart: unless-stopped
     ports:
