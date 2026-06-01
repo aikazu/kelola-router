@@ -2,6 +2,7 @@ import { migration_001 } from "./001-initial.js";
 import { migration_002 } from "./002-admin-key.js";
 import { migration_003 } from "./003-drop-users.js";
 import { migration_004 } from "./004-sessions.js";
+import { migration_005 } from "./005-request-bodies.js";
 import type Database from "better-sqlite3";
 
 const ALL_MIGRATIONS: Array<{
@@ -9,7 +10,7 @@ const ALL_MIGRATIONS: Array<{
   name: string;
   sql: string;
   condition?: (db: Database.Database) => boolean;
-}> = [migration_001, migration_002, migration_003, migration_004];
+}> = [migration_001, migration_002, migration_003, migration_004, migration_005];
 
 export function migrate(db: Database.Database): void {
   const current = Number(db.pragma("user_version", { simple: true }));
