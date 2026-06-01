@@ -3,6 +3,10 @@ import type Database from "better-sqlite3";
 const cache = new Map<string, { value: unknown; expiry: number }>();
 const TTL_MS = 1000;
 
+export function clearCache(): void {
+  cache.clear();
+}
+
 export function getSetting<T = unknown>(db: Database.Database, key: string): T | null {
   const cached = cache.get(key);
   if (cached && cached.expiry > Date.now()) return cached.value as T;

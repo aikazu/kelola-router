@@ -11,6 +11,9 @@ import { updateAccount } from "./db/repos/accounts.js";
 import { resolveModel } from "./providers/alias.js";
 import { fetchModels } from "./providers/listModels.js";
 import { log } from "./util/log.js";
+import { augmentRequest } from "./cache-injection.js";
+import { compressMessages, formatRtkLog } from "./rtk/index.js";
+import { getSetting } from "./db/repos/settings.js";
 import type Database from "better-sqlite3";
 import type { AccountState } from "./accounts/types.js";
 
@@ -37,6 +40,21 @@ function userSettings(db: Database.Database, userId: number): { mode: "sticky" |
 async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath: string): Promise<Response> {
   const user = c.get("user");
   const body = await c.req.json();
+
+  const db = c.get("db");
+  const settings = {
+    caveman: getSetting(db, "caveman") as { level: string } | null,
+    caching: getSetting(db, "caching") as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | null,
+  };
+  await augmentRequest(body, settings);
+
+  const rtkSetting = getSetting(db, "rtk") as { enabled: boolean } | null;
+  if (rtkSetting?.enabled) {
+    const stats = compressMessages(body, true);
+    const log = formatRtkLog(stats);
+    if (log) console.log(log);
+  }
+
   const cfg = userSettings(c.get("db"), user.id);
   const accountStates: AccountState[] = user.accounts.map((a: { id: string; rate_limited_until: string | null; status: string; enabled: boolean }) => ({
     id: a.id, backoffLevel: 0, rateLimitedUntil: a.rate_limited_until, lastError: null, status: a.status as any, enabled: !!a.enabled,

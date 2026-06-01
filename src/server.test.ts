@@ -3,6 +3,7 @@ import { app, resetDb } from "./server.js";
 import { openDb } from "./db/index.js";
 import { createUser } from "./db/repos/users.js";
 import { createAccount } from "./db/repos/accounts.js";
+import { clearCache } from "./db/repos/settings.js";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -134,5 +135,51 @@ describe("model resolution in proxy", () => {
     });
     const res = await app.request(req);
     expect(res.status).toBe(400);
+  });
+});
+
+describe("augmentation in proxy", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "aug-")), "t.db");
+    resetDb();
+    clearCache();
+  });
+
+  it("caveman=terse: Anthropic request gets caveman injected into system", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    createAccount(db, { id: "acc_a", user_id: u.id, label: "L", credit_type: "payg", api_key: "kk" });
+    db.prepare(`UPDATE settings SET value = ? WHERE key = 'caveman'`).run('{"level":"terse"}');
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"content":[{"type":"text","text":"x"}]}', { status: 200 }),
+    );
+    const req = new Request("http://localhost/v1/messages", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M3", max_tokens: 100, system: "you are helpful", messages: [{ role: "user", content: "hi" }] }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(200);
+    const sent = JSON.parse(spy.mock.calls[0][1].body as string);
+    expect(sent.system[0].text).toContain("Be concise");
+  });
+
+  it("caching=autoBreakpoints: Anthropic request gets cache marker", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    createAccount(db, { id: "acc_b", user_id: u.id, label: "L", credit_type: "payg", api_key: "kk" });
+    db.prepare(`UPDATE settings SET value = ? WHERE key = 'caching'`).run(JSON.stringify({ autoBreakpoints: true, respectCallerMarkers: true }));
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"content":[{"type":"text","text":"x"}]}', { status: 200 }),
+    );
+    const req = new Request("http://localhost/v1/messages", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M3", max_tokens: 100, system: "you are helpful", messages: [{ role: "user", content: "hi" }] }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(200);
+    const sent = JSON.parse(spy.mock.calls[0][1].body as string);
+    expect(sent.system[0].cache_control).toEqual({ type: "ephemeral" });
   });
 });
