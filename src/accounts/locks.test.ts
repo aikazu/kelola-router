@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { openDb } from "../db/index.js";
 import { setModelLock, getModelLock, clearExpiredModelLocks } from "./locks.js";
 import { createAccount } from "../db/repos/accounts.js";
-import { createUser } from "../db/repos/users.js";
 
 let db: ReturnType<typeof openDb>;
 let accountId: string;
@@ -13,8 +12,7 @@ let accountId: string;
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "locks-")), "t.db");
   db = openDb();
-  const u = createUser(db, "u");
-  const a = createAccount(db, { id: "acc_1", user_id: u.id, label: "L", credit_type: "payg", api_key: "kk" });
+  const a = createAccount(db, { id: "acc_1", label: "L", credit_type: "payg", api_key: "kk" });
   accountId = a.id;
 });
 

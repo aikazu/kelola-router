@@ -3,7 +3,6 @@ import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { openDb } from "../db/index.js";
-import { createUser } from "../db/repos/users.js";
 import { createAccount } from "../db/repos/accounts.js";
 import { latestQuotaByAccount } from "../db/repos/quotaSnapshots.js";
 import { pullQuota } from "./quota.js";
@@ -15,10 +14,8 @@ beforeEach(() => {
 describe("pullQuota", () => {
   it("skips PAYG accounts", async () => {
     const db = openDb();
-    const u = createUser(db, "u");
     const a = createAccount(db, {
       id: "a1",
-      user_id: u.id,
       label: "L",
       credit_type: "payg",
       api_key: "k",
@@ -30,10 +27,8 @@ describe("pullQuota", () => {
 
   it("pulls token_plan and computes used = total - remaining (inversion fix)", async () => {
     const db = openDb();
-    const u = createUser(db, "u");
     const a = createAccount(db, {
       id: "a2",
-      user_id: u.id,
       label: "L",
       credit_type: "token-plan",
       api_key: "k",
@@ -65,10 +60,8 @@ describe("pullQuota", () => {
 
   it("falls back to coding_plan when token_plan fails", async () => {
     const db = openDb();
-    const u = createUser(db, "u");
     const a = createAccount(db, {
       id: "a3",
-      user_id: u.id,
       label: "L",
       credit_type: "token-plan",
       api_key: "k",

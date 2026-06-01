@@ -20,17 +20,16 @@ afterEach(() => {
 });
 
 describe("openDb", () => {
-  it("creates tables from migration 001", () => {
+  it("creates expected tables after all migrations", () => {
     const db = openDb();
     const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`).all() as { name: string }[];
     const names = tables.map(t => t.name);
-    expect(names).toContain("users");
     expect(names).toContain("accounts");
     expect(names).toContain("account_model_locks");
+    expect(names).toContain("client_keys");
     expect(names).toContain("request_logs");
     expect(names).toContain("quota_snapshots");
     expect(names).toContain("models");
-    expect(names).toContain("user_settings");
     expect(names).toContain("settings");
   });
 
