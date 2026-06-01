@@ -9,7 +9,10 @@ import { isModelLockActive } from "./accounts/state.js";
 import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/locks.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
 import { listEnabledAccounts, listAccounts, updateAccount, createAccount } from "./db/repos/accounts.js";
+import { createClientKey, genClientKey } from "./db/repos/client_keys.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
+import { setPassword } from "./auth/password.js";
+import { ulid } from "ulid";
 import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
 import { fetchModels } from "./providers/listModels.js";
@@ -306,7 +309,7 @@ app.get("/admin/client-keys", requireAdmin, (c) => c.html(renderClientKeys(c.get
 
 app.post("/admin/accounts", requireAdmin, async (c) => {
   const body = await c.req.parseBody();
-  const id = `acc_${Math.random().toString(36).slice(2, 14)}`;
+  const id = `acc_${ulid()}`;
   createAccount(c.get("db"), {
     id,
     label: String(body.label),
@@ -314,6 +317,39 @@ app.post("/admin/accounts", requireAdmin, async (c) => {
     api_key: String(body.api_key),
   });
   return c.redirect("/admin/accounts");
+});
+
+app.post("/admin/client-keys", requireAdmin, async (c) => {
+  const body = await c.req.parseBody();
+  const label = String(body.label ?? "").trim();
+  if (!label) return c.redirect("/admin/client-keys");
+  createClientKey(c.get("db"), { label, key: genClientKey() });
+  return c.redirect("/admin/client-keys");
+});
+
+app.post("/admin/settings/password", requireAdmin, async (c) => {
+  const body = await c.req.parseBody();
+  const action = String(body.action ?? "");
+  if (action === "clear") {
+    c.get("db").prepare(`DELETE FROM settings WHERE key = 'admin_password'`).run();
+  } else {
+    const pw = String(body.password ?? "");
+    if (pw.length >= 4) setPassword(c.get("db"), pw);
+  }
+  return c.redirect("/admin/settings");
+});
+
+app.post("/admin/settings/minimax", requireAdmin, async (c) => {
+  const body = await c.req.parseBody();
+  const current = (getSetting(c.get("db"), "minimax") as Record<string, unknown> | null) ?? {};
+  const next = {
+    ...current,
+    upstreamFormat: String((body as Record<string, string>).upstreamFormat ?? "auto"),
+    reasoningSplitDefault: String((body as Record<string, string>).reasoningSplitDefault ?? "false") === "true",
+    m3DefaultMaxCompletionTokens: Number((body as Record<string, string>).m3DefaultMaxCompletionTokens ?? 131072),
+  };
+  setSetting(c.get("db"), "minimax", next);
+  return c.redirect("/admin/settings");
 });
 
 app.post("/admin/settings/caveman", requireAdmin, async (c) => {
