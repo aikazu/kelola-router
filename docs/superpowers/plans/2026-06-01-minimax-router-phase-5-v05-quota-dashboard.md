@@ -574,7 +574,7 @@ git commit -m "feat: extractUsageFromSSE for OpenAI + Anthropic"
 **Files:**
 - Modify: `src/server.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/server.test.ts` (append):
 ```ts
@@ -609,12 +609,12 @@ describe("request logging", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (expect fail)**
+- [x] **Step 2: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 3: Update `handleProxy` in `src/server.ts`**
+- [x] **Step 3: Update `handleProxy` in `src/server.ts`**
 
 Add imports:
 ```ts
@@ -671,12 +671,12 @@ export function parseError(resp: Response, bodyText: string): { baseRespCode?: n
 }
 ```
 
-- [ ] **Step 4: Run tests (expect pass)**
+- [x] **Step 4: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 137 tests (1 new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server.ts src/providers/parseError.ts src/server.test.ts
@@ -699,7 +699,7 @@ git commit -m "feat: log non-stream request with cost"
 
 For brevity, all 5 pages share a layout helper and minimal HTML. Tests verify each route returns 200 + contains expected content.
 
-- [ ] **Step 1: Write `src/dashboard/layout.ts`**
+- [x] **Step 1: Write `src/dashboard/layout.ts`**
 
 ```ts
 export function escapeHtml(s: string): string {
@@ -747,7 +747,7 @@ ${body}
 }
 ```
 
-- [ ] **Step 2: Write `src/dashboard/pages/overview.ts`**
+- [x] **Step 2: Write `src/dashboard/pages/overview.ts`**
 
 ```ts
 import { layout } from "../layout.js";
@@ -785,7 +785,7 @@ export function renderOverview(db: Database.Database, userId: number, userName: 
 }
 ```
 
-- [ ] **Step 3: Write `src/dashboard/pages/usage.ts`**
+- [x] **Step 3: Write `src/dashboard/pages/usage.ts`**
 
 ```ts
 import { layout } from "../layout.js";
@@ -807,7 +807,7 @@ export function renderUsage(db: Database.Database, userId: number): string {
 }
 ```
 
-- [ ] **Step 4: Write `src/dashboard/pages/accounts.ts`**
+- [x] **Step 4: Write `src/dashboard/pages/accounts.ts`**
 
 ```ts
 import { layout } from "../layout.js";
@@ -843,7 +843,7 @@ export function renderAccounts(db: Database.Database, userId: number): string {
 }
 ```
 
-- [ ] **Step 5: Write `src/dashboard/pages/models.ts`**
+- [x] **Step 5: Write `src/dashboard/pages/models.ts`**
 
 ```ts
 import { layout } from "../layout.js";
@@ -876,7 +876,7 @@ export function renderModels(db: Database.Database, _userId: number): string {
 }
 ```
 
-- [ ] **Step 6: Write `src/dashboard/pages/quota.ts`**
+- [x] **Step 6: Write `src/dashboard/pages/quota.ts`**
 
 ```ts
 import { layout } from "../layout.js";
@@ -903,7 +903,7 @@ export function renderQuota(db: Database.Database, userId: number): string {
 }
 ```
 
-- [ ] **Step 7: Write `src/dashboard/pages/settings.ts`**
+- [x] **Step 7: Write `src/dashboard/pages/settings.ts`**
 
 ```ts
 import { layout } from "../layout.js";
@@ -942,7 +942,7 @@ export function renderSettings(db: Database.Database): string {
 }
 ```
 
-- [ ] **Step 8: Write failing integration tests**
+- [x] **Step 8: Write failing integration tests**
 
 `src/server.test.ts` (append):
 ```ts
@@ -973,12 +973,12 @@ describe("dashboard pages", () => {
 });
 ```
 
-- [ ] **Step 9: Run test (expect fail)**
+- [x] **Step 9: Run test (expect fail)**
 
 Run: `npm test`
 Expected: FAIL — admin routes not wired
 
-- [ ] **Step 10: Add admin routes to `src/server.ts`**
+- [x] **Step 10: Add admin routes to `src/server.ts`**
 
 ```ts
 import { renderOverview } from "./dashboard/pages/overview.js";
@@ -1041,12 +1041,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 ```
 
-- [ ] **Step 11: Run tests (expect pass)**
+- [x] **Step 11: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 138 tests (1 new)
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add src/dashboard/ src/server.ts src/server.test.ts
@@ -1057,17 +1057,17 @@ git commit -m "feat: 6 dashboard pages + admin POST routes + quota scheduler sta
 
 ## Task 5.6: Phase 5 checkpoint
 
-- [ ] **Step 1: Full test suite**
+- [x] **Step 1: Full test suite**
 
 Run: `npm test`
 Expected: 138+ tests pass
 
-- [ ] **Step 2: Type check**
+- [x] **Step 2: Type check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors
 
-- [ ] **Step 3: Commit + tag**
+- [x] **Step 3: Commit + tag**
 
 ```bash
 git add .
