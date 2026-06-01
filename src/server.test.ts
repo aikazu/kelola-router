@@ -155,10 +155,11 @@ describe("POST /admin/models/fetch", () => {
     const db = openDb();
     createAccount(db, { id: "acc_open", label: "L", credit_type: "payg", api_key: "k" });
     const res = await app.request("/admin/models/fetch", { method: "POST" });
-    // 400 = no upstream account matches the model list test scenario; but here
-    // we set up an account. Result: 200 from /admin/models/fetch (mocked) or
-    // 502 if no upstream available. Either way, NOT 401/503.
-    expect([200, 502, 400]).toContain(res.status);
+    // 302 = success redirect to /admin/models?fetched=N
+    // 502 = upstream fetch failed (404 or 5xx)
+    // 400 = no active account
+    // NOT 401/503
+    expect([302, 502, 400]).toContain(res.status);
   });
 
   it("401 when password set AND env key invalid", async () => {
@@ -194,9 +195,9 @@ describe("POST /admin/models/fetch", () => {
       method: "POST",
       headers: { "x-admin-key": "ak_test" },
     });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.added).toBe(1);
+    // 302 = success redirect to /admin/models?fetched=N
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toMatch(/fetched=1/);
   });
 });
 
