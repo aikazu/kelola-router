@@ -87,3 +87,14 @@ app.get("/v1/models", async (c) => {
 });
 
 export { app };
+
+import { serve } from "@hono/node-server";
+import { log } from "./util/log.js";
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const port = parseInt(process.env.PORT ?? "20137", 10);
+  const hostname = process.env.HOST ?? "127.0.0.1";
+  serve({ fetch: app.fetch, port, hostname }, (info) => {
+    log.info({ address: info.address, port: info.port }, "router listening");
+  });
+}
