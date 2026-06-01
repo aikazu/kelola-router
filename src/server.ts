@@ -10,6 +10,7 @@ import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/l
 import { checkFallbackError } from "./accounts/errorRules.js";
 import { listEnabledAccounts, listAccounts, updateAccount, createAccount, enableAccount, disableAccount, deleteAccount } from "./db/repos/accounts.js";
 import { createClientKey, genClientKey, enableClientKey, deleteClientKey, disableClientKey } from "./db/repos/client_keys.js";
+import { enableModel, disableModel } from "./db/repos/models.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
 import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
@@ -346,6 +347,14 @@ app.post("/admin/models/fetch", requireAdmin, async (c) => {
     return c.json({ error: e.message }, 502);
   }
 });
+app.post("/admin/models/:name/enable", requireAdmin, (c) => {
+  enableModel(c.get("db"), c.req.param("name")!);
+  return c.redirect("/admin/models");
+});
+app.post("/admin/models/:name/disable", requireAdmin, (c) => {
+  disableModel(c.get("db"), c.req.param("name")!);
+  return c.redirect("/admin/models");
+});
 
 app.get("/admin", requireAdmin, (c) => c.html(renderOverview(c.get("db"))));
 app.get("/admin/usage", requireAdmin, (c) => {
@@ -354,7 +363,12 @@ app.get("/admin/usage", requireAdmin, (c) => {
   return c.html(renderUsage(c.get("db"), clientKeyId ? Number(clientKeyId) : undefined));
 });
 app.get("/admin/accounts", requireAdmin, (c) => c.html(renderAccounts(c.get("db"))));
-app.get("/admin/models", requireAdmin, (c) => c.html(renderModels(c.get("db"))));
+app.get("/admin/models", requireAdmin, (c) => {
+  const url = new URL(c.req.url);
+  const fetched = url.searchParams.get("fetched");
+  const flash = fetched !== null ? `${fetched} new model(s) imported from upstream.` : null;
+  return c.html(renderModels(c.get("db"), flash));
+});
 app.get("/admin/quota", requireAdmin, (c) => c.html(renderQuota(c.get("db"))));
 app.get("/admin/settings", requireAdmin, (c) => c.html(renderSettings(c.get("db"))));
 app.get("/admin/client-keys", requireAdmin, (c) => c.html(renderClientKeys(c.get("db"))));

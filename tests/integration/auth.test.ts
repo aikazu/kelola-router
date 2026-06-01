@@ -9,6 +9,23 @@ import { hashPassword } from "../../src/auth/password.js";
 import { getAccount, createAccount } from "../../src/db/repos/accounts.js";
 import { getClientKey, createClientKey } from "../../src/db/repos/client_keys.js";
 
+describe("/admin/models actions", () => {
+  it("POST /admin/models/:name/enable sets enabled=1", async () => {
+    const db = openDb();
+    db.prepare(`UPDATE models SET enabled = 0 WHERE name = 'MiniMax-M3'`).run();
+    const res = await app.request("/admin/models/MiniMax-M3/enable", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(db.prepare(`SELECT enabled FROM models WHERE name = 'MiniMax-M3'`).get()).toEqual({ enabled: 1 });
+  });
+
+  it("POST /admin/models/:name/disable sets enabled=0", async () => {
+    const db = openDb();
+    const res = await app.request("/admin/models/MiniMax-M3/disable", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(db.prepare(`SELECT enabled FROM models WHERE name = 'MiniMax-M3'`).get()).toEqual({ enabled: 0 });
+  });
+});
+
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "auth-")), "t.db");
   resetDb();

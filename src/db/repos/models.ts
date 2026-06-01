@@ -62,3 +62,7 @@ export function upsertModel(db: Database.Database, m: ModelUpsert): void {
 export function disableModel(db: Database.Database, name: string): void {
   db.prepare(`UPDATE models SET enabled = 0 WHERE name = ?`).run(name);
 }
+
+export function enableModel(db: Database.Database, name: string): void {
+  db.prepare(`UPDATE models SET enabled = 1 WHERE name = ?`).run(name);
+}
