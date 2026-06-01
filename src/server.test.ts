@@ -77,3 +77,47 @@ describe("POST /v1/messages", () => {
     expect(headers["anthropic-version"]).toBe("2023-06-01");
   });
 });
+
+describe("POST /v1/messages/count_tokens", () => {
+  it("forwards to anthropic count_tokens URL", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"input_tokens":5}', { status: 200 }),
+    );
+    const req = new Request("http://localhost/v1/messages/count_tokens", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M3", messages: [{ role: "user", content: "hi" }] }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(200);
+    expect(spy.mock.calls[0][0]).toBe("https://api.minimax.io/anthropic/v1/messages/count_tokens");
+  });
+});
+
+describe("POST /v1/embeddings", () => {
+  it("forwards to OpenAI embeddings URL", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"data":[{"embedding":[0.1]}]}', { status: 200 }),
+    );
+    const req = new Request("http://localhost/v1/embeddings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: "hi" }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(200);
+    expect(spy.mock.calls[0][0]).toBe("https://api.minimax.io/v1/embeddings");
+  });
+});
+
+describe("GET /v1/models", () => {
+  it("forwards to OpenAI models URL", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"data":[]}', { status: 200 }),
+    );
+    const req = new Request("http://localhost/v1/models");
+    const res = await app.request(req);
+    expect(res.status).toBe(200);
+    expect(spy.mock.calls[0][0]).toBe("https://api.minimax.io/v1/models");
+  });
+});
