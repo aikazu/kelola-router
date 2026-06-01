@@ -339,13 +339,12 @@ app.get("/v1/models", requireApiKey, (c) => handleProxy(c, "openai", "/v1/models
 app.post("/admin/models/fetch", requireAdmin, async (c) => {
   const db = c.get("db");
   const firstActive = listEnabledAccounts(db)[0];
-  if (!firstActive) return c.json({ error: "no active account" }, 400);
-  try {
-    const added = await fetchModels(db, firstActive.api_key);
-    return c.json({ added });
-  } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+  if (!firstActive) return c.json({ error: "no active account — add a MiniMax upstream key first" }, 400);
+  const result = await fetchModels(db, firstActive.api_key);
+  if (!result.ok) {
+    return c.json({ error: result.error ?? "fetch failed", status: result.status }, 502);
   }
+  return c.redirect(`/admin/models?fetched=${result.added ?? 0}`);
 });
 app.post("/admin/models/:name/enable", requireAdmin, (c) => {
   enableModel(c.get("db"), c.req.param("name")!);

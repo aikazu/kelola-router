@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -146,5 +146,28 @@ describe("/admin/client-keys actions", () => {
     const res = await app.request("/admin/client-keys/1/delete", { method: "POST" });
     expect(res.status).toBe(302);
     expect(getClientKey(db, 1)).toBeNull();
+  });
+});
+
+describe("POST /admin/models/fetch", () => {
+  it("returns 502 with clear error when upstream returns 404", async () => {
+    const db = openDb();
+    createAccount(db, { id: "acc_x", label: "L", credit_type: "payg", api_key: "k" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("not found", { status: 404 }));
+    const res = await app.request("/admin/models/fetch", { method: "POST" });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toMatch(/404|not.*found|not.*supported|does not expose/i);
+  });
+
+  it("redirects to /admin/models?fetched=N with friendly notice on success", async () => {
+    const db = openDb();
+    createAccount(db, { id: "acc_y", label: "L", credit_type: "payg", api_key: "k" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ id: "MiniMax-M99" }] }), { status: 200 }),
+    );
+    const res = await app.request("/admin/models/fetch", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toMatch(/\/admin\/models/);
   });
 });

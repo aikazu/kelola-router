@@ -23,8 +23,9 @@ describe("fetchModels", () => {
       }), { status: 200 }),
     );
 
-    const count = await fetchModels(db, "mm_test");
-    expect(count).toBe(2); // 2 new (M3 already seeded)
+    const result = await fetchModels(db, "mm_test");
+    expect(result.ok).toBe(true);
+    expect(result.added).toBe(2); // 2 new (M3 already seeded)
 
     const all = listModels(db, { includeDisabled: true });
     const names = all.map(m => m.name);
@@ -38,14 +39,27 @@ describe("fetchModels", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ data: [{ id: "MiniMax-M3" }] }), { status: 200 }),
     );
-    await fetchModels(db, "mm_test");
+    const result = await fetchModels(db, "mm_test");
+    expect(result.ok).toBe(true);
     const m = listModels(db, { includeDisabled: true }).find(x => x.name === "MiniMax-M3")!;
     expect(m.source).toBe("fetched");
   });
 
-  it("throws on non-2xx", async () => {
+  it("returns structured error on non-2xx", async () => {
     const db = openDb();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("err", { status: 500 }));
-    await expect(fetchModels(db, "mm_test")).rejects.toThrow(/fetchModels failed/);
+    const result = await fetchModels(db, "mm_test");
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(500);
+    expect(result.error).toMatch(/upstream returned 500/);
+  });
+
+  it("returns friendly message when 404", async () => {
+    const db = openDb();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("not found", { status: 404 }));
+    const result = await fetchModels(db, "mm_test");
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(404);
+    expect(result.error).toMatch(/does not expose|not.*found/i);
   });
 });
