@@ -15,6 +15,7 @@ import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
 import { fetchModels } from "./providers/listModels.js";
 import { log } from "./util/log.js";
+import { getHost, getPort } from "./util/env.js";
 import { augmentRequest } from "./cache-injection.js";
 import { compressMessages, formatRtkLog } from "./rtk/index.js";
 import { pipeWithUsage } from "./streaming/pipeWithUsage.js";
@@ -245,8 +246,8 @@ export { app };
 export function resetDb(): void { _db = null; }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const port = parseInt(process.env.PORT ?? "20137", 10);
-  const hostname = process.env.HOST ?? "127.0.0.1";
+  const port = getPort();
+  const hostname = getHost();
   serve({ fetch: app.fetch, port, hostname }, (info) => {
     log.info({ address: info.address, port: info.port }, "router listening");
     startQuotaPuller(getDb(), 5 * 60_000);
