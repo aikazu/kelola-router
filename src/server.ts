@@ -43,8 +43,8 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
 
   const db = c.get("db");
   const settings = {
-    caveman: getSetting(db, "caveman") as { level: string } | null,
-    caching: getSetting(db, "caching") as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | null,
+    caveman: (getSetting(db, "caveman") as { level: string } | null) ?? undefined,
+    caching: (getSetting(db, "caching") as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | null) ?? undefined,
   };
   await augmentRequest(body, settings);
 

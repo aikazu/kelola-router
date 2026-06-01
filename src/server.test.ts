@@ -160,7 +160,7 @@ describe("augmentation in proxy", () => {
     });
     const res = await app.request(req);
     expect(res.status).toBe(200);
-    const sent = JSON.parse(spy.mock.calls[0][1].body as string);
+    const sent = JSON.parse((spy.mock.calls as any[])[0][1].body as string) as any;
     expect(sent.system[0].text).toContain("Be concise");
   });
 
@@ -179,7 +179,7 @@ describe("augmentation in proxy", () => {
     });
     const res = await app.request(req);
     expect(res.status).toBe(200);
-    const sent = JSON.parse(spy.mock.calls[0][1].body as string);
+    const sent = JSON.parse((spy.mock.calls as any[])[0][1].body as string) as any;
     expect(sent.system[0].cache_control).toEqual({ type: "ephemeral" });
   });
 });
