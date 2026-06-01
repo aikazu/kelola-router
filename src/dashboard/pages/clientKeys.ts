@@ -16,6 +16,7 @@ export function renderClientKeys(db: Database.Database): string {
           <td class="mono">
             <code id="k${k.id}">${k.key.slice(0, 8)}••••••••••••••${k.key.slice(-4)}</code>
             <button type="button" class="btn-ghost" style="padding:2px 8px;font-size:10px;margin-left:6px" onclick="toggleKey(${k.id}, '${k.key}')">Reveal</button>
+            <button type="button" class="btn-ghost" style="padding:2px 8px;font-size:10px;margin-left:4px" onclick="copyKey(${k.id}, '${k.key}', this)">Copy</button>
           </td>
           <td><span class="badge ${k.enabled ? "badge-active" : "badge-muted"}">${k.enabled ? "active" : "disabled"}</span></td>
           <td>${k.created_at}</td>
@@ -56,6 +57,20 @@ export function renderClientKeys(db: Database.Database): string {
         el.textContent = full;
         el.dataset.shown = '1';
         el.nextElementSibling.textContent = 'Hide';
+      }
+    }
+    async function copyKey(id, full, btn) {
+      try {
+        await navigator.clipboard.writeText(full);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = orig; }, 1200);
+      } catch (e) {
+        const el = document.getElementById('k' + id);
+        el.dataset.shown = '1';
+        el.textContent = full;
+        el.nextElementSibling.textContent = 'Hide';
+        alert('Clipboard blocked. Key revealed — copy manually.');
       }
     }
     </script>
