@@ -28,5 +28,5 @@ export function renderAccounts(db: Database.Database): string {
       <button type="submit">Add</button>
     </form>
   `;
-  return page("Accounts", "accounts", body);
+  return page("Accounts", "accounts", body, { db });
 }

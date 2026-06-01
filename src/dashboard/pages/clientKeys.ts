@@ -21,7 +21,7 @@ export function renderClientKeys(db: Database.Database): string {
     </table>
     <p>Create new keys via the CLI: <code>npx tsx scripts/add-client-key.ts --label myapp</code></p>
   `;
-  return page("Client keys", "client-keys", body);
+  return page("Client keys", "client-keys", body, { db });
 }
 
 function escapeHtml(s: string): string {

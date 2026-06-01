@@ -18,5 +18,5 @@ export function renderQuota(db: Database.Database): string {
       `;
     }).join("")}
   `;
-  return page("Quota", "quota", body);
+  return page("Quota", "quota", body, { db });
 }

@@ -23,7 +23,7 @@ export function renderUsage(db: Database.Database, clientKeyId?: number): string
       ${logs.map((l) => `<tr><td>${l.created_at}</td><td>${l.client_key_id ?? ""}</td><td>${l.model}</td><td>${l.account_id ?? ""}</td><td>${l.total_tokens}</td><td>$${l.cost_usd.toFixed(4)}</td><td>${l.status_code}</td><td>${l.latency_ms}ms</td></tr>`).join("")}
     </table>
   `;
-  return page("Usage", "usage", body);
+  return page("Usage", "usage", body, { db });
 }
 
 function escapeHtml(s: string): string {

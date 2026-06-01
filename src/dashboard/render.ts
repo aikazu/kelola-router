@@ -1,4 +1,4 @@
-import { layout, type NavKey } from "./layout.js";
+import { page as layoutPage, type NavKey, type PageOptions } from "./layout.js";
 
 export type PageName = NavKey;
 
@@ -7,6 +7,6 @@ export type PageName = NavKey;
  * Pages should import this rather than `layout` directly so the active
  * nav state is always wired up.
  */
-export function page(title: string, active: PageName, body: string): string {
-  return layout(title, body, active);
+export function page(title: string, active: PageName, body: string, opts: PageOptions = {}): string {
+  return layoutPage(title, active, body, opts);
 }

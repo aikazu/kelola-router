@@ -24,5 +24,5 @@ export function renderModels(db: Database.Database): string {
       `).join("")}
     </table>
   `;
-  return page("Models", "models", body);
+  return page("Models", "models", body, { db });
 }

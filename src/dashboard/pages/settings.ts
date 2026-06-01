@@ -30,5 +30,5 @@ export function renderSettings(db: Database.Database): string {
       <button type="submit">Save</button>
     </form>
   `;
-  return page("Settings", "settings", body);
+  return page("Settings", "settings", body, { db });
 }

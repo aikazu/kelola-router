@@ -28,5 +28,5 @@ export function renderOverview(db: Database.Database): string {
       ${logs.map((l) => `<tr><td>${l.created_at}</td><td>${l.client_key_id ?? "—"}</td><td>${l.account_id ?? "—"}</td><td>${l.model}</td><td>${l.status_code}</td><td>$${l.cost_usd.toFixed(4)}</td></tr>`).join("")}
     </table>
   `;
-  return page("Overview", "overview", body);
+  return page("Overview", "overview", body, { db });
 }
