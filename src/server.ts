@@ -17,6 +17,7 @@ import { fetchModels } from "./providers/listModels.js";
 import { log } from "./util/log.js";
 import { augmentRequest } from "./cache-injection.js";
 import { compressMessages, formatRtkLog } from "./rtk/index.js";
+import { pipeWithUsage } from "./streaming/pipeWithUsage.js";
 import { getSetting, setSetting } from "./db/repos/settings.js";
 import { startQuotaPuller } from "./scheduler/quotaPull.js";
 import { createAccount } from "./db/repos/accounts.js";
@@ -121,6 +122,36 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
       });
     }
     updateAccount(c.get("db"), account.id, { rate_limited_until: null, backoff_level: 0, last_error: null, status: "active" });
+
+    if (body.stream === true) {
+      // Streaming: tee upstream bytes to client, extract usage on completion, log.
+      const startMs = c.get("startTime");
+      const userId = user.id;
+      const accountId = account.id;
+      const modelName = body.model;
+      const piped = await pipeWithUsage(resp, format, (usage) => {
+        const prompt = usage?.prompt_tokens ?? 0;
+        const completion = usage?.completion_tokens ?? 0;
+        const cacheCreate = usage?.cache_creation_tokens ?? 0;
+        const cacheRead = usage?.cache_read_tokens ?? 0;
+        const total = usage?.total_tokens ?? prompt + completion;
+        const cost = calculateCost(c.get("db"), modelName, {
+          prompt_tokens: prompt, completion_tokens: completion,
+          cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead,
+        });
+        insertRequestLog(c.get("db"), {
+          user_id: userId, account_id: accountId, model: modelName,
+          endpoint: upstreamPath, format,
+          prompt_tokens: prompt, completion_tokens: completion,
+          cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead,
+          total_tokens: total, cost_usd: cost,
+          latency_ms: Date.now() - startMs, status_code: resp.status,
+          base_resp_code: undefined, stream: 1, rtk_bytes_saved: 0,
+        });
+      });
+      return piped;
+    }
+
     let respBody = await resp.text();
     let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cache_creation_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } = {};
     try { usage = JSON.parse(respBody).usage ?? {}; } catch {}

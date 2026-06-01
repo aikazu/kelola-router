@@ -167,6 +167,35 @@ describe("request logging", () => {
     expect(logs[0].completion_tokens).toBe(50);
     expect(logs[0].cost_usd).toBeGreaterThan(0);
   });
+
+  it("logs stream request with usage extracted from final SSE chunk", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    createAccount(db, { id: "a1", user_id: u.id, label: "L", credit_type: "payg", api_key: "kk" });
+    const sse = [
+      `data: {"choices":[{"delta":{"content":"hi"}}]}\n\n`,
+      `data: {"choices":[],"usage":{"prompt_tokens":42,"completion_tokens":7,"total_tokens":49}}\n\n`,
+      `data: [DONE]\n\n`,
+    ].join("");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } }),
+    );
+    const req = new Request("http://localhost/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M2.7", stream: true, messages: [{ role: "user", content: "hi" }] }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(200);
+    // consume body so pipeThrough flush fires
+    await res.text();
+    // give the post-flush insert a tick
+    await new Promise(r => setTimeout(r, 10));
+    const logs = db.prepare(`SELECT * FROM request_logs WHERE stream = 1`).all() as any[];
+    expect(logs.length).toBe(1);
+    expect(logs[0].prompt_tokens).toBe(42);
+    expect(logs[0].completion_tokens).toBe(7);
+  });
 });
 
 describe("augmentation in proxy", () => {
