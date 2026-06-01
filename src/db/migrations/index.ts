@@ -1,5 +1,6 @@
 import { migration_001 } from "./001-initial.js";
 import { migration_002 } from "./002-admin-key.js";
+import { migration_003 } from "./003-drop-users.js";
 import type Database from "better-sqlite3";
 
 const ALL_MIGRATIONS: Array<{
@@ -7,7 +8,7 @@ const ALL_MIGRATIONS: Array<{
   name: string;
   sql: string;
   condition?: (db: Database.Database) => boolean;
-}> = [migration_001, migration_002];
+}> = [migration_001, migration_002, migration_003];
 
 export function migrate(db: Database.Database): void {
   const current = Number(db.pragma("user_version", { simple: true }));
@@ -23,8 +24,9 @@ export function migrate(db: Database.Database): void {
         db.exec(m.sql);
         db.pragma(`user_version = ${m.id}`);
         console.log(`[db] applied migration ${m.id}: ${m.name}`);
-      } catch (e) {
-        console.error(`[db] migration ${m.id} failed:`, e);
+      } catch (e: any) {
+        console.error(`[db] migration ${m.id} failed:`, e.message);
+        console.error(`[db] path:`, process.env.ROUTER_DB_PATH);
         throw e;
       }
     }
