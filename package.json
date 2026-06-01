@@ -1,7 +1,7 @@
 {
   "name": "kelola-router",
   "version": "0.2.0",
-  "description": "Local-first API router for MiniMax — multi-account, auth, RTK, Caveman, dashboard",
+  "description": "Local-first API router for MiniMax — multi-account pool, client keys with per-key usage, RTK, Caveman, dashboard",
   "type": "module",
   "private": true,
   "engines": {
@@ -14,8 +14,10 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "add-user": "tsx scripts/add-user.ts",
+    "add-client-key": "tsx scripts/add-client-key.ts",
     "add-account": "tsx scripts/add-account.ts",
+    "seed-models": "tsx scripts/seed-models.ts",
+    "reset": "tsx scripts/reset.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
