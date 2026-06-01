@@ -1,0 +1,8 @@
+# Replace router.example.com with your actual domain
+router.example.com {
+  reverse_proxy 127.0.0.1:20137 {
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
+  encode gzip zstd
+}
