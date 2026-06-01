@@ -13,6 +13,7 @@ import { createClientKey, genClientKey, enableClientKey, deleteClientKey, disabl
 import { enableModel, disableModel } from "./db/repos/models.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
 import { truncateBody, headersToJson } from "./proxy/capture.js";
+import { adminApi } from "./api/admin/index.js";
 import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
 import { fetchModels } from "./providers/listModels.js";
@@ -54,6 +55,7 @@ app.use("*", async (c, next) => {
   c.set("startTime", Date.now());
   await next();
 });
+app.route("/api", adminApi(getDb()));
 
 app.use("/admin/*", async (c, next) => {
   if (c.req.method !== "GET" && c.req.method !== "HEAD") {
