@@ -8,7 +8,7 @@ import { selectAccount } from "./accounts/selection.js";
 import { isModelLockActive } from "./accounts/state.js";
 import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/locks.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
-import { updateAccount } from "./db/repos/accounts.js";
+import { listEnabledAccounts, updateAccount, createAccount } from "./db/repos/accounts.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
 import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
@@ -20,13 +20,13 @@ import { compressMessages, formatRtkLog } from "./rtk/index.js";
 import { pipeWithUsage } from "./streaming/pipeWithUsage.js";
 import { getSetting, setSetting } from "./db/repos/settings.js";
 import { startQuotaPuller } from "./scheduler/quotaPull.js";
-import { createAccount } from "./db/repos/accounts.js";
 import { renderOverview } from "./dashboard/pages/overview.js";
 import { renderUsage } from "./dashboard/pages/usage.js";
 import { renderAccounts } from "./dashboard/pages/accounts.js";
 import { renderModels } from "./dashboard/pages/models.js";
 import { renderQuota } from "./dashboard/pages/quota.js";
 import { renderSettings } from "./dashboard/pages/settings.js";
+import { renderClientKeys } from "./dashboard/pages/clientKeys.js";
 import type Database from "better-sqlite3";
 import type { AccountState } from "./accounts/types.js";
 
@@ -45,17 +45,11 @@ app.use("*", async (c, next) => {
 
 app.get("/health", (c) => c.json({ ok: true }));
 
-function userSettings(db: Database.Database, userId: number): { mode: "sticky" | "round-robin"; stickyKey: string } {
-  const row = db.prepare(`SELECT value FROM user_settings WHERE user_id = ? AND key = 'account_mode'`).get(userId) as { value: string } | undefined;
-  if (!row) return { mode: "round-robin", stickyKey: "x-router-key" };
-  return JSON.parse(row.value);
-}
-
 async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath: string): Promise<Response> {
-  const user = c.get("user");
+  const clientKey = c.get("clientKey");
   const body = await c.req.json();
-
   const db = c.get("db");
+
   const settings = {
     caveman: (getSetting(db, "caveman") as { level: string } | null) ?? undefined,
     caching: (getSetting(db, "caching") as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | null) ?? undefined,
@@ -65,33 +59,39 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
   const rtkSetting = getSetting(db, "rtk") as { enabled: boolean } | null;
   if (rtkSetting?.enabled) {
     const stats = compressMessages(body, true);
-    const log = formatRtkLog(stats);
-    if (log) console.log(log);
+    const rtkLog = formatRtkLog(stats);
+    if (rtkLog) console.log(rtkLog);
   }
 
-  const cfg = userSettings(c.get("db"), user.id);
-  const accountStates: AccountState[] = user.accounts.map((a: { id: string; rate_limited_until: string | null; status: string; enabled: boolean }) => ({
-    id: a.id, backoffLevel: 0, rateLimitedUntil: a.rate_limited_until, lastError: null, status: a.status as any, enabled: !!a.enabled,
+  // Pool: ALL enabled MiniMax accounts (shared across all client keys).
+  const allAccounts = listEnabledAccounts(db);
+  if (allAccounts.length === 0) {
+    return c.json({ error: "no upstream accounts configured" }, 503);
+  }
+  const accountStates: AccountState[] = allAccounts.map((a) => ({
+    id: a.id,
+    backoffLevel: a.backoff_level,
+    rateLimitedUntil: a.rate_limited_until,
+    lastError: a.last_error ? JSON.parse(a.last_error) : null,
+    status: a.status as AccountState["status"],
+    enabled: !!a.enabled,
   }));
-  const stickyKey = c.req.header(cfg.stickyKey);
-  const account = selectAccount(accountStates, cfg.mode, stickyKey ?? undefined);
+  const account = selectAccount(accountStates, "round-robin", undefined);
   if (!account) return c.json({ error: "all accounts unavailable" }, 503);
-
-  const acc = user.accounts.find((a: { id: string }) => a.id === account.id)!;
+  const acc = allAccounts.find((a) => a.id === account.id)!;
 
   let resolved;
   try {
-    resolved = resolveModel(c.get("db"), body.model ?? "", body);
+    resolved = resolveModel(db, body.model ?? "", body);
     body.model = resolved.upstreamModel;
     resolved.bodyTransform(body);
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
   }
 
-  // Per-model lock: skip accounts that have an active lock for this model.
-  clearExpiredModelLocks(c.get("db"));
-  if (isModelLockActive(getModelLock(c.get("db"), account.id, resolved.upstreamModel))) {
-    return c.json({ error: `model ${resolved.upstreamModel} temporarily locked for account ${account.id}` }, 429);
+  clearExpiredModelLocks(db);
+  if (isModelLockActive(getModelLock(db, account.id, resolved.upstreamModel))) {
+    return c.json({ error: `model ${resolved.upstreamModel} temporarily locked` }, 429);
   }
 
   const url = upstreamUrl({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, format, upstreamPath);
@@ -103,30 +103,28 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
       const errBody = await resp.text();
       let baseRespCode: number | undefined;
       try { baseRespCode = JSON.parse(errBody).base_resp?.status_code; } catch {}
-      const decision = checkFallbackError(resp.status, errBody, baseRespCode, 0);
+      const decision = checkFallbackError(resp.status, errBody, baseRespCode, acc.backoff_level);
       const rateLimitedUntil = decision.cooldownMs > 0
         ? new Date(Date.now() + decision.cooldownMs).toISOString()
         : null;
-      updateAccount(c.get("db"), account.id, {
+      updateAccount(db, account.id, {
         rate_limited_until: rateLimitedUntil,
         backoff_level: decision.newBackoffLevel ?? 0,
         last_error: JSON.stringify({ status: resp.status, message: errBody.slice(0, 500), timestamp: new Date().toISOString(), baseRespCode }),
         status: resp.status === 401 ? "error" : "active",
       });
-      // Per-model lock: prevent same model from being retried until cooldown.
       if (decision.cooldownMs > 0) {
-        setModelLock(c.get("db"), account.id, resolved.upstreamModel, decision.cooldownMs);
+        setModelLock(db, account.id, resolved.upstreamModel, decision.cooldownMs);
       }
       return c.body(errBody, resp.status as any, {
         "content-type": resp.headers.get("content-type") ?? "application/json",
       });
     }
-    updateAccount(c.get("db"), account.id, { rate_limited_until: null, backoff_level: 0, last_error: null, status: "active" });
+    updateAccount(db, account.id, { rate_limited_until: null, backoff_level: 0, last_error: null, status: "active" });
 
     if (body.stream === true) {
-      // Streaming: tee upstream bytes to client, extract usage on completion, log.
       const startMs = c.get("startTime");
-      const userId = user.id;
+      const clientKeyId = clientKey.id;
       const accountId = account.id;
       const modelName = body.model;
       const piped = await pipeWithUsage(resp, format, (usage) => {
@@ -135,12 +133,12 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
         const cacheCreate = usage?.cache_creation_tokens ?? 0;
         const cacheRead = usage?.cache_read_tokens ?? 0;
         const total = usage?.total_tokens ?? prompt + completion;
-        const cost = calculateCost(c.get("db"), modelName, {
+        const cost = calculateCost(db, modelName, {
           prompt_tokens: prompt, completion_tokens: completion,
           cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead,
         });
-        insertRequestLog(c.get("db"), {
-          user_id: userId, account_id: accountId, model: modelName,
+        insertRequestLog(db, {
+          client_key_id: clientKeyId, account_id: accountId, model: modelName,
           endpoint: upstreamPath, format,
           prompt_tokens: prompt, completion_tokens: completion,
           cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead,
@@ -155,14 +153,14 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     let respBody = await resp.text();
     let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cache_creation_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } = {};
     try { usage = JSON.parse(respBody).usage ?? {}; } catch {}
-    const cost = calculateCost(c.get("db"), body.model, {
+    const cost = calculateCost(db, body.model, {
       prompt_tokens: usage.prompt_tokens ?? 0,
       completion_tokens: usage.completion_tokens ?? 0,
       cache_creation_tokens: usage.cache_creation_tokens ?? 0,
       cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
     });
-    insertRequestLog(c.get("db"), {
-      user_id: user.id, account_id: account.id, model: body.model,
+    insertRequestLog(db, {
+      client_key_id: clientKey.id, account_id: account.id, model: body.model,
       endpoint: upstreamPath, format,
       prompt_tokens: usage.prompt_tokens ?? 0,
       completion_tokens: usage.completion_tokens ?? 0,
@@ -190,33 +188,35 @@ app.post("/v1/embeddings", requireApiKey, (c) => handleProxy(c, "openai", "/v1/e
 app.get("/v1/models", requireApiKey, (c) => handleProxy(c, "openai", "/v1/models"));
 
 app.post("/admin/models/fetch", requireAdmin, async (c) => {
-  const user = c.get("user");
-  const firstActive = user.accounts.find((a: { enabled: boolean }) => a.enabled);
+  const db = c.get("db");
+  const firstActive = listEnabledAccounts(db)[0];
   if (!firstActive) return c.json({ error: "no active account" }, 400);
   try {
-    const added = await fetchModels(c.get("db"), firstActive.api_key);
+    const added = await fetchModels(db, firstActive.api_key);
     return c.json({ added });
   } catch (e: any) {
     return c.json({ error: e.message }, 502);
   }
 });
 
-app.get("/admin", requireAdmin, (c) => {
-  const u = c.get("user");
-  return c.html(renderOverview(c.get("db"), u.id, u.name));
+app.get("/admin", requireAdmin, (c) => c.html(renderOverview(c.get("db"))));
+app.get("/admin/usage", requireAdmin, (c) => {
+  const url = new URL(c.req.url);
+  const clientKeyId = url.searchParams.get("client_key");
+  return c.html(renderUsage(c.get("db"), clientKeyId ? Number(clientKeyId) : undefined));
 });
-app.get("/admin/usage", requireAdmin, (c) => c.html(renderUsage(c.get("db"), c.get("user").id)));
-app.get("/admin/accounts", requireAdmin, (c) => c.html(renderAccounts(c.get("db"), c.get("user").id)));
-app.get("/admin/models", requireAdmin, (c) => c.html(renderModels(c.get("db"), c.get("user").id)));
-app.get("/admin/quota", requireAdmin, (c) => c.html(renderQuota(c.get("db"), c.get("user").id)));
+app.get("/admin/accounts", requireAdmin, (c) => c.html(renderAccounts(c.get("db"))));
+app.get("/admin/models", requireAdmin, (c) => c.html(renderModels(c.get("db"))));
+app.get("/admin/quota", requireAdmin, (c) => c.html(renderQuota(c.get("db"))));
 app.get("/admin/settings", requireAdmin, (c) => c.html(renderSettings(c.get("db"))));
+app.get("/admin/client-keys", requireAdmin, (c) => c.html(renderClientKeys(c.get("db"))));
 
 app.post("/admin/accounts", requireAdmin, async (c) => {
   const body = await c.req.parseBody();
-  const u = c.get("user");
   const id = `acc_${Math.random().toString(36).slice(2, 14)}`;
   createAccount(c.get("db"), {
-    id, user_id: u.id, label: String(body.label),
+    id,
+    label: String(body.label),
     credit_type: String(body.credit_type) as "payg" | "token-plan",
     api_key: String(body.api_key),
   });
@@ -241,7 +241,6 @@ app.post("/admin/settings/caching", requireAdmin, async (c) => {
 
 export { app };
 
-// for test isolation: allow resetting the db instance
 export function resetDb(): void { _db = null; }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
