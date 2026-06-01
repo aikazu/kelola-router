@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { openDb } from "./db/index.js";
-import { requireApiKey } from "./auth.js";
+import { requireApiKey, requireAdmin } from "./auth.js";
 import { getBaseUrl } from "./providers/baseUrl.js";
 import { buildHeaders } from "./providers/headers.js";
 import { proxyAwareFetch } from "./transport/proxyFetch.js";
@@ -9,6 +9,7 @@ import { selectAccount } from "./accounts/selection.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
 import { updateAccount } from "./db/repos/accounts.js";
 import { resolveModel } from "./providers/alias.js";
+import { fetchModels } from "./providers/listModels.js";
 import { log } from "./util/log.js";
 import type Database from "better-sqlite3";
 import type { AccountState } from "./accounts/types.js";
@@ -93,6 +94,18 @@ app.post("/v1/messages", requireApiKey, (c) => handleProxy(c, "anthropic", "/v1/
 app.post("/v1/messages/count_tokens", requireApiKey, (c) => handleProxy(c, "anthropic", "/v1/messages/count_tokens"));
 app.post("/v1/embeddings", requireApiKey, (c) => handleProxy(c, "openai", "/v1/embeddings"));
 app.get("/v1/models", requireApiKey, (c) => handleProxy(c, "openai", "/v1/models"));
+
+app.post("/admin/models/fetch", requireAdmin, async (c) => {
+  const user = c.get("user");
+  const firstActive = user.accounts.find((a: { enabled: boolean }) => a.enabled);
+  if (!firstActive) return c.json({ error: "no active account" }, 400);
+  try {
+    const added = await fetchModels(c.get("db"), firstActive.api_key);
+    return c.json({ added });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 502);
+  }
+});
 
 export { app };
 

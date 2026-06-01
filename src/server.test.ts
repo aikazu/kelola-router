@@ -65,6 +65,39 @@ describe("handleProxy with auth + accounts", () => {
   });
 });
 
+describe("POST /admin/models/fetch", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "am-")), "t.db");
+    resetDb();
+  });
+
+  it("requires admin key", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    const res = await app.request("/admin/models/fetch", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.api_key}` },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("fetches from first active account and merges", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    createAccount(db, { id: "acc_f", user_id: u.id, label: "F", credit_type: "payg", api_key: "kk" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ id: "MiniMax-M3" }, { id: "MiniMax-newly" }] }), { status: 200 }),
+    );
+    const res = await app.request("/admin/models/fetch", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.admin_key}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.added).toBe(1);
+  });
+});
+
 describe("model resolution in proxy", () => {
   beforeEach(() => {
     process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "mr-")), "t.db");
