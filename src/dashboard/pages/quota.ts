@@ -1,13 +1,13 @@
 import { page } from "../render.js";
-import { listAccountsByUser } from "../../db/repos/accounts.js";
+import { listAccounts } from "../../db/repos/accounts.js";
 import { latestQuotaByAccount } from "../../db/repos/quotaSnapshots.js";
 import type Database from "better-sqlite3";
 
-export function renderQuota(db: Database.Database, userId: number): string {
-  const accounts = listAccountsByUser(db, userId);
+export function renderQuota(db: Database.Database): string {
+  const accounts = listAccounts(db);
   const body = `
     <h1>Quota</h1>
-    ${accounts.map((a: { id: string; label: string; credit_type: string }) => {
+    ${accounts.map((a) => {
       const snaps = latestQuotaByAccount(db, a.id, 2);
       const h5 = snaps.find((s: { window_type: string | null }) => s.window_type === "5h");
       const wk = snaps.find((s: { window_type: string | null }) => s.window_type === "weekly");

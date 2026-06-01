@@ -2,7 +2,7 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-export type NavKey = "overview" | "usage" | "accounts" | "models" | "quota" | "settings";
+export type NavKey = "overview" | "usage" | "accounts" | "models" | "quota" | "client-keys" | "settings";
 
 export function layout(title: string, body: string, active?: NavKey): string {
   const link = (label: string, href: string, key: NavKey) => {
@@ -12,6 +12,7 @@ export function layout(title: string, body: string, active?: NavKey): string {
   const nav = [
     link("Overview", "/admin", "overview"),
     link("Usage", "/admin/usage", "usage"),
+    link("Client keys", "/admin/client-keys", "client-keys"),
     link("Accounts", "/admin/accounts", "accounts"),
     link("Models", "/admin/models", "models"),
     link("Quota", "/admin/quota", "quota"),

@@ -1,14 +1,15 @@
 import { page } from "../render.js";
-import { listAccountsByUser } from "../../db/repos/accounts.js";
+import { listAccounts } from "../../db/repos/accounts.js";
 import type Database from "better-sqlite3";
 
-export function renderAccounts(db: Database.Database, userId: number): string {
-  const accounts = listAccountsByUser(db, userId);
+export function renderAccounts(db: Database.Database): string {
+  const accounts = listAccounts(db);
   const body = `
-    <h1>Accounts</h1>
+    <h1>Upstream accounts (MiniMax)</h1>
+    <p>Pool of MiniMax API keys. Router fans out across enabled accounts with backoff + per-model locks.</p>
     <table>
       <tr><th>ID</th><th>Label</th><th>Credit</th><th>Status</th><th>Last error</th><th>Backoff</th></tr>
-      ${accounts.map((a: { id: string; label: string; credit_type: string; status: string; last_error: string | null; backoff_level: number }) => `
+      ${accounts.map((a) => `
         <tr>
           <td>${a.id}</td>
           <td>${a.label}</td>
@@ -20,10 +21,10 @@ export function renderAccounts(db: Database.Database, userId: number): string {
       `).join("")}
     </table>
     <form method="POST" action="/admin/accounts">
-      <h2>Add account</h2>
+      <h2>Add MiniMax account</h2>
       <label>Label <input name="label" required></label><br>
       <label>Credit type <select name="credit_type"><option value="payg">PAYG</option><option value="token-plan">Token Plan</option></select></label><br>
-      <label>API key <input name="api_key" required></label><br>
+      <label>MiniMax API key <input name="api_key" required></label><br>
       <button type="submit">Add</button>
     </form>
   `;

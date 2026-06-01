@@ -2,7 +2,7 @@ import { page } from "../render.js";
 import { listModels } from "../../db/repos/models.js";
 import type Database from "better-sqlite3";
 
-export function renderModels(db: Database.Database, _userId: number): string {
+export function renderModels(db: Database.Database): string {
   const models = listModels(db, { includeDisabled: true });
   const body = `
     <h1>Models</h1>

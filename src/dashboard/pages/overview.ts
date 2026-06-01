@@ -1,15 +1,15 @@
 import { page } from "../render.js";
 import { aggregateUsage, recentLogs } from "../../db/repos/requestLogs.js";
-import { listAccountsByUser } from "../../db/repos/accounts.js";
+import { listAccounts } from "../../db/repos/accounts.js";
 import type Database from "better-sqlite3";
 
-export function renderOverview(db: Database.Database, userId: number, userName: string): string {
-  const agg = aggregateUsage(db, userId, 7);
-  const accounts = listAccountsByUser(db, userId);
-  const logs = recentLogs(db, userId, 5);
+export function renderOverview(db: Database.Database): string {
+  const agg = aggregateUsage(db, { days: 7 });
+  const accounts = listAccounts(db);
+  const logs = recentLogs(db, { limit: 5 });
   const body = `
     <h1>Overview</h1>
-    <p>Welcome, ${userName} (last 7 days)</p>
+    <p>Last 7 days, all client keys</p>
     <h2>Stats</h2>
     <table>
       <tr><th>Total cost</th><td>$${agg.total_cost.toFixed(4)}</td></tr>
@@ -20,12 +20,12 @@ export function renderOverview(db: Database.Database, userId: number, userName: 
     <h2>By model</h2>
     <table>
       <tr><th>Model</th><th>Cost</th><th>Requests</th></tr>
-      ${agg.by_model.map((m: { model: string; cost: number; requests: number }) => `<tr><td>${m.model}</td><td>$${m.cost.toFixed(4)}</td><td>${m.requests}</td></tr>`).join("")}
+      ${agg.by_model.map((m) => `<tr><td>${m.model}</td><td>$${m.cost.toFixed(4)}</td><td>${m.requests}</td></tr>`).join("")}
     </table>
     <h2>Recent requests</h2>
     <table>
-      <tr><th>Time</th><th>Model</th><th>Status</th><th>Cost</th></tr>
-      ${logs.map((l: { created_at: string; model: string; status_code: number; cost_usd: number }) => `<tr><td>${l.created_at}</td><td>${l.model}</td><td>${l.status_code}</td><td>$${l.cost_usd.toFixed(4)}</td></tr>`).join("")}
+      <tr><th>Time</th><th>Client</th><th>Account</th><th>Model</th><th>Status</th><th>Cost</th></tr>
+      ${logs.map((l) => `<tr><td>${l.created_at}</td><td>${l.client_key_id ?? "—"}</td><td>${l.account_id ?? "—"}</td><td>${l.model}</td><td>${l.status_code}</td><td>$${l.cost_usd.toFixed(4)}</td></tr>`).join("")}
     </table>
   `;
   return page("Overview", "overview", body);
