@@ -1,0 +1,14 @@
+services:
+  router:
+    build: .
+    container_name: kelola-router
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:20137:20137"
+    volumes:
+      - ./data:/data
+    environment:
+      - HOST=0.0.0.0
+      - PORT=20137
+      - ROUTER_DB_PATH=/data/router.db
+      - LOG_LEVEL=info
