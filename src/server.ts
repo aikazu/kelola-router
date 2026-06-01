@@ -8,6 +8,7 @@ import { proxyAwareFetch } from "./transport/proxyFetch.js";
 import { selectAccount } from "./accounts/selection.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
 import { updateAccount } from "./db/repos/accounts.js";
+import { resolveModel } from "./providers/alias.js";
 import { log } from "./util/log.js";
 import type Database from "better-sqlite3";
 import type { AccountState } from "./accounts/types.js";
@@ -44,6 +45,16 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
   if (!account) return c.json({ error: "all accounts unavailable" }, 503);
 
   const acc = user.accounts.find((a: { id: string }) => a.id === account.id)!;
+
+  let resolved;
+  try {
+    resolved = resolveModel(c.get("db"), body.model ?? "", body);
+    body.model = resolved.upstreamModel;
+    resolved.bodyTransform(body);
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400);
+  }
+
   const url = `${getBaseUrl({ provider: "minimax", baseUrl: acc.base_url }, format)}${upstreamPath}`;
   const headers = buildHeaders({ provider: "minimax", apiKey: acc.api_key }, body.stream === true, format);
 

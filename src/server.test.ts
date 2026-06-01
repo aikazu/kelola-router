@@ -64,3 +64,42 @@ describe("handleProxy with auth + accounts", () => {
     expect(headers["Authorization"]).toBe("Bearer mm_real_key");
   });
 });
+
+describe("model resolution in proxy", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "mr-")), "t.db");
+    resetDb();
+  });
+
+  it("rewrites MiniMax-M3-thinking to upstream MiniMax-M3 with thinking block", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    createAccount(db, { id: "acc_z", user_id: u.id, label: "L", credit_type: "payg", api_key: "kk" });
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"choices":[{"message":{"content":"x"}}]}', { status: 200 }),
+    );
+    const req = new Request("http://localhost/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M3-thinking", messages: [{ role: "user", content: "hi" }] }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(200);
+    const sentBody = JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string);
+    expect(sentBody.model).toBe("MiniMax-M3");
+    expect(sentBody.thinking).toEqual({ type: "enabled", budget_tokens: 4096 });
+  });
+
+  it("400 on unknown model", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    createAccount(db, { id: "acc_y", user_id: u.id, label: "L", credit_type: "payg", api_key: "kk" });
+    const req = new Request("http://localhost/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "totally-fake", messages: [{ role: "user", content: "hi" }] }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(400);
+  });
+});
