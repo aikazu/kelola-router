@@ -18,13 +18,21 @@ export function renderAccounts(db: Database.Database): string {
           <td class="mono">${a.last_error ? escapeHtml(a.last_error.slice(0, 60)) : "—"}</td>
           <td>${a.backoff_level}</td>
           <td>${a.rate_limited_until ? a.rate_limited_until.slice(0, 19) : "—"}</td>
+          <td style="white-space:nowrap">
+            ${a.enabled
+              ? `<form method="POST" action="/admin/accounts/${a.id}/disable" style="display:inline"><button class="btn-ghost" style="padding:3px 10px;font-size:10px">Disable</button></form>`
+              : `<form method="POST" action="/admin/accounts/${a.id}/enable" style="display:inline"><button class="btn-ghost" style="padding:3px 10px;font-size:10px">Enable</button></form>`}
+            <form method="POST" action="/admin/accounts/${a.id}/delete" style="display:inline" onsubmit="return confirm('Delete ${escapeHtml(a.label)}? Cannot be undone.')">
+              <button class="btn-danger" style="padding:3px 10px;font-size:10px">Delete</button>
+            </form>
+          </td>
         </tr>
       `).join("");
   const body = `
     <p class="card-sub">Pool of MiniMax API keys. The router fans out across enabled accounts with backoff + per-model locks when one returns 429/5xx.</p>
     <div class="card">
       <table>
-        <tr><th>ID</th><th>Label</th><th>Credit</th><th>Status</th><th>Last error</th><th>Backoff</th><th>Rate-limited until</th></tr>
+        <tr><th>ID</th><th>Label</th><th>Credit</th><th>Status</th><th>Last error</th><th>Backoff</th><th>Rate-limited until</th><th></th></tr>
         ${rows}
       </table>
     </div>

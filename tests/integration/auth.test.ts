@@ -6,6 +6,7 @@ import { app, resetDb } from "../../src/server.js";
 import { openDb } from "../../src/db/index.js";
 import { clearCache as clearSettingsCache } from "../../src/db/repos/settings.js";
 import { hashPassword } from "../../src/auth/password.js";
+import { getAccount, createAccount } from "../../src/db/repos/accounts.js";
 
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "auth-")), "t.db");
@@ -73,5 +74,32 @@ describe("POST /logout", () => {
     expect(logout.headers.get("location")).toBe("/");
     const cleared = logout.headers.get("set-cookie") ?? "";
     expect(cleared).toMatch(/kelola_session=;/);
+  });
+});
+
+describe("/admin/accounts actions", () => {
+  it("POST /admin/accounts/:id/enable sets enabled=1", async () => {
+    const db = openDb();
+    createAccount(db, { id: "acc_e", label: "L", credit_type: "payg", api_key: "k" });
+    db.prepare(`UPDATE accounts SET enabled = 0 WHERE id = 'acc_e'`).run();
+    const res = await app.request("/admin/accounts/acc_e/enable", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(getAccount(db, "acc_e")?.enabled).toBe(1);
+  });
+
+  it("POST /admin/accounts/:id/disable sets enabled=0", async () => {
+    const db = openDb();
+    createAccount(db, { id: "acc_d", label: "L", credit_type: "payg", api_key: "k" });
+    const res = await app.request("/admin/accounts/acc_d/disable", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(getAccount(db, "acc_d")?.enabled).toBe(0);
+  });
+
+  it("POST /admin/accounts/:id/delete removes the account", async () => {
+    const db = openDb();
+    createAccount(db, { id: "acc_x", label: "L", credit_type: "payg", api_key: "k" });
+    const res = await app.request("/admin/accounts/acc_x/delete", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(getAccount(db, "acc_x")).toBeNull();
   });
 });

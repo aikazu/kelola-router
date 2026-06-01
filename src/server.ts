@@ -8,7 +8,7 @@ import { selectAccount } from "./accounts/selection.js";
 import { isModelLockActive } from "./accounts/state.js";
 import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/locks.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
-import { listEnabledAccounts, listAccounts, updateAccount, createAccount } from "./db/repos/accounts.js";
+import { listEnabledAccounts, listAccounts, updateAccount, createAccount, enableAccount, disableAccount, deleteAccount } from "./db/repos/accounts.js";
 import { createClientKey, genClientKey } from "./db/repos/client_keys.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
 import { resolveModel } from "./providers/alias.js";
@@ -368,6 +368,18 @@ app.post("/admin/accounts", requireAdmin, async (c) => {
     credit_type: String(body.credit_type) as "payg" | "token-plan",
     api_key: String(body.api_key),
   });
+  return c.redirect("/admin/accounts");
+});
+app.post("/admin/accounts/:id/enable", requireAdmin, (c) => {
+  enableAccount(c.get("db"), c.req.param("id")!);
+  return c.redirect("/admin/accounts");
+});
+app.post("/admin/accounts/:id/disable", requireAdmin, (c) => {
+  disableAccount(c.get("db"), c.req.param("id")!);
+  return c.redirect("/admin/accounts");
+});
+app.post("/admin/accounts/:id/delete", requireAdmin, (c) => {
+  deleteAccount(c.get("db"), c.req.param("id")!);
   return c.redirect("/admin/accounts");
 });
 
