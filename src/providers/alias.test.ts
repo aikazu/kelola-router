@@ -3,6 +3,7 @@ import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { openDb } from "../db/index.js";
+import { clearCache as clearSettingsCache } from "../db/repos/settings.js";
 import { resolveModel } from "./alias.js";
 
 beforeEach(() => {
@@ -62,5 +63,60 @@ describe("resolveModel", () => {
     const db = openDb();
     db.prepare(`UPDATE models SET enabled = 0 WHERE name = ?`).run("MiniMax-M3");
     expect(() => resolveModel(db, "MiniMax-M3", {})).toThrow(/model disabled/);
+  });
+});
+
+describe("M3 max_completion_tokens default (G7)", () => {
+  it("sets max_completion_tokens=131072 when caller omits it (M3)", () => {
+    const db = openDb();
+    const body: any = { model: "MiniMax-M3", messages: [] };
+    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
+    expect(body.max_completion_tokens).toBe(131072);
+  });
+
+  it("respects caller-provided max_completion_tokens", () => {
+    const db = openDb();
+    const body: any = { model: "MiniMax-M3", messages: [], max_completion_tokens: 8192 };
+    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
+    expect(body.max_completion_tokens).toBe(8192);
+  });
+
+  it("does NOT default for non-M3 models", () => {
+    const db = openDb();
+    const body: any = { model: "MiniMax-M2.7", messages: [] };
+    resolveModel(db, "MiniMax-M2.7", body).bodyTransform(body);
+    expect(body.max_completion_tokens).toBeUndefined();
+  });
+});
+
+describe("reasoning_split default (G4)", () => {
+  it("applies settings.minimax.reasoningSplitDefault=true to OpenAI M3 body", () => {
+    const db = openDb();
+    db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('minimax', ?)`)
+      .run(JSON.stringify({ reasoningSplitDefault: true, upstreamFormat: "auto" }));
+    clearSettingsCache();
+    const body: any = { model: "MiniMax-M3", messages: [] };
+    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
+    expect(body.reasoning_split).toBe(true);
+  });
+
+  it("no-op when reasoningSplitDefault not set (default false)", () => {
+    clearSettingsCache();
+    const db = openDb();
+    // Ensure no leftover minimax row from prior tests in this file (cache is per-process)
+    db.prepare(`DELETE FROM settings WHERE key = 'minimax'`).run();
+    const body: any = { model: "MiniMax-M3", messages: [] };
+    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
+    expect(body.reasoning_split).toBeUndefined();
+  });
+
+  it("respects caller-provided reasoning_split", () => {
+    const db = openDb();
+    db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('minimax', ?)`)
+      .run(JSON.stringify({ reasoningSplitDefault: true, upstreamFormat: "auto" }));
+    clearSettingsCache();
+    const body: any = { model: "MiniMax-M3", messages: [], reasoning_split: false };
+    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
+    expect(body.reasoning_split).toBe(false);
   });
 });
