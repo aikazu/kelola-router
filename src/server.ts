@@ -2,9 +2,8 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { openDb } from "./db/index.js";
 import { requireApiKey, requireAdmin } from "./auth.js";
-import { getBaseUrl } from "./providers/baseUrl.js";
-import { buildHeaders } from "./providers/headers.js";
-import { proxyAwareFetch } from "./transport/proxyFetch.js";
+import { upstreamUrl, upstreamHeaders, PROVIDER } from "./providers/minimax.js";
+import { upstreamFetch } from "./providers/upstreamFetch.js";
 import { selectAccount } from "./accounts/selection.js";
 import { isModelLockActive } from "./accounts/state.js";
 import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/locks.js";
@@ -95,11 +94,11 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     return c.json({ error: `model ${resolved.upstreamModel} temporarily locked for account ${account.id}` }, 429);
   }
 
-  const url = `${getBaseUrl({ provider: "minimax", baseUrl: acc.base_url }, format)}${upstreamPath}`;
-  const headers = buildHeaders({ provider: "minimax", apiKey: acc.api_key }, body.stream === true, format);
+  const url = upstreamUrl({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, format, upstreamPath);
+  const headers = upstreamHeaders({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, body.stream === true, format);
 
   try {
-    const resp = await proxyAwareFetch(url, { method: "POST", headers, body: JSON.stringify(body) }, { relay: null, proxy: null });
+    const resp = await upstreamFetch(url, body, headers);
     if (!resp.ok) {
       const errBody = await resp.text();
       let baseRespCode: number | undefined;
