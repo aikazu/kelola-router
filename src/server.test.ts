@@ -148,19 +148,37 @@ describe("POST /admin/models/fetch", () => {
     resetDb();
   });
 
-  it("503 when admin key not configured", async () => {
+  it("open access when no password set (local dev mode)", async () => {
     delete process.env.ROUTER_ADMIN_KEY;
+    const db = openDb();
+    createAccount(db, { id: "acc_open", label: "L", credit_type: "payg", api_key: "k" });
     const res = await app.request("/admin/models/fetch", { method: "POST" });
-    expect(res.status).toBe(503);
+    // 400 = no upstream account matches the model list test scenario; but here
+    // we set up an account. Result: 200 from /admin/models/fetch (mocked) or
+    // 502 if no upstream available. Either way, NOT 401/503.
+    expect([200, 502, 400]).toContain(res.status);
   });
 
-  it("401 when admin key invalid", async () => {
+  it("401 when password set AND env key invalid", async () => {
     process.env.ROUTER_ADMIN_KEY = "ak_test";
+    const db = openDb();
+    db.prepare(`INSERT INTO settings (key, value) VALUES ('admin_password', ?)`)
+      .run(JSON.stringify("scrypt:16384:00:00"));
     const res = await app.request("/admin/models/fetch", {
       method: "POST",
       headers: { "x-admin-key": "wrong" },
     });
     expect(res.status).toBe(401);
+  });
+
+  it("redirects to /login on GET when password set + no session", async () => {
+    delete process.env.ROUTER_ADMIN_KEY;
+    const db = openDb();
+    db.prepare(`INSERT INTO settings (key, value) VALUES ('admin_password', ?)`)
+      .run(JSON.stringify("scrypt:16384:00:00"));
+    const res = await app.request("/admin");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login");
   });
 
   it("fetches from first active account and merges", async () => {

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { openDb } from "./db/index.js";
-import { requireApiKey, requireAdmin } from "./auth.js";
+import { requireApiKey, requireAdmin, handleLogin, handleLogout, renderLoginPage } from "./auth.js";
 import { upstreamUrl, upstreamHeaders, PROVIDER } from "./providers/minimax.js";
 import { upstreamFetch } from "./providers/upstreamFetch.js";
 import { selectAccount } from "./accounts/selection.js";
@@ -287,6 +287,10 @@ table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;text-align:left;
 </div>
 </body></html>`);
 });
+
+app.get("/login", (c) => c.html(renderLoginPage("", c.get("db"))));
+app.post("/login", handleLogin);
+app.post("/logout", handleLogout);
 
 app.get("/admin", requireAdmin, (c) => c.html(renderOverview(c.get("db"))));
 app.get("/admin/usage", requireAdmin, (c) => {
