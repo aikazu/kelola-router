@@ -19,6 +19,8 @@ interface AccountLite {
   label: string;
   provider: string;
   credit_type: string;
+  api_key: string;
+  base_url: string | null;
   enabled: boolean;
   rate_limited_until: string | null;
   backoff_level: number;
@@ -48,7 +50,7 @@ export function createUser(db: Database.Database, name: string): User {
 
 function loadAccountsFor(db: Database.Database, userId: number): AccountLite[] {
   return db.prepare(
-    `SELECT id, label, provider, credit_type, enabled, rate_limited_until, backoff_level, status, position
+    `SELECT id, label, provider, credit_type, enabled, rate_limited_until, backoff_level, status, position, api_key, base_url
      FROM accounts WHERE user_id = ? ORDER BY position`
   ).all(userId) as AccountLite[];
 }

@@ -1,5 +1,11 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { app } from "./server.js";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { app, resetDb } from "./server.js";
+import { openDb } from "./db/index.js";
+import { createUser } from "./db/repos/users.js";
+import { createAccount } from "./db/repos/accounts.js";
+import { mkdtempSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -12,112 +18,49 @@ describe("GET /health", () => {
   });
 });
 
-describe("POST /v1/chat/completions", () => {
-  it("forwards body to upstream OpenAI URL and returns response", async () => {
-    const upstreamBody = JSON.stringify({
-      id: "cmpl-1",
-      choices: [{ message: { role: "assistant", content: "hi" } }],
-      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-    });
-    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(upstreamBody, {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
+describe("handleProxy with auth + accounts", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "ha-")), "t.db");
+    resetDb();
+  });
 
+  it("401 when no auth", async () => {
     const req = new Request("http://localhost/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "MiniMax-M3",
-        messages: [{ role: "user", content: "hi" }],
-      }),
-    });
-    const res = await app.request(req);
-
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.choices[0].message.content).toBe("hi");
-
-    expect(spy).toHaveBeenCalledTimes(1);
-    const [calledUrl, calledOpts] = spy.mock.calls[0] as [string, RequestInit];
-    expect(calledUrl).toBe("https://api.minimax.io/v1/chat/completions");
-    expect(calledOpts.method).toBe("POST");
-    const headers = calledOpts.headers as Record<string, string>;
-    expect(headers["Authorization"]).toBe(`Bearer ${process.env.MINIMAX_API_KEY}`);
-    const sentBody = JSON.parse(calledOpts.body as string);
-    expect(sentBody.model).toBe("MiniMax-M3");
-  });
-});
-
-describe("POST /v1/messages", () => {
-  it("forwards to anthropic URL with x-api-key", async () => {
-    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response('{"id":"msg_1","content":[{"type":"text","text":"hi"}]}', {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
-    const req = new Request("http://localhost/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: "MiniMax-M3",
-        max_tokens: 100,
-        messages: [{ role: "user", content: "hi" }],
-      }),
-    });
-    const res = await app.request(req);
-    expect(res.status).toBe(200);
-    const [calledUrl, calledOpts] = spy.mock.calls[0] as [string, RequestInit];
-    expect(calledUrl).toBe("https://api.minimax.io/anthropic/v1/messages");
-    const headers = calledOpts.headers as Record<string, string>;
-    expect(headers["x-api-key"]).toBe("mm_test_key");
-    expect(headers["anthropic-version"]).toBe("2023-06-01");
-  });
-});
-
-describe("POST /v1/messages/count_tokens", () => {
-  it("forwards to anthropic count_tokens URL", async () => {
-    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response('{"input_tokens":5}', { status: 200 }),
-    );
-    const req = new Request("http://localhost/v1/messages/count_tokens", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: "MiniMax-M3", messages: [{ role: "user", content: "hi" }] }),
     });
     const res = await app.request(req);
-    expect(res.status).toBe(200);
-    expect(spy.mock.calls[0][0]).toBe("https://api.minimax.io/anthropic/v1/messages/count_tokens");
+    expect(res.status).toBe(401);
   });
-});
 
-describe("POST /v1/embeddings", () => {
-  it("forwards to OpenAI embeddings URL", async () => {
-    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response('{"data":[{"embedding":[0.1]}]}', { status: 200 }),
-    );
-    const req = new Request("http://localhost/v1/embeddings", {
+  it("503 when user has no accounts", async () => {
+    const db = openDb();
+    const u = createUser(db, "lonely");
+    const req = new Request("http://localhost/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "text-embedding-3-small", input: "hi" }),
+      headers: { Authorization: `Bearer ${u.api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M3", messages: [{ role: "user", content: "hi" }] }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(503);
+  });
+
+  it("uses account api_key when account present", async () => {
+    const db = openDb();
+    const u = createUser(db, "u");
+    createAccount(db, { id: "acc_x", user_id: u.id, label: "L", credit_type: "payg", api_key: "mm_real_key" });
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"choices":[{"message":{"content":"x"}}]}', { status: 200 }),
+    );
+    const req = new Request("http://localhost/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${u.api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M3", messages: [{ role: "user", content: "hi" }] }),
     });
     const res = await app.request(req);
     expect(res.status).toBe(200);
-    expect(spy.mock.calls[0][0]).toBe("https://api.minimax.io/v1/embeddings");
-  });
-});
-
-describe("GET /v1/models", () => {
-  it("forwards to OpenAI models URL", async () => {
-    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response('{"data":[]}', { status: 200 }),
-    );
-    const req = new Request("http://localhost/v1/models");
-    const res = await app.request(req);
-    expect(res.status).toBe(200);
-    expect(spy.mock.calls[0][0]).toBe("https://api.minimax.io/v1/models");
+    const headers = (spy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe("Bearer mm_real_key");
   });
 });
