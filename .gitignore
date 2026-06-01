@@ -3,4 +3,5 @@ dist/
 data/
 .env
 *.log
-.DS_Storedocs/idea/
+.DS_Store
+docs/idea/

@@ -2,6 +2,7 @@
 
 > Local-first API router for [MiniMax](https://minimax.io) — single provider, multi-account, intelligent fallback, prompt caching, RTK + Caveman compression, and a built-in dashboard.
 
+[![Bun](https://img.shields.io/badge/bun-recommended-f9f1e1?logo=bun&logoColor=black)](https://bun.sh)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
@@ -33,7 +34,7 @@
 - 🗃️ **SQLite-WAL storage** — zero-config persistence with idempotent migrations
 - 📊 **Per-request telemetry** — token usage, latency, cache hits, account attribution
 - 🛠️ **CLI scripts** — `add-user`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 65+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 93+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🛣️ Roadmap
 
@@ -41,8 +42,8 @@
 |------:|:--------|:------:|:------|
 | 1 | **v0.1** | ✅ shipped | Hono passthrough, 5 routes, smoke test |
 | 2 | **v0.2** | ✅ shipped | SQLite, auth, multi-account state machine, CLI |
-| 3 | v0.3 | 🔜 next | Model registry, aliases, pricing tiers |
-| 4 | v0.4 | 📋 planned | RTK compression, Caveman mode, dual cache injection |
+| 3 | **v0.3** | ✅ shipped | Model registry, alias resolution, tiered pricing, live fetch |
+| 4 | v0.4 | 🔜 next | RTK compression, Caveman mode, dual cache injection |
 | 5 | v0.5 | 📋 planned | Quota scheduler, dashboard UI, SSE |
 | 6 | v0.6 | 📋 planned | Relay (Vercel/Cloudflare) + SOCKS proxy, Docker, VPS deploy |
 
@@ -50,16 +51,22 @@
 
 ### Prerequisites
 
-- **Node.js ≥ 20** (tested on 24)
-- **npm** (or pnpm/bun)
+- **[Bun](https://bun.sh) ≥ 1.3** (recommended for blazing-fast install) **or Node.js ≥ 20**
 - A MiniMax API key (`mm_…`) for testing
+
+> ⚠️ The server runtime uses **`better-sqlite3`** (Node native binding), so the dev/test server runs on **Node**, not Bun. Bun is recommended for install speed and lockfile benefits; both `bun.lock` and `package-lock.json` are kept in sync.
 
 ### Install
 
 ```bash
+# recommended — ~3x faster
 git clone https://github.com/aikazu/kelola-router.git
 cd kelola-router
+bun install
+
+# or with npm
 npm install
+
 cp .env.example .env
 # edit .env: set MINIMAX_API_KEY + region
 ```
