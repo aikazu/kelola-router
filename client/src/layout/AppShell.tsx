@@ -1,17 +1,34 @@
 import { useState, useEffect } from "preact/hooks";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../lib/api";
 import { Sidebar } from "./Sidebar";
+import { TopBar } from "./TopBar";
 import { CommandPalette } from "../components/CommandPalette";
-import { Placeholder } from "../pages/Placeholder";
+import { Overview } from "../pages/Overview";
+import { Usage } from "../pages/Usage";
+import { ClientKeys } from "../pages/ClientKeys";
+import { Accounts } from "../pages/Accounts";
+import { Models } from "../pages/Models";
+import { Quota } from "../pages/Quota";
+import { Settings } from "../pages/Settings";
+import { Login } from "../pages/Login";
 
 function Page({ current }: { current: string }) {
+  const { data: me, isLoading } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => apiFetch<{ authed: boolean; passwordSet: boolean }>("/api/me"),
+    retry: false,
+  });
+  if (isLoading) return <><TopBar title="Loading…" /><p style={{ padding: 36, color: "var(--text-3)" }}>Loading…</p></>;
+  if (me?.passwordSet && !me.authed) return <Login />;
   switch (current) {
-    case "usage": return <Placeholder name="Usage" />;
-    case "client-keys": return <Placeholder name="Client keys" />;
-    case "accounts": return <Placeholder name="Upstream accounts" />;
-    case "models": return <Placeholder name="Models" />;
-    case "quota": return <Placeholder name="Quota" />;
-    case "settings": return <Placeholder name="Settings" />;
-    case "overview": default: return <Placeholder name="Overview" />;
+    case "usage": return <Usage />;
+    case "client-keys": return <ClientKeys />;
+    case "accounts": return <Accounts />;
+    case "models": return <Models />;
+    case "quota": return <Quota />;
+    case "settings": return <Settings />;
+    case "overview": default: return <Overview />;
   }
 }
 
@@ -30,6 +47,10 @@ export function AppShell() {
     window.addEventListener("hashchange", onHash);
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setPaletteOpen(true); }
+      if (e.key === "?" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) {
+        e.preventDefault();
+        alert("Keyboard shortcuts:\n⌘K — command palette\ng+o — overview\ng+u — usage\ng+c — client keys\n? — this help");
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
