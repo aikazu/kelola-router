@@ -18,7 +18,7 @@
 - Modify: `src/transport/proxyFetch.ts` (full impl)
 - Create: `src/transport/proxyFetch.test.ts` (replace stub)
 
-- [ ] **Step 1: Write `src/transport/dispatcherCache.ts`**
+- [x] **Step 1: Write `src/transport/dispatcherCache.ts`**
 
 ```ts
 import type { Dispatcher } from "undici";
@@ -40,7 +40,7 @@ export async function getDispatcher(proxyUrl: string): Promise<Dispatcher | null
 }
 ```
 
-- [ ] **Step 2: Write `src/transport/socksLoader.ts`**
+- [x] **Step 2: Write `src/transport/socksLoader.ts`**
 
 ```ts
 import type { Dispatcher } from "undici";
@@ -52,12 +52,12 @@ export async function getSocksDispatcher(socksUrl: string): Promise<Dispatcher> 
 }
 ```
 
-- [ ] **Step 3: Install undici + socks-proxy-agent**
+- [x] **Step 3: Install undici + socks-proxy-agent**
 
 Run: `npm install undici socks-proxy-agent @types/socks-proxy-agent`
 Expected: deps installed
 
-- [ ] **Step 4: Write failing tests (replacing stub)**
+- [x] **Step 4: Write failing tests (replacing stub)**
 
 `src/transport/proxyFetch.test.ts`:
 ```ts
@@ -128,12 +128,12 @@ describe("proxyAwareFetch", () => {
 });
 ```
 
-- [ ] **Step 5: Run tests (expect fail)**
+- [x] **Step 5: Run tests (expect fail)**
 
 Run: `npm test`
 Expected: FAIL
 
-- [ ] **Step 6: Write `src/transport/proxyFetch.ts` (full)**
+- [x] **Step 6: Write `src/transport/proxyFetch.ts` (full)**
 
 ```ts
 import type { Dispatcher } from "undici";
@@ -209,12 +209,12 @@ export async function proxyAwareFetch(
 }
 ```
 
-- [ ] **Step 7: Run tests (expect pass)**
+- [x] **Step 7: Run tests (expect pass)**
 
 Run: `npm test`
 Expected: PASS — 142 tests (4 new)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/transport/ package.json package-lock.json
@@ -230,7 +230,7 @@ git commit -m "feat: full proxyAwareFetch with relay + http/socks proxy + env fa
 - Create: `docker-compose.yml`
 - Create: `.dockerignore`
 
-- [ ] **Step 1: Write `Dockerfile`**
+- [x] **Step 1: Write `Dockerfile`**
 
 ```dockerfile
 # Build stage
@@ -258,7 +258,7 @@ USER node
 CMD ["node", "dist/server.js"]
 ```
 
-- [ ] **Step 2: Write `docker-compose.yml`**
+- [x] **Step 2: Write `docker-compose.yml`**
 
 ```yaml
 services:
@@ -277,7 +277,7 @@ services:
       - LOG_LEVEL=info
 ```
 
-- [ ] **Step 3: Write `.dockerignore`**
+- [x] **Step 3: Write `.dockerignore`**
 
 ```
 node_modules
@@ -293,7 +293,7 @@ docs
 .idea
 ```
 
-- [ ] **Step 4: Build + test**
+- [x] **Step 4: Build + test**
 
 Run: `docker build -t minimax-router .`
 Expected: image builds successfully
@@ -303,7 +303,7 @@ Wait 2 sec, then: `curl http://127.0.0.1:20137/health`
 Expected: `{"ok":true}`
 Stop container.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Dockerfile docker-compose.yml .dockerignore
@@ -317,7 +317,7 @@ git commit -m "feat: Dockerfile + docker-compose for local + VPS deploy"
 **Files:**
 - Create: `Caddyfile`
 
-- [ ] **Step 1: Write `Caddyfile`**
+- [x] **Step 1: Write `Caddyfile`**
 
 ```
 # Replace with your actual domain
@@ -330,7 +330,7 @@ router.example.com {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add Caddyfile
@@ -344,7 +344,7 @@ git commit -m "docs: Caddyfile snippet for VPS deploy with auto-TLS"
 **Files:**
 - Create: `README.md`
 
-- [ ] **Step 1: Write `README.md`**
+- [x] **Step 1: Write `README.md`**
 
 ```markdown
 # minimax-router
@@ -445,7 +445,7 @@ npm test
 MIT.
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add README.md
@@ -456,17 +456,17 @@ git commit -m "docs: README with quickstart, usage, deploy, transport"
 
 ## Task 6.5: Phase 6 checkpoint
 
-- [ ] **Step 1: Full test suite**
+- [x] **Step 1: Full test suite**
 
 Run: `npm test`
 Expected: 142+ tests pass
 
-- [ ] **Step 2: Type check**
+- [x] **Step 2: Type check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors
 
-- [ ] **Step 3: Commit + tag**
+- [x] **Step 3: Commit + tag**
 
 ```bash
 git add .
