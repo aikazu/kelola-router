@@ -41,8 +41,12 @@
 - 🔁 **Pool fallback across upstream MiniMax keys** — admin adds N MiniMax keys; router fans out + backoffs + locks per-model
 - 🪶 **RTK compression + Caveman mode + dual cache injection** — per-setting toggles in dashboard
 - 🌊 **SSE stream pass-through** — OpenAI + Anthropic streaming with usage extraction on flush
+- ✏️ **Inline CRUD on every page** — enable/disable/delete accounts, client keys, and models without the CLI. Reveal/hide bearer keys in the UI
+- 🔐 **Optional dashboard password** — set via `/admin/settings` to lock the dashboard behind a login. Open mode by default for local use
+- 🛡️ **Login rate-limit + CSRF** — 5 failed attempts per 15min per IP, cross-origin POSTs blocked
+- 🌐 **Fetch from upstream** — `/admin/models` can pull MiniMax's current model list; 404 fallback shows a clear message
 - 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 211+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 251+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🛣️ Roadmap
 
@@ -56,6 +60,7 @@
 | 6 | **v0.6** | ✅ shipped | Full transport (relay + http/socks + env), Dockerfile, Caddyfile, VPS docs |
 | 7 | **v0.7** | ✅ shipped | Drop multi-tenant: client_keys vs accounts split, per-key usage, single-user self-host model |
 | 8 | **v0.8** | ✅ shipped | Cross-format tool conversion (OpenAI↔Anthropic), `stream_options.include_usage` auto-injection, MiniMax `base_resp` status code mapping, `/v1/embeddings` → 501, `reasoning_split` toggle |
+| 9 | **v0.9** | ✅ shipped | Inline dashboard CRUD, login + rate-limit + CSRF, fetch-models 404 fallback, usage account labels |
 
 ## 🚀 Quick Start
 
@@ -81,28 +86,15 @@ cp .env.example .env
 # edit .env: set MINIMAX_API_KEY + region
 ```
 
-### Bootstrap: client keys + MiniMax accounts
+### Bootstrap (no CLI required)
 
-The router has TWO independent concepts:
+Open the dashboard at <http://localhost:20137/>. From there:
 
-| Concept | Table | Created via | Purpose |
-|---|---|---|---|
-| **Client key** | `client_keys` | `npm run add-client-key` | Bearer credential for one client/app. Per-key usage tracking. |
-| **MiniMax account** | `accounts` | `npm run add-account` | Upstream MiniMax API key. Pool of N for fallback + quota. |
+1. Add a MiniMax upstream account at `/admin/accounts` (label, credit type, API key)
+2. Create a client key for each app at `/admin/client-keys` (label) — copy the bearer
+3. Optional: lock the dashboard at `/admin/settings` ("Set password")
 
-```bash
-# 1. create a client key (one per app/user that calls the router)
-ROUTER_DB_PATH=./data/router.db npm run add-client-key -- --label myapp
-# → rk_xxxx    (use as: Authorization: Bearer rk_xxxx)
-
-# 2. add an upstream MiniMax key (one per MiniMax account; pool for fallback)
-ROUTER_DB_PATH=./data/router.db npm run add-account -- \
-  --label "PAYG main" \
-  --credit-type payg \
-  --api-key mm_your_real_key
-```
-
-Admin key is configured via `ROUTER_ADMIN_KEY` env or `settings.admin_key` row in the DB. Without it, `/admin/*` returns 503.
+The CLI scripts (`npm run add-client-key`, `add-account`, `seed-models`, `reset`) are still available for power users / bulk seeding.
 
 ### Run the server
 
@@ -227,7 +219,7 @@ Per-user setting `user_settings.account_mode` controls selection: `sticky` (sess
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (211+ tests)
+npm test              # vitest run (251+ tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
