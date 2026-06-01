@@ -8,6 +8,48 @@ import { clearCache as clearSettingsCache } from "../../src/db/repos/settings.js
 import { hashPassword } from "../../src/auth/password.js";
 import { getAccount, createAccount } from "../../src/db/repos/accounts.js";
 import { getClientKey, createClientKey } from "../../src/db/repos/client_keys.js";
+import { _resetRateLimitForTests as resetRateLimit } from "../../src/auth/rateLimit.js";
+
+describe("login rate limit", () => {
+  beforeEach(() => resetRateLimit());
+
+  it("returns 401 on first 5 wrong attempts, then 429 on 6th", async () => {
+    const db = openDb();
+    db.prepare(`INSERT INTO settings (key, value) VALUES ('admin_password', ?)`).run(JSON.stringify(hashPassword("right")));
+    for (let i = 0; i < 5; i++) {
+      const r = await app.request("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "password=wrong",
+      });
+      expect(r.status).toBe(401);
+    }
+    const sixth = await app.request("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "password=wrong",
+    });
+    expect(sixth.status).toBe(429);
+  });
+
+  it("different IP — unaffected by another IP's lockout", async () => {
+    const db = openDb();
+    db.prepare(`INSERT INTO settings (key, value) VALUES ('admin_password', ?)`).run(JSON.stringify(hashPassword("right")));
+    for (let i = 0; i < 5; i++) {
+      await app.request("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", "x-forwarded-for": "10.0.0.1" },
+        body: "password=wrong",
+      });
+    }
+    const fromOther = await app.request("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "x-forwarded-for": "10.0.0.2" },
+      body: "password=right",
+    });
+    expect(fromOther.status).toBe(302);
+  });
+});
 
 describe("/admin/models actions", () => {
   it("POST /admin/models/:name/enable sets enabled=1", async () => {

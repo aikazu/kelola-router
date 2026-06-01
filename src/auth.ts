@@ -3,6 +3,7 @@ import { getClientKeyByKey, type ClientKey } from "./db/repos/client_keys.js";
 import { openDb } from "./db/index.js";
 import { isPasswordSet, verifyPassword, setPassword } from "./auth/password.js";
 import { validateSession, createSession, destroySession } from "./auth/session.js";
+import { isLoginLocked, recordLoginFailure, clearLoginFailures } from "./auth/rateLimit.js";
 
 // Re-exports for use by routes/handlers
 export { isPasswordSet, setPassword, verifyPassword };
@@ -17,12 +18,18 @@ export function readCookie(c: Context, name: string): string | null {
   return null;
 }
 
+function isSecureRequest(c: Context): boolean {
+  return process.env.ROUTER_COOKIE_SECURE === "1" || c.req.header("x-forwarded-proto") === "https";
+}
+
 export function setCookie(c: Context, name: string, value: string, maxAgeSec: number) {
-  c.header("set-cookie", `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}`);
+  const secure = isSecureRequest(c) ? "; Secure" : "";
+  c.header("set-cookie", `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}${secure}`);
 }
 
 export function clearCookie(c: Context, name: string) {
-  c.header("set-cookie", `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  const secure = isSecureRequest(c) ? "; Secure" : "";
+  c.header("set-cookie", `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
 }
 
 type Db = ReturnType<typeof openDb>;
@@ -117,15 +124,22 @@ export async function handleLogin(c: Context): Promise<Response> {
   if (!isPasswordSet(db)) {
     return c.redirect("/admin"); // open mode → no login needed
   }
+  const ip = clientIp(c) ?? "unknown";
+  const lock = isLoginLocked(ip);
+  if (lock.locked) {
+    return c.html(renderLoginPage(`Too many attempts. Try again in ${Math.ceil(lock.retryAfterMs / 1000)}s.`, db), 429);
+  }
   const body = await c.req.parseBody();
   const password = typeof body.password === "string" ? body.password : "";
   const row = db.prepare(`SELECT value FROM settings WHERE key = 'admin_password'`).get() as { value: string } | undefined;
   if (!row || !verifyPassword(password, JSON.parse(row.value))) {
-    return c.html(renderLoginPage("Wrong password.", c.get("db")), 401);
+    recordLoginFailure(ip);
+    return c.html(renderLoginPage("Wrong password.", db), 401);
   }
+  clearLoginFailures(ip);
   const session = createSession(db, {
     userAgent: c.req.header("user-agent") ?? undefined,
-    ip: clientIp(c) ?? undefined,
+    ip,
   });
   setCookie(c, SESSION_COOKIE, session.id, 7 * 24 * 60 * 60);
   return c.redirect("/admin");
