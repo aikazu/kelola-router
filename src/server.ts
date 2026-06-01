@@ -31,13 +31,6 @@ import {
   bodyAddsOpenAIStreamUsage,
 } from "./providers/format/transform.js";
 import { getUpstreamFormat } from "./providers/format/negotiate.js";
-import { renderOverview } from "./dashboard/pages/overview.js";
-import { renderUsage } from "./dashboard/pages/usage.js";
-import { renderAccounts } from "./dashboard/pages/accounts.js";
-import { renderModels } from "./dashboard/pages/models.js";
-import { renderQuota } from "./dashboard/pages/quota.js";
-import { renderSettings } from "./dashboard/pages/settings.js";
-import { renderClientKeys } from "./dashboard/pages/clientKeys.js";
 import type Database from "better-sqlite3";
 import type { AccountState } from "./accounts/types.js";
 import { isPasswordSet } from "./auth/password.js";
@@ -376,22 +369,13 @@ app.post("/admin/models/:name/disable", requireAdmin, (c) => {
   return c.redirect("/admin/models");
 });
 
-app.get("/admin", requireAdmin, (c) => c.html(renderOverview(c.get("db"))));
-app.get("/admin/usage", requireAdmin, (c) => {
-  const url = new URL(c.req.url);
-  const clientKeyId = url.searchParams.get("client_key");
-  return c.html(renderUsage(c.get("db"), clientKeyId ? Number(clientKeyId) : undefined));
-});
-app.get("/admin/accounts", requireAdmin, (c) => c.html(renderAccounts(c.get("db"))));
-app.get("/admin/models", requireAdmin, (c) => {
-  const url = new URL(c.req.url);
-  const fetched = url.searchParams.get("fetched");
-  const flash = fetched !== null ? `${fetched} new model(s) imported from upstream.` : null;
-  return c.html(renderModels(c.get("db"), flash));
-});
-app.get("/admin/quota", requireAdmin, (c) => c.html(renderQuota(c.get("db"))));
-app.get("/admin/settings", requireAdmin, (c) => c.html(renderSettings(c.get("db"))));
-app.get("/admin/client-keys", requireAdmin, (c) => c.html(renderClientKeys(c.get("db"))));
+app.get("/admin", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
+app.get("/admin/usage", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
+app.get("/admin/accounts", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
+app.get("/admin/models", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
+app.get("/admin/quota", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
+app.get("/admin/settings", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
+app.get("/admin/client-keys", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
 
 app.post("/admin/accounts", requireAdmin, async (c) => {
   const body = await c.req.parseBody();
@@ -481,6 +465,19 @@ app.post("/admin/settings/caching", requireAdmin, async (c) => {
 export { app };
 
 export function resetDb(): void { _db = null; }
+
+// Serve built SPA in production. Vite dev server handles this in dev (proxies to :5173).
+if (process.env.NODE_ENV === "production" || process.env.SERVE_STATIC) {
+  try {
+    const { serveStatic } = await import("@hono/node-server/serve-static");
+    const distRoot = "./client/dist";
+    app.use("/assets/*", serveStatic({ root: distRoot }));
+    app.get("*", serveStatic({ path: "./index.html", root: distRoot }));
+    log.info({ root: distRoot }, "serving SPA from client/dist");
+  } catch (e) {
+    log.warn({ err: (e as Error).message }, "serveStatic unavailable; SPA not served");
+  }
+}
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = getPort();

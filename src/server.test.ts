@@ -345,35 +345,78 @@ describe("augmentation in proxy", () => {
   });
 });
 
-describe("dashboard pages", () => {
+describe("SPA admin API endpoints", () => {
   beforeEach(() => {
-    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "dash-")), "t.db");
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "api-")), "t.db");
     resetDb();
-    process.env.ROUTER_ADMIN_KEY = "ak_dashboard";
   });
 
-  it("all pages render for admin", async () => {
-    const db = openDb();
-    createAccount(db, { id: "a1", label: "L", credit_type: "payg", api_key: "k" });
-    const adminHdr = { "x-admin-key": "ak_dashboard" };
-    for (const path of ["/admin", "/admin/usage", "/admin/accounts", "/admin/models", "/admin/quota", "/admin/settings", "/admin/client-keys"]) {
-      const res = await app.request(path, { headers: adminHdr });
-      expect(res.status, `path ${path}`).toBe(200);
-      const html = await res.text();
-      expect(html).toContain("<!DOCTYPE html>");
-    }
-  });
-
-  it("usage page filters by client_key", async () => {
-    const db = openDb();
-    const ck = createClientKey(db, { label: "u", key: "rk_u" });
-    createAccount(db, { id: "a1", label: "L", credit_type: "payg", api_key: "k" });
-    const res = await app.request(`/admin/usage?client_key=${ck.id}`, {
-      headers: { "x-admin-key": "ak_dashboard" },
-    });
+  it("/api/admin/overview returns 200 JSON", async () => {
+    const res = await app.request("/api/admin/overview");
     expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain("u"); // label appears
+    const body = await res.json();
+    expect(body).toHaveProperty("stats");
+    expect(body).toHaveProperty("byModel");
+    expect(body).toHaveProperty("recent");
+  });
+
+  it("/api/admin/usage returns 200 JSON", async () => {
+    const res = await app.request("/api/admin/usage");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty("summary");
+    expect(body).toHaveProperty("logs");
+  });
+
+  it("/api/admin/client-keys returns list (empty)", async () => {
+    const res = await app.request("/api/admin/client-keys");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it("/api/admin/accounts returns list (empty)", async () => {
+    const res = await app.request("/api/admin/accounts");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it("/api/admin/models returns list", async () => {
+    const res = await app.request("/api/admin/models");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it("/api/admin/quota returns list", async () => {
+    const res = await app.request("/api/admin/quota");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it("/api/admin/settings returns 200 with all keys", async () => {
+    const res = await app.request("/api/admin/settings");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty("caveman");
+    expect(body).toHaveProperty("caching");
+    expect(body).toHaveProperty("rtk");
+    expect(body).toHaveProperty("minimax");
+  });
+
+  it("/api/me returns passwordSet/authed", async () => {
+    const res = await app.request("/api/me");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty("passwordSet");
+    expect(body).toHaveProperty("authed");
+  });
+
+  it("/admin/usage returns 410 (deprecated, use SPA)", async () => {
+    const res = await app.request("/admin/usage");
+    expect(res.status).toBe(410);
   });
 });
 

@@ -99,10 +99,16 @@ The CLI scripts (`npm run add-client-key`, `add-account`, `seed-models`, `reset`
 ### Run the server
 
 ```bash
-npm run dev          # tsx watch mode
+npm run dev          # runs Hono + Vite dev server (concurrently)
 # or
 npm run build && npm start
 ```
+
+The dev server runs:
+- **API + proxy** on `http://127.0.0.1:20137` (Hono)
+- **Dashboard SPA** on `http://127.0.0.1:5173` (Vite) — proxies `/api`, `/v1`, `/login`, `/logout` to the server
+
+In production (`npm start`), the server serves the static SPA from `client/dist/` on port 20137.
 
 ### Make a request
 
