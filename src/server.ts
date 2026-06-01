@@ -6,6 +6,8 @@ import { getBaseUrl } from "./providers/baseUrl.js";
 import { buildHeaders } from "./providers/headers.js";
 import { proxyAwareFetch } from "./transport/proxyFetch.js";
 import { selectAccount } from "./accounts/selection.js";
+import { isModelLockActive } from "./accounts/state.js";
+import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/locks.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
 import { updateAccount } from "./db/repos/accounts.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
@@ -85,6 +87,12 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     return c.json({ error: e.message }, 400);
   }
 
+  // Per-model lock: skip accounts that have an active lock for this model.
+  clearExpiredModelLocks(c.get("db"));
+  if (isModelLockActive(getModelLock(c.get("db"), account.id, resolved.upstreamModel))) {
+    return c.json({ error: `model ${resolved.upstreamModel} temporarily locked for account ${account.id}` }, 429);
+  }
+
   const url = `${getBaseUrl({ provider: "minimax", baseUrl: acc.base_url }, format)}${upstreamPath}`;
   const headers = buildHeaders({ provider: "minimax", apiKey: acc.api_key }, body.stream === true, format);
 
@@ -104,6 +112,10 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
         last_error: JSON.stringify({ status: resp.status, message: errBody.slice(0, 500), timestamp: new Date().toISOString(), baseRespCode }),
         status: resp.status === 401 ? "error" : "active",
       });
+      // Per-model lock: prevent same model from being retried until cooldown.
+      if (decision.cooldownMs > 0) {
+        setModelLock(c.get("db"), account.id, resolved.upstreamModel, decision.cooldownMs);
+      }
       return c.body(errBody, resp.status as any, {
         "content-type": resp.headers.get("content-type") ?? "application/json",
       });
