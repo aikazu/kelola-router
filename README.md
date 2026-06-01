@@ -8,7 +8,7 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.2](https://img.shields.io/badge/release-v0.2-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.2)
+[![v0.6](https://img.shields.io/badge/release-v0.6-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.6)
 
 ```text
 ┌──────────┐     ┌──────────────────────────────┐     ┌─────────────┐
@@ -34,7 +34,7 @@
 - 🗃️ **SQLite-WAL storage** — zero-config persistence with idempotent migrations
 - 📊 **Per-request telemetry** — token usage, latency, cache hits, account attribution
 - 🛠️ **CLI scripts** — `add-user`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 93+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 141+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🛣️ Roadmap
 
@@ -45,7 +45,7 @@
 | 3 | **v0.3** | ✅ shipped | Model registry, alias resolution, tiered pricing, live fetch |
 | 4 | v0.4 | 🔜 next | RTK compression, Caveman mode, dual cache injection |
 | 5 | v0.5 | 📋 planned | Quota scheduler, dashboard UI, SSE |
-| 6 | v0.6 | 📋 planned | Relay (Vercel/Cloudflare) + SOCKS proxy, Docker, VPS deploy |
+| 6 | **v0.6** | ✅ shipped | Full transport (relay + http/socks + env), Dockerfile, Caddyfile, VPS docs |
 
 ## 🚀 Quick Start
 
@@ -54,7 +54,7 @@
 - **[Bun](https://bun.sh) ≥ 1.3** (recommended for blazing-fast install) **or Node.js ≥ 20**
 - A MiniMax API key (`mm_…`) for testing
 
-> ⚠️ The server runtime uses **`better-sqlite3`** (Node native binding), so the dev/test server runs on **Node**, not Bun. Bun is recommended for install speed and lockfile benefits; both `bun.lock` and `package-lock.json` are kept in sync.
+> **Note:** the dev/test server uses `better-sqlite3` (Node native binding), so the runtime stays on **Node**, not Bun. Bun is recommended for install speed and lockfile benefits.
 
 ### Install
 
@@ -179,6 +179,38 @@ npm run dev           # tsx watch src/server.ts
 - `refactor:` internal restructure, no behavior change
 
 TDD discipline: red test → green impl → commit. No "add tests later".
+
+## 🐳 Docker
+
+```bash
+docker compose up -d
+docker compose logs -f
+```
+
+Listens on `http://127.0.0.1:20137` by default (bind to localhost for safety; remove `127.0.0.1:` in `docker-compose.yml` to expose publicly).
+
+## 🌐 VPS Deploy (Hetzner / OVH / DigitalOcean)
+
+1. SSH into VPS, install Docker + Caddy
+2. `git clone https://github.com/aikazu/kelola-router.git && cd kelola-router`
+3. Edit `Caddyfile` — replace `router.example.com` with your domain
+4. `docker compose up -d`
+5. `caddy reload` — auto-TLS via Let's Encrypt
+6. Visit `https://router.example.com/admin` and use your admin_key
+
+## 🚇 Transport
+
+The router supports 4 transport modes, in priority order:
+
+1. **Direct** (default) — no config
+2. **HTTP/HTTPS proxy** — set `HTTPS_PROXY=http://host:port` env
+3. **SOCKS5 proxy** — set `HTTPS_PROXY=socks5://host:port` env
+4. **Relay** (Vercel/Cloudflare) — set `transport.relay` row in `settings` table:
+   ```sql
+   UPDATE settings SET value = '{"relay":{"kind":"vercel","url":"https://your-relay.vercel.app/api/relay"}}' WHERE key = 'transport';
+   ```
+
+Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 
 ## 📜 License
 
