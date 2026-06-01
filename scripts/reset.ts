@@ -7,9 +7,9 @@ import { log } from "../src/util/log.js";
 function defaultDbPath(): string {
   if (process.env.ROUTER_DB_PATH) return process.env.ROUTER_DB_PATH;
   const home = homedir();
-  if (process.platform === "darwin") return join(home, "Library/Application Support/minimax-router/router.db");
-  if (process.platform === "win32") return join(process.env.APPDATA || home, "minimax-router/router.db");
-  return join(process.env.XDG_DATA_HOME || join(home, ".local/share"), "minimax-router/router.db");
+  if (process.platform === "darwin") return join(home, "Library/Application Support/kelola-router/router.db");
+  if (process.platform === "win32") return join(process.env.APPDATA || home, "kelola-router/router.db");
+  return join(process.env.XDG_DATA_HOME || join(home, ".local/share"), "kelola-router/router.db");
 }
 
 const args = process.argv.slice(2);
