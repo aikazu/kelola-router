@@ -31,11 +31,11 @@ export function createAccount(db: Database.Database, input: AccountCreate): Acco
 }
 
 export function getAccount(db: Database.Database, id: string): Account | null {
-  return db.prepare(`SELECT * FROM accounts WHERE id = ?`).get(id) as Account | null;
+  return (db.prepare(`SELECT * FROM accounts WHERE id = ?`).get(id) as Account | undefined) ?? null;
 }
 
 export function getAccountByApiKey(db: Database.Database, apiKey: string): Account | null {
-  return db.prepare(`SELECT * FROM accounts WHERE api_key = ?`).get(apiKey) as Account | null;
+  return (db.prepare(`SELECT * FROM accounts WHERE api_key = ?`).get(apiKey) as Account | undefined) ?? null;
 }
 
 export function listAccounts(db: Database.Database): Account[] {
@@ -52,4 +52,16 @@ export function updateAccount(db: Database.Database, id: string, patch: Partial<
   const set = keys.map(k => `${k} = ?`).join(", ");
   const values = keys.map(k => (patch as Record<string, unknown>)[k]);
   db.prepare(`UPDATE accounts SET ${set} WHERE id = ?`).run(...values, id);
+}
+
+export function enableAccount(db: Database.Database, id: string): void {
+  db.prepare(`UPDATE accounts SET enabled = 1 WHERE id = ?`).run(id);
+}
+
+export function disableAccount(db: Database.Database, id: string): void {
+  db.prepare(`UPDATE accounts SET enabled = 0 WHERE id = ?`).run(id);
+}
+
+export function deleteAccount(db: Database.Database, id: string): void {
+  db.prepare(`DELETE FROM accounts WHERE id = ?`).run(id);
 }

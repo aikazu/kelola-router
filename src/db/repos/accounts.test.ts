@@ -5,6 +5,7 @@ import { join } from "path";
 import { openDb } from "../index.js";
 import {
   createAccount, getAccount, listAccounts, updateAccount, getAccountByApiKey,
+  enableAccount, disableAccount, deleteAccount,
 } from "./accounts.js";
 
 let db: ReturnType<typeof openDb>;
@@ -51,5 +52,24 @@ describe("accounts repo", () => {
     const got = getAccount(db, "acc_u");
     expect(got?.backoff_level).toBe(3);
     expect(got?.rate_limited_until).toBe("2099-01-01T00:00:00Z");
+  });
+
+  it("enableAccount sets enabled=1", () => {
+    createAccount(db, { id: "acc_e", label: "L", credit_type: "payg", api_key: "k" });
+    db.prepare(`UPDATE accounts SET enabled = 0 WHERE id = 'acc_e'`).run();
+    enableAccount(db, "acc_e");
+    expect(getAccount(db, "acc_e")?.enabled).toBe(1);
+  });
+
+  it("disableAccount sets enabled=0", () => {
+    createAccount(db, { id: "acc_d", label: "L", credit_type: "payg", api_key: "k" });
+    disableAccount(db, "acc_d");
+    expect(getAccount(db, "acc_d")?.enabled).toBe(0);
+  });
+
+  it("deleteAccount removes the row", () => {
+    createAccount(db, { id: "acc_x", label: "L", credit_type: "payg", api_key: "k" });
+    deleteAccount(db, "acc_x");
+    expect(getAccount(db, "acc_x")).toBeNull();
   });
 });
