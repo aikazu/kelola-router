@@ -213,3 +213,32 @@ describe("POST /admin/models/fetch", () => {
     expect(res.headers.get("location")).toMatch(/\/admin\/models/);
   });
 });
+
+describe("CSRF protection", () => {
+  it("rejects POST from cross-origin", async () => {
+    const db = openDb();
+    createAccount(db, { id: "acc_x", label: "L", credit_type: "payg", api_key: "k" });
+    const res = await app.request("http://127.0.0.1:20145/admin/accounts/acc_x/enable", {
+      method: "POST",
+      headers: { Origin: "https://evil.example.com", Host: "127.0.0.1:20145" },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("accepts POST from same-origin", async () => {
+    const db = openDb();
+    createAccount(db, { id: "acc_x", label: "L", credit_type: "payg", api_key: "k" });
+    const res = await app.request("http://127.0.0.1:20145/admin/accounts/acc_x/enable", {
+      method: "POST",
+      headers: { Origin: "http://127.0.0.1:20145", Host: "127.0.0.1:20145" },
+    });
+    expect([302, 200]).toContain(res.status);
+  });
+
+  it("allows POST without Origin (curl / server-to-server)", async () => {
+    const db = openDb();
+    createAccount(db, { id: "acc_x", label: "L", credit_type: "payg", api_key: "k" });
+    const res = await app.request("/admin/accounts/acc_x/enable", { method: "POST" });
+    expect([302, 200]).toContain(res.status);
+  });
+});

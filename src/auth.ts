@@ -32,6 +32,19 @@ export function clearCookie(c: Context, name: string) {
   c.header("set-cookie", `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
 }
 
+export function verifySameOrigin(c: Context): boolean {
+  const origin = c.req.header("origin");
+  if (!origin) return true; // permissive: no Origin header (curl, server-to-server)
+  const host = c.req.header("host");
+  if (!host) return true; // no Host header — nothing to compare
+  try {
+    const o = new URL(origin);
+    return o.host === host;
+  } catch {
+    return false;
+  }
+}
+
 type Db = ReturnType<typeof openDb>;
 
 declare module "hono" {

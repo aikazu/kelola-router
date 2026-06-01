@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { openDb } from "./db/index.js";
-import { requireApiKey, requireAdmin, handleLogin, handleLogout, renderLoginPage } from "./auth.js";
+import { requireApiKey, requireAdmin, handleLogin, handleLogout, renderLoginPage, verifySameOrigin } from "./auth.js";
 import { upstreamUrl, upstreamHeaders, PROVIDER } from "./providers/minimax.js";
 import { upstreamFetch } from "./providers/upstreamFetch.js";
 import { selectAccount } from "./accounts/selection.js";
@@ -51,6 +51,15 @@ const app = new Hono();
 app.use("*", async (c, next) => {
   c.set("db", getDb());
   c.set("startTime", Date.now());
+  await next();
+});
+
+app.use("/admin/*", async (c, next) => {
+  if (c.req.method !== "GET" && c.req.method !== "HEAD") {
+    if (!verifySameOrigin(c)) {
+      return c.json({ error: "cross-origin request blocked" }, 403);
+    }
+  }
   await next();
 });
 
