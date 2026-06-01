@@ -2,16 +2,31 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-export function layout(title: string, body: string): string {
+export type NavKey = "overview" | "usage" | "accounts" | "models" | "quota" | "settings";
+
+export function layout(title: string, body: string, active?: NavKey): string {
+  const link = (label: string, href: string, key: NavKey) => {
+    const cls = active === key ? ` class="active"` : "";
+    return `<a href="${href}"${cls}>${label}</a>`;
+  };
+  const nav = [
+    link("Overview", "/admin", "overview"),
+    link("Usage", "/admin/usage", "usage"),
+    link("Accounts", "/admin/accounts", "accounts"),
+    link("Models", "/admin/models", "models"),
+    link("Quota", "/admin/quota", "quota"),
+    link("Settings", "/admin/settings", "settings"),
+  ].join("\n  ");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>${escapeHtml(title)} — minimax-router</title>
+<title>${escapeHtml(title)} — kelola-router</title>
 <style>
   body { font-family: -apple-system, sans-serif; margin: 0; padding: 0; background: #f5f5f5; color: #222; }
   nav { background: #222; color: #fff; padding: 12px 24px; }
   nav a { color: #fff; margin-right: 16px; text-decoration: none; }
+  nav a.active { border-bottom: 2px solid #4da3ff; }
   main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
   h1 { font-size: 24px; }
   h2 { font-size: 18px; margin-top: 24px; }
@@ -30,12 +45,7 @@ export function layout(title: string, body: string): string {
 </head>
 <body>
 <nav>
-  <a href="/admin">Overview</a>
-  <a href="/admin/usage">Usage</a>
-  <a href="/admin/accounts">Accounts</a>
-  <a href="/admin/models">Models</a>
-  <a href="/admin/quota">Quota</a>
-  <a href="/admin/settings">Settings</a>
+  ${nav}
 </nav>
 <main>
 ${body}

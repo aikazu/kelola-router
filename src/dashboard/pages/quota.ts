@@ -1,4 +1,4 @@
-import { layout } from "../layout.js";
+import { page } from "../render.js";
 import { listAccountsByUser } from "../../db/repos/accounts.js";
 import { latestQuotaByAccount } from "../../db/repos/quotaSnapshots.js";
 import type Database from "better-sqlite3";
@@ -18,5 +18,5 @@ export function renderQuota(db: Database.Database, userId: number): string {
       `;
     }).join("")}
   `;
-  return layout("Quota", body);
+  return page("Quota", "quota", body);
 }

@@ -1,4 +1,4 @@
-import { layout } from "../layout.js";
+import { page } from "../render.js";
 import { recentLogs, aggregateUsage } from "../../db/repos/requestLogs.js";
 import type Database from "better-sqlite3";
 
@@ -13,5 +13,5 @@ export function renderUsage(db: Database.Database, userId: number): string {
       ${logs.map((l: { created_at: string; model: string; account_id: string | null; total_tokens: number; cost_usd: number; status_code: number; latency_ms: number }) => `<tr><td>${l.created_at}</td><td>${l.model}</td><td>${l.account_id ?? ""}</td><td>${l.total_tokens}</td><td>$${l.cost_usd.toFixed(4)}</td><td>${l.status_code}</td><td>${l.latency_ms}ms</td></tr>`).join("")}
     </table>
   `;
-  return layout("Usage", body);
+  return page("Usage", "usage", body);
 }

@@ -1,4 +1,4 @@
-import { layout } from "../layout.js";
+import { page } from "../render.js";
 import { listAccountsByUser } from "../../db/repos/accounts.js";
 import type Database from "better-sqlite3";
 
@@ -27,5 +27,5 @@ export function renderAccounts(db: Database.Database, userId: number): string {
       <button type="submit">Add</button>
     </form>
   `;
-  return layout("Accounts", body);
+  return page("Accounts", "accounts", body);
 }

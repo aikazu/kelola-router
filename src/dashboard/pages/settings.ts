@@ -1,4 +1,4 @@
-import { layout } from "../layout.js";
+import { page } from "../render.js";
 import { getSetting } from "../../db/repos/settings.js";
 import type Database from "better-sqlite3";
 
@@ -30,5 +30,5 @@ export function renderSettings(db: Database.Database): string {
       <button type="submit">Save</button>
     </form>
   `;
-  return layout("Settings", body);
+  return page("Settings", "settings", body);
 }

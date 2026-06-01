@@ -1,4 +1,4 @@
-import { layout } from "../layout.js";
+import { page } from "../render.js";
 import { aggregateUsage, recentLogs } from "../../db/repos/requestLogs.js";
 import { listAccountsByUser } from "../../db/repos/accounts.js";
 import type Database from "better-sqlite3";
@@ -28,5 +28,5 @@ export function renderOverview(db: Database.Database, userId: number, userName: 
       ${logs.map((l: { created_at: string; model: string; status_code: number; cost_usd: number }) => `<tr><td>${l.created_at}</td><td>${l.model}</td><td>${l.status_code}</td><td>$${l.cost_usd.toFixed(4)}</td></tr>`).join("")}
     </table>
   `;
-  return layout("Overview", body);
+  return page("Overview", "overview", body);
 }

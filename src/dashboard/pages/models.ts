@@ -1,4 +1,4 @@
-import { layout } from "../layout.js";
+import { page } from "../render.js";
 import { listModels } from "../../db/repos/models.js";
 import type Database from "better-sqlite3";
 
@@ -24,5 +24,5 @@ export function renderModels(db: Database.Database, _userId: number): string {
       `).join("")}
     </table>
   `;
-  return layout("Models", body);
+  return page("Models", "models", body);
 }
