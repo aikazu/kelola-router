@@ -33,8 +33,10 @@
 - 🌍 **Region-aware** — `MINIMAX_REGION=intl|cn` switch
 - 🗃️ **SQLite-WAL storage** — zero-config persistence with idempotent migrations
 - 📊 **Per-request telemetry** — token usage, latency, cache hits, account attribution
+- 🪶 **RTK compression + Caveman mode + dual cache injection** — per-setting toggles in dashboard
+- 🌊 **SSE stream pass-through** — OpenAI + Anthropic streaming with usage extraction on flush
 - 🛠️ **CLI scripts** — `add-user`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 141+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 170+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🛣️ Roadmap
 
@@ -43,8 +45,8 @@
 | 1 | **v0.1** | ✅ shipped | Hono passthrough, 5 routes, smoke test |
 | 2 | **v0.2** | ✅ shipped | SQLite, auth, multi-account state machine, CLI |
 | 3 | **v0.3** | ✅ shipped | Model registry, alias resolution, tiered pricing, live fetch |
-| 4 | v0.4 | 🔜 next | RTK compression, Caveman mode, dual cache injection |
-| 5 | v0.5 | 📋 planned | Quota scheduler, dashboard UI, SSE |
+| 4 | **v0.4** | ✅ shipped | RTK compression, Caveman mode, dual cache injection |
+| 5 | **v0.5** | ✅ shipped | Quota scheduler, dashboard UI (6 pages), SSE stream usage extraction |
 | 6 | **v0.6** | ✅ shipped | Full transport (relay + http/socks + env), Dockerfile, Caddyfile, VPS docs |
 
 ## 🚀 Quick Start
@@ -114,13 +116,16 @@ curl -X POST http://127.0.0.1:20137/v1/chat/completions \
 ### Per-request pipeline
 
 ```
-1. requireApiKey / requireAdmin  → 401/403
+1. requireApiKey / requireAdmin        → 401/403
 2. parse JSON body, resolve model
-3. selectAccount(state machine)  → 503 if all unavailable
-4. build upstream URL + headers
-5. proxyAwareFetch(upstream)     → stream or buffered
-6. record telemetry to request_logs
-7. update account state (backoff / reset on success)
+3. selectAccount(state machine)        → 503 if all unavailable
+4. check per-model lock                → 429 if locked for this model
+5. augment (caveman + cache injection) → mutate body in place
+6. compress messages (RTK) if enabled  → log byte savings
+7. resolve upstream model + body transform
+8. upstreamFetch(url, body)            → stream (pipeWithUsage) or buffered
+9. record telemetry to request_logs    → cost, tokens, latency
+10. update account state               → backoff / reset / model lock
 ```
 
 ### Directory layout
@@ -129,26 +134,64 @@ curl -X POST http://127.0.0.1:20137/v1/chat/completions \
 src/
 ├── server.ts                 # Hono app + listener
 ├── auth.ts                   # api_key + admin_key middleware
+├── util/
+│   ├── env.ts                # typed env getters (HOST, PORT, REGION, DB_PATH, LOG_LEVEL)
+│   └── log.ts                # pino instance
 ├── accounts/                 # state machine + selection
 │   ├── types.ts
 │   ├── backoff.ts            # exponential cooldown (1s → 4min cap)
 │   ├── errorRules.ts         # 429/2056/2061/5xx cascade
-│   ├── state.ts              # apply/reset/filter
-│   └── selection.ts          # sticky + round-robin
+│   ├── state.ts              # apply/reset/filter/lock-checks
+│   ├── selection.ts          # sticky + round-robin
+│   └── locks.ts              # per-(account, model) cooldown CRUD
 ├── db/
 │   ├── index.ts              # openDb (WAL, FK, busy_timeout)
 │   ├── migrations/           # 001-initial, 002-admin-key
-│   └── repos/                # users, accounts, model_locks
-├── providers/                # baseUrl + headers per format
-└── transport/                # proxyFetch (direct in v0.1)
+│   └── repos/                # users, accounts, models, requestLogs, quotaSnapshots, settings
+├── providers/                # provider-specific behavior
+│   ├── minimax.ts            # PROVIDER const, upstreamUrl/Headers helpers
+│   ├── baseUrl.ts            # intl vs cn base URL
+│   ├── headers.ts            # OpenAI Bearer vs Anthropic x-api-key
+│   ├── alias.ts              # model alias + thinking transform
+│   ├── listModels.ts         # /v1/models fetch + merge
+│   ├── pricing.ts            # per-token cost calc (incl cache)
+│   ├── parseError.ts         # base_resp.status_code extraction
+│   ├── quota.ts              # token-plan quota parser
+│   └── upstreamFetch.ts      # JSON POST wrapper over proxyAwareFetch
+├── rtk/                      # RTK compression pipeline
+│   ├── index.ts              # compressMessages + formatRtkLog
+│   ├── applyFilter.ts        # generic filter runner
+│   ├── autodetect.ts         # choose filters by content
+│   ├── registry.ts           # filter registry
+│   ├── constants.ts
+│   ├── types.ts
+│   └── filters/              # dedupLog, smartTruncate
+├── caveman/                  # terse system-prompt injection
+│   ├── index.ts
+│   └── prompts.ts
+├── cache-injection.ts        # dual cache_control + auto-breakpoints
+├── streaming/
+│   ├── extractUsage.ts       # parse SSE → usage (OpenAI + Anthropic)
+│   └── pipeWithUsage.ts      # tee upstream SSE + capture usage on flush
+├── transport/                # proxy / relay resolution
+│   ├── proxyFetch.ts         # direct | http | socks5 | relay
+│   ├── dispatcherCache.ts
+│   ├── socksLoader.ts
+│   └── types.ts
+├── dashboard/
+│   ├── layout.ts             # shell + nav
+│   ├── render.ts             # page() with active-nav class
+│   └── pages/                # overview, usage, accounts, models, quota, settings
+└── scheduler/
+    └── quotaPull.ts          # periodic /v1/token_plan/remains puller
 
-scripts/                      # CLI: add-user, add-account
+scripts/                      # CLI: add-user, add-account, seed-models, reset
 tests/                        # mirror src/
 ```
 
 ## ⚙️ Configuration
 
-All settings live in the `settings` table and are editable via the dashboard (v0.5). For now, edit SQLite directly or seed via migration.
+All settings live in the `settings` table and are editable via the dashboard at `/admin/settings`. The `getSetting(db, key)` helper caches values for 1s.
 
 | Key | Default | Purpose |
 |-----|---------|---------|
@@ -163,10 +206,16 @@ Per-user setting `user_settings.account_mode` controls selection: `sticky` (sess
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (65 tests)
+npm test              # vitest run (170+ tests)
 npm run test:watch    # watch mode
-npx tsc --noEmit      # strict type check
+npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
+
+# CLI scripts
+npm run add-user -- --name alice
+npm run add-account -- --user 1 --label "main" --credit-type payg --api-key mm_xxx
+npx tsx scripts/seed-models.ts   # idempotent: upsert 9 builtin MiniMax models
+npx tsx scripts/reset.ts --yes   # delete db + WAL/SHM sidecars
 ```
 
 ### Commit conventions
