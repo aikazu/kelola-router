@@ -18,6 +18,12 @@ import { getHost, getPort } from "./util/env.js";
 import { augmentRequest } from "./cache-injection.js";
 import { compressMessages, formatRtkLog } from "./rtk/index.js";
 import { pipeWithUsage } from "./streaming/pipeWithUsage.js";
+import {
+  bodyOpenAIToAnthropic, bodyAnthropicToOpenAI,
+  responseOpenAIToAnthropic, responseAnthropicToOpenAI,
+  bodyAddsOpenAIStreamUsage,
+} from "./providers/format/transform.js";
+import { getUpstreamFormat } from "./providers/format/negotiate.js";
 import { getSetting, setSetting } from "./db/repos/settings.js";
 import { startQuotaPuller } from "./scheduler/quotaPull.js";
 import { renderOverview } from "./dashboard/pages/overview.js";
@@ -89,13 +95,34 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     return c.json({ error: e.message }, 400);
   }
 
+  // Determine upstream format. Default = same as client. Override via
+  // settings.minimax.upstreamFormat or ROUTER_UPSTREAM_FORMAT env.
+  const overrideRaw = (getSetting(db, "minimax") as { upstreamFormat?: string } | null)?.upstreamFormat
+    ?? process.env.ROUTER_UPSTREAM_FORMAT
+    ?? "auto";
+  const upstreamFormat = getUpstreamFormat(format, overrideRaw as "auto" | "openai" | "anthropic");
+
+  // OpenAI streaming: ensure include_usage so the final chunk carries usage.
+  if (upstreamFormat === "openai") {
+    bodyAddsOpenAIStreamUsage(body);
+  }
+
+  // Cross-format body conversion (only when client != upstream).
+  if (format !== upstreamFormat) {
+    if (format === "openai" && upstreamFormat === "anthropic") {
+      Object.assign(body, bodyOpenAIToAnthropic(body));
+    } else if (format === "anthropic" && upstreamFormat === "openai") {
+      Object.assign(body, bodyAnthropicToOpenAI(body));
+    }
+  }
+
   clearExpiredModelLocks(db);
   if (isModelLockActive(getModelLock(db, account.id, resolved.upstreamModel))) {
     return c.json({ error: `model ${resolved.upstreamModel} temporarily locked` }, 429);
   }
 
-  const url = upstreamUrl({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, format, upstreamPath);
-  const headers = upstreamHeaders({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, body.stream === true, format);
+  const url = upstreamUrl({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, upstreamFormat, upstreamPath);
+  const headers = upstreamHeaders({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, body.stream === true, upstreamFormat);
 
   try {
     const resp = await upstreamFetch(url, body, headers);
@@ -139,7 +166,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
         });
         insertRequestLog(db, {
           client_key_id: clientKeyId, account_id: accountId, model: modelName,
-          endpoint: upstreamPath, format,
+          endpoint: upstreamPath, format: upstreamFormat,
           prompt_tokens: prompt, completion_tokens: completion,
           cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead,
           total_tokens: total, cost_usd: cost,
@@ -151,6 +178,18 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     }
 
     let respBody = await resp.text();
+    // Cross-format response conversion (non-stream only). Stream responses
+    // pass through with upstream shape — stream-shape re-emit is deferred.
+    if (format !== upstreamFormat) {
+      try {
+        const parsed = JSON.parse(respBody);
+        // The response is in upstreamFormat. Convert to client format.
+        const converted = upstreamFormat === "anthropic"
+          ? responseAnthropicToOpenAI(parsed)
+          : responseOpenAIToAnthropic(parsed);
+        respBody = JSON.stringify(converted);
+      } catch { /* non-JSON or malformed; pass through */ }
+    }
     let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cache_creation_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } = {};
     try { usage = JSON.parse(respBody).usage ?? {}; } catch {}
     const cost = calculateCost(db, body.model, {
@@ -161,7 +200,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     });
     insertRequestLog(db, {
       client_key_id: clientKey.id, account_id: account.id, model: body.model,
-      endpoint: upstreamPath, format,
+      endpoint: upstreamPath, format: upstreamFormat,
       prompt_tokens: usage.prompt_tokens ?? 0,
       completion_tokens: usage.completion_tokens ?? 0,
       cache_creation_tokens: usage.cache_creation_tokens ?? 0,
@@ -184,7 +223,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
 app.post("/v1/chat/completions", requireApiKey, (c) => handleProxy(c, "openai", "/v1/chat/completions"));
 app.post("/v1/messages", requireApiKey, (c) => handleProxy(c, "anthropic", "/v1/messages"));
 app.post("/v1/messages/count_tokens", requireApiKey, (c) => handleProxy(c, "anthropic", "/v1/messages/count_tokens"));
-app.post("/v1/embeddings", requireApiKey, (c) => handleProxy(c, "openai", "/v1/embeddings"));
+app.post("/v1/embeddings", requireApiKey, (c) => c.json({ error: "embeddings not supported by MiniMax" }, 501));
 app.get("/v1/models", requireApiKey, (c) => handleProxy(c, "openai", "/v1/models"));
 
 app.post("/admin/models/fetch", requireAdmin, async (c) => {

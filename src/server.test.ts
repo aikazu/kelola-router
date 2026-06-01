@@ -316,3 +316,115 @@ describe("dashboard pages", () => {
     expect(html).toContain("u"); // label appears
   });
 });
+
+describe("/v1/embeddings", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "emb-")), "t.db");
+    resetDb();
+  });
+
+  it("returns 501 not implemented (MiniMax has no embeddings endpoint)", async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: "u", key: "rk_emb" });
+    const res = await app.request("/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ck.key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M3", input: "hi" }),
+    });
+    expect(res.status).toBe(501);
+    const body = await res.json();
+    expect(body.error).toContain("embeddings not supported");
+  });
+});
+
+describe("cross-format proxy (OpenAI client → Anthropic upstream)", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "xf-")), "t.db");
+    resetDb();
+  });
+
+  it("transforms OpenAI tools to Anthropic when override forces anthropic upstream", async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: "u", key: "rk_xf" });
+    createAccount(db, { id: "acc_xf", label: "L", credit_type: "payg", api_key: "kk" });
+    db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('minimax', ?)`)
+      .run(JSON.stringify({ upstreamFormat: "anthropic" }));
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const sent = JSON.parse((init as RequestInit).body as string);
+      // Verify body was converted to Anthropic shape
+      expect(sent.tools).toEqual([{
+        name: "get_weather",
+        input_schema: { type: "object", properties: { loc: { type: "string" } } },
+      }]);
+      expect(sent.tool_choice).toEqual({ type: "auto" });
+      return new Response(JSON.stringify({
+        id: "x", type: "message", role: "assistant", model: "MiniMax-M3",
+        stop_reason: "end_turn",
+        content: [{ type: "text", text: "ok" }],
+        usage: { input_tokens: 10, output_tokens: 5 },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    const req = new Request("http://localhost/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ck.key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "MiniMax-M3",
+        messages: [{ role: "user", content: "weather in SF?" }],
+        tools: [{ type: "function", function: { name: "get_weather", parameters: { type: "object", properties: { loc: { type: "string" } } } } }],
+        tool_choice: "auto",
+      }),
+    });
+    const res = await app.request(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // Response should be converted back to OpenAI shape
+    expect(body.choices[0].message.content).toBe("ok");
+    expect(body.choices[0].finish_reason).toBe("stop");
+  });
+});
+
+describe("OpenAI stream auto include_usage", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "iu-")), "t.db");
+    resetDb();
+  });
+
+  it("injects stream_options.include_usage=true when client omitted it", async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: "u", key: "rk_iu" });
+    createAccount(db, { id: "acc_iu", label: "L", credit_type: "payg", api_key: "kk" });
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const sent = JSON.parse((init as RequestInit).body as string);
+      expect(sent.stream_options).toEqual({ include_usage: true });
+      return new Response('{"choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}', { status: 200 });
+    });
+    const req = new Request("http://localhost/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ck.key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "MiniMax-M3", stream: true, messages: [{ role: "user", content: "hi" }] }),
+    });
+    await app.request(req);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("does NOT overwrite explicit include_usage=false", async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: "u", key: "rk_iu2" });
+    createAccount(db, { id: "acc_iu2", label: "L", credit_type: "payg", api_key: "kk" });
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const sent = JSON.parse((init as RequestInit).body as string);
+      expect(sent.stream_options.include_usage).toBe(false);
+      return new Response('{"choices":[{"message":{"content":"ok"}}]}', { status: 200 });
+    });
+    const req = new Request("http://localhost/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ck.key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "MiniMax-M3", stream: true,
+        stream_options: { include_usage: false },
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    });
+    await app.request(req);
+  });
+});
