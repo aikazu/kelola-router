@@ -19,13 +19,21 @@ export function renderClientKeys(db: Database.Database): string {
           </td>
           <td><span class="badge ${k.enabled ? "badge-active" : "badge-muted"}">${k.enabled ? "active" : "disabled"}</span></td>
           <td>${k.created_at}</td>
+          <td style="white-space:nowrap">
+            ${k.enabled
+              ? `<form method="POST" action="/admin/client-keys/${k.id}/disable" style="display:inline"><button class="btn-ghost" style="padding:3px 10px;font-size:10px">Disable</button></form>`
+              : `<form method="POST" action="/admin/client-keys/${k.id}/enable" style="display:inline"><button class="btn-ghost" style="padding:3px 10px;font-size:10px">Enable</button></form>`}
+            <form method="POST" action="/admin/client-keys/${k.id}/delete" style="display:inline" onsubmit="return confirm('Delete this key? Clients using it will lose access.')">
+              <button class="btn-danger" style="padding:3px 10px;font-size:10px">Delete</button>
+            </form>
+          </td>
         </tr>
       `).join("");
   const body = `
     <p class="card-sub">Bearer credentials for clients. Each key gets its own usage tracking on <a href="/admin/usage">/admin/usage</a>.</p>
     <div class="card">
       <table>
-        <tr><th>ID</th><th>Label</th><th>Bearer key</th><th>Status</th><th>Created</th></tr>
+        <tr><th>ID</th><th>Label</th><th>Bearer key</th><th>Status</th><th>Created</th><th></th></tr>
         ${rows}
       </table>
     </div>

@@ -7,6 +7,7 @@ import { openDb } from "../../src/db/index.js";
 import { clearCache as clearSettingsCache } from "../../src/db/repos/settings.js";
 import { hashPassword } from "../../src/auth/password.js";
 import { getAccount, createAccount } from "../../src/db/repos/accounts.js";
+import { getClientKey, createClientKey } from "../../src/db/repos/client_keys.js";
 
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "auth-")), "t.db");
@@ -101,5 +102,32 @@ describe("/admin/accounts actions", () => {
     const res = await app.request("/admin/accounts/acc_x/delete", { method: "POST" });
     expect(res.status).toBe(302);
     expect(getAccount(db, "acc_x")).toBeNull();
+  });
+});
+
+describe("/admin/client-keys actions", () => {
+  it("POST /admin/client-keys/:id/enable sets enabled=1", async () => {
+    const db = openDb();
+    createClientKey(db, { label: "k", key: "rk_1" });
+    db.prepare(`UPDATE client_keys SET enabled = 0 WHERE id = ?`).run(1);
+    const res = await app.request("/admin/client-keys/1/enable", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(getClientKey(db, 1)?.enabled).toBe(1);
+  });
+
+  it("POST /admin/client-keys/:id/disable sets enabled=0", async () => {
+    const db = openDb();
+    createClientKey(db, { label: "k", key: "rk_d" });
+    const res = await app.request("/admin/client-keys/1/disable", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(getClientKey(db, 1)?.enabled).toBe(0);
+  });
+
+  it("POST /admin/client-keys/:id/delete removes the key", async () => {
+    const db = openDb();
+    createClientKey(db, { label: "k", key: "rk_x" });
+    const res = await app.request("/admin/client-keys/1/delete", { method: "POST" });
+    expect(res.status).toBe(302);
+    expect(getClientKey(db, 1)).toBeNull();
   });
 });

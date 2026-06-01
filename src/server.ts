@@ -9,7 +9,7 @@ import { isModelLockActive } from "./accounts/state.js";
 import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/locks.js";
 import { checkFallbackError } from "./accounts/errorRules.js";
 import { listEnabledAccounts, listAccounts, updateAccount, createAccount, enableAccount, disableAccount, deleteAccount } from "./db/repos/accounts.js";
-import { createClientKey, genClientKey } from "./db/repos/client_keys.js";
+import { createClientKey, genClientKey, enableClientKey, deleteClientKey, disableClientKey } from "./db/repos/client_keys.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
 import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
@@ -388,6 +388,18 @@ app.post("/admin/client-keys", requireAdmin, async (c) => {
   const label = String(body.label ?? "").trim();
   if (!label) return c.redirect("/admin/client-keys");
   createClientKey(c.get("db"), { label, key: genClientKey() });
+  return c.redirect("/admin/client-keys");
+});
+app.post("/admin/client-keys/:id/enable", requireAdmin, (c) => {
+  enableClientKey(c.get("db"), Number(c.req.param("id")));
+  return c.redirect("/admin/client-keys");
+});
+app.post("/admin/client-keys/:id/disable", requireAdmin, (c) => {
+  disableClientKey(c.get("db"), Number(c.req.param("id")));
+  return c.redirect("/admin/client-keys");
+});
+app.post("/admin/client-keys/:id/delete", requireAdmin, (c) => {
+  deleteClientKey(c.get("db"), Number(c.req.param("id")));
   return c.redirect("/admin/client-keys");
 });
 
