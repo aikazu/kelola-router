@@ -11,8 +11,6 @@ import { checkFallbackError } from "./accounts/errorRules.js";
 import { listEnabledAccounts, listAccounts, updateAccount, createAccount } from "./db/repos/accounts.js";
 import { createClientKey, genClientKey } from "./db/repos/client_keys.js";
 import { insertRequestLog } from "./db/repos/requestLogs.js";
-import { setPassword } from "./auth/password.js";
-import { ulid } from "ulid";
 import { resolveModel } from "./providers/alias.js";
 import { calculateCost } from "./providers/pricing.js";
 import { fetchModels } from "./providers/listModels.js";
@@ -21,15 +19,15 @@ import { getHost, getPort } from "./util/env.js";
 import { augmentRequest } from "./cache-injection.js";
 import { compressMessages, formatRtkLog } from "./rtk/index.js";
 import { pipeWithUsage } from "./streaming/pipeWithUsage.js";
+import { getSetting, setSetting } from "./db/repos/settings.js";
+import { setPassword } from "./auth/password.js";
+import { startQuotaPuller } from "./scheduler/quotaPull.js";
 import {
   bodyOpenAIToAnthropic, bodyAnthropicToOpenAI,
   responseOpenAIToAnthropic, responseAnthropicToOpenAI,
   bodyAddsOpenAIStreamUsage,
 } from "./providers/format/transform.js";
 import { getUpstreamFormat } from "./providers/format/negotiate.js";
-import { getSetting, setSetting } from "./db/repos/settings.js";
-import { getAdminKey } from "./db/repos/users.js";
-import { startQuotaPuller } from "./scheduler/quotaPull.js";
 import { renderOverview } from "./dashboard/pages/overview.js";
 import { renderUsage } from "./dashboard/pages/usage.js";
 import { renderAccounts } from "./dashboard/pages/accounts.js";
@@ -39,6 +37,8 @@ import { renderSettings } from "./dashboard/pages/settings.js";
 import { renderClientKeys } from "./dashboard/pages/clientKeys.js";
 import type Database from "better-sqlite3";
 import type { AccountState } from "./accounts/types.js";
+import { isPasswordSet } from "./auth/password.js";
+import { ulid } from "ulid";
 
 let _db: Database.Database | null = null;
 function getDb(): Database.Database {
@@ -54,6 +54,111 @@ app.use("*", async (c, next) => {
 });
 
 app.get("/health", (c) => c.json({ ok: true }));
+
+// Obsidian-gold landing page (the public homepage)
+app.get("/", (c) => {
+  const db = c.get("db");
+  const accounts = listAccounts(db);
+  const clientKeys = db.prepare("SELECT COUNT(*) as n FROM client_keys WHERE enabled = 1").get() as { n: number };
+  const ckEnabled = clientKeys.n;
+  const accEnabled = accounts.filter(a => a.enabled).length;
+  const passwordSet = isPasswordSet(db);
+  const dashboardHref = passwordSet ? "/login" : "/admin";
+  return c.html(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>kelola-router</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{--ink-0:#0a0908;--ink-1:#14110f;--ink-2:#1c1814;--ink-3:#2a2520;--gold-1:#b8860b;--gold-2:#d4af37;--gold-3:#f4d03f;--gold-4:#f9e29c;--text-1:#f5f0e6;--text-2:#a8a098;--text-3:#6a6660;--font-display:'Cormorant Garamond',Georgia,serif;--font-body:'Manrope',-apple-system,sans-serif;--font-mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-body);background:radial-gradient(ellipse 1000px 600px at 50% -10%,rgba(212,175,55,0.06) 0%,transparent 60%),linear-gradient(180deg,var(--ink-1) 0%,var(--ink-0) 100%);color:var(--text-1);min-height:100vh;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:80px 32px}
+.hero{text-align:center;margin-bottom:60px}
+.brand-mark{display:inline-block;font-family:var(--font-display);font-size:18px;letter-spacing:6px;text-transform:uppercase;color:var(--gold-2);padding:6px 16px;border:1px solid rgba(212,175,55,0.3);border-radius:2px;margin-bottom:32px}
+h1{font-family:var(--font-display);font-size:64px;font-weight:500;letter-spacing:0.5px;line-height:1.1;margin-bottom:18px}
+h1::first-letter{color:var(--gold-2)}
+.tagline{color:var(--text-2);font-size:17px;letter-spacing:0.3px;max-width:580px;margin:0 auto 36px}
+.divider{width:60px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-2),transparent);margin:0 auto 36px;opacity:0.6}
+.cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:12px 24px;background:linear-gradient(180deg,var(--gold-3) 0%,var(--gold-2) 100%);color:var(--ink-0);font-weight:700;font-size:11px;letter-spacing:2px;text-transform:uppercase;border-radius:3px;text-decoration:none;transition:transform 0.1s,box-shadow 0.15s;border:0;cursor:pointer;font-family:inherit}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(212,175,55,0.3);color:var(--ink-0)}
+.btn-ghost{padding:12px 24px;background:transparent;color:var(--gold-3);font-size:11px;letter-spacing:2px;text-transform:uppercase;border:1px solid rgba(212,175,55,0.3);border-radius:3px;text-decoration:none;font-weight:600}
+.btn-ghost:hover{background:rgba(212,175,55,0.08);color:var(--gold-4)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:36px}
+.stat{background:var(--ink-2);border:1px solid rgba(212,175,55,0.18);border-radius:4px;padding:18px 20px;position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold-2),transparent);opacity:0.5}
+.stat-l{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);font-weight:600}
+.stat-v{font-family:var(--font-display);font-size:32px;color:var(--gold-3);margin-top:4px;letter-spacing:0.5px}
+.section{background:var(--ink-2);border:1px solid rgba(212,175,55,0.18);border-radius:4px;padding:24px 28px;margin-bottom:18px}
+.section h2{font-family:var(--font-display);font-size:20px;font-weight:500;margin-bottom:14px}
+.section h2::before{content:"❖";color:var(--gold-2);margin-right:10px;font-size:14px;opacity:0.7}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(212,175,55,0.1)}
+th{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold-1);font-weight:600}
+code{font-family:var(--font-mono);background:var(--ink-3);padding:1px 6px;border-radius:3px;font-size:12.5px;color:var(--gold-3)}
+.status{display:inline-block;padding:4px 12px;border-radius:2px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;background:rgba(74,124,58,0.18);color:#8fbf73;border:1px solid rgba(74,124,58,0.4)}
+.status-warn{background:rgba(184,134,11,0.18);color:var(--gold-3);border-color:rgba(184,134,11,0.4)}
+.footer{margin-top:60px;text-align:center;color:var(--text-3);font-size:11px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="brand-mark">kelola-router</div>
+    <h1>One proxy.<br>Many MiniMax accounts.</h1>
+    <p class="tagline">Hono + better-sqlite3 routing layer. Pool MiniMax API keys, fan out requests, track per-client usage — all in a single binary.</p>
+    <div class="divider"></div>
+    <div class="cta">
+      <a class="btn" href="${dashboardHref}">${passwordSet ? "Sign in" : "Open dashboard"}</a>
+      <a class="btn-ghost" href="/health">Health</a>
+    </div>
+    <p style="margin-top:18px;color:var(--text-3);font-size:12px">
+      <span class="status ${passwordSet ? "" : "status-warn"}">${passwordSet ? "Protected" : "Open mode"}</span>
+    </p>
+  </div>
+
+  <div class="grid">
+    <div class="stat"><div class="stat-l">Upstream</div><div class="stat-v">${accEnabled}<span style="font-size:14px;color:var(--text-3)"> / ${accounts.length}</span></div></div>
+    <div class="stat"><div class="stat-l">Client keys</div><div class="stat-v">${ckEnabled}</div></div>
+    <div class="stat"><div class="stat-l">Status</div><div class="stat-v" style="font-size:18px">${accEnabled > 0 ? "● Ready" : "○ Setup"}</div></div>
+    <div class="stat"><div class="stat-l">Version</div><div class="stat-v" style="font-size:18px">v0.9</div></div>
+  </div>
+
+  <div class="section">
+    <h2>What you can do</h2>
+    <table>
+      <tr><th>Action</th><th>Where</th></tr>
+      <tr><td>Add MiniMax upstream keys (pool for fallback)</td><td><a href="/admin/accounts">/admin/accounts</a></td></tr>
+      <tr><td>Create client bearer keys for your apps</td><td><a href="/admin/client-keys">/admin/client-keys</a></td></tr>
+      <tr><td>Toggle RTK / Caveman / cache injection</td><td><a href="/admin/settings">/admin/settings</a></td></tr>
+      <tr><td>See per-client usage breakdown</td><td><a href="/admin/usage">/admin/usage</a></td></tr>
+      <tr><td>Lock dashboard behind a password</td><td><a href="/admin/settings">/admin/settings</a></td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Proxy endpoints</h2>
+    <table>
+      <tr><th>Provider</th><th>Path</th><th>Auth</th></tr>
+      <tr><td>OpenAI</td><td><code>POST /v1/chat/completions</code></td><td><code>Authorization: Bearer &lt;client_key&gt;</code></td></tr>
+      <tr><td>Anthropic</td><td><code>POST /v1/messages</code></td><td>same</td></tr>
+      <tr><td>Anthropic</td><td><code>POST /v1/messages/count_tokens</code></td><td>same</td></tr>
+      <tr><td>List models</td><td><code>GET /v1/models</code></td><td>same</td></tr>
+    </table>
+  </div>
+
+  <div class="footer">kelola-router · single-process SQLite-WAL · ${accEnabled > 0 ? "operational" : "awaiting setup"}</div>
+</div>
+</body>
+</html>`);
+});
+
+app.get("/login", (c) => c.html(renderLoginPage("", c.get("db"))));
+app.post("/login", handleLogin);
+app.post("/logout", handleLogout);
 
 async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath: string): Promise<Response> {
   const clientKey = c.get("clientKey");
@@ -71,6 +176,27 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     const stats = compressMessages(body, true);
     const rtkLog = formatRtkLog(stats);
     if (rtkLog) console.log(rtkLog);
+  }
+
+  // Determine upstream format. Default = same as client. Override via
+  // settings.minimax.upstreamFormat or ROUTER_UPSTREAM_FORMAT env.
+  const overrideRaw = (getSetting(db, "minimax") as { upstreamFormat?: string } | null)?.upstreamFormat
+    ?? process.env.ROUTER_UPSTREAM_FORMAT
+    ?? "auto";
+  const upstreamFormat = getUpstreamFormat(format, overrideRaw as "auto" | "openai" | "anthropic");
+
+  // OpenAI streaming: ensure include_usage so the final chunk carries usage.
+  if (upstreamFormat === "openai") {
+    bodyAddsOpenAIStreamUsage(body);
+  }
+
+  // Cross-format body conversion (only when client != upstream).
+  if (format !== upstreamFormat) {
+    if (format === "openai" && upstreamFormat === "anthropic") {
+      Object.assign(body, bodyOpenAIToAnthropic(body));
+    } else if (format === "anthropic" && upstreamFormat === "openai") {
+      Object.assign(body, bodyAnthropicToOpenAI(body));
+    }
   }
 
   // Pool: ALL enabled MiniMax accounts (shared across all client keys).
@@ -97,27 +223,6 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     resolved.bodyTransform(body);
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
-  }
-
-  // Determine upstream format. Default = same as client. Override via
-  // settings.minimax.upstreamFormat or ROUTER_UPSTREAM_FORMAT env.
-  const overrideRaw = (getSetting(db, "minimax") as { upstreamFormat?: string } | null)?.upstreamFormat
-    ?? process.env.ROUTER_UPSTREAM_FORMAT
-    ?? "auto";
-  const upstreamFormat = getUpstreamFormat(format, overrideRaw as "auto" | "openai" | "anthropic");
-
-  // OpenAI streaming: ensure include_usage so the final chunk carries usage.
-  if (upstreamFormat === "openai") {
-    bodyAddsOpenAIStreamUsage(body);
-  }
-
-  // Cross-format body conversion (only when client != upstream).
-  if (format !== upstreamFormat) {
-    if (format === "openai" && upstreamFormat === "anthropic") {
-      Object.assign(body, bodyOpenAIToAnthropic(body));
-    } else if (format === "anthropic" && upstreamFormat === "openai") {
-      Object.assign(body, bodyAnthropicToOpenAI(body));
-    }
   }
 
   clearExpiredModelLocks(db);
@@ -241,59 +346,6 @@ app.post("/admin/models/fetch", requireAdmin, async (c) => {
     return c.json({ error: e.message }, 502);
   }
 });
-
-app.get("/", (c) => {
-  const db = c.get("db");
-  const adminKey = (getAdminKey(db) ?? process.env.ROUTER_ADMIN_KEY) ? "configured" : "missing";
-  const accounts = listAccounts(db);
-  const clientKeys = db.prepare("SELECT COUNT(*) as n FROM client_keys WHERE enabled = 1").get() as { n: number };
-  return c.html(`<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>kelola-router</title>
-<style>body{font-family:-apple-system,sans-serif;max-width:720px;margin:40px auto;padding:0 16px;color:#222;background:#fafafa}
-h1{font-size:28px;margin-bottom:0}code{background:#eee;padding:1px 6px;border-radius:3px}
-.card{background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:16px;margin:16px 0}
-a.btn{display:inline-block;background:#007bff;color:#fff;padding:8px 16px;border-radius:4px;text-decoration:none;margin-right:8px}
-table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;text-align:left;border-bottom:1px solid #eee}
-.muted{color:#666;font-size:13px}</style>
-</head><body>
-<h1>kelola-router</h1>
-<p class="muted">Hono + better-sqlite3 proxy for MiniMax. Status: <b>${adminKey === "configured" ? "ready" : "needs setup"}</b></p>
-<div class="card">
-  <h2>Dashboard</h2>
-  <p>Admin key: <b>${adminKey}</b></p>
-  <p>${adminKey === "configured"
-    ? '<a class="btn" href="/admin">Open /admin</a>'
-    : 'Set <code>ROUTER_ADMIN_KEY</code> env var or insert into <code>settings.admin_key</code> row, then restart.'}</p>
-</div>
-<div class="card">
-  <h2>Endpoints</h2>
-  <table>
-    <tr><th>Public</th><td><a href="/health">/health</a></td></tr>
-    <tr><th>Proxy (need <code>Authorization: Bearer &lt;client_key&gt;</code>)</th>
-        <td>POST <code>/v1/chat/completions</code> (OpenAI)<br>
-            POST <code>/v1/messages</code> (Anthropic)<br>
-            POST <code>/v1/messages/count_tokens</code><br>
-            GET <code>/v1/models</code></td></tr>
-    <tr><th>Admin (need <code>x-admin-key</code>)</th>
-        <td><a href="/admin">/admin</a> · <a href="/admin/usage">/admin/usage</a> · <a href="/admin/accounts">/admin/accounts</a><br>
-            <a href="/admin/client-keys">/admin/client-keys</a> · <a href="/admin/models">/admin/models</a><br>
-            <a href="/admin/quota">/admin/quota</a> · <a href="/admin/settings">/admin/settings</a></td></tr>
-  </table>
-</div>
-<div class="card">
-  <h2>State</h2>
-  <table>
-    <tr><td>Upstream accounts (MiniMax keys in pool)</td><td>${accounts.length} (${accounts.filter((a) => a.enabled).length} enabled)</td></tr>
-    <tr><td>Active client keys</td><td>${clientKeys.n}</td></tr>
-  </table>
-  <p class="muted">No accounts or keys? <code>npx tsx scripts/add-account.ts</code> and <code>npx tsx scripts/add-client-key.ts</code>.</p>
-</div>
-</body></html>`);
-});
-
-app.get("/login", (c) => c.html(renderLoginPage("", c.get("db"))));
-app.post("/login", handleLogin);
-app.post("/logout", handleLogout);
 
 app.get("/admin", requireAdmin, (c) => c.html(renderOverview(c.get("db"))));
 app.get("/admin/usage", requireAdmin, (c) => {

@@ -24,30 +24,32 @@ describe("GET /health", () => {
   });
 });
 
-describe("GET / (landing page)", () => {
+describe("GET / (landing)", () => {
   beforeEach(() => {
     process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "root-")), "t.db");
     resetDb();
   });
 
-  it("returns 200 + HTML status page when admin key missing", async () => {
+  it("returns obsidian-gold hero with Open dashboard CTA when no password", async () => {
     const res = await app.request("/");
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("kelola-router");
-    expect(html).toContain("needs setup");
-    expect(html).toContain("/admin");
+    expect(html).toContain("Open dashboard");
     expect(html).toContain("/v1/chat/completions");
     expect(html).toContain("/v1/messages");
+    expect(html).toContain("Setup");
   });
 
-  it("shows 'ready' when admin key is configured", async () => {
+  it("shows Sign in CTA when password is set", async () => {
     process.env.ROUTER_ADMIN_KEY = "ak_test";
+    const db = openDb();
+    db.prepare(`INSERT INTO settings (key, value) VALUES ('admin_password', ?)`)
+      .run(JSON.stringify("scrypt:16384:00:00"));
     const res = await app.request("/");
-    expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain("ready");
-    expect(html).toContain("Open /admin");
+    expect(html).toContain("Sign in");
+    expect(html).toContain("Protected");
   });
 
   it("reflects current state (accounts + client keys counts)", async () => {
@@ -57,8 +59,8 @@ describe("GET / (landing page)", () => {
     createClientKey(db, { label: "app1", key: "rk_1" });
     const res = await app.request("/");
     const html = await res.text();
-    expect(html).toContain("2 (1 enabled)");
-    expect(html).toContain("Active client keys</td><td>1");
+    expect(html).toMatch(/1[^0-9]*\/[^0-9]*2/);  // 1/2 enabled/total
+    expect(html).toContain("Ready");
   });
 });
 
