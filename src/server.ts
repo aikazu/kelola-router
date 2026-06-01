@@ -9,7 +9,7 @@ app.get("/health", (c) => c.json({ ok: true }));
 
 app.post("/v1/chat/completions", async (c) => {
   const body = await c.req.json();
-  const url = `${getBaseUrl({ provider: "minimax", baseUrl: null }, "openai")}/v1/chat/completions`;
+  const url = `${getBaseUrl({ provider: "minimax", baseUrl: null }, "openai")}/chat/completions`;
   const apiKey = process.env.MINIMAX_API_KEY ?? "mm_test";
   const headers = buildHeaders(
     { provider: "minimax", apiKey },

@@ -7,12 +7,12 @@ describe("getBaseUrl", () => {
 
   it("returns intl OpenAI URL by default", () => {
     const url = getBaseUrl(accountIntl, "openai");
-    expect(url).toBe("https://api.minimax.io");
+    expect(url).toBe("https://api.minimax.io/v1");
   });
 
   it("returns intl Anthropic URL by default", () => {
     const url = getBaseUrl(accountIntl, "anthropic");
-    expect(url).toBe("https://api.minimax.io");
+    expect(url).toBe("https://api.minimax.io/anthropic");
   });
 
   it("returns CN OpenAI URL when MINIMAX_REGION=cn", () => {
@@ -20,7 +20,7 @@ describe("getBaseUrl", () => {
     process.env.MINIMAX_REGION = "cn";
     try {
       const url = getBaseUrl(accountCn, "openai");
-      expect(url).toBe("https://api.minimaxi.com");
+      expect(url).toBe("https://api.minimaxi.com/v1");
     } finally {
       process.env.MINIMAX_REGION = prev;
     }
@@ -31,7 +31,7 @@ describe("getBaseUrl", () => {
     process.env.MINIMAX_REGION = "cn";
     try {
       const url = getBaseUrl(accountCn, "anthropic");
-      expect(url).toBe("https://api.minimaxi.com");
+      expect(url).toBe("https://api.minimaxi.com/anthropic");
     } finally {
       process.env.MINIMAX_REGION = prev;
     }
