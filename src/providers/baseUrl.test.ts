@@ -7,7 +7,7 @@ describe("getBaseUrl", () => {
 
   it("returns intl OpenAI URL by default", () => {
     const url = getBaseUrl(accountIntl, "openai");
-    expect(url).toBe("https://api.minimax.io/v1");
+    expect(url).toBe("https://api.minimax.io");
   });
 
   it("returns intl Anthropic URL by default", () => {
@@ -20,7 +20,7 @@ describe("getBaseUrl", () => {
     process.env.MINIMAX_REGION = "cn";
     try {
       const url = getBaseUrl(accountCn, "openai");
-      expect(url).toBe("https://api.minimaxi.com/v1");
+      expect(url).toBe("https://api.minimaxi.com");
     } finally {
       process.env.MINIMAX_REGION = prev;
     }
