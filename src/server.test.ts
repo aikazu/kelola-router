@@ -4,6 +4,12 @@ import { openDb } from "./db/index.js";
 import { createUser } from "./db/repos/users.js";
 import { createAccount } from "./db/repos/accounts.js";
 import { clearCache } from "./db/repos/settings.js";
+import { renderOverview } from "./dashboard/pages/overview.js";
+import { renderUsage } from "./dashboard/pages/usage.js";
+import { renderAccounts } from "./dashboard/pages/accounts.js";
+import { renderModels } from "./dashboard/pages/models.js";
+import { renderQuota } from "./dashboard/pages/quota.js";
+import { renderSettings } from "./dashboard/pages/settings.js";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -212,5 +218,25 @@ describe("augmentation in proxy", () => {
     expect(res.status).toBe(200);
     const sent = JSON.parse((spy.mock.calls as any[])[0][1].body as string) as any;
     expect(sent.system[0].cache_control).toEqual({ type: "ephemeral" });
+  });
+});
+
+describe("dashboard pages", () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "dash-")), "t.db");
+    resetDb();
+  });
+
+  it("all pages render for admin user", async () => {
+    const db = openDb();
+    const u = createUser(db, "admin");
+    createAccount(db, { id: "a1", user_id: u.id, label: "L", credit_type: "payg", api_key: "k" });
+    const adminHdr = { Authorization: `Bearer ${u.admin_key}` };
+    for (const path of ["/admin", "/admin/usage", "/admin/accounts", "/admin/models", "/admin/quota", "/admin/settings"]) {
+      const res = await app.request(path, { headers: adminHdr });
+      expect(res.status, `path ${path}`).toBe(200);
+      const html = await res.text();
+      expect(html).toContain("<!DOCTYPE html>");
+    }
   });
 });

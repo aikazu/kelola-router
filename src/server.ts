@@ -15,7 +15,15 @@ import { fetchModels } from "./providers/listModels.js";
 import { log } from "./util/log.js";
 import { augmentRequest } from "./cache-injection.js";
 import { compressMessages, formatRtkLog } from "./rtk/index.js";
-import { getSetting } from "./db/repos/settings.js";
+import { getSetting, setSetting } from "./db/repos/settings.js";
+import { startQuotaPuller } from "./scheduler/quotaPull.js";
+import { createAccount } from "./db/repos/accounts.js";
+import { renderOverview } from "./dashboard/pages/overview.js";
+import { renderUsage } from "./dashboard/pages/usage.js";
+import { renderAccounts } from "./dashboard/pages/accounts.js";
+import { renderModels } from "./dashboard/pages/models.js";
+import { renderQuota } from "./dashboard/pages/quota.js";
+import { renderSettings } from "./dashboard/pages/settings.js";
 import type Database from "better-sqlite3";
 import type { AccountState } from "./accounts/types.js";
 
@@ -150,6 +158,44 @@ app.post("/admin/models/fetch", requireAdmin, async (c) => {
   }
 });
 
+app.get("/admin", requireAdmin, (c) => {
+  const u = c.get("user");
+  return c.html(renderOverview(c.get("db"), u.id, u.name));
+});
+app.get("/admin/usage", requireAdmin, (c) => c.html(renderUsage(c.get("db"), c.get("user").id)));
+app.get("/admin/accounts", requireAdmin, (c) => c.html(renderAccounts(c.get("db"), c.get("user").id)));
+app.get("/admin/models", requireAdmin, (c) => c.html(renderModels(c.get("db"), c.get("user").id)));
+app.get("/admin/quota", requireAdmin, (c) => c.html(renderQuota(c.get("db"), c.get("user").id)));
+app.get("/admin/settings", requireAdmin, (c) => c.html(renderSettings(c.get("db"))));
+
+app.post("/admin/accounts", requireAdmin, async (c) => {
+  const body = await c.req.parseBody();
+  const u = c.get("user");
+  const id = `acc_${Math.random().toString(36).slice(2, 14)}`;
+  createAccount(c.get("db"), {
+    id, user_id: u.id, label: String(body.label),
+    credit_type: String(body.credit_type) as "payg" | "token-plan",
+    api_key: String(body.api_key),
+  });
+  return c.redirect("/admin/accounts");
+});
+
+app.post("/admin/settings/caveman", requireAdmin, async (c) => {
+  const body = await c.req.parseBody();
+  setSetting(c.get("db"), "caveman", { level: String(body.level) });
+  return c.redirect("/admin/settings");
+});
+app.post("/admin/settings/rtk", requireAdmin, async (c) => {
+  const body = await c.req.parseBody();
+  setSetting(c.get("db"), "rtk", { enabled: body.enabled === "on" || body.enabled === "true" });
+  return c.redirect("/admin/settings");
+});
+app.post("/admin/settings/caching", requireAdmin, async (c) => {
+  const body = await c.req.parseBody();
+  setSetting(c.get("db"), "caching", { autoBreakpoints: body.autoBreakpoints === "on" });
+  return c.redirect("/admin/settings");
+});
+
 export { app };
 
 // for test isolation: allow resetting the db instance
@@ -160,5 +206,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const hostname = process.env.HOST ?? "127.0.0.1";
   serve({ fetch: app.fetch, port, hostname }, (info) => {
     log.info({ address: info.address, port: info.port }, "router listening");
+    startQuotaPuller(getDb(), 5 * 60_000);
   });
 }
