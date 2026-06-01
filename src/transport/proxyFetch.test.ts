@@ -3,35 +3,62 @@ import { proxyAwareFetch } from "./proxyFetch.js";
 
 afterEach(() => { vi.restoreAllMocks(); });
 
-describe("proxyAwareFetch (direct mode)", () => {
-  it("calls global fetch with provided url and options", async () => {
+describe("proxyAwareFetch", () => {
+  it("relay: sends to relay URL with x-relay-target + x-relay-path headers", async () => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("ok", { status: 200 }),
     );
-    const res = await proxyAwareFetch(
-      "https://example.com/api",
-      { method: "POST", body: "x" },
-      { relay: null, proxy: null },
+    await proxyAwareFetch(
+      "https://api.minimax.io/v1/chat/completions",
+      { method: "POST" },
+      { relay: { kind: "vercel", url: "https://my-relay.vercel.app/api/relay" }, proxy: null },
     );
-    expect(res.status).toBe(200);
-    expect(spy).toHaveBeenCalledWith(
-      "https://example.com/api",
-      expect.objectContaining({ method: "POST", body: "x" }),
-    );
+    const [calledUrl, calledOpts] = (spy.mock.calls as any[])[0];
+    expect(calledUrl).toBe("https://my-relay.vercel.app/api/relay");
+    const headers = (calledOpts.headers as Record<string, string>);
+    expect(headers["x-relay-target"]).toBe("https://api.minimax.io");
+    expect(headers["x-relay-path"]).toBe("/v1/chat/completions");
   });
 
-  it("returns upstream response unchanged when no relay/proxy", async () => {
-    const upstream = new Response('{"a":1}', {
-      status: 201,
-      headers: { "content-type": "application/json" },
-    });
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream);
-    const res = await proxyAwareFetch(
-      "https://example.com",
-      {},
-      { relay: null, proxy: null },
-    );
-    expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ a: 1 });
+  it("env HTTPS_PROXY: used when no settings proxy", async () => {
+    const prev = process.env.HTTPS_PROXY;
+    process.env.HTTPS_PROXY = "http://127.0.0.1:7890";
+    try {
+      const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+      await proxyAwareFetch("https://api.minimax.io/v1/x", {}, { relay: null, proxy: null });
+      const call = (spy.mock.calls as any[])[0];
+      expect(call[0]).toBe("https://api.minimax.io/v1/x");
+      expect((call[1] as any).dispatcher).toBeDefined();
+    } finally {
+      if (prev === undefined) delete process.env.HTTPS_PROXY;
+      else process.env.HTTPS_PROXY = prev;
+    }
+  });
+
+  it("direct: no relay + no proxy -> plain fetch", async () => {
+    const prev = process.env.HTTPS_PROXY;
+    delete process.env.HTTPS_PROXY;
+    try {
+      const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+      await proxyAwareFetch("https://api.minimax.io/v1/x", {}, { relay: null, proxy: null });
+      const call = (spy.mock.calls as any[])[0];
+      expect(call[0]).toBe("https://api.minimax.io/v1/x");
+      expect((call[1] as any).dispatcher).toBeUndefined();
+    } finally {
+      if (prev !== undefined) process.env.HTTPS_PROXY = prev;
+    }
+  });
+
+  it("falls back to direct on proxy dispatcher error", async () => {
+    const prev = process.env.HTTPS_PROXY;
+    process.env.HTTPS_PROXY = "http://invalid:9999";
+    try {
+      const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+      await proxyAwareFetch("https://api.minimax.io/v1/x", {}, { relay: null, proxy: null });
+      expect(spy).toHaveBeenCalled();
+    } finally {
+      if (prev === undefined) delete process.env.HTTPS_PROXY;
+      else process.env.HTTPS_PROXY = prev;
+    }
   });
 });
