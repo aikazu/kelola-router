@@ -138,6 +138,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
   }
+  const requestedModel = resolved.requestedModel;
 
   clearExpiredModelLocks(db);
   if (isModelLockActive(getModelLock(db, account.id, resolved.upstreamModel))) {
@@ -199,6 +200,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
         });
         insertRequestLog(db, {
           client_key_id: clientKeyId, account_id: accountId, model: modelName,
+          requested_model: requestedModel,
           endpoint: upstreamPath, format: upstreamFormat,
           prompt_tokens: prompt, completion_tokens: completion,
           cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead,
@@ -237,6 +239,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     });
     insertRequestLog(db, {
       client_key_id: clientKey.id, account_id: account.id, model: body.model,
+      requested_model: requestedModel,
       endpoint: upstreamPath, format: upstreamFormat,
       prompt_tokens: usage.prompt_tokens ?? 0,
       completion_tokens: usage.completion_tokens ?? 0,

@@ -5,6 +5,7 @@ export interface RequestLog {
   client_key_id: number | null;
   account_id: string | null;
   model: string;
+  requested_model: string | null;
   endpoint: string;
   format: string;
   prompt_tokens: number;
@@ -31,7 +32,7 @@ export interface RequestLog {
   error: string | null;
 }
 
-export type RequestLogInsert = Omit<RequestLog, "id" | "created_at" | "ttft_ms" | "base_resp_code" | "relay_path" | "proxy_path" | "caveman_level" | "error_message" | "request_body" | "response_body" | "request_headers" | "response_headers" | "error"> & {
+export type RequestLogInsert = Omit<RequestLog, "id" | "created_at" | "ttft_ms" | "base_resp_code" | "relay_path" | "proxy_path" | "caveman_level" | "error_message" | "request_body" | "response_body" | "request_headers" | "response_headers" | "error" | "requested_model"> & {
   ttft_ms?: number | null;
   base_resp_code?: number | null;
   relay_path?: string | null;
@@ -43,17 +44,18 @@ export type RequestLogInsert = Omit<RequestLog, "id" | "created_at" | "ttft_ms" 
   request_headers?: string | null;
   response_headers?: string | null;
   error?: string | null;
+  requested_model?: string | null;
 };
 
 export function insertRequestLog(db: Database.Database, log: RequestLogInsert): number {
   const info = db.prepare(`
-    INSERT INTO request_logs (client_key_id, account_id, model, endpoint, format, prompt_tokens, completion_tokens,
+    INSERT INTO request_logs (client_key_id, account_id, model, requested_model, endpoint, format, prompt_tokens, completion_tokens,
       cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, latency_ms, ttft_ms, status_code,
       base_resp_code, stream, relay_path, proxy_path, rtk_bytes_saved, caveman_level, error_message,
       request_body, response_body, request_headers, response_headers, error)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    log.client_key_id, log.account_id, log.model, log.endpoint, log.format,
+    log.client_key_id, log.account_id, log.model, log.requested_model ?? null, log.endpoint, log.format,
     log.prompt_tokens, log.completion_tokens, log.cache_creation_tokens, log.cache_read_tokens, log.total_tokens,
     log.cost_usd, log.latency_ms, log.ttft_ms ?? null, log.status_code, log.base_resp_code ?? null,
     log.stream ? 1 : 0, log.relay_path ?? null, log.proxy_path ?? null, log.rtk_bytes_saved,
