@@ -12,6 +12,9 @@ import { Models } from "../pages/Models";
 import { Quota } from "../pages/Quota";
 import { Settings } from "../pages/Settings";
 import { Login } from "../pages/Login";
+import { NotFound } from "../pages/NotFound";
+
+const KNOWN_ROUTES = ["overview", "usage", "client-keys", "accounts", "models", "quota", "settings"];
 
 function Page({ current }: { current: string }) {
   const { data: me, isLoading } = useQuery({
@@ -21,6 +24,7 @@ function Page({ current }: { current: string }) {
   });
   if (isLoading) return <><TopBar title="Loading…" /><p style={{ padding: 36, color: "var(--text-3)" }}>Loading…</p></>;
   if (me?.passwordSet && !me.authed) return <Login />;
+  if (!KNOWN_ROUTES.includes(current)) return <NotFound route={`/admin/${current}`} />;
   switch (current) {
     case "usage": return <Usage />;
     case "client-keys": return <ClientKeys />;
@@ -28,7 +32,8 @@ function Page({ current }: { current: string }) {
     case "models": return <Models />;
     case "quota": return <Quota />;
     case "settings": return <Settings />;
-    case "overview": default: return <Overview />;
+    case "overview": return <Overview />;
+    default: return <NotFound route={`/admin/${current}`} />;
   }
 }
 
