@@ -5,6 +5,16 @@ import { isPasswordSet, verifyPassword } from "../../auth/password.js";
 import { createSession, destroySession, validateSession } from "../../auth/session.js";
 import { SESSION_COOKIE } from "../../auth.js";
 import { handleApiError, ApiError } from "./middleware.js";
+import { isLoginLocked, recordLoginFailure, clearLoginFailures } from "../../auth/rateLimit.js";
+
+function clientIp(c: { req: { header: (name: string) => string | undefined } }): string {
+  const xff = c.req.header("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return "unknown";
+}
 
 export const authRoutes = new Hono();
 
@@ -20,12 +30,22 @@ authRoutes.get("/me", (c) => {
 authRoutes.post("/login", async (c) => {
   try {
     const db = c.get("db") as Database.Database;
+    const ip = clientIp(c);
+    const lock = isLoginLocked(ip);
+    if (lock.locked) {
+      return c.json(
+        { error: "rate_limited", message: "too many attempts", retryAfterMs: lock.retryAfterMs },
+        429,
+      );
+    }
     const body = await c.req.json().catch(() => ({}));
     if (!isPasswordSet(db)) throw new ApiError("no_password", "no password set", 400);
     const row = db.prepare(`SELECT value FROM settings WHERE key = 'admin_password'`).get() as { value: string } | undefined;
     if (!row || !verifyPassword(body.password ?? "", JSON.parse(row.value))) {
+      recordLoginFailure(ip);
       throw new ApiError("invalid_password", "wrong password", 401);
     }
+    clearLoginFailures(ip);
     const session = createSession(db, {});
     const cookie = generateCookie(SESSION_COOKIE, session.id, {
       httpOnly: true, sameSite: "Lax", path: "/", maxAge: 7 * 24 * 60 * 60,
