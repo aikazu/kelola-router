@@ -4,20 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`kelola-router` — local-first API router for [MiniMax](https://minimax.io). Single-user self-host model. OpenAI + Anthropic compatible proxy, multi-account pool with fallback, prompt caching, RTK + Caveman compression, built-in dashboard. SQLite (WAL) for state. Hono on Node 20+.
+`kelola-router` — local-first API router for [MiniMax](https://minimax.io). Single-user self-host model. OpenAI + Anthropic compatible proxy, multi-account pool with fallback, prompt caching, model aliases, RTK + Caveman compression, built-in dashboard. SQLite (WAL) for state. Hono on Node 20+.
 
 ## Commands
 
 ```bash
-npm run dev          # tsx watch src/server.ts (port 20137)
-npm run build        # tsc -> dist/
+npm run dev          # concurrently: server (tsx watch :20137) + client (vite :5173)
+npm run dev:server   # backend only (tsx watch src/server.ts, port 20137)
+npm run dev:client   # frontend only (cd client && vite, port 5173)
+npm run build        # vite build client + tsc -> dist/
 npm start            # node dist/server.js
-npm test             # vitest run (all 251+ tests)
+npm test             # vitest run (server; all 251+ tests)
+npm run test:client  # vitest run (client SPA)
 npx vitest run path/to/foo.test.ts   # single file
 npx vitest run -t "name"             # single test by name pattern
 npm run test:watch   # vitest watch mode
 npm run typecheck    # tsc --noEmit (strict, no any)
 ```
+
+Runners: `bun` is supported (engines: `node>=20`, `bun>=1.3`); `bun.lock` is checked in. `npm` and `bun` both work for the root scripts.
 
 CLI scripts (power-user; dashboard covers these):
 ```bash
@@ -30,8 +35,10 @@ npm run reset                      # rm db + WAL/SHM sidecars
 Docker:
 ```bash
 docker build -t kelola-router:latest .
-docker compose up -d
+docker compose up -d                # serves from baked client/dist on :20137
 ```
+
+Prod reverse proxy: `Caddyfile` at repo root (HTTPS + gzip/zstd in front of :20137).
 
 ## Architecture
 
@@ -48,7 +55,7 @@ Per-request path inside `handleProxy(c, format, upstreamPath)`:
 6. `bodyOpenAIToAnthropic` or `bodyAnthropicToOpenAI` per `settings.minimax.upstreamFormat`
 7. `upstreamFetch` → SSE pipe via `streaming/pipeWithUsage` or buffered response
 8. Format-convert response back to client format
-9. `insertRequestLog` (cost, tokens, latency, account_id, client_key_id)
+9. `insertRequestLog` (cost, tokens, latency, account_id, client_key_id, `requested_model` = the alias the client sent if any)
 10. `applyAccountError` — base_resp.status_code mapping, backoff, model lock
 
 ### Two-tier separation
@@ -82,17 +89,30 @@ Client format detected from `Authorization: Bearer` shape or route. Body convert
 `client/` — standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (built in the Docker build stage, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`.
 
 - Entry: `client/index.html` → `client/src/main.tsx` → `App.tsx` → `layout/AppShell.tsx` (hash-routed: `#/admin/<page>`).
-- Pages: `client/src/pages/` (Overview, Usage, ClientKeys, Accounts, Models, Quota, Settings, Login).
+- Pages: `client/src/pages/` (Overview, Usage, ClientKeys, Accounts, Aliases, Models, Quota, Settings, Login). Models page shows `aliasCount` per model; Aliases page deep-links via `?target=<model>`.
 - Components: `client/src/components/` (Card, Stat, Badge, Button, Modal, Toast, CommandPalette, etc.).
 - Styling: `client/src/styles/` — `base.css` (tokens + fonts), `components.css` (component layer), `animations.css`.
 
-**Theme — Obsidian Gold (Iqbal Attila brand system, neutral mode).** Obsidian canvas (`#0a0a0a`) + single gold accent (`#c9a352`). Type stack: Fraunces (display, with one italic gold `<em>` accent per headline), Inter (body), JetBrains Mono (labels/metadata/eyebrows). Signature details: 2px gold-line on TOP edge of every surface/stat card, mono uppercase gold eyebrow above each title, spec-sheet metadata blocks. Green (`--signal #6cc3a6`) for OK status only, terracotta (`--alert #d27a6e`) for errors. Discipline: gold stays sparse — one accent per moment. Legacy `--ink-*`/`--emerald-*`/`--gold-N` CSS vars are kept in `base.css` aliased to the new palette so stray inline styles still resolve correctly.
+**Theme — Obsidian Gold.** Canvas `#0a0a0a` + single gold accent `#c9a352`. Type stack: Fraunces (display, italic gold `<em>` accent on headlines), Inter (body), JetBrains Mono (labels). Signals: `--signal #6cc3a6` OK only, `--alert #d27a6e` errors. Gold stays sparse — one accent per moment. Legacy `--ink-*`/`--emerald-*`/`--gold-N` vars aliased in `base.css` for stray inline styles.
 
 Dev loop: `cd client && npm run dev` (port 5173, proxies `/api` `/login` `/logout` `/v1` to the running router on :20137). Hot-reload against live backend data — no Docker rebuild needed while iterating. **The deployed dashboard on :20137 is served from the Docker container's baked `client/dist`; changes to `client/src` only appear there after `docker compose build && docker compose up -d`.**
 
+### Server modules
+
+- `src/proxy/` — request capture helpers used by `handleProxy`.
+- `src/caveman/` — system-prompt compression (prompts + index). Wired in proxy step 4.
+- `src/rtk/` — runtime filter compression (autodetect → registry → filters). Wired in proxy step 5.
+- `src/streaming/` — SSE pipe + usage extraction (`pipeWithUsage`, `extractUsage`).
+- `src/transport/` — undici dispatcher cache + SOCKS proxy loader for upstream fetch.
+- `src/scheduler/` — `quotaPull.ts` background quota refresh.
+- `src/auth/` — session, password (scrypt), rate limit.
+- `src/util/` — env, log.
+
 ### Storage
 
-`src/db/index.ts` — `openDb()` opens (or creates) `~/.local/share/kelola-router/router.db`, sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Migrations: `src/db/migrations/` — 4 files (001-initial consolidates the full schema; 002/003 are no-op stubs for legacy DBs; 004 adds sessions). Migrations tracked via `user_version` PRAGMA, condition-based skip for legacy.
+`src/db/index.ts` — `openDb()` opens (or creates) `~/.local/share/kelola-router/router.db` (or `ROUTER_DB_PATH` override; Docker mounts `/data/router.db`), sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Migrations: `src/db/migrations/` — 4 files (001-initial consolidates the full schema; 002/003 are no-op stubs for legacy DBs; 004 adds sessions). Migrations tracked via `user_version` PRAGMA, condition-based skip for legacy.
+
+Repos: `src/db/repos/` — `settings.ts` (1s cache, exposes `clearCache()`), `accounts.ts`, `clientKeys.ts`, `models.ts` (+ alias CRUD), `aliases.ts`, `requestLogs.ts`, `sessions.ts`.
 
 Settings cache: `getSetting` caches for 1s. **Call `clearCache()` from `src/db/repos/settings.ts` in tests** when changing settings mid-test.
 
