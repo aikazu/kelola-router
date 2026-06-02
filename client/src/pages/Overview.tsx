@@ -51,7 +51,13 @@ export function Overview() {
           <table class="tbl">
             <thead><tr><th>Time</th><th>Model</th><th>Status</th><th>Latency</th><th>Cost</th></tr></thead>
             <tbody>{data.recent.map(r => (
-              <tr key={r.id} onClick={() => setSelected(r.id)}>
+              <tr key={r.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open request ${r.id}`}
+                  onClick={() => setSelected(r.id)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r.id); } }}
+                  style={{ cursor: "pointer" }}>
                 <td title={r.createdAt}>{relativeTime(r.createdAt)}</td>
                 <td>{r.model}</td>
                 <td><Badge variant={r.statusCode < 300 ? "active" : r.statusCode < 500 ? "warn" : "error"}>{r.statusCode}</Badge></td>

@@ -136,7 +136,13 @@ export function Usage() {
                 </thead>
                 <tbody>
                   {data.page.rows.map(l => (
-                    <tr key={l.id} onClick={() => setSelected(l.id)}>
+                    <tr key={l.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Open request ${l.id}`}
+                        onClick={() => setSelected(l.id)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(l.id); } }}
+                        style={{ cursor: "pointer" }}>
                       <td title={l.createdAt}>{relativeTime(l.createdAt)}</td>
                       <td>{l.model}</td>
                       <td>{l.totalTokens.toLocaleString()}</td>
