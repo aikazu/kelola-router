@@ -1,79 +1,138 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
+  /* Obsidian canvas ramp */
+  --canvas: #0a0a0a;
+  --surface-1: #121212;
+  --surface-2: #181818;
+  --surface-3: #1f1f1f;
+  --surface-4: #282828;
+
+  /* borders */
+  --border: #2a2a2a;
+  --border-strong: #3a3a3a;
+  --border-gold: #c9a352;
+
+  /* gold accent ramp */
+  --gold: #c9a352;
+  --gold-bright: #e0bf6b;
+  --gold-deep: #8a6f2d;
+  --gold-glow: rgba(201, 163, 82, 0.16);
+
+  /* text ramp */
+  --text-1: #f0ede7;
+  --text-2: #a39f97;
+  --text-3: #6e6a62;
+  --text-inv: #0a0a0a;
+
+  /* semantic */
+  --signal: #6cc3a6;
+  --alert: #d27a6e;
+  --danger: #d27a6e;
+  --warning: #c9a352;
+  --success: #6cc3a6;
+
+  /* legacy aliases kept so any straggler references still resolve to the new palette */
   --ink-0: #07090a;
-  --ink-1: #0d1012;
-  --ink-2: #141a1c;
-  --ink-3: #1d2528;
-  --ink-4: #283234;
-
-  --emerald-0: #0a1f18;
-  --emerald-1: #0d3a2e;
-  --emerald-2: #15664f;
-  --emerald-3: #1a8c6a;
-  --emerald-4: #2dd4a4;
-  --emerald-5: #6ee7b7;
-  --emerald-glow: rgba(45, 212, 164, 0.22);
-
+  --ink-1: #0a0a0a;
+  --ink-2: #121212;
+  --ink-3: #1f1f1f;
+  --ink-4: #282828;
+  --emerald-2: #8a6f2d;
+  --emerald-3: #c9a352;
+  --emerald-4: #c9a352;
+  --emerald-5: #e0bf6b;
+  --emerald-glow: rgba(201, 163, 82, 0.16);
   --gold-0: #6b5418;
-  --gold-1: #b8860b;
-  --gold-2: #d4af37;
-  --gold-3: #f4d03f;
-  --gold-glow: rgba(212, 175, 55, 0.18);
+  --gold-1: #8a6f2d;
+  --gold-2: #c9a352;
+  --gold-3: #e0bf6b;
 
-  --text-1: #f0f5f3;
-  --text-2: #a3b0ac;
-  --text-3: #6a7773;
-  --text-inv: #0d1012;
-
-  --danger: #c0392b;
-  --warning: #d4af37;
-  --success: #2dd4a4;
-
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-  background: var(--ink-1);
+  background: var(--canvas);
   color: var(--text-1);
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   background:
-    radial-gradient(ellipse 1200px 800px at 50% -10%, rgba(45, 212, 164, 0.04) 0%, transparent 60%),
-    linear-gradient(180deg, var(--ink-1) 0%, var(--ink-0) 100%);
+    radial-gradient(900px 600px at 100% -5%, rgba(201, 163, 82, 0.05) 0%, transparent 55%),
+    radial-gradient(700px 500px at -5% 100%, rgba(201, 163, 82, 0.03) 0%, transparent 50%),
+    var(--canvas);
   min-height: 100vh;
 }
 
-a { color: var(--emerald-4); text-decoration: none; transition: color 0.15s; }
-a:hover { color: var(--emerald-5); }
+a { color: var(--gold); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--gold-bright); }
 
 h1, h2, h3, h4 {
   font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: 0.3px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-optical-sizing: auto;
 }
-h1 { font-size: 30px; }
-h2 { font-size: 20px; }
+h1 { font-size: 34px; line-height: 1.1; }
+h2 { font-size: 22px; }
 h3 { font-size: 16px; }
+
+/* Italic gold accent — signature detail. Max one <em> per headline. */
+h1 em, h2 em, .topbar-title em, .hero-figure em {
+  font-style: italic;
+  font-weight: 300;
+  color: var(--gold);
+}
+
+/* Eyebrow — mono uppercase gold label above headlines */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  display: inline-block;
+}
+
+/* hr-gold — short rule under headlines */
+.hr-gold {
+  width: 64px;
+  height: 1px;
+  background: var(--gold);
+  border: 0;
+  margin: 12px 0;
+}
 
 code, pre {
   font-family: var(--font-mono);
   font-size: 12.5px;
-  background: var(--ink-3);
+  background: var(--surface-4);
   border-radius: 3px;
   padding: 1px 6px;
-  color: var(--emerald-4);
+  color: var(--gold-bright);
 }
 pre { padding: 12px; overflow-x: auto; }
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-4);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text-1);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
