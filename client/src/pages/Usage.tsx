@@ -34,14 +34,19 @@ export function Usage() {
   const [days, setDays] = useState(7);
   const [selected, setSelected] = useState<number | null>(null);
 
-  // URL sync (read on mount, write on change)
+  // URL sync: read on mount + react to hashchange (back/forward), write on change via replaceState
   useEffect(() => {
-    const p = new URLSearchParams(location.hash.split("?")[1] ?? "");
-    if (p.get("page")) setPage(Math.max(1, Number(p.get("page"))));
-    if (p.get("client_key")) setClientKeyId(Number(p.get("client_key")));
-    if (p.get("days")) setDays(Number(p.get("days")));
-    if (p.get("q")) setSearch(p.get("q")!);
-    if (p.get("status")) setStatusFilter(p.get("status") as any);
+    const onHash = () => {
+      const p = new URLSearchParams(location.hash.split("?")[1] ?? "");
+      if (p.get("page")) setPage(Math.max(1, Number(p.get("page"))));
+      if (p.get("client_key")) setClientKeyId(Number(p.get("client_key")));
+      if (p.get("days")) setDays(Number(p.get("days")));
+      if (p.get("q")) setSearch(p.get("q")!);
+      if (p.get("status")) setStatusFilter(p.get("status") as any);
+    };
+    onHash();
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
   const params = useMemo(() => {
@@ -53,7 +58,10 @@ export function Usage() {
   }, [page, pageSize, days, sortBy, sortDir, clientKeyId, search, statusFilter]);
 
   useEffect(() => {
-    location.hash = `#/admin/usage?${params}`;
+    const newHash = `#/admin/usage?${params}`;
+    if (location.hash !== newHash) {
+      history.replaceState(null, "", newHash);
+    }
   }, [params]);
 
   const { data: keys } = useQuery({ queryKey: ["client-keys"], queryFn: () => apiFetch<ClientKey[]>("/api/admin/client-keys") });
