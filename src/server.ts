@@ -369,7 +369,6 @@ app.post("/admin/settings/minimax", requireAdmin, async (c) => {
   const next = {
     ...current,
     upstreamFormat: String((body as Record<string, string>).upstreamFormat ?? "auto"),
-    reasoningSplitDefault: String((body as Record<string, string>).reasoningSplitDefault ?? "false") === "true",
     m3DefaultMaxCompletionTokens: Number((body as Record<string, string>).m3DefaultMaxCompletionTokens ?? 131072),
   };
   setSetting(c.get("db"), "minimax", next);
