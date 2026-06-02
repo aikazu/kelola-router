@@ -37,6 +37,10 @@ import type Database from "better-sqlite3";
 import type { AccountState } from "./accounts/types.js";
 import { ulid } from "ulid";
 
+function safeJsonParse(s: string): unknown {
+  try { return JSON.parse(s); } catch { return null; }
+}
+
 let _db: Database.Database | null = null;
 function getDb(): Database.Database {
   if (!_db) _db = openDb();
@@ -118,7 +122,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     id: a.id,
     backoffLevel: a.backoff_level,
     rateLimitedUntil: a.rate_limited_until,
-    lastError: a.last_error ? JSON.parse(a.last_error) : null,
+    lastError: a.last_error ? (safeJsonParse(a.last_error) as AccountState["lastError"]) : null,
     status: a.status as AccountState["status"],
     enabled: !!a.enabled,
   }));
