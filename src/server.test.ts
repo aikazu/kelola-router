@@ -414,9 +414,10 @@ describe("SPA admin API endpoints", () => {
     expect(body).toHaveProperty("authed");
   });
 
-  it("/admin/usage returns 410 (deprecated, use SPA)", async () => {
+  it("/admin/usage redirects to / (SPA handles routing)", async () => {
     const res = await app.request("/admin/usage");
-    expect(res.status).toBe(410);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
   });
 });
 

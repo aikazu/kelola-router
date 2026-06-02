@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { existsSync } from "node:fs";
 import { openDb } from "./db/index.js";
 import { requireApiKey, requireAdmin, handleLogin, handleLogout, renderLoginPage, verifySameOrigin } from "./auth.js";
 import { upstreamUrl, upstreamHeaders, PROVIDER } from "./providers/minimax.js";
@@ -369,13 +370,13 @@ app.post("/admin/models/:name/disable", requireAdmin, (c) => {
   return c.redirect("/admin/models");
 });
 
-app.get("/admin", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
-app.get("/admin/usage", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
-app.get("/admin/accounts", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
-app.get("/admin/models", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
-app.get("/admin/quota", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
-app.get("/admin/settings", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
-app.get("/admin/client-keys", requireAdmin, (c) => c.json({ error: "use_spa" }, 410));
+app.get("/admin", requireAdmin, (c) => c.redirect("/"));
+app.get("/admin/usage", requireAdmin, (c) => c.redirect("/"));
+app.get("/admin/accounts", requireAdmin, (c) => c.redirect("/"));
+app.get("/admin/models", requireAdmin, (c) => c.redirect("/"));
+app.get("/admin/quota", requireAdmin, (c) => c.redirect("/"));
+app.get("/admin/settings", requireAdmin, (c) => c.redirect("/"));
+app.get("/admin/client-keys", requireAdmin, (c) => c.redirect("/"));
 
 app.post("/admin/accounts", requireAdmin, async (c) => {
   const body = await c.req.parseBody();
@@ -466,8 +467,10 @@ export { app };
 
 export function resetDb(): void { _db = null; }
 
-// Serve built SPA in production. Vite dev server handles this in dev (proxies to :5173).
-if (process.env.NODE_ENV === "production" || process.env.SERVE_STATIC) {
+// Serve built SPA if client/dist exists. In dev with `npm run dev`, Vite serves on
+// :5173 with HMR; users should browse there. Visiting :20137 in dev will also serve
+// the built SPA (no HMR) so URLs stay consistent.
+if (existsSync("./client/dist/index.html")) {
   try {
     const { serveStatic } = await import("@hono/node-server/serve-static");
     const distRoot = "./client/dist";
