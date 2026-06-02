@@ -5,6 +5,7 @@ import { openDb } from "./db/index.js";
 import { requireApiKey, requireAdmin, handleLogin, handleLogout, verifySameOrigin } from "./auth.js";
 import { upstreamUrl, upstreamHeaders, PROVIDER } from "./providers/minimax.js";
 import { upstreamFetch } from "./providers/upstreamFetch.js";
+import { parseError } from "./providers/parseError.js";
 import { selectAccount } from "./accounts/selection.js";
 import { isModelLockActive } from "./accounts/state.js";
 import { getModelLock, setModelLock, clearExpiredModelLocks } from "./accounts/locks.js";
@@ -143,16 +144,22 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     const resp = await upstreamFetch(url, body, headers);
     if (!resp.ok) {
       const errBody = await resp.text();
-      let baseRespCode: number | undefined;
-      try { baseRespCode = JSON.parse(errBody).base_resp?.status_code; } catch {}
-      const decision = checkFallbackError(resp.status, errBody, baseRespCode, acc.backoff_level);
+      const parsed = parseError(resp, errBody);
+      const decision = checkFallbackError(
+        resp.status,
+        parsed.message,
+        parsed.baseRespCode,
+        acc.backoff_level,
+        parsed.windowResetMs,
+        parsed.retryAfterSec ? parsed.retryAfterSec * 1000 : undefined,
+      );
       const rateLimitedUntil = decision.cooldownMs > 0
         ? new Date(Date.now() + decision.cooldownMs).toISOString()
         : null;
       updateAccount(db, account.id, {
         rate_limited_until: rateLimitedUntil,
         backoff_level: decision.newBackoffLevel ?? 0,
-        last_error: JSON.stringify({ status: resp.status, message: errBody.slice(0, 500), timestamp: new Date().toISOString(), baseRespCode }),
+        last_error: JSON.stringify({ status: resp.status, message: errBody.slice(0, 500), timestamp: new Date().toISOString(), baseRespCode: parsed.baseRespCode }),
         status: resp.status === 401 ? "error" : "active",
       });
       if (decision.cooldownMs > 0) {
