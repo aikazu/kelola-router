@@ -55,3 +55,8 @@ export function destroySession(db: Database.Database, id: string): void {
 export function destroyAllSessions(db: Database.Database): void {
   db.prepare(`DELETE FROM sessions`).run();
 }
+
+export function cleanupExpiredSessions(db: Database.Database): number {
+  const r = db.prepare(`DELETE FROM sessions WHERE expires_at < ${SQL_ISO}`).run();
+  return r.changes;
+}

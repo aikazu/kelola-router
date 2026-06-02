@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDb } from "../db/index.js";
-import { createSession, validateSession, destroySession, SESSION_TTL_MS } from "./session.js";
+import { createSession, validateSession, destroySession, cleanupExpiredSessions, SESSION_TTL_MS } from "./session.js";
 
 let db: ReturnType<typeof openDb>;
 
@@ -60,5 +60,18 @@ describe("session expiry", () => {
     const exp = new Date(s.expires_at).getTime();
     const expected = Date.now() + SESSION_TTL_MS;
     expect(Math.abs(exp - expected)).toBeLessThan(5000);
+  });
+});
+
+describe("cleanupExpiredSessions", () => {
+  it("removes expired sessions and keeps fresh ones", () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    const future = new Date(Date.now() + 60_000).toISOString();
+    db.prepare(`INSERT INTO sessions (id, user_agent, ip, created_at, expires_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)`).run("sess_old", null, null, past, past, past);
+    db.prepare(`INSERT INTO sessions (id, user_agent, ip, created_at, expires_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)`).run("sess_new", null, null, future, future, future);
+    const removed = cleanupExpiredSessions(db);
+    expect(removed).toBe(1);
+    expect(db.prepare(`SELECT id FROM sessions WHERE id = ?`).get("sess_old")).toBeUndefined();
+    expect(db.prepare(`SELECT id FROM sessions WHERE id = ?`).get("sess_new")).toBeDefined();
   });
 });
