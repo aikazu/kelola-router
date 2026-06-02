@@ -44,14 +44,12 @@ describe("openDb", () => {
     expect(keys).toContain("build");
   });
 
-  it("seeds 11 default MiniMax models", () => {
+  it("seeds 9 default MiniMax models (no -thinking variants)", () => {
     const db = openDb();
     const rows = db.prepare(`SELECT name FROM models ORDER BY name`).all() as { name: string }[];
     const names = rows.map(r => r.name);
     expect(names).toContain("MiniMax-M3");
-    expect(names).toContain("MiniMax-M3-thinking");
     expect(names).toContain("MiniMax-M2.7");
-    expect(names).toContain("MiniMax-M2.7-thinking");
     expect(names).toContain("MiniMax-M2.7-highspeed");
     expect(names).toContain("MiniMax-M2.5");
     expect(names).toContain("MiniMax-M2.5-highspeed");
@@ -59,5 +57,8 @@ describe("openDb", () => {
     expect(names).toContain("MiniMax-M2.1-highspeed");
     expect(names).toContain("MiniMax-M2");
     expect(names).toContain("MiniMax-M2-her");
+    expect(names).not.toContain("MiniMax-M3-thinking");
+    expect(names).not.toContain("MiniMax-M2.7-thinking");
+    expect(rows.length).toBe(9);
   });
 });
