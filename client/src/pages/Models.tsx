@@ -37,7 +37,7 @@ export function Models() {
       <Card>
         <input type="search" placeholder="Filter by name…" value={search} onInput={(e) => setSearch((e.target as HTMLInputElement).value)} style={{ width: "100%", marginBottom: 12, padding: "8px 10px", background: "var(--ink-1)", border: "1px solid var(--ink-3)", color: "var(--text-1)", borderRadius: 4, fontFamily: "inherit", fontSize: 13 }} />
         {isError ? <ErrorState error={error as Error} onRetry={() => refetch()} /> :
-         isLoading ? <TableSkeleton rows={5} cols={6} /> :
+         isLoading ? <TableSkeleton rows={5} cols={7} /> :
          filtered.length === 0 ? <p class="card-sub">No models match.</p> : (
           <table class="tbl">
             <thead><tr><th>Name</th><th>Display</th><th>Family</th><th>Context</th><th>Source</th><th>Aliases</th><th>Status</th></tr></thead>
