@@ -20,6 +20,7 @@ export function Models() {
   const toggleMut = useMutation({
     mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) => apiFetch(`/api/admin/models/${encodeURIComponent(name)}/${enabled ? "disable" : "enable"}`, { method: "POST" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["models"] }); toast.success("Updated"); },
+    onError: (e: Error) => toast.error(e.message || "Toggle failed"),
   });
   const fetchMut = useMutation({
     mutationFn: () => apiFetch<{ added: number; updated: number; total: number }>("/api/admin/models/fetch", { method: "POST" }),
