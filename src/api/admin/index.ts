@@ -9,6 +9,7 @@ import { requestLogRoutes } from "./requestLogs.js";
 import { clientKeyRoutes } from "./clientKeys.js";
 import { accountRoutes } from "./accounts.js";
 import { modelRoutes } from "./models.js";
+import { aliasRoutes } from "./aliases.js";
 import { quotaRoutes } from "./quota.js";
 import { settingsRoutes } from "./settings.js";
 
@@ -24,6 +25,7 @@ export function adminApi(db: Database.Database): Hono {
   app.route("/admin/client-keys", clientKeyRoutes);
   app.route("/admin/accounts", accountRoutes);
   app.route("/admin/models", modelRoutes);
+  app.route("/admin/aliases", aliasRoutes);
   app.route("/admin", quotaRoutes);
   app.route("/admin/settings", settingsRoutes);
   return app;
