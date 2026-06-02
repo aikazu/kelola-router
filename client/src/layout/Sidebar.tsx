@@ -10,6 +10,7 @@ const NAV: NavItem[] = [
   { key: "client-keys", label: "Client keys", href: "/admin/client-keys", icon: "client-keys" },
   { key: "accounts", label: "Upstream", href: "/admin/accounts", icon: "accounts" },
   { key: "models", label: "Models", href: "/admin/models", icon: "models" },
+  { key: "aliases", label: "Aliases", href: "/admin/aliases", icon: "aliases" },
   { key: "quota", label: "Quota", href: "/admin/quota", icon: "quota" },
   { key: "settings", label: "Settings", href: "/admin/settings", icon: "settings" },
 ];

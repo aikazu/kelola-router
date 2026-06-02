@@ -10,7 +10,7 @@ import { useToast } from "../components/ToastProvider";
 import { TableSkeleton } from "../components/Skeleton";
 import { ErrorState } from "../components/ErrorState";
 
-interface Model { name: string; displayName: string | null; family: string | null; contextWindow: number | null; source: string; enabled: boolean; }
+interface Model { name: string; displayName: string | null; family: string | null; contextWindow: number | null; source: string; enabled: boolean; aliasCount: number; }
 
 export function Models() {
   const qc = useQueryClient();
@@ -40,7 +40,7 @@ export function Models() {
          isLoading ? <TableSkeleton rows={5} cols={6} /> :
          filtered.length === 0 ? <p class="card-sub">No models match.</p> : (
           <table class="tbl">
-            <thead><tr><th>Name</th><th>Display</th><th>Family</th><th>Context</th><th>Source</th><th>Status</th></tr></thead>
+            <thead><tr><th>Name</th><th>Display</th><th>Family</th><th>Context</th><th>Source</th><th>Aliases</th><th>Status</th></tr></thead>
             <tbody>{filtered.map(m => (
               <tr key={m.name}>
                 <td class="mono">{m.name}</td>
@@ -48,6 +48,11 @@ export function Models() {
                 <td>{m.family ?? "—"}</td>
                 <td>{m.contextWindow ?? "—"}</td>
                 <td><Badge variant={m.source === "builtin" ? "muted" : "active"}>{m.source}</Badge></td>
+                <td>
+                  {m.aliasCount > 0
+                    ? <a href={`#/admin/aliases?target=${encodeURIComponent(m.name)}`}>{m.aliasCount} alias{m.aliasCount === 1 ? "" : "es"}</a>
+                    : <span class="card-sub">—</span>}
+                </td>
                 <td>
                   <Switch checked={m.enabled} onChange={() => toggleMut.mutate({ name: m.name, enabled: m.enabled })} label={m.enabled ? "on" : "off"} />
                 </td>
