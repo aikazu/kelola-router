@@ -29,7 +29,7 @@ npm run reset                      # rm db + WAL/SHM sidecars
 
 Docker:
 ```bash
-docker build -t kelola-router:local .
+docker build -t kelola-router:latest .
 docker compose up -d
 ```
 
@@ -58,7 +58,7 @@ Per-request path inside `handleProxy(c, format, upstreamPath)`:
 
 Never mix these. Client never sees upstream keys; upstream never sees client bearers.
 
-### Auth model (v0.9)
+### Auth model (v0.9 → v0.11 unchanged)
 
 Dashboard has 3 modes cascading in `requireAdmin`:
 1. Session cookie (`kelola_session`) — only if password is set

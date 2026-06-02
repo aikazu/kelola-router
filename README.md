@@ -8,7 +8,7 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.9](https://img.shields.io/badge/release-v0.9-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.9)
+[![v0.11](https://img.shields.io/badge/release-v0.11-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.11)
 [![Tests](https://img.shields.io/badge/tests-289-success?logo=vitest&logoColor=white)](#-development)
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
@@ -65,6 +65,7 @@
 | 8 | **v0.8** | ✅ shipped | Cross-format tool conversion (OpenAI↔Anthropic), `stream_options.include_usage` auto-injection, MiniMax `base_resp` status code mapping, `/v1/embeddings` → 501, `reasoning_split` toggle |
 | 9 | **v0.9** | ✅ shipped | Inline dashboard CRUD, login + rate-limit + CSRF, fetch-models 404 fallback, usage account labels |
 | 10 | **v0.10** | ✅ shipped | Dashboard rebuilt as a Preact SPA (`client/`) with the Obsidian Gold theme: gold-line cards, eyebrow labels, asymmetric Overview hero, monogram favicon |
+| 11 | **v0.11** | ✅ shipped | Adaptive thinking: collapse `-thinking` built-ins into base models via allowlist, `thinking.type: "adaptive"` auto-inject, `reasoning_split` follows thinking presence, drop `thinking_enabled`/`thinking_budget` columns, legacy `-thinking` aliases still resolve |
 
 ## 🚀 Quick Start
 
@@ -256,16 +257,16 @@ All settings live in the `settings` table and are editable via the dashboard at 
 | `rtk` | `{enabled:true,minCompressSize:500,rawCap:10485760}` | RTK compression config (v0.4) |
 | `caveman` | `{level:"off"}` | Caveman prompt mode (v0.4) |
 | `caching` | `{autoBreakpoints:true,respectCallerMarkers:true}` | Dual cache_control (v0.4) |
-| `minimax` | `{upstreamFormat:"auto",reasoningSplitDefault:false,m3DefaultMaxCompletionTokens:131072}` | Cross-format routing + M3 defaults (v0.7) |
+| `minimax` | `{upstreamFormat:"auto",m3DefaultMaxCompletionTokens:131072}` | Cross-format routing + M3 defaults (v0.7, simplified v0.11) |
 | `transport` | `{relay:null,proxy:null}` | Upstream transport (v0.6) |
-| `build` | `{version:"0.2.0",schemaVersion:2}` | Self-describe |
+| `build` | `{version:"0.11.0",schemaVersion:3}` | Self-describe |
 
 Per-user setting `user_settings.account_mode` controls selection: `sticky` (session-pinned) or `round-robin` (default). Sticky key is read from header `x-router-key`. *(deprecated in v0.7 — single-user model)*
 
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (289 tests)
+npm test              # vitest run (294 tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
