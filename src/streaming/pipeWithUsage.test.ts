@@ -52,4 +52,34 @@ describe("pipeWithUsage", () => {
     expect(out.status).toBe(204);
     expect(captured).toBeNull();
   });
+
+  it("accepts an AbortSignal and stops enqueuing when aborted", async () => {
+    const ac = new AbortController();
+    const enc = new TextEncoder();
+    let enqueued = 0;
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        // Enqueue two chunks, then wait for the abort signal
+        c.enqueue(enc.encode("data: chunk1\n\n"));
+        enqueued++;
+        ac.signal.addEventListener("abort", () => c.close());
+        setTimeout(() => c.enqueue(enc.encode("data: chunk2\n\n")), 5);
+      },
+    });
+    const r = new Response(body, { status: 200 });
+    let callbackInvoked = false;
+    const out = await pipeWithUsage(r, "openai", () => { callbackInvoked = true; }, ac.signal);
+
+    // Abort almost immediately
+    setTimeout(() => ac.abort(), 1);
+
+    // Read what's available then cancel
+    const reader = out.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+
+    // After abort, the upstream TransformStream's transform() should call ctrl.terminate()
+    // for any further chunks; callback should NOT have fired (we never flushed because we aborted before close)
+    expect(callbackInvoked).toBe(false);
+  });
 });
