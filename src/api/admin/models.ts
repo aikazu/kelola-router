@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type Database from "better-sqlite3";
 import { listModels, enableModel, disableModel } from "../../db/repos/models.js";
+import { listAliasesForTargets } from "../../db/repos/aliases.js";
 import { handleApiError } from "./middleware.js";
 
 export const modelRoutes = new Hono();
@@ -8,10 +9,14 @@ export const modelRoutes = new Hono();
 modelRoutes.get("/", (c) => {
   try {
     const db = c.get("db") as Database.Database;
-    return c.json(listModels(db, { includeDisabled: true }).map(m => ({
+    const rows = listModels(db, { includeDisabled: true });
+    const targets = [...new Set(rows.map(r => r.upstream_model))];
+    const aliasesByTarget = listAliasesForTargets(db, targets);
+    return c.json(rows.map(m => ({
       name: m.name, displayName: m.display_name, family: m.family,
       contextWindow: m.context_window,
       source: m.source, enabled: !!m.enabled,
+      aliasCount: (aliasesByTarget[m.upstream_model] ?? []).length,
     })));
   } catch (e) { return handleApiError(e); }
 });
