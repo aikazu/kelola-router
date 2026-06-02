@@ -28,6 +28,7 @@ export function startQuotaPuller(
 
   tick();
   intervalHandle = setInterval(tick, intervalMs);
+  if (intervalHandle.unref) intervalHandle.unref();
   log.info({ intervalMs }, "quota puller started");
 }
 
