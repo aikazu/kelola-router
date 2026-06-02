@@ -49,23 +49,7 @@
 - 🌐 **Fetch from upstream** — `/admin/models` can pull MiniMax's current model list; 404 fallback shows a clear message
 - 🎨 **Obsidian Gold dashboard** — Preact SPA (`client/`) with a dark-canvas + single-gold-accent theme, Fraunces/Inter/JetBrains Mono type stack, command palette (`⌘K`), keyboard nav (`g` then key), and live request telemetry
 - 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 289 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
-
-## 🛣️ Roadmap
-
-| Phase | Version | Status | Scope |
-|------:|:--------|:------:|:------|
-| 1 | **v0.1** | ✅ shipped | Hono passthrough, 5 routes, smoke test |
-| 2 | **v0.2** | ✅ shipped | SQLite, auth, multi-account state machine, CLI |
-| 3 | **v0.3** | ✅ shipped | Model registry, alias resolution, tiered pricing, live fetch |
-| 4 | **v0.4** | ✅ shipped | RTK compression, Caveman mode, dual cache injection |
-| 5 | **v0.5** | ✅ shipped | Quota scheduler, dashboard UI (7 pages), SSE stream usage extraction |
-| 6 | **v0.6** | ✅ shipped | Full transport (relay + http/socks + env), Dockerfile, Caddyfile, VPS docs |
-| 7 | **v0.7** | ✅ shipped | Drop multi-tenant: client_keys vs accounts split, per-key usage, single-user self-host model |
-| 8 | **v0.8** | ✅ shipped | Cross-format tool conversion (OpenAI↔Anthropic), `stream_options.include_usage` auto-injection, MiniMax `base_resp` status code mapping, `/v1/embeddings` → 501, `reasoning_split` toggle |
-| 9 | **v0.9** | ✅ shipped | Inline dashboard CRUD, login + rate-limit + CSRF, fetch-models 404 fallback, usage account labels |
-| 10 | **v0.10** | ✅ shipped | Dashboard rebuilt as a Preact SPA (`client/`) with the Obsidian Gold theme: gold-line cards, eyebrow labels, asymmetric Overview hero, monogram favicon |
-| 11 | **v0.11** | ✅ shipped | Adaptive thinking: collapse `-thinking` built-ins into base models via allowlist, `thinking.type: "adaptive"` auto-inject, `reasoning_split` follows thinking presence, drop `thinking_enabled`/`thinking_budget` columns, legacy `-thinking` aliases still resolve |
+- 🧪 **Strict TDD** — 294 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🚀 Quick Start
 
@@ -320,6 +304,22 @@ The router supports 4 transport modes, in priority order:
    ```
 
 Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
+
+## 🛣️ Roadmap
+
+| Phase | Version | Status | Scope |
+|------:|:--------|:------:|:------|
+| 11 | **v0.11** | ✅ shipped | Adaptive thinking: collapse `-thinking` built-ins into base models via allowlist, `thinking.type: "adaptive"` auto-inject, `reasoning_split` follows thinking presence, drop `thinking_enabled`/`thinking_budget` columns, legacy `-thinking` aliases still resolve |
+| 10 | **v0.10** | ✅ shipped | Dashboard rebuilt as a Preact SPA (`client/`) with the Obsidian Gold theme: gold-line cards, eyebrow labels, asymmetric Overview hero, monogram favicon |
+| 9 | **v0.9** | ✅ shipped | Inline dashboard CRUD, login + rate-limit + CSRF, fetch-models 404 fallback, usage account labels |
+| 8 | **v0.8** | ✅ shipped | Cross-format tool conversion (OpenAI↔Anthropic), `stream_options.include_usage` auto-injection, MiniMax `base_resp` status code mapping, `/v1/embeddings` → 501, `reasoning_split` toggle |
+| 7 | **v0.7** | ✅ shipped | Drop multi-tenant: client_keys vs accounts split, per-key usage, single-user self-host model |
+| 6 | **v0.6** | ✅ shipped | Full transport (relay + http/socks + env), Dockerfile, Caddyfile, VPS docs |
+| 5 | **v0.5** | ✅ shipped | Quota scheduler, dashboard UI (7 pages), SSE stream usage extraction |
+| 4 | **v0.4** | ✅ shipped | RTK compression, Caveman mode, dual cache injection |
+| 3 | **v0.3** | ✅ shipped | Model registry, alias resolution, tiered pricing, live fetch |
+| 2 | **v0.2** | ✅ shipped | SQLite, auth, multi-account state machine, CLI |
+| 1 | **v0.1** | ✅ shipped | Hono passthrough, 5 routes, smoke test |
 
 ## 📜 License
 
