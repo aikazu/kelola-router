@@ -13,9 +13,37 @@ const inputStyle: any = { width: "100%", marginTop: 6, padding: "8px 10px", back
 
 function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
   const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (pw.length >= 4) onSubmit(pw); }}>
-      <input type="password" value={pw} onInput={(e) => setPw((e.target as HTMLInputElement).value)} placeholder="New password (min 4)" minLength={4} required style={inputStyle} />
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      setErr(null);
+      if (pw.length < 4) { setErr("Password minimal 4 karakter."); return; }
+      if (pw !== confirm) { setErr("Passwords do not match."); return; }
+      onSubmit(pw);
+    }}>
+      <input
+        type="password"
+        value={pw}
+        onInput={(e) => setPw((e.target as HTMLInputElement).value)}
+        placeholder="New password (min 4)"
+        minLength={4}
+        required
+        aria-label="New password"
+        style={inputStyle}
+      />
+      <input
+        type="password"
+        value={confirm}
+        onInput={(e) => setConfirm((e.target as HTMLInputElement).value)}
+        placeholder="Confirm password"
+        required
+        aria-label="Confirm password"
+        aria-invalid={!!err}
+        style={{ ...inputStyle, marginTop: 8 }}
+      />
+      {err && <p role="alert" aria-live="assertive" style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{err}</p>}
       <Button type="submit" style={{ marginTop: 8 }}>Set password</Button>
     </form>
   );
