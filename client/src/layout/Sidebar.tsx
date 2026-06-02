@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import { Icon, type IconName } from "../components/Icon";
 
@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
 ];
 
 export function Sidebar({ current }: { current: string }) {
+  const qc = useQueryClient();
   const { data: me } = useQuery({
     queryKey: ["me"],
     queryFn: () => apiFetch<{ authed: boolean; passwordSet: boolean }>("/api/me"),
@@ -37,9 +38,11 @@ export function Sidebar({ current }: { current: string }) {
       <div class="user-card">
         <span>v0.9</span>
         {me?.passwordSet && (
-          <button onClick={() => apiFetch("/api/logout", { method: "POST" }).then(() => location.reload())}>
-            Sign out
-          </button>
+          <button onClick={async () => {
+            await apiFetch("/api/logout", { method: "POST" });
+            qc.clear();
+            location.hash = "/";
+          }}>Sign out</button>
         )}
       </div>
     </aside>
