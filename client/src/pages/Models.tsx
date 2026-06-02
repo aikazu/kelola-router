@@ -10,7 +10,7 @@ import { useToast } from "../components/ToastProvider";
 import { TableSkeleton } from "../components/Skeleton";
 import { ErrorState } from "../components/ErrorState";
 
-interface Model { name: string; displayName: string | null; family: string | null; contextWindow: number | null; thinkingEnabled: boolean; source: string; enabled: boolean; }
+interface Model { name: string; displayName: string | null; family: string | null; contextWindow: number | null; source: string; enabled: boolean; }
 
 export function Models() {
   const qc = useQueryClient();
@@ -37,17 +37,16 @@ export function Models() {
       <Card>
         <input type="search" placeholder="Filter by name…" value={search} onInput={(e) => setSearch((e.target as HTMLInputElement).value)} style={{ width: "100%", marginBottom: 12, padding: "8px 10px", background: "var(--ink-1)", border: "1px solid var(--ink-3)", color: "var(--text-1)", borderRadius: 4, fontFamily: "inherit", fontSize: 13 }} />
         {isError ? <ErrorState error={error as Error} onRetry={() => refetch()} /> :
-         isLoading ? <TableSkeleton rows={5} cols={7} /> :
+         isLoading ? <TableSkeleton rows={5} cols={6} /> :
          filtered.length === 0 ? <p class="card-sub">No models match.</p> : (
           <table class="tbl">
-            <thead><tr><th>Name</th><th>Display</th><th>Family</th><th>Context</th><th>Thinking</th><th>Source</th><th>Status</th></tr></thead>
+            <thead><tr><th>Name</th><th>Display</th><th>Family</th><th>Context</th><th>Source</th><th>Status</th></tr></thead>
             <tbody>{filtered.map(m => (
               <tr key={m.name}>
                 <td class="mono">{m.name}</td>
                 <td>{m.displayName ?? "—"}</td>
                 <td>{m.family ?? "—"}</td>
                 <td>{m.contextWindow ?? "—"}</td>
-                <td>{m.thinkingEnabled ? "yes" : "no"}</td>
                 <td><Badge variant={m.source === "builtin" ? "muted" : "active"}>{m.source}</Badge></td>
                 <td>
                   <Switch checked={m.enabled} onChange={() => toggleMut.mutate({ name: m.name, enabled: m.enabled })} label={m.enabled ? "on" : "off"} />
