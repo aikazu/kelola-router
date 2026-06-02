@@ -14,7 +14,6 @@ describe("models repo", () => {
     const db = openDb();
     const m = getModel(db, "MiniMax-M3");
     expect(m?.upstream_model).toBe("MiniMax-M3");
-    expect(m?.thinking_enabled).toBe(0);
   });
 
   it("getModel returns null for unknown", () => {
@@ -22,11 +21,17 @@ describe("models repo", () => {
     expect(getModel(db, "nope")).toBeNull();
   });
 
-  it("listModels returns enabled only by default", () => {
+  it("listModels returns 9 enabled builtins by default", () => {
     const db = openDb();
-    expect(listModels(db).length).toBe(11);
+    expect(listModels(db).length).toBe(9);
     const all = listModels(db, { includeDisabled: true });
-    expect(all.length).toBe(11);
+    expect(all.length).toBe(9);
+  });
+
+  it("seeded models never include -thinking variant", () => {
+    const db = openDb();
+    const names = listModels(db).map(m => m.name);
+    expect(names.some(n => n.endsWith("-thinking"))).toBe(false);
   });
 
   it("upsertModel inserts new", () => {
