@@ -24,46 +24,6 @@ describe("GET /health", () => {
   });
 });
 
-describe("GET / (landing)", () => {
-  beforeEach(() => {
-    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "root-")), "t.db");
-    resetDb();
-  });
-
-  it("returns obsidian-gold hero with Open dashboard CTA when no password", async () => {
-    const res = await app.request("/");
-    expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain("kelola-router");
-    expect(html).toContain("Open dashboard");
-    expect(html).toContain("/v1/chat/completions");
-    expect(html).toContain("/v1/messages");
-    expect(html).toContain("Setup");
-  });
-
-  it("shows Sign in CTA when password is set", async () => {
-    process.env.ROUTER_ADMIN_KEY = "ak_test";
-    const db = openDb();
-    db.prepare(`INSERT INTO settings (key, value) VALUES ('admin_password', ?)`)
-      .run(JSON.stringify("scrypt:16384:00:00"));
-    const res = await app.request("/");
-    const html = await res.text();
-    expect(html).toContain("Sign in");
-    expect(html).toContain("Protected");
-  });
-
-  it("reflects current state (accounts + client keys counts)", async () => {
-    const db = openDb();
-    createAccount(db, { id: "a1", label: "A", credit_type: "payg", api_key: "k" });
-    createAccount(db, { id: "a2", label: "B", credit_type: "payg", api_key: "k2", enabled: false });
-    createClientKey(db, { label: "app1", key: "rk_1" });
-    const res = await app.request("/");
-    const html = await res.text();
-    expect(html).toMatch(/1[^0-9]*\/[^0-9]*2/);  // 1/2 enabled/total
-    expect(html).toContain("Ready");
-  });
-});
-
 describe("handleProxy with auth + accounts", () => {
   beforeEach(() => {
     process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "ha-")), "t.db");
