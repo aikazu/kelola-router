@@ -1,5 +1,6 @@
 import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
 import type Database from "better-sqlite3";
+import { clearCacheForDb } from "../db/repos/settings.js";
 
 /**
  * Password hashing using scrypt (Node built-in, no extra deps).
@@ -53,4 +54,5 @@ export function setPassword(db: Database.Database, plain: string): void {
     INSERT INTO settings (key, value) VALUES ('admin_password', ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
   `).run(JSON.stringify(hash));
+  clearCacheForDb(db);
 }

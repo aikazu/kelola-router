@@ -331,7 +331,7 @@ app.post("/admin/settings/password", requireAdmin, async (c) => {
   const body = await c.req.parseBody();
   const action = String(body.action ?? "");
   if (action === "clear") {
-    c.get("db").prepare(`DELETE FROM settings WHERE key = 'admin_password'`).run();
+    setSetting(c.get("db"), "admin_password", null);
   } else {
     const pw = String(body.password ?? "");
     if (pw.length >= 4) setPassword(c.get("db"), pw);
