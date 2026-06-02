@@ -12,7 +12,7 @@
 const OPENAI_ONLY_PARAMS = [
   "n", "logprobs", "frequency_penalty", "presence_penalty", "logit_bias",
   "top_logprobs", "response_format", "service_tier", "store", "parallel_tool_calls",
-  "user",
+  "user", "stream_options",
 ] as const;
 
 const ANTHROPIC_ONLY_PARAMS = [

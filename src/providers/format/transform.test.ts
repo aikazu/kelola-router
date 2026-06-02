@@ -247,3 +247,10 @@ describe("bodyAddsOpenAIStreamUsage", () => {
     expect(out.stream_options).toBeUndefined();
   });
 });
+
+describe("bodyOpenAIToAnthropic stream_options strip", () => {
+  it("strips stream_options from OpenAI body when converting to Anthropic", () => {
+    const out = bodyOpenAIToAnthropic({ model: "m", messages: [], stream: true, stream_options: { include_usage: true } });
+    expect(out.stream_options).toBeUndefined();
+  });
+});
