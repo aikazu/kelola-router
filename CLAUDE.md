@@ -79,7 +79,16 @@ Client format detected from `Authorization: Bearer` shape or route. Body convert
 
 ### Dashboard
 
-`src/dashboard/` — obsidian-gold theme (deep ink + antique gold, Cormorant Garamond + Manrope). All actions form-based POSTs returning 302 redirects. `src/dashboard/layout.ts` shell + 7-item nav. Pages in `src/dashboard/pages/`. Flash messages via `?fetched=N` query param (not cookies).
+`client/` — standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (built in the Docker build stage, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`.
+
+- Entry: `client/index.html` → `client/src/main.tsx` → `App.tsx` → `layout/AppShell.tsx` (hash-routed: `#/admin/<page>`).
+- Pages: `client/src/pages/` (Overview, Usage, ClientKeys, Accounts, Models, Quota, Settings, Login).
+- Components: `client/src/components/` (Card, Stat, Badge, Button, Modal, Toast, CommandPalette, etc.).
+- Styling: `client/src/styles/` — `base.css` (tokens + fonts), `components.css` (component layer), `animations.css`.
+
+**Theme — Obsidian Gold (Iqbal Attila brand system, neutral mode).** Obsidian canvas (`#0a0a0a`) + single gold accent (`#c9a352`). Type stack: Fraunces (display, with one italic gold `<em>` accent per headline), Inter (body), JetBrains Mono (labels/metadata/eyebrows). Signature details: 2px gold-line on TOP edge of every surface/stat card, mono uppercase gold eyebrow above each title, spec-sheet metadata blocks. Green (`--signal #6cc3a6`) for OK status only, terracotta (`--alert #d27a6e`) for errors. Discipline: gold stays sparse — one accent per moment. Legacy `--ink-*`/`--emerald-*`/`--gold-N` CSS vars are kept in `base.css` aliased to the new palette so stray inline styles still resolve correctly.
+
+Dev loop: `cd client && npm run dev` (port 5173, proxies `/api` `/login` `/logout` `/v1` to the running router on :20137). Hot-reload against live backend data — no Docker rebuild needed while iterating. **The deployed dashboard on :20137 is served from the Docker container's baked `client/dist`; changes to `client/src` only appear there after `docker compose build && docker compose up -d`.**
 
 ### Storage
 
