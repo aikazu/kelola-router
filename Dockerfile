@@ -26,9 +26,14 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/client/dist ./client/dist
-COPY docker-entrypoint.sh /usr/local/bin/
+# COPY on Windows hosts (NTFS) doesn't preserve the Unix exec bit, and git on
+# Windows may check shell files out with CRLF line endings. Force LF + +x
+# here so the image works regardless of host filesystem.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+ && chmod +x /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p /data && chown -R node:node /data
 VOLUME ["/data"]
 EXPOSE 20137
-ENTRYPOINT ["docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "dist/server.js"]

@@ -1,0 +1,7 @@
+# Force LF line endings for shell scripts and Dockerfiles regardless of host.
+# Windows + git autocrlf otherwise rewrites them to CRLF, which breaks the
+# shebang line `#!/bin/sh` in Linux containers.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+.dockerignore text eol=lf
+*.sh.in     text eol=lf
