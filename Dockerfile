@@ -5,6 +5,10 @@ COPY package.json package-lock.json bun.lock* ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src/ ./src/
+# Client SPA: copy sources + package files, install deps, build.
+COPY client/package.json client/package-lock.json* ./client/
+COPY client/ ./client/
+RUN cd client && npm ci && npm run build
 RUN npm run build
 
 # Runtime stage
@@ -21,6 +25,7 @@ RUN apt-get update \
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/client/dist ./client/dist
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN mkdir -p /data && chown -R node:node /data
 VOLUME ["/data"]
