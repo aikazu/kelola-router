@@ -68,6 +68,9 @@ app.post("/logout", handleLogout);
 async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath: string): Promise<Response> {
   const clientKey = c.get("clientKey");
   const text = await c.req.text();
+  if (text.length > 10 * 1024 * 1024) {
+    return c.json({ error: "request body exceeds 10MB limit" }, 413);
+  }
   let body: any = {};
   if (text) { try { body = JSON.parse(text); } catch (e: any) { return c.json({ error: `invalid JSON: ${e.message}` }, 400); } }
   const db = c.get("db");
