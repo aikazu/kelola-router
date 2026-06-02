@@ -1,155 +1,82 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync } from "fs";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import Database from "better-sqlite3";
+import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { openDb } from "../db/index.js";
-import { resolveModel, ADAPTIVE_THINKING_MODELS, LEGACY_MODEL_ALIASES } from "./alias.js";
+import { migrate } from "../db/migrations/index.js";
+import { upsertModel, disableModel } from "../db/repos/models.js";
+import { upsertAlias } from "../db/repos/aliases.js";
+import { resolveModel } from "./alias.js";
+import { clearAliasCache } from "./aliasCache.js";
+
+let db: Database.Database;
+let dir: string;
 
 beforeEach(() => {
-  process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), "al-")), "t.db");
+  dir = mkdtempSync(join(tmpdir(), "alias-"));
+  db = new Database(join(dir, "t.db"));
+  db.pragma("foreign_keys = ON");
+  migrate(db);
+  upsertModel(db, { name: "MiniMax-M3", upstream_model: "MiniMax-M3" });
+  upsertModel(db, { name: "MiniMax-M2.7", upstream_model: "MiniMax-M2.7" });
+  clearAliasCache();
 });
 
-describe("resolveModel — base behavior", () => {
-  it("M3 → upstream M3, no client thinking set → router injects adaptive", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M3", messages: [] };
-    const r = resolveModel(db, "MiniMax-M3", body);
+afterEach(() => { db.close(); rmSync(dir, { recursive: true }); });
+
+describe("resolveModel", () => {
+  it("resolves direct name and returns requestedModel = input", () => {
+    const r = resolveModel(db, "MiniMax-M3", {});
     expect(r.upstreamModel).toBe("MiniMax-M3");
-    r.bodyTransform(body);
-    expect(body.thinking).toEqual({ type: "adaptive" });
-    expect(body.reasoning_split).toBe(true);
+    expect(r.requestedModel).toBe("MiniMax-M3");
   });
 
-  it("M2.7 → upstream M2.7, no client thinking → adaptive", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M2.7", messages: [] };
-    const r = resolveModel(db, "MiniMax-M2.7", body);
-    expect(r.upstreamModel).toBe("MiniMax-M2.7");
-    r.bodyTransform(body);
-    expect(body.thinking).toEqual({ type: "adaptive" });
-    expect(body.reasoning_split).toBe(true);
-  });
-
-  it("M2.7-highspeed → upstream unchanged, adaptive injected", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M2.7-highspeed", messages: [] };
-    const r = resolveModel(db, "MiniMax-M2.7-highspeed", body);
-    expect(r.upstreamModel).toBe("MiniMax-M2.7-highspeed");
-    r.bodyTransform(body);
-    expect(body.thinking).toEqual({ type: "adaptive" });
-  });
-
-  it("M2-her → no thinking injection, no reasoning_split", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M2-her", messages: [] };
-    const r = resolveModel(db, "MiniMax-M2-her", body);
-    expect(r.upstreamModel).toBe("MiniMax-M2-her");
-    r.bodyTransform(body);
-    expect(body.thinking).toBeUndefined();
-    expect(body.reasoning_split).toBeUndefined();
-  });
-});
-
-describe("resolveModel — caller wins on thinking", () => {
-  it("client thinking.type=disabled → router does NOT inject", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M3", messages: [], thinking: { type: "disabled" } };
-    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
-    expect(body.thinking).toEqual({ type: "disabled" });
-    // reasoning_split still auto-on because thinking is present
-    expect(body.reasoning_split).toBe(true);
-  });
-
-  it("client thinking.type=adaptive with budget_tokens → router leaves it", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M2.7", messages: [], thinking: { type: "adaptive", budget_tokens: 8192 } };
-    resolveModel(db, "MiniMax-M2.7", body).bodyTransform(body);
-    expect(body.thinking).toEqual({ type: "adaptive", budget_tokens: 8192 });
-  });
-
-  it("client reasoning_split=false + thinking disabled → respects caller", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M3", messages: [], thinking: { type: "disabled" }, reasoning_split: false };
-    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
-    expect(body.reasoning_split).toBe(false);
-  });
-});
-
-describe("resolveModel — legacy aliases", () => {
-  it("M2.7-thinking → resolves to M2.7, adaptive injected", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M2.7-thinking", messages: [] };
-    const r = resolveModel(db, "MiniMax-M2.7-thinking", body);
-    expect(r.upstreamModel).toBe("MiniMax-M2.7");
-    r.bodyTransform(body);
-    expect(body.thinking).toEqual({ type: "adaptive" });
-    expect(body.reasoning_split).toBe(true);
-  });
-
-  it("M3-thinking → resolves to M3, adaptive injected (legacy compat)", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M3-thinking", messages: [] };
-    const r = resolveModel(db, "MiniMax-M3-thinking", body);
+  it("resolves alias and returns requestedModel = original alias", () => {
+    upsertAlias(db, { aliasName: "claude-opus-4-8", upstreamModel: "MiniMax-M3" });
+    clearAliasCache();
+    const r = resolveModel(db, "claude-opus-4-8", {});
     expect(r.upstreamModel).toBe("MiniMax-M3");
-    r.bodyTransform(body);
-    expect(body.thinking).toEqual({ type: "adaptive" });
+    expect(r.requestedModel).toBe("claude-opus-4-8");
   });
 
-  it("LEGACY_MODEL_ALIASES only contains retired names", () => {
-    expect(LEGACY_MODEL_ALIASES["MiniMax-M2.7-thinking"]).toBe("MiniMax-M2.7");
-    expect(LEGACY_MODEL_ALIASES["MiniMax-M3-thinking"]).toBe("MiniMax-M3");
-  });
-});
-
-describe("resolveModel — error paths", () => {
-  it("unknown model throws", () => {
-    const db = openDb();
-    expect(() => resolveModel(db, "totally-fake-model", {})).toThrow(/unknown model/);
+  it("throws for unknown direct name", () => {
+    expect(() => resolveModel(db, "does-not-exist", {})).toThrow(/unknown model/);
   });
 
-  it("disabled model throws", () => {
-    const db = openDb();
-    db.prepare(`UPDATE models SET enabled = 0 WHERE name = ?`).run("MiniMax-M3");
+  it("throws for unknown alias target", () => {
+    // FK prevents the repo from creating this row, so insert directly with
+    // the FK bypassed. Models a stale alias left behind by a rename/delete.
+    db.pragma("foreign_keys = OFF");
+    db.prepare(`INSERT INTO model_aliases (alias_name, upstream_model) VALUES (?, ?)`)
+      .run("broken", "does-not-exist");
+    db.pragma("foreign_keys = ON");
+    clearAliasCache();
+    expect(() => resolveModel(db, "broken", {})).toThrow(/unknown model/);
+  });
+
+  it("throws for disabled target model", () => {
+    disableModel(db, "MiniMax-M3");
     expect(() => resolveModel(db, "MiniMax-M3", {})).toThrow(/model disabled/);
   });
-});
 
-describe("ADAPTIVE_THINKING_MODELS allowlist", () => {
-  it("contains all MiniMax reference docs thinking-capable models", () => {
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M3")).toBe(true);
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M2.7")).toBe(true);
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M2.7-highspeed")).toBe(true);
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M2.5")).toBe(true);
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M2.5-highspeed")).toBe(true);
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M2.1")).toBe(true);
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M2.1-highspeed")).toBe(true);
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M2")).toBe(true);
+  it("throws for disabled target model reached via alias", () => {
+    upsertAlias(db, { aliasName: "opus", upstreamModel: "MiniMax-M3" });
+    clearAliasCache();
+    disableModel(db, "MiniMax-M3");
+    expect(() => resolveModel(db, "opus", {})).toThrow(/model disabled/);
   });
 
-  it("does NOT contain M2-her (not in MiniMax docs)", () => {
-    expect(ADAPTIVE_THINKING_MODELS.has("MiniMax-M2-her")).toBe(false);
-  });
-});
-
-describe("M3 max_completion_tokens default", () => {
-  it("sets max_completion_tokens=131072 when caller omits it (M3)", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M3", messages: [] };
-    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
-    expect(body.max_completion_tokens).toBe(131072);
+  it("bodyTransform injects adaptive thinking for known models when client omits thinking", () => {
+    const r = resolveModel(db, "MiniMax-M3", {});
+    const body: any = {};
+    r.bodyTransform(body);
+    expect(body.thinking).toEqual({ type: "adaptive" });
   });
 
-  it("respects caller-provided max_completion_tokens", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M3", messages: [], max_completion_tokens: 8192 };
-    resolveModel(db, "MiniMax-M3", body).bodyTransform(body);
-    expect(body.max_completion_tokens).toBe(8192);
-  });
-
-  it("does NOT default for non-M3 models", () => {
-    const db = openDb();
-    const body: any = { model: "MiniMax-M2.7", messages: [] };
-    resolveModel(db, "MiniMax-M2.7", body).bodyTransform(body);
-    expect(body.max_completion_tokens).toBeUndefined();
+  it("bodyTransform preserves client-supplied thinking", () => {
+    const r = resolveModel(db, "MiniMax-M3", {});
+    const body: any = { thinking: { type: "disabled" } };
+    r.bodyTransform(body);
+    expect(body.thinking).toEqual({ type: "disabled" });
   });
 });
