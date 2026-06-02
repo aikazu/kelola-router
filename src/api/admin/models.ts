@@ -10,7 +10,7 @@ modelRoutes.get("/", (c) => {
     const db = c.get("db") as Database.Database;
     return c.json(listModels(db, { includeDisabled: true }).map(m => ({
       name: m.name, displayName: m.display_name, family: m.family,
-      contextWindow: m.context_window, thinkingEnabled: !!m.thinking_enabled,
+      contextWindow: m.context_window,
       source: m.source, enabled: !!m.enabled,
     })));
   } catch (e) { return handleApiError(e); }

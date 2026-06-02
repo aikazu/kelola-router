@@ -167,7 +167,7 @@ describe("model resolution in proxy", () => {
     resetDb();
   });
 
-  it("rewrites MiniMax-M3-thinking to upstream MiniMax-M3 with thinking block", async () => {
+  it("rewrites legacy MiniMax-M3-thinking to upstream MiniMax-M3 with adaptive thinking", async () => {
     const db = openDb();
     const ck = createClientKey(db, { label: "u", key: "rk_t" });
     createAccount(db, { id: "acc_z", label: "L", credit_type: "payg", api_key: "kk" });
@@ -183,7 +183,8 @@ describe("model resolution in proxy", () => {
     expect(res.status).toBe(200);
     const sentBody = JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string);
     expect(sentBody.model).toBe("MiniMax-M3");
-    expect(sentBody.thinking).toEqual({ type: "enabled", budget_tokens: 4096 });
+    expect(sentBody.thinking).toEqual({ type: "adaptive" });
+    expect(sentBody.reasoning_split).toBe(true);
   });
 
   it("400 on unknown model", async () => {
