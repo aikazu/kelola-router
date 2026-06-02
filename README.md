@@ -8,7 +8,9 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.6](https://img.shields.io/badge/release-v0.6-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.6)
+[![v0.9](https://img.shields.io/badge/release-v0.9-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.9)
+[![Tests](https://img.shields.io/badge/tests-289-success?logo=vitest&logoColor=white)](#-development)
+[![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
 ```text
 ┌──────────┐     ┌──────────────────────────────┐     ┌─────────────┐
@@ -45,8 +47,9 @@
 - 🔐 **Optional dashboard password** — set via `/admin/settings` to lock the dashboard behind a login. Open mode by default for local use
 - 🛡️ **Login rate-limit + CSRF** — 5 failed attempts per 15min per IP, cross-origin POSTs blocked
 - 🌐 **Fetch from upstream** — `/admin/models` can pull MiniMax's current model list; 404 fallback shows a clear message
+- 🎨 **Obsidian Gold dashboard** — Preact SPA (`client/`) with a dark-canvas + single-gold-accent theme, Fraunces/Inter/JetBrains Mono type stack, command palette (`⌘K`), keyboard nav (`g` then key), and live request telemetry
 - 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 251+ tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 289 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🛣️ Roadmap
 
@@ -61,6 +64,7 @@
 | 7 | **v0.7** | ✅ shipped | Drop multi-tenant: client_keys vs accounts split, per-key usage, single-user self-host model |
 | 8 | **v0.8** | ✅ shipped | Cross-format tool conversion (OpenAI↔Anthropic), `stream_options.include_usage` auto-injection, MiniMax `base_resp` status code mapping, `/v1/embeddings` → 501, `reasoning_split` toggle |
 | 9 | **v0.9** | ✅ shipped | Inline dashboard CRUD, login + rate-limit + CSRF, fetch-models 404 fallback, usage account labels |
+| 10 | **v0.10** | ✅ shipped | Dashboard rebuilt as a Preact SPA (`client/`) with the Obsidian Gold theme: gold-line cards, eyebrow labels, asymmetric Overview hero, monogram favicon |
 
 ## 🚀 Quick Start
 
@@ -161,8 +165,8 @@ src/
 │   └── locks.ts              # per-(account, model) cooldown CRUD
 ├── db/
 │   ├── index.ts              # openDb (WAL, FK, busy_timeout)
-│   ├── migrations/           # 001-initial, 002-admin-key, 003-drop-users (adds client_keys)
-│   └── repos/                # client_keys, accounts, models, requestLogs, quotaSnapshots, settings, users (admin key only)
+│   ├── migrations/           # 001-initial, 002-admin-key, 003-drop-users, 004-sessions, 005-request-bodies
+│   └── repos/                # client_keys, accounts, models, requestLogs, quotaSnapshots, settings, sessions
 ├── providers/                # provider-specific behavior
 │   ├── minimax.ts            # PROVIDER const, upstreamUrl/Headers helpers
 │   ├── baseUrl.ts            # intl vs cn base URL
@@ -196,16 +200,52 @@ src/
 │   ├── dispatcherCache.ts
 │   ├── socksLoader.ts
 │   └── types.ts
-├── dashboard/
-│   ├── layout.ts             # shell + nav
-│   ├── render.ts             # page() with active-nav class
-│   └── pages/                # overview, usage, client-keys, accounts, models, quota, settings
 └── scheduler/
     └── quotaPull.ts          # periodic /v1/token_plan/remains puller
+
+# (the dashboard SPA lives in client/ and is served as static files by server.ts)
+
+client/                       # Preact SPA dashboard (Vite) — see "Dashboard" below
+├── src/
+│   ├── pages/                # overview, usage, client-keys, accounts, models, quota, settings, login
+│   ├── components/           # Card, Stat, Badge, Button, Modal, Toast, CommandPalette, …
+│   ├── layout/               # AppShell, Sidebar, TopBar
+│   ├── styles/               # base.css (tokens+fonts), components.css, animations.css
+│   └── lib/                  # api.ts (fetch wrapper), queryClient, relativeTime
+└── public/                   # favicon.svg
 
 scripts/                      # CLI: add-client-key, add-account, seed-models, reset
 tests/                        # mirror src/
 ```
+
+## 🎨 Dashboard
+
+The dashboard is a standalone **Preact SPA** in `client/` (Vite + preact-router + @tanstack/react-query). The Hono server exposes a JSON API under `/api/admin/*`; in production the built SPA is served as static files from `client/dist/` on port `20137`.
+
+**Theme — Obsidian Gold.** Dark obsidian canvas (`#0A0A0A`) with a single restrained gold accent (`#C9A352`). Type stack: **Fraunces** (display headings, one italic-gold accent word each) · **Inter** (body) · **JetBrains Mono** (labels, metadata, eyebrows). Signature details: a 2px gold-line on the top edge of every card, mono uppercase eyebrows above each title, spec-sheet metadata blocks, and an asymmetric Overview hero. Green (`#6CC3A6`) marks OK status; terracotta (`#D27A6E`) marks errors.
+
+| Page | Path | What it does |
+|------|------|--------------|
+| Overview | `#/admin` | Hero spend figure, pool status, by-model + recent requests |
+| Usage | `#/admin/usage` | Filterable, sortable, paginated request log with deltas |
+| Client keys | `#/admin/client-keys` | Create / enable / disable / delete bearer credentials |
+| Upstream | `#/admin/accounts` | Manage the MiniMax key pool |
+| Models | `#/admin/models` | Catalog, aliases, fetch-from-upstream |
+| Quota | `#/admin/quota` | Token-plan balance windows |
+| Settings | `#/admin/settings` | Toggles, password, format override |
+
+Shortcuts: `⌘K` / `Ctrl K` opens the command palette; `g` then a key jumps between pages; `?` shows help.
+
+**Iterating on the UI:** run the Vite dev server for instant hot-reload against the live backend —
+
+```bash
+cd client && npm run dev    # http://localhost:5173, proxies /api /v1 /login /logout → :20137
+```
+
+> ⚠️ The dashboard on **:20137** is served from the build baked into the Docker image. Changes under `client/src` only appear there after a rebuild:
+> ```bash
+> docker compose build && docker compose up -d
+> ```
 
 ## ⚙️ Configuration
 
@@ -225,7 +265,7 @@ Per-user setting `user_settings.account_mode` controls selection: `sticky` (sess
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (251+ tests)
+npm test              # vitest run (289 tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
@@ -287,5 +327,7 @@ MIT © 2026 aikazu
 ---
 
 <p align="center">
-  <sub>Built with 🛠️ <a href="https://hono.dev">Hono</a> · 💾 <a href="https://github.com/WiseLibs/better-sqlite3">better-sqlite3</a> · 🔒 TypeScript strict mode</sub>
+  <sub>Built with 🛠️ <a href="https://hono.dev">Hono</a> · ⚛️ <a href="https://preactjs.com">Preact</a> · 💾 <a href="https://github.com/WiseLibs/better-sqlite3">better-sqlite3</a> · 🔒 TypeScript strict mode</sub>
+  <br/>
+  <sub>🎨 Dashboard theme: <b>Obsidian Gold</b> — dark canvas, single gold accent</sub>
 </p>
