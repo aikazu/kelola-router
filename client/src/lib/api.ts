@@ -1,6 +1,12 @@
 export class ApiError extends Error {
-  constructor(public code: string, message: string, public status: number) {
+  code: string;
+  status: number;
+  retryAfterMs?: number;
+  constructor(code: string, message: string, status: number, retryAfterMs?: number) {
     super(message);
+    this.code = code;
+    this.status = status;
+    if (typeof retryAfterMs === "number") this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -23,7 +29,8 @@ export async function apiFetch<T = unknown>(
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
-    throw new ApiError(data?.error ?? "unknown", data?.message ?? res.statusText, res.status);
+    const retryAfterMs = typeof data?.retryAfterMs === "number" ? data.retryAfterMs : undefined;
+    throw new ApiError(data?.error ?? "unknown", data?.message ?? res.statusText, res.status, retryAfterMs);
   }
   return data as T;
 }
