@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import { Modal } from "../components/Modal";
 import { Badge } from "../components/Badge";
+import { ErrorState } from "../components/ErrorState";
 
 interface RequestLog {
   id: number; createdAt: string; model: string; statusCode: number;
@@ -34,7 +35,7 @@ function HeadersView({ headers }: { headers: Record<string, string> | null }) {
 
 export function RequestDetail({ id, onClose }: { id: number | null; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>("summary");
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["request-log", id],
     queryFn: () => apiFetch<RequestLog>(`/api/admin/request-logs/${id}`),
     enabled: id !== null,
@@ -56,6 +57,7 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
         ))}
       </div>
       {isLoading && <p>Loading…</p>}
+      {isError && <ErrorState error={new Error("Failed to load request")} onRetry={() => refetch()} />}
       {data && tab === "summary" && (
         <table class="tbl">
           <tbody>
