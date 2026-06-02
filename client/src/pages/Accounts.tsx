@@ -70,7 +70,13 @@ export function Accounts() {
                 <td>{a.backoffLevel}</td>
                 <td title={a.rateLimitedUntil ?? ""}>{relativeTime(a.rateLimitedUntil)}</td>
                 <td style={{ whiteSpace: "nowrap" }}>
-                  <Button size="sm" variant="ghost" onClick={() => toggleMut.mutate({ id: a.id, enabled: a.enabled })}>{a.enabled ? "Disable" : "Enable"}</Button>
+                  <Button size="sm" variant="ghost" onClick={async () => {
+                    if (a.enabled) {
+                      const ok = await confirmDialog({ title: "Disable account", message: `Disable "${a.label}"? Requests will no longer route to it.`, confirmLabel: "Disable", danger: true });
+                      if (!ok) return;
+                    }
+                    toggleMut.mutate({ id: a.id, enabled: a.enabled });
+                  }}>{a.enabled ? "Disable" : "Enable"}</Button>
                   <Button size="sm" variant="danger" onClick={() => handleDelete(a.id, a.label)}>Delete</Button>
                 </td>
               </tr>
