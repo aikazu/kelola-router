@@ -21,12 +21,12 @@ export function Pagination({ page, pageSize, total, totalPages, onPageChange, on
         <select value={pageSize} onChange={(e) => onPageSizeChange(Number((e.target as HTMLSelectElement).value))} style={{ background: "var(--ink-1)", border: "1px solid var(--ink-3)", color: "var(--text-1)", padding: "4px 8px", borderRadius: 3, fontSize: 12, fontFamily: "inherit" }}>
           {[25, 50, 100, 200].map(n => <option key={n} value={n}>{n}/page</option>)}
         </select>
-        <button onClick={() => onPageChange(1)} disabled={page <= 1}>«</button>
-        <button onClick={() => onPageChange(page - 1)} disabled={page <= 1}>‹</button>
+        <button onClick={() => onPageChange(1)} disabled={page <= 1} aria-label="First page">«</button>
+        <button onClick={() => onPageChange(page - 1)} disabled={page <= 1} aria-label="Previous page">‹</button>
         {pages.map((p, i) => p === "…" ? <span key={i} style={{ color: "var(--text-3)" }}>…</span> :
-          <button key={i} onClick={() => onPageChange(p as number)} class={p === page ? "active" : ""}>{p}</button>)}
-        <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>›</button>
-        <button onClick={() => onPageChange(totalPages)} disabled={page >= totalPages}>»</button>
+          <button key={i} onClick={() => onPageChange(p as number)} class={p === page ? "active" : ""} aria-label={`Page ${p}`} aria-current={p === page ? "page" : undefined}>{p}</button>)}
+        <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages} aria-label="Next page">›</button>
+        <button onClick={() => onPageChange(totalPages)} disabled={page >= totalPages} aria-label="Last page">»</button>
       </div>
     </div>
   );
