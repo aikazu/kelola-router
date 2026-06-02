@@ -320,12 +320,17 @@ describe("SPA admin API endpoints", () => {
     expect(body).toHaveProperty("recent");
   });
 
-  it("/api/admin/usage returns 200 JSON", async () => {
+  it("/api/admin/usage returns 200 JSON with summary + page", async () => {
     const res = await app.request("/api/admin/usage");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveProperty("summary");
-    expect(body).toHaveProperty("logs");
+    expect(body).toHaveProperty("page");
+    expect(body.page).toHaveProperty("rows");
+    expect(body.page).toHaveProperty("total");
+    expect(body.page).toHaveProperty("page");
+    expect(body.page).toHaveProperty("pageSize");
+    expect(body.page).toHaveProperty("totalPages");
   });
 
   it("/api/admin/client-keys returns list (empty)", async () => {

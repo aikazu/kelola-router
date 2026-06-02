@@ -87,6 +87,74 @@ export function recentLogs(db: Database.Database, filter: LogFilter = {}): Reque
     .all(...params) as RequestLog[];
 }
 
+export interface PagedLogFilter {
+  clientKeyId?: number;
+  model?: string;
+  statusCode?: number;
+  search?: string;
+  fromIso?: string;
+  toIso?: string;
+  page: number;
+  pageSize: number;
+  sortBy?: "created_at" | "cost_usd" | "latency_ms" | "total_tokens" | "status_code";
+  sortDir?: "asc" | "desc";
+}
+
+export interface PagedLogs {
+  rows: RequestLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+const SORTABLE = new Set(["created_at", "cost_usd", "latency_ms", "total_tokens", "status_code"]);
+
+export function pagedLogs(db: Database.Database, filter: PagedLogFilter): PagedLogs {
+  const where: string[] = [];
+  const params: (string | number)[] = [];
+  if (filter.clientKeyId !== undefined) {
+    where.push("client_key_id = ?");
+    params.push(filter.clientKeyId);
+  }
+  if (filter.model) {
+    where.push("model = ?");
+    params.push(filter.model);
+  }
+  if (filter.statusCode !== undefined) {
+    where.push("status_code = ?");
+    params.push(filter.statusCode);
+  }
+  if (filter.fromIso) {
+    where.push("created_at >= ?");
+    params.push(filter.fromIso);
+  }
+  if (filter.toIso) {
+    where.push("created_at <= ?");
+    params.push(filter.toIso);
+  }
+  if (filter.search) {
+    where.push("(model LIKE ? OR error LIKE ? OR CAST(id AS TEXT) LIKE ?)");
+    const term = `%${filter.search}%`;
+    params.push(term, term, term);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const sortBy = SORTABLE.has(filter.sortBy ?? "") ? filter.sortBy! : "created_at";
+  const sortDir = filter.sortDir === "asc" ? "ASC" : "DESC";
+  const total = (db.prepare(`SELECT COUNT(*) as n FROM request_logs ${whereSql}`).get(...params) as { n: number }).n;
+  const offset = (filter.page - 1) * filter.pageSize;
+  const rows = db.prepare(
+    `SELECT * FROM request_logs ${whereSql} ORDER BY ${sortBy} ${sortDir} LIMIT ? OFFSET ?`
+  ).all(...params, filter.pageSize, offset) as RequestLog[];
+  return {
+    rows,
+    total,
+    page: filter.page,
+    pageSize: filter.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filter.pageSize)),
+  };
+}
+
 export interface UsageAggregate {
   total_cost: number;
   total_requests: number;
