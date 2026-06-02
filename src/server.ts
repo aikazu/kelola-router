@@ -173,6 +173,9 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
       if (decision.cooldownMs > 0) {
         setModelLock(db, account.id, resolved.upstreamModel, decision.cooldownMs);
       }
+      if (decision.source === "balance") {
+        disableAccount(db, account.id);
+      }
       return c.body(errBody, resp.status as any, {
         "content-type": resp.headers.get("content-type") ?? "application/json",
       });
