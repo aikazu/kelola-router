@@ -26,7 +26,7 @@ import { compressMessages, formatRtkLog } from "./rtk/index.js";
 import { pipeWithUsage } from "./streaming/pipeWithUsage.js";
 import { getSetting, setSetting } from "./db/repos/settings.js";
 import { setPassword } from "./auth/password.js";
-import { startQuotaPuller } from "./scheduler/quotaPull.js";
+import { startQuotaPuller, stopQuotaPuller } from "./scheduler/quotaPull.js";
 import {
   bodyOpenAIToAnthropic, bodyAnthropicToOpenAI,
   responseOpenAIToAnthropic, responseAnthropicToOpenAI,
@@ -408,4 +408,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     log.info({ address: info.address, port: info.port }, "router listening");
     startQuotaPuller(getDb(), 5 * 60_000);
   });
+
+  function gracefulShutdown(signal: string): void {
+    log.info({ signal }, "shutting down");
+    stopQuotaPuller();
+    if (_db) {
+      try { _db.close(); } catch { /* ignore */ }
+      _db = null;
+    }
+    process.exit(0);
+  }
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 }
