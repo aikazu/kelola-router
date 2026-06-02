@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type Database from "better-sqlite3";
 import { requireAdminJson } from "./middleware.js";
+import { csrfGuard } from "../../auth.js";
 import { authRoutes } from "./auth.js";
 import { overviewRoutes } from "./overview.js";
 import { usageRoutes } from "./usage.js";
@@ -15,6 +16,7 @@ export function adminApi(db: Database.Database): Hono {
   const app = new Hono();
   app.use("*", async (c, next) => { c.set("db", db); await next(); });
   app.use("/admin/*", requireAdminJson);
+  app.use("*", csrfGuard);
   app.route("/", authRoutes);
   app.route("/admin", overviewRoutes);
   app.route("/admin", usageRoutes);

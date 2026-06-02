@@ -45,6 +45,17 @@ export function verifySameOrigin(c: Context): boolean {
   }
 }
 
+export async function csrfGuard(c: Context, next: Next): Promise<Response | void> {
+  if (c.req.method === "GET" || c.req.method === "HEAD" || c.req.method === "OPTIONS") {
+    await next();
+    return;
+  }
+  if (!verifySameOrigin(c)) {
+    return c.json({ error: "cross-origin request blocked" }, 403);
+  }
+  await next();
+}
+
 type Db = ReturnType<typeof openDb>;
 
 declare module "hono" {
