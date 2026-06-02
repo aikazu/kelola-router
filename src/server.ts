@@ -119,7 +119,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
     status: a.status as AccountState["status"],
     enabled: !!a.enabled,
   }));
-  const account = selectAccount(accountStates, "round-robin", undefined);
+  const account = selectAccount(accountStates);
   if (!account) return c.json({ error: "all accounts unavailable" }, 503);
   const acc = allAccounts.find((a) => a.id === account.id)!;
 

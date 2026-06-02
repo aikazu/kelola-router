@@ -1,20 +1,13 @@
 import { filterAvailableAccounts } from "./state.js";
-import type { AccountState, SelectionMode } from "./types.js";
+import type { AccountState } from "./types.js";
 
-export function selectAccount(
-  accounts: AccountState[],
-  mode: SelectionMode,
-  stickyKey?: string,
-  stickyMap?: Map<string, string>,
-): AccountState | null {
+/**
+ * Pick the best available upstream account.
+ * Strategy: lowest backoff level among non-rate-limited, non-disabled accounts.
+ * Returns null when no account is available.
+ */
+export function selectAccount(accounts: AccountState[]): AccountState | null {
   const available = filterAvailableAccounts(accounts);
   if (available.length === 0) return null;
-
-  if (mode === "sticky" && stickyKey && stickyMap?.has(stickyKey)) {
-    const pinnedId = stickyMap.get(stickyKey)!;
-    const pinned = available.find(a => a.id === pinnedId);
-    if (pinned) return pinned;
-  }
-
-  return available.sort((a, b) => a.backoffLevel - b.backoffLevel)[0];
+  return available.sort((a, b) => a.backoffLevel - b.backoffLevel)[0]!;
 }

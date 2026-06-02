@@ -11,45 +11,28 @@ function acc(id: string, level = 0, limited = false): AccountState {
 }
 
 describe("selectAccount", () => {
-  it("round-robin: returns first available", () => {
-    const a = selectAccount([acc("a"), acc("b")], "round-robin");
+  it("returns first available", () => {
+    const a = selectAccount([acc("a"), acc("b")]);
     expect(a?.id).toBe("a");
   });
 
-  it("round-robin: skips rate-limited account", () => {
-    const a = selectAccount([acc("a", 0, true), acc("b")], "round-robin");
+  it("skips rate-limited account", () => {
+    const a = selectAccount([acc("a", 0, true), acc("b")]);
     expect(a?.id).toBe("b");
   });
 
-  it("round-robin: returns null if all limited", () => {
-    const a = selectAccount([acc("a", 0, true), acc("b", 0, true)], "round-robin");
+  it("returns null if all limited", () => {
+    const a = selectAccount([acc("a", 0, true), acc("b", 0, true)]);
     expect(a).toBeNull();
   });
 
-  it("sticky: pins to sticky key's account if available", () => {
-    const stickyMap = new Map<string, string>([["sess_1", "b"]]);
-    const a = selectAccount([acc("a"), acc("b")], "sticky", "sess_1", stickyMap);
-    expect(a?.id).toBe("b");
-  });
-
-  it("sticky: falls back to any available if pinned is limited", () => {
-    const stickyMap = new Map<string, string>([["sess_1", "b"]]);
-    const a = selectAccount([acc("a"), acc("b", 0, true)], "sticky", "sess_1", stickyMap);
-    expect(a?.id).toBe("a");
-  });
-
-  it("sticky without stickyKey behaves like round-robin", () => {
-    const a = selectAccount([acc("a"), acc("b")], "sticky");
-    expect(a?.id).toBe("a");
-  });
-
   it("picks lowest backoff level", () => {
-    const a = selectAccount([acc("a", 3), acc("b", 1), acc("c", 2)], "round-robin");
+    const a = selectAccount([acc("a", 3), acc("b", 1), acc("c", 2)]);
     expect(a?.id).toBe("b");
   });
 
   it("skips disabled accounts", () => {
-    const a = selectAccount([{ ...acc("a"), enabled: false }, acc("b")], "round-robin");
+    const a = selectAccount([{ ...acc("a"), enabled: false }, acc("b")]);
     expect(a?.id).toBe("b");
   });
 });

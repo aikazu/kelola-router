@@ -1,6 +1,5 @@
 export type CreditType = "payg" | "token-plan";
 export type AccountStatus = "active" | "error" | "disabled";
-export type SelectionMode = "sticky" | "round-robin";
 
 export interface AccountState {
   id: string;
