@@ -1,5 +1,10 @@
-import { checkFallbackError } from "./errorRules.js";
+import { checkFallbackError, type FallbackDecision } from "./errorRules.js";
 import type { AccountState, ModelLock } from "./types.js";
+
+export interface ApplyErrorResult {
+  account: AccountState;
+  decision: FallbackDecision;
+}
 
 export function applyErrorState(
   account: AccountState,
@@ -8,7 +13,7 @@ export function applyErrorState(
   baseRespCode?: number,
   windowResetMs?: number,
   retryAfterHeader?: number,
-): { account: AccountState; newBackoffLevel: number; shouldDisable: boolean } {
+): ApplyErrorResult {
   const decision = checkFallbackError(status, errorText, baseRespCode, account.backoffLevel, windowResetMs, retryAfterHeader);
   const newAccount: AccountState = {
     ...account,
@@ -19,7 +24,7 @@ export function applyErrorState(
     lastError: { status, message: errorText.slice(0, 500), timestamp: new Date().toISOString(), baseRespCode },
     status: status === 401 ? "error" : account.status,
   };
-  return { account: newAccount, newBackoffLevel: newAccount.backoffLevel, shouldDisable: false };
+  return { account: newAccount, decision };
 }
 
 export function resetAccountState(account: AccountState): AccountState {

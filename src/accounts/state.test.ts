@@ -9,15 +9,16 @@ const base: AccountState = {
 
 describe("state machine", () => {
   it("applyErrorState on 429 sets rateLimitedUntil and bumps backoff", () => {
-    const { account, newBackoffLevel } = applyErrorState(base, 429, "rate limit", undefined, undefined, undefined);
-    expect(newBackoffLevel).toBe(1);
+    const { account, decision } = applyErrorState(base, 429, "rate limit", undefined, undefined, undefined);
+    expect(decision.newBackoffLevel).toBe(1);
     expect(new Date(account.rateLimitedUntil!).getTime()).toBeGreaterThan(Date.now());
   });
 
   it("applyErrorState on 401 sets status=error, no cooldown", () => {
-    const { account } = applyErrorState(base, 401, "auth failed", 1004);
+    const { account, decision } = applyErrorState(base, 401, "auth failed", 1004);
     expect(account.status).toBe("error");
     expect(account.rateLimitedUntil).toBeNull();
+    expect(decision.cooldownMs).toBe(0);
   });
 
   it("resetAccountState clears everything", () => {
