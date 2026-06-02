@@ -219,3 +219,37 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 
 .alert { border: 1px solid var(--emerald-2); border-left: 3px solid var(--emerald-3); background: var(--emerald-glow); padding: 14px 18px; border-radius: 0 4px 4px 0; margin-bottom: 18px; font-size: 13px; color: var(--text-1); }
 .alert ul { margin: 10px 0 0 18px; line-height: 1.8; }
+
+.skeleton-cell {
+  height: 12px;
+  background: linear-gradient(90deg, var(--ink-3) 0%, var(--ink-4) 50%, var(--ink-3) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 3px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 14px; font-size: 12px; color: var(--text-2);
+}
+.pagination-controls { display: flex; gap: 6px; align-items: center; }
+.pagination button {
+  background: var(--ink-3); border: 1px solid var(--ink-4);
+  color: var(--text-1); padding: 4px 10px; border-radius: 3px;
+  font: inherit; font-size: 11px; cursor: pointer;
+}
+.pagination button:hover:not(:disabled) { border-color: var(--emerald-2); color: var(--emerald-4); }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination .active { background: var(--emerald-2); color: var(--text-inv); border-color: var(--emerald-3); }
+.pagination input {
+  background: var(--ink-1); border: 1px solid var(--ink-3); color: var(--text-1);
+  padding: 4px 8px; border-radius: 3px; font: inherit; font-size: 12px; width: 100px;
+}
+
+.delta-up { color: var(--danger); }
+.delta-down { color: var(--emerald-4); }
+.delta-flat { color: var(--text-3); }

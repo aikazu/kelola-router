@@ -1,4 +1,5 @@
-export function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+import type { ComponentChildren } from "preact";
+export function Stat({ label, value, sub }: { label: string; value: string | number; sub?: ComponentChildren }) {
   return (
     <div class="stat">
       <div class="stat-label">{label}</div>
