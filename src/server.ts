@@ -254,7 +254,20 @@ app.post("/v1/chat/completions", requireApiKey, (c) => handleProxy(c, "openai", 
 app.post("/v1/messages", requireApiKey, (c) => handleProxy(c, "anthropic", "/v1/messages"));
 app.post("/v1/messages/count_tokens", requireApiKey, (c) => handleProxy(c, "anthropic", "/v1/messages/count_tokens"));
 app.post("/v1/embeddings", requireApiKey, (c) => c.json({ error: "embeddings not supported by MiniMax" }, 501));
-app.get("/v1/models", requireApiKey, (c) => handleProxy(c, "openai", "/v1/models"));
+app.get("/v1/models", requireApiKey, async (c) => {
+  const db = c.get("db");
+  const allAccounts = listEnabledAccounts(db);
+  if (allAccounts.length === 0) return c.json({ error: "no upstream accounts configured" }, 503);
+  const acc = allAccounts[0]!;
+  const overrideRaw = (getSetting(db, "minimax") as { upstreamFormat?: string } | null)?.upstreamFormat ?? "auto";
+  const upstreamFormat = getUpstreamFormat("openai", overrideRaw as "auto" | "openai" | "anthropic");
+  const url = upstreamUrl({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, upstreamFormat, "/v1/models");
+  const headers = upstreamHeaders({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, false, upstreamFormat);
+  const transport = getSetting<{ relay: { kind: "vercel" | "cloudflare"; url: string } | null; proxy: { kind: "http" | "socks5"; url: string } | null } | null>(db, "transport");
+  const resp = await upstreamFetch(url, {}, headers, transport);
+  const text = await resp.text();
+  return c.body(text, resp.status as any, { "content-type": resp.headers.get("content-type") ?? "application/json" });
+});
 
 app.post("/admin/models/fetch", requireAdmin, async (c) => {
   const db = c.get("db");
