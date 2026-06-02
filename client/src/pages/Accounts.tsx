@@ -52,7 +52,7 @@ export function Accounts() {
 
   return (
     <>
-      <TopBar title="Upstream accounts" actions={<Button onClick={() => setOpen(true)}>+ Add account</Button>} />
+      <TopBar title={<>Upstream <em>accounts</em></>} eyebrow="MiniMax key pool" actions={<Button onClick={() => setOpen(true)}>+ Add account</Button>} />
       <p class="card-sub">Pool of MiniMax API keys. The router fans out across enabled accounts with backoff + per-model locks when one returns 429/5xx.</p>
       <Card>
         {isError ? <ErrorState error={error as Error} onRetry={() => refetch()} /> :

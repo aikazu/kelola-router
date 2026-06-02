@@ -49,7 +49,7 @@ export function ClientKeys() {
 
   return (
     <>
-      <TopBar title="Client keys" actions={<Button onClick={() => setCreateOpen(true)}>+ Create key</Button>} />
+      <TopBar title={<>Client <em>keys</em></>} eyebrow="Bearer credentials" actions={<Button onClick={() => setCreateOpen(true)}>+ Create key</Button>} />
       <p class="card-sub">Bearer credentials for clients. Each key gets its own usage tracking on /admin/usage.</p>
       <Card>
         {isError ? <ErrorState error={error as Error} onRetry={() => refetch()} /> :

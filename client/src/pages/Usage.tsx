@@ -80,7 +80,7 @@ export function Usage() {
 
   return (
     <>
-      <TopBar title="Usage" actions={
+      <TopBar title={<>Us<em>age</em></>} eyebrow="Request log / analytics" actions={
         <select value={days} onChange={(e) => { setDays(Number((e.target as HTMLSelectElement).value)); setPage(1); }} style={{ background: "var(--ink-1)", border: "1px solid var(--ink-3)", color: "var(--text-1)", padding: "8px 10px", borderRadius: 4, fontSize: 12, fontFamily: "inherit" }}>
           {[1, 7, 30, 90].map(n => <option key={n} value={n}>Last {n} day{n > 1 ? "s" : ""}</option>)}
         </select>

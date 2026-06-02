@@ -63,7 +63,7 @@ export function Settings() {
 
   return (
     <>
-      <TopBar title="Settings" />
+      <TopBar title={<>Set<em>tings</em></>} eyebrow="Router configuration" />
       <p class="card-sub">Toggles applied to every proxy request. Changes save immediately.</p>
       <Card title="Dashboard access" sub="Set or change the dashboard password.">
         <PasswordForm onSubmit={(p) => pwMut.mutate({ action: "set", password: p })} />

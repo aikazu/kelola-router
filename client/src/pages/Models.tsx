@@ -32,7 +32,7 @@ export function Models() {
 
   return (
     <>
-      <TopBar title="Models" actions={<Button onClick={() => fetchMut.mutate()} disabled={fetchMut.isPending}>{fetchMut.isPending ? "Fetching…" : "Fetch from upstream"}</Button>} />
+      <TopBar title={<>Mod<em>els</em></>} eyebrow="Catalog / aliases" actions={<Button onClick={() => fetchMut.mutate()} disabled={fetchMut.isPending}>{fetchMut.isPending ? "Fetching…" : "Fetch from upstream"}</Button>} />
       <p class="card-sub">All models known to the router. Disabled models are rejected at the proxy layer.</p>
       <Card>
         <input type="search" placeholder="Filter by name…" value={search} onInput={(e) => setSearch((e.target as HTMLInputElement).value)} style={{ width: "100%", marginBottom: 12, padding: "8px 10px", background: "var(--ink-1)", border: "1px solid var(--ink-3)", color: "var(--text-1)", borderRadius: 4, fontFamily: "inherit", fontSize: 13 }} />

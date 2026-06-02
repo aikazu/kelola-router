@@ -22,7 +22,7 @@ export function Quota() {
 
   return (
     <>
-      <TopBar title="Quota" />
+      <TopBar title={<>Quo<em>ta</em></>} eyebrow="Balance / limits" />
       {isLoading ? <><Card><TableSkeleton rows={2} cols={2} /></Card><Card><TableSkeleton rows={2} cols={2} /></Card></> :
        quotas.length === 0 ? <div class="empty"><h3>No accounts</h3><p>Add an upstream account to see quota windows.</p></div> :
        quotas.map(q => {

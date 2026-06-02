@@ -24,7 +24,7 @@ export function Sidebar({ current }: { current: string }) {
   return (
     <aside class="sidebar">
       <div class="brand">
-        kelola-router
+        <span class="brand-mark"><span class="brand-mark-full">kelola<em>router</em></span><span class="brand-mark-mini">k<em>r</em></span></span>
         <span class="brand-tag">{me?.passwordSet ? "PROTECTED" : "OPEN MODE"}</span>
       </div>
       <nav class="nav">

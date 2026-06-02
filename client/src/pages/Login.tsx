@@ -26,23 +26,24 @@ export function Login() {
   });
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ink-0)" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--canvas)" }}>
       <form
         onSubmit={(e) => { e.preventDefault(); setErrMsg(null); loginMut.mutate(pw); }}
-        style={{ background: "var(--ink-1)", border: "1px solid var(--emerald-2)", borderRadius: 8, padding: 36, width: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.6)" }}
+        style={{ position: "relative", background: "var(--surface-1)", border: "1px solid var(--border-strong)", borderRadius: 6, padding: 40, width: 372, boxShadow: "0 28px 70px rgba(0,0,0,0.7)", overflow: "hidden" }}
       >
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, textAlign: "center", marginBottom: 4 }}>
-          <span style={{ color: "var(--emerald-4)" }}>k</span>elola-router
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "var(--gold)" }} />
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 34, fontWeight: 400, textAlign: "center", marginBottom: 6, letterSpacing: "-0.01em" }}>
+          kelola<em style={{ fontStyle: "italic", fontWeight: 300, color: "var(--gold)" }}>router</em>
         </div>
-        <div style={{ textAlign: "center", fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "var(--gold-2)", marginBottom: 24 }}>
+        <div style={{ textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 28 }}>
           Restricted access
         </div>
         {errMsg && (
-          <div role="alert" aria-live="assertive" id="login-error" style={{ color: "var(--danger)", fontSize: 12, marginBottom: 12, padding: 8, background: "rgba(192,57,43,0.1)", borderRadius: 4 }}>
+          <div role="alert" aria-live="assertive" id="login-error" style={{ color: "var(--alert)", fontSize: 12, marginBottom: 12, padding: 9, background: "rgba(210,122,110,0.12)", border: "1px solid rgba(210,122,110,0.3)", borderRadius: 4 }}>
             {errMsg}
           </div>
         )}
-        <label htmlFor="login-password" style={{ display: "block", fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--gold-2)", marginBottom: 6 }}>
+        <label htmlFor="login-password" style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-3)", marginBottom: 6 }}>
           Password
         </label>
         <input
@@ -55,7 +56,7 @@ export function Login() {
           aria-describedby={errMsg ? "login-error" : undefined}
           autoFocus
           required
-          style={{ width: "100%", padding: "10px 12px", background: "var(--ink-2)", border: "1px solid var(--ink-3)", color: "var(--text-1)", borderRadius: 4, marginBottom: 12, fontFamily: "inherit", fontSize: 14 }}
+          style={{ width: "100%", padding: "10px 12px", background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-1)", borderRadius: 3, marginBottom: 16, fontFamily: "inherit", fontSize: 14 }}
         />
         <Button type="submit" disabled={!pw || loginMut.isPending} style={{ width: "100%" }}>
           {loginMut.isPending ? "Signing in…" : "Sign in"}
