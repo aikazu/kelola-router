@@ -139,9 +139,10 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
 
   const url = upstreamUrl({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, upstreamFormat, upstreamPath);
   const headers = upstreamHeaders({ provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url }, body.stream === true, upstreamFormat);
+  const transport = getSetting<{ relay: { kind: "vercel" | "cloudflare"; url: string } | null; proxy: { kind: "http" | "socks5"; url: string } | null } | null>(db, "transport");
 
   try {
-    const resp = await upstreamFetch(url, body, headers);
+    const resp = await upstreamFetch(url, body, headers, transport);
     if (!resp.ok) {
       const errBody = await resp.text();
       const parsed = parseError(resp, errBody);
