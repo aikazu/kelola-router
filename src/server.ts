@@ -177,7 +177,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
       const clientKeyId = clientKey.id;
       const accountId = account.id;
       const modelName = body.model;
-      const piped = await pipeWithUsage(resp, format, (usage) => {
+      const piped = await pipeWithUsage(resp, format, (usage, raw) => {
         const prompt = usage?.prompt_tokens ?? 0;
         const completion = usage?.completion_tokens ?? 0;
         const cacheCreate = usage?.cache_creation_tokens ?? 0;
@@ -196,6 +196,7 @@ async function handleProxy(c: any, format: "openai" | "anthropic", upstreamPath:
           latency_ms: Date.now() - startMs, status_code: resp.status,
           base_resp_code: undefined, stream: 1, rtk_bytes_saved: 0,
           request_body: truncateBody(text),
+          response_body: truncateBody(raw),
           request_headers: headersToJson(c.req.raw.headers),
           response_headers: headersToJson(resp.headers),
         });

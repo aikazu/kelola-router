@@ -1,6 +1,6 @@
 import { extractUsageFromSSE, type SSEUsage } from "./extractUsage.js";
 
-export type UsageCallback = (usage: SSEUsage | null) => void;
+export type UsageCallback = (usage: SSEUsage | null, rawText: string) => void;
 
 /**
  * Tee an upstream SSE response: forward every byte to the client unchanged,
@@ -17,7 +17,7 @@ export async function pipeWithUsage(
   signal?: AbortSignal,
 ): Promise<Response> {
   if (!upstream.body) {
-    onUsage(null);
+    onUsage(null, "");
     return upstream;
   }
   const decoder = new TextDecoder();
@@ -36,7 +36,8 @@ export async function pipeWithUsage(
     flush() {
       if (aborted) return;
       raw += decoder.decode();
-      onUsage(extractUsageFromSSE(raw, format).usage);
+      const { usage } = extractUsageFromSSE(raw, format);
+      onUsage(usage, raw);
     },
   });
   return new Response(upstream.body.pipeThrough(tee), {
