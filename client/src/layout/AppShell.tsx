@@ -38,6 +38,7 @@ export function AppShell() {
     return h || "overview";
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     const onHash = () => {
@@ -45,11 +46,20 @@ export function AppShell() {
       setCurrent(h || "overview");
     };
     window.addEventListener("hashchange", onHash);
+
+    const gMap: Record<string, string> = { o: "/admin", u: "/admin/usage", c: "/admin/client-keys", a: "/admin/accounts", m: "/admin/models", q: "/admin/quota", s: "/admin/settings" };
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setPaletteOpen(true); }
-      if (e.key === "?" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const inField = tag === "INPUT" || tag === "TEXTAREA";
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setPaletteOpen(true); return; }
+      if (e.key === "?" && !inField) { e.preventDefault(); setHelpOpen(true); return; }
+      if (e.key === "g" && !inField) {
         e.preventDefault();
-        alert("Keyboard shortcuts:\n⌘K — command palette\ng+o — overview\ng+u — usage\ng+c — client keys\n? — this help");
+        const handler = (ev: KeyboardEvent) => {
+          if (gMap[ev.key]) location.hash = gMap[ev.key];
+        };
+        document.addEventListener("keydown", handler, { once: true });
+        setTimeout(() => document.removeEventListener("keydown", handler), 1000);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -66,6 +76,24 @@ export function AppShell() {
         <Page current={current} />
       </main>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNavigate={(href) => { location.hash = href; setPaletteOpen(false); }} />
+      {helpOpen && (
+        <div class="modal-backdrop" onClick={() => setHelpOpen(false)}>
+          <div class="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <div class="modal-header"><div class="modal-title">Keyboard shortcuts</div><button class="modal-close" onClick={() => setHelpOpen(false)} aria-label="Close">×</button></div>
+            <div class="modal-body" style={{ display: "grid", gap: 8, fontSize: 13 }}>
+              <div><kbd>⌘K</kbd> / <kbd>Ctrl K</kbd> — command palette</div>
+              <div><kbd>g</kbd> then <kbd>o</kbd> — overview</div>
+              <div><kbd>g</kbd> then <kbd>u</kbd> — usage</div>
+              <div><kbd>g</kbd> then <kbd>c</kbd> — client keys</div>
+              <div><kbd>g</kbd> then <kbd>a</kbd> — accounts</div>
+              <div><kbd>g</kbd> then <kbd>m</kbd> — models</div>
+              <div><kbd>g</kbd> then <kbd>q</kbd> — quota</div>
+              <div><kbd>g</kbd> then <kbd>s</kbd> — settings</div>
+              <div><kbd>?</kbd> — this help</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
