@@ -38,6 +38,7 @@ export function createClientKey(db: Database.Database, input: ClientKeyCreate): 
   const info = db
     .prepare(`INSERT INTO client_keys (label, key, enabled) VALUES (?, ?, ?)`)
     .run(input.label, input.key, input.enabled === false ? 0 : 1);
+  clearClientKeyCache(db);
   return getClientKey(db, info.lastInsertRowid as number)!;
 }
 
