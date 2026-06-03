@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { migrate } from './migrations/index.js';
 
 function defaultDbPath(): string {
@@ -18,7 +18,7 @@ function defaultDbPath(): string {
 
 export function openDb(): Database.Database {
   const dbPath = defaultDbPath();
-  const dir = dbPath.substring(0, dbPath.lastIndexOf('/'));
+  const dir = dirname(dbPath);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
   const db = new Database(dbPath);
