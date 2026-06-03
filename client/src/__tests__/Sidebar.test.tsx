@@ -17,8 +17,11 @@ describe('Sidebar', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ authed: true, passwordSet: false }), { status: 200 })
     );
-    wrap(<Sidebar current="overview" />);
-    expect(screen.getByText('kelola-router')).toBeInTheDocument();
+    const { container } = wrap(<Sidebar current="overview" />);
+    // Brand renders as `kelola<em>router</em>` (text split across nodes), so match
+    // the full-brand span by its normalized text content rather than getByText.
+    const brand = container.querySelector('.brand-mark-full');
+    expect(brand?.textContent?.replace(/\s+/g, '')).toBe('kelolarouter');
     expect(screen.getByText('Overview')).toBeInTheDocument();
     expect(screen.getByText('Usage')).toBeInTheDocument();
     expect(screen.getByText('Client keys')).toBeInTheDocument();
