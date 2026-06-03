@@ -321,6 +321,7 @@ Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 
 | Phase | Version | Status | Scope |
 |------:|:--------|:------:|:------|
+| 12 | **v0.12** | ✅ shipped | Model aliases (CRUD, cache, `requested_model` log); Biome linter (root + client, `lint`/`lint:fix` scripts); roadmap → `docs/roadmap.md` |
 | 11 | **v0.11** | ✅ shipped | Adaptive thinking: collapse `-thinking` built-ins into base models via allowlist, `thinking.type: "adaptive"` auto-inject, `reasoning_split` follows thinking presence, drop `thinking_enabled`/`thinking_budget` columns, legacy `-thinking` aliases still resolve |
 | 10 | **v0.10** | ✅ shipped | Dashboard rebuilt as a Preact SPA (`client/`) with the Obsidian Gold theme: gold-line cards, eyebrow labels, asymmetric Overview hero, monogram favicon |
 | 9 | **v0.9** | ✅ shipped | Inline dashboard CRUD, login + rate-limit + CSRF, fetch-models 404 fallback, usage account labels |
@@ -333,9 +334,7 @@ Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 | 2 | **v0.2** | ✅ shipped | SQLite, auth, multi-account state machine, CLI |
 | 1 | **v0.1** | ✅ shipped | Hono passthrough, 5 routes, smoke test |
 
-## 🗺️ Roadmap
-
-See [docs/roadmap.md](docs/roadmap.md) for the full release history and what's next.
+For the full release history including upcoming ideas, see [docs/roadmap.md](docs/roadmap.md).
 
 ## 📜 License
 
