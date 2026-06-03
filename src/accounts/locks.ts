@@ -36,10 +36,10 @@ let lastCleanupAt = 0;
 export function clearExpiredModelLocks(db: Database.Database): void {
   const now = Date.now();
   if (now - lastCleanupAt < CLEANUP_THROTTLE_MS) return;
-  lastCleanupAt = now;
   db.prepare(`DELETE FROM account_model_locks WHERE locked_until < ?`).run(
     new Date(now).toISOString()
   );
+  lastCleanupAt = now;
 }
 
 /** Test-only: reset the throttle so each test starts fresh. */

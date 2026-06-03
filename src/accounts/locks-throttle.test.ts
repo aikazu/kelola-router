@@ -29,9 +29,12 @@ it('runs the DELETE at most once within the throttle window', () => {
     return stmt;
   });
 
-  clearExpiredModelLocks(db);
-  clearExpiredModelLocks(db);
-  clearExpiredModelLocks(db);
-  expect(deletes).toBe(1);
-  spy.mockRestore();
+  try {
+    clearExpiredModelLocks(db);
+    clearExpiredModelLocks(db);
+    clearExpiredModelLocks(db);
+    expect(deletes).toBe(1);
+  } finally {
+    spy.mockRestore();
+  }
 });
