@@ -37,7 +37,11 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   resetDb();
-  rmSync(dir, { recursive: true });
+  try {
+    rmSync(dir, { recursive: true, force: true });
+  } catch {
+    /* Windows may hold a transient lock on the WAL file; temp dir is auto-cleaned */
+  }
   delete process.env.ROUTER_DB_PATH;
 });
 
@@ -82,6 +86,10 @@ describe('proxy with alias', () => {
 
   it('returns 400 for unknown alias target', async () => {
     const db = openDb();
+    // FK on model_aliases.upstream_model requires the value to exist in models(upstream_model).
+    // Insert a phantom model with that upstream_model so the FK passes, but the proxy will
+    // still 400 because getModel(db, 'does-not-exist') looks up by models.name, not upstream_model.
+    upsertModel(db, { name: 'phantom', upstream_model: 'does-not-exist', enabled: 0 });
     upsertAlias(db, { aliasName: 'broken', upstreamModel: 'does-not-exist' });
     clearAliasCache();
     const req = new Request('http://localhost/v1/chat/completions', {

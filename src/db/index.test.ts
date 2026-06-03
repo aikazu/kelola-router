@@ -14,7 +14,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
+  try {
+    rmSync(tmp, { recursive: true, force: true });
+  } catch {
+    /* Windows may hold a transient lock on the WAL file; temp dir is auto-cleaned */
+  }
   if (prevPath === undefined) delete process.env.ROUTER_DB_PATH;
   else process.env.ROUTER_DB_PATH = prevPath;
 });
