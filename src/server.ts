@@ -78,7 +78,7 @@ app.use('*', async (c, next) => {
   c.set('startTime', Date.now());
   await next();
 });
-app.route('/api', adminApi(getDb()));
+app.route('/api', adminApi());
 
 app.use('/admin/*', async (c, next) => {
   if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
@@ -511,6 +511,13 @@ app.post('/admin/settings/caching', requireAdmin, async (c) => {
 export { app };
 
 export function resetDb(): void {
+  if (_db) {
+    try {
+      _db.close();
+    } catch {
+      /* already closed */
+    }
+  }
   _db = null;
 }
 

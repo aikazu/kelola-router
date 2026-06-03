@@ -1,4 +1,3 @@
-import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { csrfGuard } from '../../auth.js';
 import { accountRoutes } from './accounts.js';
@@ -13,12 +12,8 @@ import { requestLogRoutes } from './requestLogs.js';
 import { settingsRoutes } from './settings.js';
 import { usageRoutes } from './usage.js';
 
-export function adminApi(db: Database.Database): Hono {
+export function adminApi(): Hono {
   const app = new Hono();
-  app.use('*', async (c, next) => {
-    c.set('db', db);
-    await next();
-  });
   app.use('/admin/*', requireAdminJson);
   app.use('*', csrfGuard);
   app.route('/', authRoutes);
