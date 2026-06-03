@@ -182,7 +182,7 @@ describe('model resolution in proxy', () => {
     resetDb();
   });
 
-  it('rewrites legacy MiniMax-M3-thinking to upstream MiniMax-M3 with adaptive thinking', async () => {
+  it('injects adaptive thinking for MiniMax-M3', async () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_t' });
     createAccount(db, { id: 'acc_z', label: 'L', credit_type: 'payg', api_key: 'kk' });
@@ -195,7 +195,7 @@ describe('model resolution in proxy', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'MiniMax-M3-thinking',
+        model: 'MiniMax-M3',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });
