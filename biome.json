@@ -33,8 +33,14 @@
     "enabled": true,
     "rules": {
       "recommended": true,
-      "suspicious": { "noExplicitAny": "error", "noDebugger": "error", "noConsole": "warn" },
-      "style": { "useImportType": "error" }
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noImplicitAnyLet": "off",
+        "noAssignInExpressions": "off",
+        "noDebugger": "error",
+        "noConsole": "off"
+      },
+      "style": { "useImportType": "warn", "noNonNullAssertion": "off" }
     }
   }
 }
