@@ -41,7 +41,8 @@ describe('fast-path passthrough', () => {
       return Promise.resolve(new Response(JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
     });
     // Pre-set the fields bodyTransform would inject for M3, so the transform is a no-op
-    // and the fast path engages. stream is unset → bodyAddsOpenAIStreamUsage is a no-op.
+    // and the fast path engages. stream is unset, so bodyAddsOpenAIStreamUsage injects nothing and the body
+    // stays clean → fast path forwards the raw text unchanged.
     const clientBody = {
       model: 'MiniMax-M3',
       messages: [{ role: 'user', content: 'hello world' }],
@@ -57,6 +58,28 @@ describe('fast-path passthrough', () => {
     });
     expect(res.status).toBe(200);
     expect(JSON.parse(sentBody)).toEqual(clientBody);
+  });
+
+  it('injects stream_options.include_usage for OpenAI streaming and tracks usage', async () => {
+    let sentBody = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts: any) => {
+      sentBody = opts.body as string;
+      const sse = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n' +
+        'data: {"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":3,"total_tokens":8}}\n\n' +
+        'data: [DONE]\n\n';
+      return Promise.resolve(new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } }));
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'MiniMax-M3', messages: [{ role: 'user', content: 'hi' }], stream: true, thinking: { type: 'adaptive' }, max_completion_tokens: 131072, reasoning_split: true }),
+    });
+    expect(res.status).toBe(200);
+    // consume the stream so pipeWithUsage flush + deferred log run
+    await res.text();
+    await flushDeferredLogs();
+    const sent = JSON.parse(sentBody);
+    expect(sent.stream_options).toEqual({ include_usage: true });
   });
 
   it('still forwards a correct (transformed) body when a transform IS active', async () => {

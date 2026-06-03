@@ -136,6 +136,8 @@ async function handleProxy(
     const stats = compressMessages(body, true);
     const rtkLog = formatRtkLog(stats);
     if (rtkLog) console.log(rtkLog);
+    // compressMessages mutates messages in-place (even when it ultimately returns
+    // null), so any rtk-enabled request may have a changed body — mark dirty.
     bodyDirty = true;
   }
 
@@ -148,8 +150,15 @@ async function handleProxy(
   const upstreamFormat = getUpstreamFormat(format, overrideRaw as 'auto' | 'openai' | 'anthropic');
 
   // OpenAI streaming: ensure include_usage so the final chunk carries usage.
+  // bodyAddsOpenAIStreamUsage returns a NEW object (only when stream===true and
+  // include_usage not already set); capture it and mark dirty so the fast path
+  // re-serializes the injected body.
   if (upstreamFormat === 'openai') {
-    bodyAddsOpenAIStreamUsage(body);
+    const withUsage = bodyAddsOpenAIStreamUsage(body);
+    if (withUsage !== body) {
+      Object.assign(body, withUsage);
+      bodyDirty = true;
+    }
   }
 
   // Cross-format body conversion (only when client != upstream).
@@ -183,6 +192,9 @@ async function handleProxy(
   try {
     resolved = resolveModel(db, body.model ?? '', body);
     const origModel = body.model;
+    // NOTE: this snapshot must list EVERY field resolved.bodyTransform may write.
+    // bodyTransform currently writes: thinking, max_completion_tokens, reasoning_split.
+    // If you add a field there, add it here too or the fast path will skip re-serialization.
     const beforeKeys = JSON.stringify([body.thinking, body.max_completion_tokens, body.reasoning_split]);
     body.model = resolved.upstreamModel;
     resolved.bodyTransform(body);
