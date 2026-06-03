@@ -237,12 +237,19 @@ async function handleProxy(
         'content-type': resp.headers.get('content-type') ?? 'application/json',
       });
     }
-    updateAccount(db, account.id, {
-      rate_limited_until: null,
-      backoff_level: 0,
-      last_error: null,
-      status: 'active',
-    });
+    if (
+      acc.backoff_level !== 0 ||
+      acc.status !== 'active' ||
+      acc.rate_limited_until !== null ||
+      acc.last_error !== null
+    ) {
+      updateAccount(db, account.id, {
+        rate_limited_until: null,
+        backoff_level: 0,
+        last_error: null,
+        status: 'active',
+      });
+    }
 
     if (body.stream === true) {
       const startMs = c.get('startTime');
