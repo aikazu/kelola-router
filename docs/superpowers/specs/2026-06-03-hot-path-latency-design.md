@@ -42,9 +42,9 @@ A small test/script that drives `handleProxy` against a faked upstream (`vi.spyO
 
 Record numbers before changes; re-run at the end. Lives under `tests/` or `bench/`. Not a correctness gate — an evidence artifact.
 
-### Step 1 — Prepared-statement cache
+### Step 1 — Prepared-statement cache — DROPPED
 
-`better-sqlite3` re-parses SQL on each `db.prepare()`. Add a `prep(db, sql)` helper backed by a per-db `Map<string, Statement>` (WeakMap keyed by db, inner Map keyed by SQL). Migrate hot repos (`accounts.ts`, `locks.ts`, `requestLogs.ts`, `client_keys.ts`, `settings.ts`) to call `prep()`. Query results identical; only parse cost removed.
+Original idea: a `prep(db, sql)` cache to avoid re-parsing SQL. Investigation showed `better-sqlite3` already maintains an internal LRU cache of prepared statements keyed by SQL string (default size 100), so repeated `db.prepare(sameSql)` is already cheap. Adding our own cache duplicates existing behavior for no measurable gain. **Dropped — not implemented.**
 
 ### Step 2 — Batch settings read
 
@@ -83,7 +83,6 @@ Re-run Step 0 harness; record query-count and overhead deltas in the plan/PR not
 
 ## Component boundaries
 
-- `src/db/prep.ts` (new) — `prep(db, sql)` statement cache + `clearPrepCache(db)`. Pure, testable in isolation.
 - `src/db/repos/settings.ts` — add `getAllSettings`; reuse existing cache structure.
 - `src/db/repos/client_keys.ts` — add lookup cache + `clearClientKeyCache`.
 - `src/accounts/locks.ts` — add throttle guard to `clearExpiredModelLocks` (or a wrapper).
