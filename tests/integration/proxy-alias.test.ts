@@ -9,7 +9,7 @@ import { createAccount } from '../../src/db/repos/accounts.js';
 import { upsertAlias } from '../../src/db/repos/aliases.js';
 import { createClientKey } from '../../src/db/repos/client_keys.js';
 import { enableModel, upsertModel } from '../../src/db/repos/models.js';
-import { recentLogs } from '../../src/db/repos/requestLogs.js';
+import { flushDeferredLogs, recentLogs } from '../../src/db/repos/requestLogs.js';
 import { clearCache, setSetting } from '../../src/db/repos/settings.js';
 import { clearAliasCache } from '../../src/providers/aliasCache.js';
 import { app, resetDb } from '../../src/server.js';
@@ -79,6 +79,7 @@ describe('proxy with alias', () => {
     expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
+    await flushDeferredLogs();
     const logs = recentLogs(db, { limit: 1 });
     expect(logs[0]?.model).toBe('MiniMax-M3');
     expect((logs[0] as any)?.requested_model).toBe('claude-opus-4-8');

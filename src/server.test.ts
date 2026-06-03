@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from './db/index.js';
 import { createAccount } from './db/repos/accounts.js';
 import { createClientKey } from './db/repos/client_keys.js';
+import { flushDeferredLogs } from './db/repos/requestLogs.js';
 import { clearCache } from './db/repos/settings.js';
 import { app, resetDb } from './server.js';
 
@@ -105,6 +106,7 @@ describe('handleProxy with auth + accounts', () => {
       );
       expect(res.status, `request for ${ck.label}`).toBe(200);
     }
+    await flushDeferredLogs();
     const logs = db
       .prepare(`SELECT client_key_id, COUNT(*) as n FROM request_logs GROUP BY client_key_id`)
       .all() as { client_key_id: number; n: number }[];
@@ -248,6 +250,7 @@ describe('request logging', () => {
       body: JSON.stringify({ model: 'MiniMax-M2.7', messages: [{ role: 'user', content: 'hi' }] }),
     });
     await app.request(req);
+    await flushDeferredLogs();
     const logs = db.prepare(`SELECT * FROM request_logs`).all() as any[];
     expect(logs.length).toBe(1);
     expect(logs[0].prompt_tokens).toBe(100);
@@ -280,7 +283,7 @@ describe('request logging', () => {
     const res = await app.request(req);
     expect(res.status).toBe(200);
     await res.text();
-    await new Promise((r) => setTimeout(r, 10));
+    await flushDeferredLogs();
     const logs = db.prepare(`SELECT * FROM request_logs WHERE stream = 1`).all() as any[];
     expect(logs.length).toBe(1);
     expect(logs[0].prompt_tokens).toBe(42);

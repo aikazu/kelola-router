@@ -104,6 +104,32 @@ export function insertRequestLog(db: Database.Database, log: RequestLogInsert): 
   return info.lastInsertRowid as number;
 }
 
+const pending = new Set<Promise<void>>();
+
+/**
+ * Queue a request-log insert to run after the current task, off the response
+ * critical path. The row is still written in full. Tests await flushDeferredLogs().
+ */
+export function insertRequestLogDeferred(db: Database.Database, log: RequestLogInsert): void {
+  const p = new Promise<void>((resolve) => {
+    queueMicrotask(() => {
+      try {
+        insertRequestLog(db, log);
+      } catch {
+        /* logging must never break the proxy */
+      }
+      resolve();
+    });
+  });
+  pending.add(p);
+  void p.then(() => pending.delete(p));
+}
+
+/** Await all queued deferred inserts (test determinism / graceful shutdown). */
+export async function flushDeferredLogs(): Promise<void> {
+  await Promise.all([...pending]);
+}
+
 export function getRequestLogById(db: Database.Database, id: number): RequestLog | null {
   const row = db.prepare('SELECT * FROM request_logs WHERE id = ?').get(id) as
     | RequestLog

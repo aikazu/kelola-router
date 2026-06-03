@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
 import { app, resetDb } from '../../src/server.js';
 import { createAccount } from '../../src/db/repos/accounts.js';
 import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
@@ -63,9 +64,7 @@ describe('hot-path benchmark', () => {
     const t0 = performance.now();
     const res = await make();
     const overheadMs = performance.now() - t0;
-    // insertRequestLog runs synchronously before response returns (non-streaming),
-    // so stmtRuns is final here. Task 6 will defer the log insert — add
-    // flushDeferredLogs() here then, if a drain becomes necessary.
+    await flushDeferredLogs();
     expect(res.status).toBe(200);
 
     console.log(`[bench] sqlite statement executions (warm): ${stmtRuns}`);

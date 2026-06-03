@@ -35,7 +35,7 @@ import {
   genClientKey,
 } from './db/repos/client_keys.js';
 import { disableModel, enableModel } from './db/repos/models.js';
-import { insertRequestLog } from './db/repos/requestLogs.js';
+import { insertRequestLogDeferred } from './db/repos/requestLogs.js';
 import { getAllSettings, getSetting, setSetting } from './db/repos/settings.js';
 import { resolveModel } from './providers/alias.js';
 import { getUpstreamFormat } from './providers/format/negotiate.js';
@@ -268,7 +268,7 @@ async function handleProxy(
           cache_creation_tokens: cacheCreate,
           cache_read_tokens: cacheRead,
         });
-        insertRequestLog(db, {
+        insertRequestLogDeferred(db, {
           client_key_id: clientKeyId,
           account_id: accountId,
           model: modelName,
@@ -327,7 +327,7 @@ async function handleProxy(
       cache_creation_tokens: usage.cache_creation_tokens ?? 0,
       cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
     });
-    insertRequestLog(db, {
+    insertRequestLogDeferred(db, {
       client_key_id: clientKey.id,
       account_id: account.id,
       model: body.model,
