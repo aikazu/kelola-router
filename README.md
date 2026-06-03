@@ -8,8 +8,8 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.11](https://img.shields.io/badge/release-v0.11-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.11)
-[![Tests](https://img.shields.io/badge/tests-289-success?logo=vitest&logoColor=white)](#-development)
+[![v0.12](https://img.shields.io/badge/release-v0.12-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.12)
+[![Tests](https://img.shields.io/badge/tests-294-success?logo=vitest&logoColor=white)](#-development)
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
 ```text
@@ -38,6 +38,7 @@
 - 🧠 **Multi-account state machine** — sticky + round-robin selection, exponential backoff, per-model locks, automatic cooldown on 429/5xx
 - 🌍 **Region-aware** — `MINIMAX_REGION=intl|cn` switch
 - 🗃️ **SQLite-WAL storage** — zero-config persistence with idempotent migrations
+- 🔤 **Model aliases** — user-defined model-name → upstream-model mapping; CRUD via `/admin/aliases`, in-memory cache with TTL, `requested_model` logged per request, `?target=<model>` deep link from Models page, `aliasCount` per model in `/api/admin/models`
 - 📊 **Per-request telemetry** — token usage, latency, cache hits, account attribution
 - 👥 **Client keys with per-key usage** — one bearer = one client identity; admin can see per-key breakdown on `/admin/usage`
 - 🔁 **Pool fallback across upstream MiniMax keys** — admin adds N MiniMax keys; router fans out + backoffs + locks per-model
@@ -203,6 +204,17 @@ scripts/                      # CLI: add-client-key, add-account, seed-models, r
 tests/                        # mirror src/
 ```
 
+### Lint
+
+```bash
+npm run lint          # check (server + client via root config)
+npm run lint:fix      # auto-fix
+cd client && npm run lint      # client only
+cd client && npm run lint:fix  # client auto-fix
+```
+
+Biome is the single lint+format tool. Configs at `biome.json` (root) and `client/biome.json` (`"root": false` nested config). Strict rules are `warn` for v0.12 baseline — see [docs/roadmap.md](docs/roadmap.md) for the v0.12 entry.
+
 ## 🎨 Dashboard
 
 The dashboard is a standalone **Preact SPA** in `client/` (Vite + preact-router + @tanstack/react-query). The Hono server exposes a JSON API under `/api/admin/*`; in production the built SPA is served as static files from `client/dist/` on port `20137`.
@@ -320,6 +332,10 @@ Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 | 3 | **v0.3** | ✅ shipped | Model registry, alias resolution, tiered pricing, live fetch |
 | 2 | **v0.2** | ✅ shipped | SQLite, auth, multi-account state machine, CLI |
 | 1 | **v0.1** | ✅ shipped | Hono passthrough, 5 routes, smoke test |
+
+## 🗺️ Roadmap
+
+See [docs/roadmap.md](docs/roadmap.md) for the full release history and what's next.
 
 ## 📜 License
 
