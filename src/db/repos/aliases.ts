@@ -1,5 +1,5 @@
-import type Database from "better-sqlite3";
-import { getModel } from "./models.js";
+import type Database from 'better-sqlite3';
+import { getModel } from './models.js';
 
 export interface ModelAlias {
   aliasName: string;
@@ -12,7 +12,7 @@ export interface ModelAlias {
 export class AliasConflictError extends Error {
   constructor(public aliasName: string) {
     super(`alias name conflicts with real model: ${aliasName}`);
-    this.name = "AliasConflictError";
+    this.name = 'AliasConflictError';
   }
 }
 
@@ -34,12 +34,16 @@ function rowToAlias(r: Record<string, unknown>): ModelAlias {
 }
 
 export function listAliases(db: Database.Database): ModelAlias[] {
-  const rows = db.prepare(`SELECT * FROM model_aliases ORDER BY created_at, alias_name`).all() as Record<string, unknown>[];
+  const rows = db
+    .prepare(`SELECT * FROM model_aliases ORDER BY created_at, alias_name`)
+    .all() as Record<string, unknown>[];
   return rows.map(rowToAlias);
 }
 
 export function getAlias(db: Database.Database, name: string): ModelAlias | null {
-  const row = db.prepare(`SELECT * FROM model_aliases WHERE alias_name = ?`).get(name) as Record<string, unknown> | undefined;
+  const row = db.prepare(`SELECT * FROM model_aliases WHERE alias_name = ?`).get(name) as
+    | Record<string, unknown>
+    | undefined;
   return row ? rowToAlias(row) : null;
 }
 
@@ -60,10 +64,10 @@ export function upsertAlias(db: Database.Database, args: UpsertAliasArgs): Model
     db.prepare(`
       INSERT INTO model_aliases (alias_name, upstream_model, label, source)
       VALUES (?, ?, ?, ?)
-    `).run(name, args.upstreamModel, args.label ?? null, args.source ?? "user");
+    `).run(name, args.upstreamModel, args.label ?? null, args.source ?? 'user');
   }
   const row = getAlias(db, name);
-  if (!row) throw new Error("upsertAlias: row missing post-write");
+  if (!row) throw new Error('upsertAlias: row missing post-write');
   return row;
 }
 
@@ -74,14 +78,16 @@ export function deleteAlias(db: Database.Database, name: string): boolean {
 
 export function listAliasesForTargets(
   db: Database.Database,
-  upstreamNames: string[],
+  upstreamNames: string[]
 ): Record<string, ModelAlias[]> {
   const out: Record<string, ModelAlias[]> = {};
   if (upstreamNames.length === 0) return out;
-  const placeholders = upstreamNames.map(() => "?").join(",");
-  const rows = db.prepare(
-    `SELECT * FROM model_aliases WHERE upstream_model IN (${placeholders}) ORDER BY alias_name`,
-  ).all(...upstreamNames) as Record<string, unknown>[];
+  const placeholders = upstreamNames.map(() => '?').join(',');
+  const rows = db
+    .prepare(
+      `SELECT * FROM model_aliases WHERE upstream_model IN (${placeholders}) ORDER BY alias_name`
+    )
+    .all(...upstreamNames) as Record<string, unknown>[];
   for (const r of rows) {
     const a = rowToAlias(r);
     (out[a.upstreamModel] ??= []).push(a);

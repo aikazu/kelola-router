@@ -1,5 +1,5 @@
-import { filterAvailableAccounts } from "./state.js";
-import type { AccountState } from "./types.js";
+import { filterAvailableAccounts } from './state.js';
+import type { AccountState } from './types.js';
 
 /**
  * Pick the best available upstream account.

@@ -1,41 +1,44 @@
-import type { Context, Next } from "hono";
-import { getClientKeyByKey, type ClientKey } from "./db/repos/client_keys.js";
-import { openDb } from "./db/index.js";
-import { isPasswordSet, verifyPassword, setPassword } from "./auth/password.js";
-import { validateSession, createSession, destroySession } from "./auth/session.js";
-import { isLoginLocked, recordLoginFailure, clearLoginFailures } from "./auth/rateLimit.js";
+import type { Context, Next } from 'hono';
+import { isPasswordSet, setPassword, verifyPassword } from './auth/password.js';
+import { clearLoginFailures, isLoginLocked, recordLoginFailure } from './auth/rateLimit.js';
+import { createSession, destroySession, validateSession } from './auth/session.js';
+import type { openDb } from './db/index.js';
+import { type ClientKey, getClientKeyByKey } from './db/repos/client_keys.js';
 
 // Re-exports for use by routes/handlers
 export { isPasswordSet, setPassword, verifyPassword };
 
 export function readCookie(c: Context, name: string): string | null {
-  const raw = c.req.header("cookie");
+  const raw = c.req.header('cookie');
   if (!raw) return null;
-  for (const part of raw.split(";")) {
-    const [k, ...rest] = part.trim().split("=");
-    if (k === name) return decodeURIComponent(rest.join("="));
+  for (const part of raw.split(';')) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(rest.join('='));
   }
   return null;
 }
 
 function isSecureRequest(c: Context): boolean {
-  return process.env.ROUTER_COOKIE_SECURE === "1" || c.req.header("x-forwarded-proto") === "https";
+  return process.env.ROUTER_COOKIE_SECURE === '1' || c.req.header('x-forwarded-proto') === 'https';
 }
 
 export function setCookie(c: Context, name: string, value: string, maxAgeSec: number) {
-  const secure = isSecureRequest(c) ? "; Secure" : "";
-  c.header("set-cookie", `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}${secure}`);
+  const secure = isSecureRequest(c) ? '; Secure' : '';
+  c.header(
+    'set-cookie',
+    `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}${secure}`
+  );
 }
 
 export function clearCookie(c: Context, name: string) {
-  const secure = isSecureRequest(c) ? "; Secure" : "";
-  c.header("set-cookie", `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
+  const secure = isSecureRequest(c) ? '; Secure' : '';
+  c.header('set-cookie', `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
 }
 
 export function verifySameOrigin(c: Context): boolean {
-  const origin = c.req.header("origin");
+  const origin = c.req.header('origin');
   if (!origin) return true; // permissive: no Origin header (curl, server-to-server)
-  const host = c.req.header("host");
+  const host = c.req.header('host');
   if (!host) return true; // no Host header — nothing to compare
   try {
     const o = new URL(origin);
@@ -46,19 +49,19 @@ export function verifySameOrigin(c: Context): boolean {
 }
 
 export async function csrfGuard(c: Context, next: Next): Promise<Response | void> {
-  if (c.req.method === "GET" || c.req.method === "HEAD" || c.req.method === "OPTIONS") {
+  if (c.req.method === 'GET' || c.req.method === 'HEAD' || c.req.method === 'OPTIONS') {
     await next();
     return;
   }
   if (!verifySameOrigin(c)) {
-    return c.json({ error: "cross-origin request blocked" }, 403);
+    return c.json({ error: 'cross-origin request blocked' }, 403);
   }
   await next();
 }
 
 type Db = ReturnType<typeof openDb>;
 
-declare module "hono" {
+declare module 'hono' {
   interface ContextVariableMap {
     db: Db;
     clientKey: ClientKey;
@@ -67,25 +70,25 @@ declare module "hono" {
   }
 }
 
-export const SESSION_COOKIE = "kelola_session";
+export const SESSION_COOKIE = 'kelola_session';
 
 function extractBearer(c: Context): string | null {
-  const auth = c.req.header("authorization");
-  if (auth?.startsWith("Bearer ")) return auth.slice(7).trim();
-  return c.req.header("x-api-key") ?? null;
+  const auth = c.req.header('authorization');
+  if (auth?.startsWith('Bearer ')) return auth.slice(7).trim();
+  return c.req.header('x-api-key') ?? null;
 }
 
 function clientIp(c: Context): string | null {
-  return c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  return c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
 }
 
 export async function requireApiKey(c: Context, next: Next): Promise<Response | void> {
   const key = extractBearer(c);
-  if (!key) return c.json({ error: "missing API key" }, 401);
-  const db = c.get("db");
+  if (!key) return c.json({ error: 'missing API key' }, 401);
+  const db = c.get('db');
   const clientKey = getClientKeyByKey(db, key);
-  if (!clientKey) return c.json({ error: "invalid API key" }, 401);
-  c.set("clientKey", clientKey);
+  if (!clientKey) return c.json({ error: 'invalid API key' }, 401);
+  c.set('clientKey', clientKey);
   await next();
 }
 
@@ -98,7 +101,7 @@ export async function requireApiKey(c: Context, next: Next): Promise<Response | 
  *   5. If password IS set and none of 1-3 matched → 401 (with login hint)
  */
 export async function requireAdmin(c: Context, next: Next): Promise<Response | void> {
-  const db = c.get("db");
+  const db = c.get('db');
   const passwordSet = isPasswordSet(db);
 
   // Try session cookie first
@@ -107,7 +110,7 @@ export async function requireAdmin(c: Context, next: Next): Promise<Response | v
     if (sid) {
       const s = validateSession(db, sid);
       if (s) {
-        c.set("isAdmin", true);
+        c.set('isAdmin', true);
         await next();
         return;
       }
@@ -116,27 +119,30 @@ export async function requireAdmin(c: Context, next: Next): Promise<Response | v
 
   // Legacy: env / x-admin-key (works regardless of password state — for scripts)
   const envKey = process.env.ROUTER_ADMIN_KEY;
-  const headerKey = c.req.header("x-admin-key");
-  const authKey = c.req.header("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const headerKey = c.req.header('x-admin-key');
+  const authKey = c.req
+    .header('authorization')
+    ?.replace(/^Bearer\s+/i, '')
+    .trim();
   const candidate = headerKey ?? authKey;
   if (envKey && candidate && candidate === envKey) {
-    c.set("isAdmin", true);
+    c.set('isAdmin', true);
     await next();
     return;
   }
 
   // No password configured → open access (local dev mode)
   if (!passwordSet) {
-    c.set("isAdmin", true);
+    c.set('isAdmin', true);
     await next();
     return;
   }
 
   // Password set but no valid session + no valid key
-  if (c.req.method === "GET" && !c.req.header("accept")?.includes("application/json")) {
-    return c.redirect("/login");
+  if (c.req.method === 'GET' && !c.req.header('accept')?.includes('application/json')) {
+    return c.redirect('/login');
   }
-  return c.json({ error: "admin login required (POST /login with password)" }, 401);
+  return c.json({ error: 'admin login required (POST /login with password)' }, 401);
 }
 
 /**
@@ -144,37 +150,45 @@ export async function requireAdmin(c: Context, next: Next): Promise<Response | v
  * Sets session cookie on success.
  */
 export async function handleLogin(c: Context): Promise<Response> {
-  const db = c.get("db");
+  const db = c.get('db');
   if (!isPasswordSet(db)) {
-    return c.redirect("/admin"); // open mode → no login needed
+    return c.redirect('/admin'); // open mode → no login needed
   }
-  const ip = clientIp(c) ?? "unknown";
+  const ip = clientIp(c) ?? 'unknown';
   const lock = isLoginLocked(ip);
   if (lock.locked) {
-    return c.html(renderLoginPage(`Too many attempts. Try again in ${Math.ceil(lock.retryAfterMs / 1000)}s.`, db), 429);
+    return c.html(
+      renderLoginPage(
+        `Too many attempts. Try again in ${Math.ceil(lock.retryAfterMs / 1000)}s.`,
+        db
+      ),
+      429
+    );
   }
   const body = await c.req.parseBody();
-  const password = typeof body.password === "string" ? body.password : "";
-  const row = db.prepare(`SELECT value FROM settings WHERE key = 'admin_password'`).get() as { value: string } | undefined;
+  const password = typeof body.password === 'string' ? body.password : '';
+  const row = db.prepare(`SELECT value FROM settings WHERE key = 'admin_password'`).get() as
+    | { value: string }
+    | undefined;
   if (!row || !verifyPassword(password, JSON.parse(row.value))) {
     recordLoginFailure(ip);
-    return c.html(renderLoginPage("Wrong password.", db), 401);
+    return c.html(renderLoginPage('Wrong password.', db), 401);
   }
   clearLoginFailures(ip);
   const session = createSession(db, {
-    userAgent: c.req.header("user-agent") ?? undefined,
+    userAgent: c.req.header('user-agent') ?? undefined,
     ip,
   });
   setCookie(c, SESSION_COOKIE, session.id, 7 * 24 * 60 * 60);
-  return c.redirect("/admin");
+  return c.redirect('/admin');
 }
 
 export function handleLogout(c: Context): Response {
-  const db = c.get("db");
+  const db = c.get('db');
   const sid = readCookie(c, SESSION_COOKIE);
   if (sid) destroySession(db, sid);
   clearCookie(c, SESSION_COOKIE);
-  return c.redirect("/");
+  return c.redirect('/');
 }
 
 export function renderLoginPage(error: string, _db: Db): string {
@@ -203,7 +217,7 @@ export function renderLoginPage(error: string, _db: Db): string {
 <form method="POST" action="/login" class="card">
   <h1>kelola-router</h1>
   <p class="sub">Sign in to the dashboard</p>
-  ${error ? `<div class="err">${error}</div>` : ""}
+  ${error ? `<div class="err">${error}</div>` : ''}
   <label for="password">Password</label>
   <input type="password" id="password" name="password" required autofocus autocomplete="current-password">
   <button type="submit">Enter</button>

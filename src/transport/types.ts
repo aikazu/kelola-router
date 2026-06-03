@@ -1,5 +1,5 @@
-export type ProxyKind = "http" | "socks5";
-export type RelayKind = "vercel" | "cloudflare";
+export type ProxyKind = 'http' | 'socks5';
+export type RelayKind = 'vercel' | 'cloudflare';
 
 export interface ProxyConfig {
   kind: ProxyKind;

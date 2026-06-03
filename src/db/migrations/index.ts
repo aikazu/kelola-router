@@ -1,21 +1,29 @@
-import { migration_001 } from "./001-initial.js";
-import { migration_002 } from "./002-admin-key.js";
-import { migration_003 } from "./003-drop-users.js";
-import { migration_004 } from "./004-sessions.js";
-import { migration_005 } from "./005-request-bodies.js";
-import { migration_006 } from "./006-drop-thinking-fields.js";
-import { migration_007 } from "./007-model-aliases.js";
-import type Database from "better-sqlite3";
+import type Database from 'better-sqlite3';
+import { migration_001 } from './001-initial.js';
+import { migration_002 } from './002-admin-key.js';
+import { migration_003 } from './003-drop-users.js';
+import { migration_004 } from './004-sessions.js';
+import { migration_005 } from './005-request-bodies.js';
+import { migration_006 } from './006-drop-thinking-fields.js';
+import { migration_007 } from './007-model-aliases.js';
 
 const ALL_MIGRATIONS: Array<{
   id: number;
   name: string;
   sql: string;
   condition?: (db: Database.Database) => boolean;
-}> = [migration_001, migration_002, migration_003, migration_004, migration_005, migration_006, migration_007];
+}> = [
+  migration_001,
+  migration_002,
+  migration_003,
+  migration_004,
+  migration_005,
+  migration_006,
+  migration_007,
+];
 
 export function migrate(db: Database.Database): void {
-  const current = Number(db.pragma("user_version", { simple: true }));
+  const current = Number(db.pragma('user_version', { simple: true }));
   for (const m of ALL_MIGRATIONS) {
     if (m.id > current) {
       // Skip if condition returns false

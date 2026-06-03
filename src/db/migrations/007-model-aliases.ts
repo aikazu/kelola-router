@@ -5,7 +5,7 @@
  */
 export const migration_007 = {
   id: 7,
-  name: "model_aliases",
+  name: 'model_aliases',
   sql: `
     CREATE UNIQUE INDEX IF NOT EXISTS idx_models_upstream_model ON models(upstream_model);
     CREATE TABLE IF NOT EXISTS model_aliases (

@@ -14,6 +14,8 @@
     "dev:client": "cd client && npm run dev",
     "build": "npm run build:client && tsc",
     "build:client": "cd client && npm run build",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:client": "cd client && npm test",

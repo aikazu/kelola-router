@@ -1,8 +1,8 @@
-import { DEDUP_LINE_MAX } from "../constants.js";
-import type { FilterFn } from "../types.js";
+import { DEDUP_LINE_MAX } from '../constants.js';
+import type { FilterFn } from '../types.js';
 
 export const dedupLog: FilterFn = (text: string): string => {
-  const lines = text.split("\n");
+  const lines = text.split('\n');
   const seen = new Map<string, number>();
   const result: string[] = [];
 
@@ -18,8 +18,10 @@ export const dedupLog: FilterFn = (text: string): string => {
   }
 
   if (result.length > DEDUP_LINE_MAX) {
-    return result.slice(0, DEDUP_LINE_MAX).join("\n") + `\n... [truncated to ${DEDUP_LINE_MAX} lines]`;
+    return (
+      result.slice(0, DEDUP_LINE_MAX).join('\n') + `\n... [truncated to ${DEDUP_LINE_MAX} lines]`
+    );
   }
-  return result.join("\n");
+  return result.join('\n');
 };
-dedupLog.filterName = "dedup-log";
+dedupLog.filterName = 'dedup-log';

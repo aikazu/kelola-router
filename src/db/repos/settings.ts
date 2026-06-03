@@ -1,11 +1,14 @@
-import type Database from "better-sqlite3";
+import type Database from 'better-sqlite3';
 
 const TTL_MS = 1000;
 const caches = new WeakMap<Database.Database, Map<string, { value: unknown; expiry: number }>>();
 
 function getCache(db: Database.Database): Map<string, { value: unknown; expiry: number }> {
   let c = caches.get(db);
-  if (!c) { c = new Map(); caches.set(db, c); }
+  if (!c) {
+    c = new Map();
+    caches.set(db, c);
+  }
   return c;
 }
 
@@ -24,7 +27,9 @@ export function getSetting<T = unknown>(db: Database.Database, key: string): T |
   const cached = c.get(key);
   if (cached && cached.expiry > Date.now()) return cached.value as T;
 
-  const row = db.prepare(`SELECT value FROM settings WHERE key = ?`).get(key) as { value: string } | undefined;
+  const row = db.prepare(`SELECT value FROM settings WHERE key = ?`).get(key) as
+    | { value: string }
+    | undefined;
   if (!row) return null;
 
   const value = JSON.parse(row.value);

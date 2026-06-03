@@ -1,4 +1,4 @@
-export type ToastVariant = "success" | "error" | "info";
+export type ToastVariant = 'success' | 'error' | 'info';
 
 export interface ToastItem {
   id: number;
@@ -7,7 +7,7 @@ export interface ToastItem {
 }
 
 export function ToastView({ item }: { item: ToastItem }) {
-  const icon = item.variant === "success" ? "✓" : item.variant === "error" ? "✕" : "ℹ";
+  const icon = item.variant === 'success' ? '✓' : item.variant === 'error' ? '✕' : 'ℹ';
   return (
     <div class={`toast toast-${item.variant}`}>
       <span class="toast-icon">{icon}</span>

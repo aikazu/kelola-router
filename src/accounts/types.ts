@@ -1,5 +1,5 @@
-export type CreditType = "payg" | "token-plan";
-export type AccountStatus = "active" | "error" | "disabled";
+export type CreditType = 'payg' | 'token-plan';
+export type AccountStatus = 'active' | 'error' | 'disabled';
 
 export interface AccountState {
   id: string;

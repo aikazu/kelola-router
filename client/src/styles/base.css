@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
   /* Obsidian canvas ramp */
@@ -48,14 +48,19 @@
   --gold-2: #c9a352;
   --gold-3: #e0bf6b;
 
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-html, body {
+html,
+body {
   background: var(--canvas);
   color: var(--text-1);
   font-family: var(--font-body);
@@ -73,21 +78,40 @@ body {
   min-height: 100vh;
 }
 
-a { color: var(--gold); text-decoration: none; transition: color 0.15s; }
-a:hover { color: var(--gold-bright); }
+a {
+  color: var(--gold);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+a:hover {
+  color: var(--gold-bright);
+}
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: -0.01em;
   font-optical-sizing: auto;
 }
-h1 { font-size: 34px; line-height: 1.1; }
-h2 { font-size: 22px; }
-h3 { font-size: 16px; }
+h1 {
+  font-size: 34px;
+  line-height: 1.1;
+}
+h2 {
+  font-size: 22px;
+}
+h3 {
+  font-size: 16px;
+}
 
 /* Italic gold accent — signature detail. Max one <em> per headline. */
-h1 em, h2 em, .topbar-title em, .hero-figure em {
+h1 em,
+h2 em,
+.topbar-title em,
+.hero-figure em {
   font-style: italic;
   font-weight: 300;
   color: var(--gold);
@@ -113,7 +137,8 @@ h1 em, h2 em, .topbar-title em, .hero-figure em {
   margin: 12px 0;
 }
 
-code, pre {
+code,
+pre {
   font-family: var(--font-mono);
   font-size: 12.5px;
   background: var(--surface-4);
@@ -121,7 +146,10 @@ code, pre {
   padding: 1px 6px;
   color: var(--gold-bright);
 }
-pre { padding: 12px; overflow-x: auto; }
+pre {
+  padding: 12px;
+  overflow-x: auto;
+}
 
 kbd {
   font-family: var(--font-mono);
@@ -135,7 +163,9 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }

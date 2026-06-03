@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type Database from 'better-sqlite3';
 
 /**
  * Legacy migration: ALTER TABLE users ADD COLUMN admin_key.
@@ -8,10 +8,12 @@ import type Database from "better-sqlite3";
  */
 export const migration_002 = {
   id: 2,
-  name: "admin_key_legacy",
+  name: 'admin_key_legacy',
   condition: (db: Database.Database) => {
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
-    return tables.some(t => t.name === "users");
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+      name: string;
+    }[];
+    return tables.some((t) => t.name === 'users');
   },
   sql: `
     ALTER TABLE users ADD COLUMN admin_key TEXT;

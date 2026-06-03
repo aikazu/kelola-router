@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type Database from 'better-sqlite3';
 
 /**
  * Drop the router-invented `thinking_enabled` and `thinking_budget` columns
@@ -10,10 +10,13 @@ import type Database from "better-sqlite3";
  */
 export const migration_006 = {
   id: 6,
-  name: "drop_thinking_fields",
+  name: 'drop_thinking_fields',
   condition: (db: Database.Database) => {
     const cols = db.prepare(`PRAGMA table_info(models)`).all() as { name: string }[];
-    return cols.some(c => c.name === "thinking_enabled") || cols.some(c => c.name === "thinking_budget");
+    return (
+      cols.some((c) => c.name === 'thinking_enabled') ||
+      cols.some((c) => c.name === 'thinking_budget')
+    );
   },
   sql: `
     ALTER TABLE models DROP COLUMN thinking_enabled;

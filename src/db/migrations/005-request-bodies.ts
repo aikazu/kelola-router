@@ -4,7 +4,7 @@
  */
 export const migration_005 = {
   id: 5,
-  name: "request_bodies",
+  name: 'request_bodies',
   sql: `
     ALTER TABLE request_logs ADD COLUMN request_body TEXT;
     ALTER TABLE request_logs ADD COLUMN response_body TEXT;

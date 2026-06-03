@@ -1,6 +1,6 @@
-import { useState } from "preact/hooks";
-import { Modal } from "./Modal";
-import { Button } from "./Button";
+import { useState } from 'preact/hooks';
+import { Button } from './Button';
+import { Modal } from './Modal';
 
 interface ConfirmOpts {
   title: string;
@@ -23,7 +23,10 @@ export function confirmDialog(o: ConfirmOpts): Promise<boolean> {
 
 export function ConfirmHost() {
   const [, force] = useState(0);
-  const subscribe = (fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); };
+  const subscribe = (fn: () => void) => {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  };
   subscribe(() => force((x) => x + 1));
 
   const open = pending !== null && opts !== null;
@@ -36,14 +39,22 @@ export function ConfirmHost() {
 
   if (!open || !opts) return null;
   return (
-    <Modal open onClose={() => close(false)} title={opts.title}
-      footer={<>
-        <Button variant="ghost" onClick={() => close(false)}>Cancel</Button>
-        <Button variant={opts.danger ? "danger" : "primary"} onClick={() => close(true)}>
-          {opts.confirmLabel ?? "Confirm"}
-        </Button>
-      </>}>
-      <p style={{ color: "var(--text-2)" }}>{opts.message}</p>
+    <Modal
+      open
+      onClose={() => close(false)}
+      title={opts.title}
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => close(false)}>
+            Cancel
+          </Button>
+          <Button variant={opts.danger ? 'danger' : 'primary'} onClick={() => close(true)}>
+            {opts.confirmLabel ?? 'Confirm'}
+          </Button>
+        </>
+      }
+    >
+      <p style={{ color: 'var(--text-2)' }}>{opts.message}</p>
     </Modal>
   );
 }

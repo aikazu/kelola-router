@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type Database from 'better-sqlite3';
 
 /**
  * Legacy migration: drop users + user_settings, add client_keys, rebuild
@@ -7,10 +7,12 @@ import type Database from "better-sqlite3";
  */
 export const migration_003 = {
   id: 3,
-  name: "client_keys_legacy",
+  name: 'client_keys_legacy',
   condition: (db: Database.Database) => {
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
-    return tables.some(t => t.name === "users");
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+      name: string;
+    }[];
+    return tables.some((t) => t.name === 'users');
   },
   sql: `
     CREATE TABLE accounts_new (

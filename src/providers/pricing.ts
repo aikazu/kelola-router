@@ -1,5 +1,5 @@
-import type Database from "better-sqlite3";
-import { getModel, type Model } from "../db/repos/models.js";
+import type Database from 'better-sqlite3';
+import { getModel, type Model } from '../db/repos/models.js';
 
 export interface ModelPricing {
   input: number;
@@ -23,7 +23,11 @@ export interface Usage {
 
 const HIGH_CONTEXT_THRESHOLD = 512_000;
 
-export function resolvePricing(db: Database.Database, modelName: string, promptTokens: number): ModelPricing | null {
+export function resolvePricing(
+  db: Database.Database,
+  modelName: string,
+  promptTokens: number
+): ModelPricing | null {
   const model: Model | null = getModel(db, modelName);
   if (!model) return null;
 
@@ -46,12 +50,11 @@ export function calculateCost(db: Database.Database, modelName: string, usage: U
   const pricing = resolvePricing(db, modelName, usage.prompt_tokens);
   if (!pricing) return 0;
 
-  const input       = (usage.prompt_tokens         / 1_000_000) * pricing.input;
-  const output      = (usage.completion_tokens     / 1_000_000) * pricing.output;
-  const cacheCreate = pricing.cacheWrite != null
-    ? (usage.cache_creation_tokens / 1_000_000) * pricing.cacheWrite
-    : 0;
-  const cacheRead   = (usage.cache_read_tokens     / 1_000_000) * pricing.cacheRead;
+  const input = (usage.prompt_tokens / 1_000_000) * pricing.input;
+  const output = (usage.completion_tokens / 1_000_000) * pricing.output;
+  const cacheCreate =
+    pricing.cacheWrite != null ? (usage.cache_creation_tokens / 1_000_000) * pricing.cacheWrite : 0;
+  const cacheRead = (usage.cache_read_tokens / 1_000_000) * pricing.cacheRead;
 
   return input + output + cacheCreate + cacheRead;
 }

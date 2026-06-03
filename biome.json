@@ -2,8 +2,18 @@
   "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
-    "includes": ["src/**", "tests/**", "scripts/**", "*.ts", "*.tsx", "*.js"],
-    "ignore": ["dist/**", "node_modules/**", "client/**", "*.db", "*.db-*", "data/**"]
+    "includes": [
+      "src/**",
+      "tests/**",
+      "scripts/**",
+      "*.ts",
+      "*.tsx",
+      "*.js",
+      "!dist",
+      "!node_modules",
+      "!client",
+      "!data"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -23,8 +33,8 @@
     "enabled": true,
     "rules": {
       "recommended": true,
-      "style": { "noExplicitAny": "error", "useImportType": "error" },
-      "suspicious": { "noConsoleLog": "warn", "noDebugger": "error" }
+      "suspicious": { "noExplicitAny": "error", "noDebugger": "error", "noConsole": "warn" },
+      "style": { "useImportType": "error" }
     }
   }
 }

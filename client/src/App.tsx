@@ -1,8 +1,8 @@
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
-import { AppShell } from "./layout/AppShell";
-import { ToastProvider } from "./components/ToastProvider";
-import { ConfirmHost } from "./components/Confirm";
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ConfirmHost } from './components/Confirm';
+import { ToastProvider } from './components/ToastProvider';
+import { AppShell } from './layout/AppShell';
+import { queryClient } from './lib/queryClient';
 
 export function App() {
   return (

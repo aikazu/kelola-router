@@ -5,7 +5,7 @@
  */
 export const migration_001 = {
   id: 1,
-  name: "initial",
+  name: 'initial',
   sql: `
     CREATE TABLE IF NOT EXISTS accounts (
       id                 TEXT PRIMARY KEY,

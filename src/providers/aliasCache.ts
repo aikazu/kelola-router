@@ -1,5 +1,5 @@
-import type Database from "better-sqlite3";
-import { listAliases } from "../db/repos/aliases.js";
+import type Database from 'better-sqlite3';
+import { listAliases } from '../db/repos/aliases.js';
 
 type Cache = { map: Map<string, string>; loadedAt: number };
 let cache: Cache | null = null;
@@ -15,4 +15,6 @@ export function resolveAlias(db: Database.Database, name: string): string {
   return cache.map.get(name) ?? name;
 }
 
-export function clearAliasCache(): void { cache = null; }
+export function clearAliasCache(): void {
+  cache = null;
+}

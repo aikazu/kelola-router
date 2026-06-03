@@ -1,7 +1,7 @@
-import { CAVEMAN_PROMPTS } from "./prompts.js";
-import type { CavemanLevel } from "./prompts.js";
+import type { CavemanLevel } from './prompts.js';
+import { CAVEMAN_PROMPTS } from './prompts.js';
 
-const SEP = "\n\n";
+const SEP = '\n\n';
 
 export function injectCaveman(body: any, level: CavemanLevel): void {
   const prompt = CAVEMAN_PROMPTS[level];
@@ -15,43 +15,48 @@ export function injectCaveman(body: any, level: CavemanLevel): void {
 }
 
 function injectMessagesSystem(body: any, prompt: string): void {
-  if (typeof body.instructions === "string") {
+  if (typeof body.instructions === 'string') {
     body.instructions = body.instructions ? `${body.instructions}${SEP}${prompt}` : prompt;
     return;
   }
-  const arr: any[] | null = Array.isArray(body.messages) ? body.messages
-    : Array.isArray(body.input) ? body.input
-    : null;
+  const arr: any[] | null = Array.isArray(body.messages)
+    ? body.messages
+    : Array.isArray(body.input)
+      ? body.input
+      : null;
   if (!arr) return;
 
-  const idx = arr.findIndex((m: any) => m && (m.role === "system" || m.role === "developer"));
+  const idx = arr.findIndex((m: any) => m && (m.role === 'system' || m.role === 'developer'));
   if (idx >= 0) {
     appendToOpenAIMessage(arr[idx], prompt);
   } else {
-    arr.unshift({ role: "system", content: prompt });
+    arr.unshift({ role: 'system', content: prompt });
   }
 }
 
 function appendToOpenAIMessage(msg: any, prompt: string): void {
-  if (typeof msg.content === "string") {
+  if (typeof msg.content === 'string') {
     msg.content = `${msg.content}${SEP}${prompt}`;
   } else if (Array.isArray(msg.content)) {
-    msg.content.push({ type: "text", text: prompt });
+    msg.content.push({ type: 'text', text: prompt });
   } else {
     msg.content = prompt;
   }
 }
 
 function injectClaudeSystem(body: any, prompt: string): void {
-  if (typeof body.system === "string") {
+  if (typeof body.system === 'string') {
     body.system = body.system.length > 0 ? `${body.system}${SEP}${prompt}` : prompt;
     return;
   }
   if (Array.isArray(body.system)) {
-    const block = { type: "text", text: prompt };
+    const block = { type: 'text', text: prompt };
     let lastCacheIdx = -1;
     for (let i = body.system.length - 1; i >= 0; i--) {
-      if (body.system[i]?.cache_control) { lastCacheIdx = i; break; }
+      if (body.system[i]?.cache_control) {
+        lastCacheIdx = i;
+        break;
+      }
     }
     if (lastCacheIdx >= 0) {
       body.system.splice(lastCacheIdx + 1, 0, block);

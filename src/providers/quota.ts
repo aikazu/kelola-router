@@ -1,8 +1,8 @@
-import type Database from "better-sqlite3";
-import { insertQuotaSnapshot } from "../db/repos/quotaSnapshots.js";
-import { getBaseUrl } from "./baseUrl.js";
-import { buildHeaders } from "./headers.js";
-import type { Account } from "../db/repos/accounts.js";
+import type Database from 'better-sqlite3';
+import type { Account } from '../db/repos/accounts.js';
+import { insertQuotaSnapshot } from '../db/repos/quotaSnapshots.js';
+import { getBaseUrl } from './baseUrl.js';
+import { buildHeaders } from './headers.js';
 
 type TokenPlanResponse = {
   current_interval_total_count: number;
@@ -27,23 +27,23 @@ type CodingPlanResponse = {
 
 export async function pullQuota(
   db: Database.Database,
-  account: Account,
+  account: Account
 ): Promise<{ ok: boolean; error?: string }> {
-  if (account.credit_type !== "token-plan") {
+  if (account.credit_type !== 'token-plan') {
     return { ok: true };
   }
 
   const accountLite = {
-    provider: "minimax" as const,
-    baseUrl: account.base_url ?? "",
+    provider: 'minimax' as const,
+    baseUrl: account.base_url ?? '',
     apiKey: account.api_key,
   };
 
   try {
-    const url = `${getBaseUrl(accountLite, "openai")}/v1/token_plan/remains`;
+    const url = `${getBaseUrl(accountLite, 'openai')}/v1/token_plan/remains`;
     const resp = await fetch(url, {
-      method: "GET",
-      headers: buildHeaders(accountLite, false, "openai"),
+      method: 'GET',
+      headers: buildHeaders(accountLite, false, 'openai'),
     });
     if (resp.ok) {
       const data: TokenPlanResponse = await resp.json();
@@ -55,15 +55,15 @@ export async function pullQuota(
   } catch (e: unknown) {
     console.warn(
       `[quota] token_plan pull failed for ${account.id}, falling back:`,
-      (e as Error).message,
+      (e as Error).message
     );
   }
 
   try {
-    const url = `${getBaseUrl(accountLite, "openai")}/v1/api/openplatform/coding_plan/remains`;
+    const url = `${getBaseUrl(accountLite, 'openai')}/v1/api/openplatform/coding_plan/remains`;
     const resp = await fetch(url, {
-      method: "GET",
-      headers: buildHeaders(accountLite, false, "openai"),
+      method: 'GET',
+      headers: buildHeaders(accountLite, false, 'openai'),
     });
     if (resp.ok) {
       const data: CodingPlanResponse = await resp.json();
@@ -76,12 +76,12 @@ export async function pullQuota(
     return { ok: false, error: (e as Error).message };
   }
 
-  return { ok: false, error: "upstream not ok" };
+  return { ok: false, error: 'upstream not ok' };
 }
 
 function parseTokenPlanRemains(
   data: TokenPlanResponse,
-  accountId: string,
+  accountId: string
 ): Array<{
   account_id: string;
   source: string;
@@ -95,38 +95,31 @@ function parseTokenPlanRemains(
   return [
     {
       account_id: accountId,
-      source: "token_plan",
-      window_type: "5h",
+      source: 'token_plan',
+      window_type: '5h',
       total_count: data.current_interval_total_count ?? null,
       remaining_count: data.current_interval_usage_count ?? null,
       used_count:
-        (data.current_interval_total_count ?? 0) -
-        (data.current_interval_usage_count ?? 0),
+        (data.current_interval_total_count ?? 0) - (data.current_interval_usage_count ?? 0),
       window_start: data.start_time ? new Date(data.start_time).toISOString() : null,
       window_end: data.end_time ? new Date(data.end_time).toISOString() : null,
     },
     {
       account_id: accountId,
-      source: "token_plan",
-      window_type: "weekly",
+      source: 'token_plan',
+      window_type: 'weekly',
       total_count: data.current_weekly_total_count ?? null,
       remaining_count: data.current_weekly_usage_count ?? null,
-      used_count:
-        (data.current_weekly_total_count ?? 0) -
-        (data.current_weekly_usage_count ?? 0),
-      window_start: data.weekly_start_time
-        ? new Date(data.weekly_start_time).toISOString()
-        : null,
-      window_end: data.weekly_end_time
-        ? new Date(data.weekly_end_time).toISOString()
-        : null,
+      used_count: (data.current_weekly_total_count ?? 0) - (data.current_weekly_usage_count ?? 0),
+      window_start: data.weekly_start_time ? new Date(data.weekly_start_time).toISOString() : null,
+      window_end: data.weekly_end_time ? new Date(data.weekly_end_time).toISOString() : null,
     },
   ];
 }
 
 function parseCodingPlanRemains(
   data: CodingPlanResponse,
-  accountId: string,
+  accountId: string
 ): Array<{
   account_id: string;
   source: string;
@@ -139,12 +132,11 @@ function parseCodingPlanRemains(
 }> {
   return (data.model_remains ?? []).map((m) => ({
     account_id: accountId,
-    source: "coding_plan",
-    window_type: "5h",
+    source: 'coding_plan',
+    window_type: '5h',
     total_count: m.current_interval_total_count ?? null,
     remaining_count: m.current_interval_usage_count ?? null,
-    used_count:
-      (m.current_interval_total_count ?? 0) - (m.current_interval_usage_count ?? 0),
+    used_count: (m.current_interval_total_count ?? 0) - (m.current_interval_usage_count ?? 0),
     window_start: m.start_time ? new Date(m.start_time).toISOString() : null,
     window_end: m.end_time ? new Date(m.end_time).toISOString() : null,
   }));

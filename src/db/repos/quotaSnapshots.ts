@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type Database from 'better-sqlite3';
 
 export interface QuotaSnapshot {
   id: number;
@@ -16,13 +16,13 @@ export interface QuotaSnapshot {
 
 export function insertQuotaSnapshot(
   db: Database.Database,
-  s: Omit<QuotaSnapshot, "id" | "fetched_at">,
+  s: Omit<QuotaSnapshot, 'id' | 'fetched_at'>
 ): number {
   const info = db
     .prepare(
       `INSERT INTO quota_snapshots (account_id, source, total_count, remaining_count, used_count,
       window_type, window_start, window_end, raw_response)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       s.account_id,
@@ -33,7 +33,7 @@ export function insertQuotaSnapshot(
       s.window_type,
       s.window_start,
       s.window_end,
-      s.raw_response,
+      s.raw_response
     );
   return info.lastInsertRowid as number;
 }
@@ -41,19 +41,15 @@ export function insertQuotaSnapshot(
 export function latestQuotaByAccount(
   db: Database.Database,
   accountId: string,
-  limit = 10,
+  limit = 10
 ): QuotaSnapshot[] {
   return db
-    .prepare(
-      `SELECT * FROM quota_snapshots WHERE account_id = ? ORDER BY fetched_at DESC LIMIT ?`,
-    )
+    .prepare(`SELECT * FROM quota_snapshots WHERE account_id = ? ORDER BY fetched_at DESC LIMIT ?`)
     .all(accountId, limit) as QuotaSnapshot[];
 }
 
 export function cleanupOldQuota(db: Database.Database, days: number): number {
   const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
-  const info = db
-    .prepare(`DELETE FROM quota_snapshots WHERE fetched_at < ?`)
-    .run(cutoff);
+  const info = db.prepare(`DELETE FROM quota_snapshots WHERE fetched_at < ?`).run(cutoff);
   return info.changes;
 }

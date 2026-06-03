@@ -1,14 +1,30 @@
-import type { ComponentChildren } from "preact";
+import type { ComponentChildren } from 'preact';
 
-export function Card({ children, title, eyebrow, sub, actions }: { children: ComponentChildren; title?: string; eyebrow?: string; sub?: string; actions?: ComponentChildren }) {
+export function Card({
+  children,
+  title,
+  eyebrow,
+  sub,
+  actions,
+}: {
+  children: ComponentChildren;
+  title?: string;
+  eyebrow?: string;
+  sub?: string;
+  actions?: ComponentChildren;
+}) {
   return (
     <div class="surface">
       {(title || actions) && (
-        <div class="card-head" style={{ justifyContent: "space-between" }}>
+        <div class="card-head" style={{ justifyContent: 'space-between' }}>
           <div class="card-head-text">
             {eyebrow && <span class="card-eyebrow">{eyebrow}</span>}
             {title && <div class="card-title">{title}</div>}
-            {sub && <p class="card-sub" style={{ marginBottom: 0, marginTop: 4 }}>{sub}</p>}
+            {sub && (
+              <p class="card-sub" style={{ marginBottom: 0, marginTop: 4 }}>
+                {sub}
+              </p>
+            )}
           </div>
           {actions}
         </div>

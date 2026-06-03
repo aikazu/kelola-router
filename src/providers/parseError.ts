@@ -1,4 +1,7 @@
-export function parseError(resp: Response, bodyText: string): { baseRespCode?: number; windowResetMs?: number; retryAfterSec?: number; message: string } {
+export function parseError(
+  resp: Response,
+  bodyText: string
+): { baseRespCode?: number; windowResetMs?: number; retryAfterSec?: number; message: string } {
   let baseRespCode: number | undefined;
   let windowResetMs: number | undefined;
   try {
@@ -9,7 +12,7 @@ export function parseError(resp: Response, bodyText: string): { baseRespCode?: n
       if (m?.end_time) windowResetMs = Math.max(0, m.end_time - Date.now());
     }
   } catch {}
-  const ra = resp.headers.get("retry-after");
+  const ra = resp.headers.get('retry-after');
   const retryAfterSec = ra ? parseInt(ra, 10) : undefined;
   return { baseRespCode, windowResetMs, retryAfterSec, message: bodyText || `HTTP ${resp.status}` };
 }

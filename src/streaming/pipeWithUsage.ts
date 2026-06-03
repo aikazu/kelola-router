@@ -1,4 +1,4 @@
-import { extractUsageFromSSE, type SSEUsage } from "./extractUsage.js";
+import { extractUsageFromSSE, type SSEUsage } from './extractUsage.js';
 
 export type UsageCallback = (usage: SSEUsage | null, rawText: string) => void;
 
@@ -12,24 +12,34 @@ export type UsageCallback = (usage: SSEUsage | null, rawText: string) => void;
  */
 export async function pipeWithUsage(
   upstream: Response,
-  format: "openai" | "anthropic",
+  format: 'openai' | 'anthropic',
   onUsage: UsageCallback,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<Response> {
   if (!upstream.body) {
-    onUsage(null, "");
+    onUsage(null, '');
     return upstream;
   }
   const decoder = new TextDecoder();
-  let raw = "";
+  let raw = '';
   let aborted = false;
   if (signal) {
     if (signal.aborted) aborted = true;
-    else signal.addEventListener("abort", () => { aborted = true; }, { once: true });
+    else
+      signal.addEventListener(
+        'abort',
+        () => {
+          aborted = true;
+        },
+        { once: true }
+      );
   }
   const tee = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, ctrl) {
-      if (aborted) { ctrl.terminate(); return; }
+      if (aborted) {
+        ctrl.terminate();
+        return;
+      }
       raw += decoder.decode(chunk, { stream: true });
       ctrl.enqueue(chunk);
     },
