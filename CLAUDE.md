@@ -20,6 +20,8 @@ npx vitest run path/to/foo.test.ts   # single file
 npx vitest run -t "name"             # single test by name pattern
 npm run test:watch   # vitest watch mode
 npm run typecheck    # tsc --noEmit (strict, no any)
+npm run lint         # biome check .
+npm run lint:fix     # biome check --write .
 ```
 
 Runners: `bun` is supported (engines: `node>=20`, `bun>=1.3`); `bun.lock` is checked in. `npm` and `bun` both work for the root scripts.
@@ -28,7 +30,7 @@ CLI scripts (power-user; dashboard covers these):
 ```bash
 npm run add-client-key -- --label myapp
 npm run add-account   -- --label "PAYG main" --credit-type payg --api-key mm_xxx
-npm run seed-models                # idempotent: upsert 11 builtin models
+npm run seed-models                # idempotent: upsert 18 builtin models
 npm run reset                      # rm db + WAL/SHM sidecars
 ```
 
@@ -89,7 +91,7 @@ Client format detected from `Authorization: Bearer` shape or route. Body convert
 `client/` — standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (built in the Docker build stage, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`.
 
 - Entry: `client/index.html` → `client/src/main.tsx` → `App.tsx` → `layout/AppShell.tsx` (hash-routed: `#/admin/<page>`).
-- Pages: `client/src/pages/` (Overview, Usage, ClientKeys, Accounts, Aliases, Models, Quota, Settings, Login). Models page shows `aliasCount` per model; Aliases page deep-links via `?target=<model>`.
+- Pages: `client/src/pages/` (Overview, Usage, ClientKeys, Accounts, Aliases, Models, Quota, Settings, Login, RequestDetail, NotFound, Placeholder). Models page shows `aliasCount` per model; Aliases page deep-links via `?target=<model>`.
 - Components: `client/src/components/` (Card, Stat, Badge, Button, Modal, Toast, CommandPalette, etc.).
 - Styling: `client/src/styles/` — `base.css` (tokens + fonts), `components.css` (component layer), `animations.css`.
 
@@ -110,9 +112,9 @@ Dev loop: `cd client && npm run dev` (port 5173, proxies `/api` `/login` `/logou
 
 ### Storage
 
-`src/db/index.ts` — `openDb()` opens (or creates) `~/.local/share/kelola-router/router.db` (or `ROUTER_DB_PATH` override; Docker mounts `/data/router.db`), sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Migrations: `src/db/migrations/` — 4 files (001-initial consolidates the full schema; 002/003 are no-op stubs for legacy DBs; 004 adds sessions). Migrations tracked via `user_version` PRAGMA, condition-based skip for legacy.
+`src/db/index.ts` — `openDb()` opens (or creates) `~/.local/share/kelola-router/router.db` (or `ROUTER_DB_PATH` override; Docker mounts `/data/router.db`), sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Migrations: `src/db/migrations/` — 7 files + `index.ts` (001-initial consolidates the full schema; 002/003 are no-op stubs for legacy DBs; 004 sessions; 005 request-bodies; 006 drop-thinking-fields; 007 model-aliases). Tracked via `user_version` PRAGMA, condition-based skip for legacy.
 
-Repos: `src/db/repos/` — `settings.ts` (1s cache, exposes `clearCache()`), `accounts.ts`, `clientKeys.ts`, `models.ts` (+ alias CRUD), `aliases.ts`, `requestLogs.ts`, `sessions.ts`.
+Repos: `src/db/repos/` — `settings.ts` (1s cache, exposes `clearCache()`), `accounts.ts`, `client_keys.ts`, `models.ts` (+ alias CRUD), `aliases.ts`, `requestLogs.ts`, `quotaSnapshots.ts`, `users.ts`.
 
 Settings cache: `getSetting` caches for 1s. **Call `clearCache()` from `src/db/repos/settings.ts` in tests** when changing settings mid-test.
 
