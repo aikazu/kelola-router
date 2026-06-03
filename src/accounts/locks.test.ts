@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../db/index.js';
 import { createAccount } from '../db/repos/accounts.js';
-import { clearExpiredModelLocks, getModelLock, setModelLock } from './locks.js';
+import { _resetLockCleanupThrottle, clearExpiredModelLocks, getModelLock, setModelLock } from './locks.js';
 
 let db: ReturnType<typeof openDb>;
 let accountId: string;
@@ -12,6 +12,7 @@ let accountId: string;
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'locks-')), 't.db');
   db = openDb();
+  _resetLockCleanupThrottle();
   const a = createAccount(db, { id: 'acc_1', label: 'L', credit_type: 'payg', api_key: 'kk' });
   accountId = a.id;
 });

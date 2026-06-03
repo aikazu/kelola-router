@@ -30,8 +30,19 @@ export function getModelLock(
   return { accountId: row.account_id, model: row.model, lockedUntil: row.locked_until };
 }
 
+const CLEANUP_THROTTLE_MS = 30_000;
+let lastCleanupAt = 0;
+
 export function clearExpiredModelLocks(db: Database.Database): void {
+  const now = Date.now();
+  if (now - lastCleanupAt < CLEANUP_THROTTLE_MS) return;
+  lastCleanupAt = now;
   db.prepare(`DELETE FROM account_model_locks WHERE locked_until < ?`).run(
-    new Date().toISOString()
+    new Date(now).toISOString()
   );
+}
+
+/** Test-only: reset the throttle so each test starts fresh. */
+export function _resetLockCleanupThrottle(): void {
+  lastCleanupAt = 0;
 }
