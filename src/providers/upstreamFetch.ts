@@ -16,7 +16,7 @@ export async function upstreamFetch(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...extraHeaders },
-      body: JSON.stringify(body),
+      body: typeof body === 'string' ? body : JSON.stringify(body),
     },
     transport
   );

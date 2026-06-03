@@ -112,6 +112,7 @@ async function handleProxy(
       return c.json({ error: `invalid JSON: ${e.message}` }, 400);
     }
   }
+  let bodyDirty = false;
   const db = c.get('db');
   getAllSettings(db); // warm per-db settings cache: one query instead of many lookups
 
@@ -123,13 +124,19 @@ async function handleProxy(
         respectCallerMarkers: boolean;
       } | null) ?? undefined,
   };
-  await augmentRequest(body, settings);
+  const cavemanOn = !!settings.caveman?.level && settings.caveman.level !== 'off';
+  const cachingOn = !!settings.caching?.autoBreakpoints;
+  if (cavemanOn || cachingOn) {
+    await augmentRequest(body, settings);
+    bodyDirty = true;
+  }
 
   const rtkSetting = getSetting(db, 'rtk') as { enabled: boolean } | null;
   if (rtkSetting?.enabled) {
     const stats = compressMessages(body, true);
     const rtkLog = formatRtkLog(stats);
     if (rtkLog) console.log(rtkLog);
+    bodyDirty = true;
   }
 
   // Determine upstream format. Default = same as client. Override via
@@ -152,6 +159,7 @@ async function handleProxy(
     } else if (format === 'anthropic' && upstreamFormat === 'openai') {
       Object.assign(body, bodyAnthropicToOpenAI(body));
     }
+    bodyDirty = true;
   }
 
   // Pool: ALL enabled MiniMax accounts (shared across all client keys).
@@ -174,8 +182,12 @@ async function handleProxy(
   let resolved;
   try {
     resolved = resolveModel(db, body.model ?? '', body);
+    const origModel = body.model;
+    const beforeKeys = JSON.stringify([body.thinking, body.max_completion_tokens, body.reasoning_split]);
     body.model = resolved.upstreamModel;
     resolved.bodyTransform(body);
+    const afterKeys = JSON.stringify([body.thinking, body.max_completion_tokens, body.reasoning_split]);
+    if (body.model !== origModel || beforeKeys !== afterKeys) bodyDirty = true;
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
   }
@@ -202,7 +214,8 @@ async function handleProxy(
   } | null>(db, 'transport');
 
   try {
-    const resp = await upstreamFetch(url, body, headers, transport);
+    const upstreamBody = bodyDirty ? body : (text || '{}');
+    const resp = await upstreamFetch(url, upstreamBody, headers, transport);
     if (!resp.ok) {
       const errBody = await resp.text();
       const parsed = parseError(resp, errBody);

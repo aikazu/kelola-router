@@ -1,0 +1,83 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { app, resetDb } from '../../src/server.js';
+import { openDb } from '../../src/db/index.js';
+import { createAccount } from '../../src/db/repos/accounts.js';
+import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
+import { upsertModel } from '../../src/db/repos/models.js';
+import { setSetting } from '../../src/db/repos/settings.js';
+import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
+
+let key: string;
+
+beforeEach(() => {
+  process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'fp-')), 't.db');
+  resetDb();
+  const db = openDb();
+  upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3' });
+  setSetting(db, 'caveman', { level: 'off' });
+  setSetting(db, 'caching', { autoBreakpoints: false });
+  setSetting(db, 'rtk', { enabled: false });
+  setSetting(db, 'minimax', { upstreamFormat: 'openai' });
+  createAccount(db, { id: 'acc_1', label: 'a', credit_type: 'payg', api_key: 'mm_x' });
+  key = genClientKey();
+  createClientKey(db, { label: 'app', key });
+  db.close();
+});
+
+afterEach(async () => {
+  await flushDeferredLogs();
+  vi.restoreAllMocks();
+  delete process.env.ROUTER_DB_PATH;
+});
+
+describe('fast-path passthrough', () => {
+  it('forwards a body equivalent to the client request when no transform applies', async () => {
+    let sentBody = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts: any) => {
+      sentBody = opts.body as string;
+      return Promise.resolve(new Response(JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    });
+    // Pre-set the fields bodyTransform would inject for M3, so the transform is a no-op
+    // and the fast path engages. stream is unset → bodyAddsOpenAIStreamUsage is a no-op.
+    const clientBody = {
+      model: 'MiniMax-M3',
+      messages: [{ role: 'user', content: 'hello world' }],
+      temperature: 0.5,
+      thinking: { type: 'adaptive' },
+      max_completion_tokens: 131072,
+      reasoning_split: true,
+    };
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify(clientBody),
+    });
+    expect(res.status).toBe(200);
+    expect(JSON.parse(sentBody)).toEqual(clientBody);
+  });
+
+  it('still forwards a correct (transformed) body when a transform IS active', async () => {
+    // caveman ON → body augmented → dirty path (re-stringify). Must still 200 and include injected content.
+    const db = openDb();
+    setSetting(db, 'caveman', { level: 'full' });
+    db.close();
+    let sentBody = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts: any) => {
+      sentBody = opts.body as string;
+      return Promise.resolve(new Response(JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'MiniMax-M3', messages: [{ role: 'user', content: 'hi' }], thinking: { type: 'adaptive' }, max_completion_tokens: 131072, reasoning_split: true }),
+    });
+    expect(res.status).toBe(200);
+    // Body was processed (valid JSON sent upstream). We don't assert exact caveman content,
+    // only that the request succeeded and a body was sent.
+    expect(sentBody.length).toBeGreaterThan(0);
+    expect(() => JSON.parse(sentBody)).not.toThrow();
+  });
+});
