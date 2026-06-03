@@ -1,6 +1,6 @@
 {
   "name": "kelola-router",
-  "version": "0.2.0",
+  "version": "0.12.0",
   "description": "Local-first API router for MiniMax — multi-account pool, client keys with per-key usage, RTK, Caveman, dashboard",
   "type": "module",
   "private": true,
