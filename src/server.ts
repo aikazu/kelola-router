@@ -35,7 +35,7 @@ import {
   genClientKey,
 } from './db/repos/client_keys.js';
 import { disableModel, enableModel } from './db/repos/models.js';
-import { insertRequestLogDeferred } from './db/repos/requestLogs.js';
+import { flushDeferredLogs, insertRequestLogDeferred } from './db/repos/requestLogs.js';
 import { getAllSettings, getSetting, setSetting } from './db/repos/settings.js';
 import { resolveModel } from './providers/alias.js';
 import { getUpstreamFormat } from './providers/format/negotiate.js';
@@ -551,9 +551,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     startQuotaPuller(getDb(), 5 * 60_000);
   });
 
-  function gracefulShutdown(signal: string): void {
+  async function gracefulShutdown(signal: string): Promise<void> {
     log.info({ signal }, 'shutting down');
     stopQuotaPuller();
+    await flushDeferredLogs();
     if (_db) {
       try {
         _db.close();
@@ -564,6 +565,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     }
     process.exit(0);
   }
-  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => void gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => void gracefulShutdown('SIGINT'));
 }

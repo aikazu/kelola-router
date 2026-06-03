@@ -64,11 +64,10 @@ describe('hot-path benchmark', () => {
     const t0 = performance.now();
     const res = await make();
     const overheadMs = performance.now() - t0;
-    await flushDeferredLogs();
     expect(res.status).toBe(200);
-
     console.log(`[bench] sqlite statement executions (warm): ${stmtRuns}`);
     console.log(`[bench] router overhead (fake upstream): ${overheadMs.toFixed(2)}ms`);
+    await flushDeferredLogs();
     expect(stmtRuns).toBeGreaterThan(0);
   });
 });

@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { log } from '../../util/log.js';
 
 export interface RequestLog {
   id: number;
@@ -110,13 +111,13 @@ const pending = new Set<Promise<void>>();
  * Queue a request-log insert to run after the current task, off the response
  * critical path. The row is still written in full. Tests await flushDeferredLogs().
  */
-export function insertRequestLogDeferred(db: Database.Database, log: RequestLogInsert): void {
+export function insertRequestLogDeferred(db: Database.Database, logEntry: RequestLogInsert): void {
   const p = new Promise<void>((resolve) => {
-    queueMicrotask(() => {
+    setImmediate(() => {
       try {
-        insertRequestLog(db, log);
-      } catch {
-        /* logging must never break the proxy */
+        insertRequestLog(db, logEntry);
+      } catch (err) {
+        log.warn({ err: (err as Error).message }, 'deferred request-log insert failed');
       }
       resolve();
     });
