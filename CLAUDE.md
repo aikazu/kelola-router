@@ -67,7 +67,7 @@ Per-request path inside `handleProxy(c, format, upstreamPath)`:
 
 Never mix these. Client never sees upstream keys; upstream never sees client bearers.
 
-### Auth model (v0.9 → v0.12 unchanged)
+### Auth model (v0.9 → v0.13 unchanged)
 
 Dashboard has 3 modes cascading in `requireAdmin`:
 1. Session cookie (`kelola_session`) — only if password is set

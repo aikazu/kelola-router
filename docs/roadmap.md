@@ -12,6 +12,24 @@ Speculative — these are ideas, not commitments. Edit freely.
 - **Prometheus `/metrics` endpoint** — scrape-friendly counters and histograms
 - **Webhooks for error events** — POST to a configured URL on fatal upstream errors
 
+## v0.13 — 2026-06-04
+
+**Hot-path latency.** Cut the work the proxy does on top of raw MiniMax latency, with tracking kept 100% intact. Warm per-request SQLite statement executions dropped from 8 → 5 (measured by `tests/bench/hotpath.bench.test.ts`); router overhead against an instant fake upstream roughly halved.
+- **Batched settings read** — `getAllSettings(db)` warms the per-db settings cache in one query instead of ~6 separate `getSetting` lookups.
+- **Skip no-op account writes** — the success-path account reset only runs when the account is actually dirty (`backoff_level`/`status`/`rate_limited_until`/`last_error`), not on every request.
+- **Throttled lock cleanup** — `clearExpiredModelLocks` runs its `DELETE` at most once per 30s (timestamp advanced only after a successful delete); lock correctness is unaffected since `isModelLockActive` checks expiry inline.
+- **Client-key lookup cache** — bearer → `ClientKey` cached per-db with a 5s TTL, invalidated on create/enable/disable/delete.
+- **Deferred request-log insert** — the log write moves off the response critical path via `setImmediate`; `flushDeferredLogs()` drains pending inserts (used by tests and graceful shutdown). The row is still written in full.
+- **Fast-path passthrough** — when no transform mutates the body (caveman/caching/rtk off, no cross-format conversion, no alias rewrite, no thinking injection), the original raw request text is forwarded upstream instead of re-serializing the parsed body. A `bodyDirty` flag gates this; any mutation falls back to re-stringify.
+
+**Fixes surfaced along the way.**
+- `stream_options.include_usage` was never actually injected (the helper returned a new object whose return value was discarded at the call site) — now captured and merged, so OpenAI streaming usage/cost tracking works. This makes the v0.8 "auto-injection" claim true.
+- `adminApi` captured a stale db handle at import time and overrode the per-request handle — now reads `c.get('db')` from context.
+- `resetDb()` now closes the SQLite handle before nulling it (releases Windows file locks; fixes temp-dir cleanup `EPERM` in the test suite).
+- Replaced a stale `MiniMax-M3-thinking` proxy test (that behavior was dropped in v0.11 — everything is adaptive) with an adaptive-thinking-injection test.
+
+See `docs/superpowers/plans/done/2026-06-03-hot-path-latency.md` and `docs/superpowers/specs/done/2026-06-03-hot-path-latency-design.md`.
+
 ## v0.12 — 2026-06-03
 
 **Model aliases.** User-defined model-name → upstream-model mapping.
