@@ -14,7 +14,7 @@ npm run dev:server   # backend only (tsx watch src/server.ts, port 20137)
 npm run dev:client   # frontend only (cd client && vite, port 5173)
 npm run build        # vite build client + tsc -> dist/
 npm start            # node dist/server.js
-npm test             # vitest run (server; all 251+ tests)
+npm test             # vitest run (server; all tests)
 npm run test:client  # vitest run (client SPA)
 npx vitest run path/to/foo.test.ts   # single file
 npx vitest run -t "name"             # single test by name pattern
