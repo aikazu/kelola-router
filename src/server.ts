@@ -36,7 +36,7 @@ import {
 } from './db/repos/client_keys.js';
 import { disableModel, enableModel } from './db/repos/models.js';
 import { insertRequestLog } from './db/repos/requestLogs.js';
-import { getSetting, setSetting } from './db/repos/settings.js';
+import { getAllSettings, getSetting, setSetting } from './db/repos/settings.js';
 import { resolveModel } from './providers/alias.js';
 import { getUpstreamFormat } from './providers/format/negotiate.js';
 import {
@@ -113,6 +113,7 @@ async function handleProxy(
     }
   }
   const db = c.get('db');
+  getAllSettings(db); // warm per-db settings cache: one query instead of many lookups
 
   const settings = {
     caveman: (getSetting(db, 'caveman') as { level: string } | null) ?? undefined,

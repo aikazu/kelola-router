@@ -37,6 +37,22 @@ export function getSetting<T = unknown>(db: Database.Database, key: string): T |
   return value as T;
 }
 
+export function getAllSettings(db: Database.Database): Record<string, unknown> {
+  const rows = db.prepare(`SELECT key, value FROM settings`).all() as {
+    key: string;
+    value: string;
+  }[];
+  const c = getCache(db);
+  const expiry = Date.now() + TTL_MS;
+  const out: Record<string, unknown> = {};
+  for (const row of rows) {
+    const value = JSON.parse(row.value);
+    c.set(row.key, { value, expiry });
+    out[row.key] = value;
+  }
+  return out;
+}
+
 export function setSetting(db: Database.Database, key: string, value: unknown): void {
   const json = JSON.stringify(value);
   db.prepare(`
