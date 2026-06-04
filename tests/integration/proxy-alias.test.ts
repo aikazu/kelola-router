@@ -82,7 +82,7 @@ describe('proxy with alias', () => {
     await flushDeferredLogs();
     const logs = recentLogs(db, { limit: 1 });
     expect(logs[0]?.model).toBe('MiniMax-M3');
-    expect((logs[0] as any)?.requested_model).toBe('claude-opus-4-8');
+    expect(logs[0]?.requested_model).toBe('claude-opus-4-8');
   });
 
   it('returns 400 for unknown alias target', async () => {
