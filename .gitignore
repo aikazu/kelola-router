@@ -8,3 +8,5 @@ docs/idea/
 .superpowers
 client/dist/
 client/node_modules/
+.playwright*
+.claude
