@@ -10,6 +10,7 @@ export type CacheControl = { type: 'ephemeral' };
 export interface ContentBlock {
   type?: string;
   text?: string;
+  thinking?: string;
   cache_control?: CacheControl;
   content?: ContentBlock[];
   // Tool-use blocks carry arbitrary inputs we never read.
@@ -43,6 +44,7 @@ export interface OpenAIMessage {
   name?: string;
   tool_call_id?: string;
   tool_calls?: OpenAIToolCall[];
+  reasoning_content?: string;
 }
 
 export interface OpenAIBody {
@@ -54,4 +56,41 @@ export interface OpenAIBody {
   tool_choice?: unknown;
   stream?: boolean;
   [extra: string]: unknown; // forward-compat for fields we don't model
+}
+
+export interface OpenAIResponse {
+  id?: string;
+  model?: string;
+  object?: string;
+  created?: number;
+  choices?: Array<{
+    index?: number;
+    finish_reason?: string | null;
+    message: OpenAIMessage;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  [k: string]: unknown;
+}
+
+export interface AnthropicResponse {
+  id?: string;
+  model?: string;
+  type?: string;
+  role?: string;
+  content?: ContentBlock[];
+  stop_reason?: string | null;
+  stop_sequence?: string | null;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  [k: string]: unknown;
 }

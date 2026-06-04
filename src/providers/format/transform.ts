@@ -9,7 +9,12 @@
  * deferred (passthrough preserves the upstream shape end-to-end).
  */
 
-import type { AnthropicBody, OpenAIBody } from './messageTypes.js';
+import type {
+  AnthropicBody,
+  AnthropicResponse,
+  OpenAIBody,
+  OpenAIResponse,
+} from './messageTypes.js';
 
 const OPENAI_ONLY_PARAMS = [
   'n',
@@ -55,7 +60,12 @@ export function bodyOpenAIToAnthropic(body: OpenAIBody): AnthropicBody {
       if (!t || typeof t !== 'object') return t;
       const obj = t as { type?: unknown; function?: unknown };
       if (obj.type === 'function' && obj.function && typeof obj.function === 'object') {
-        const fn = obj.function as { name: unknown; description?: unknown; parameters?: unknown; [k: string]: unknown };
+        const fn = obj.function as {
+          name: unknown;
+          description?: unknown;
+          parameters?: unknown;
+          [k: string]: unknown;
+        };
         const { name, description, parameters, ...rest } = fn;
         return {
           name,
@@ -101,7 +111,12 @@ export function bodyAnthropicToOpenAI(body: AnthropicBody): OpenAIBody {
   if (Array.isArray(out.tools)) {
     out.tools = out.tools.map((t: unknown) => {
       if (!t || typeof t !== 'object') return t;
-      const { name, description, input_schema, ...rest } = t as { name: unknown; description?: unknown; input_schema?: unknown; [k: string]: unknown };
+      const { name, description, input_schema, ...rest } = t as {
+        name: unknown;
+        description?: unknown;
+        input_schema?: unknown;
+        [k: string]: unknown;
+      };
       return {
         type: 'function',
         function: {
@@ -144,7 +159,7 @@ const FINISH_REASON_TO_STOP: Record<string, string> = {
   function_call: 'tool_use', // legacy
 };
 
-export function responseOpenAIToAnthropic(resp: any): any {
+export function responseOpenAIToAnthropic(resp: OpenAIResponse): AnthropicResponse {
   const choice = resp?.choices?.[0];
   if (!choice) return resp;
   const msg = choice.message ?? {};
@@ -175,7 +190,9 @@ export function responseOpenAIToAnthropic(resp: any): any {
     role: 'assistant',
     model: resp.model,
     content: blocks,
-    stop_reason: FINISH_REASON_TO_STOP[choice.finish_reason] ?? 'end_turn',
+    stop_reason: choice.finish_reason
+      ? (FINISH_REASON_TO_STOP[choice.finish_reason] ?? 'end_turn')
+      : 'end_turn',
     stop_sequence: null,
     usage: resp.usage ? openAIToAnthropicUsage(resp.usage) : undefined,
   };
@@ -199,7 +216,7 @@ const STOP_REASON_TO_FINISH: Record<string, string> = {
   tool_use: 'tool_calls',
 };
 
-export function responseAnthropicToOpenAI(resp: any): any {
+export function responseAnthropicToOpenAI(resp: AnthropicResponse): OpenAIResponse {
   const content = Array.isArray(resp?.content) ? resp.content : [];
   const textParts: string[] = [];
   const reasoningParts: string[] = [];
@@ -219,12 +236,14 @@ export function responseAnthropicToOpenAI(resp: any): any {
   return {
     id: resp.id,
     object: 'chat.completion',
-    created: resp.created ?? Math.floor(Date.now() / 1000),
+    created: (resp.created as number | undefined) ?? Math.floor(Date.now() / 1000),
     model: resp.model,
     choices: [
       {
         index: 0,
-        finish_reason: STOP_REASON_TO_FINISH[resp.stop_reason] ?? 'stop',
+        finish_reason: resp.stop_reason
+          ? (STOP_REASON_TO_FINISH[resp.stop_reason] ?? 'stop')
+          : 'stop',
         message: {
           role: 'assistant',
           content: textParts.join('') || null,

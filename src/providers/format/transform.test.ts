@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { OpenAIResponse } from './messageTypes.js';
 import {
   bodyAddsOpenAIStreamUsage,
   bodyAnthropicToOpenAI,
@@ -174,7 +175,7 @@ describe('responseOpenAIToAnthropic (tool_calls → tool_use)', () => {
         },
       ],
     };
-    const a = responseOpenAIToAnthropic(openaiResp);
+    const a = responseOpenAIToAnthropic(openaiResp as OpenAIResponse);
     expect(a.stop_reason).toBe('tool_use');
     expect(a.content).toEqual([
       { type: 'tool_use', id: 'call_1', name: 'get_weather', input: { location: 'SF' } },
@@ -242,9 +243,9 @@ describe('responseAnthropicToOpenAI (tool_use → tool_calls)', () => {
       ],
     };
     const o = responseAnthropicToOpenAI(a);
-    expect(o.choices[0].finish_reason).toBe('tool_calls');
-    expect(o.choices[0].message.content).toBe('Let me check');
-    expect(o.choices[0].message.tool_calls).toEqual([
+    expect(o.choices![0].finish_reason).toBe('tool_calls');
+    expect(o.choices![0].message.content).toBe('Let me check');
+    expect(o.choices![0].message.tool_calls).toEqual([
       {
         id: 'call_1',
         type: 'function',
@@ -262,7 +263,7 @@ describe('responseAnthropicToOpenAI (tool_use → tool_calls)', () => {
       stop_reason: 'end_turn',
       content: [{ type: 'text', text: 'ok' }],
     });
-    expect(o.choices[0].finish_reason).toBe('stop');
+    expect(o.choices![0].finish_reason).toBe('stop');
   });
 
   it("converts stop_reason: max_tokens → 'length'", () => {
@@ -274,7 +275,7 @@ describe('responseAnthropicToOpenAI (tool_use → tool_calls)', () => {
         role: 'assistant',
         stop_reason: 'max_tokens',
         content: [],
-      }).choices[0].finish_reason
+      }).choices![0].finish_reason
     ).toBe('length');
   });
 
@@ -287,7 +288,7 @@ describe('responseAnthropicToOpenAI (tool_use → tool_calls)', () => {
         role: 'assistant',
         stop_reason: 'refusal',
         content: [],
-      }).choices[0].finish_reason
+      }).choices![0].finish_reason
     ).toBe('content_filter');
   });
 
@@ -303,8 +304,8 @@ describe('responseAnthropicToOpenAI (tool_use → tool_calls)', () => {
         { type: 'text', text: 'answer' },
       ],
     });
-    expect(o.choices[0].message.reasoning_content).toBe('hmm');
-    expect(o.choices[0].message.content).toBe('answer');
+    expect(o.choices![0].message.reasoning_content).toBe('hmm');
+    expect(o.choices![0].message.content).toBe('answer');
   });
 });
 
