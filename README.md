@@ -223,9 +223,9 @@ The dashboard is a standalone **Preact SPA** in `client/` (Vite + preact-router 
 
 | Page | Path | What it does |
 |------|------|--------------|
-| Overview | `#/admin` | Hero spend figure, pool status, by-model + recent requests |
-| Usage | `#/admin/usage` | Filterable, sortable, paginated request log with deltas |
-| Client keys | `#/admin/client-keys` | Create / enable / disable / delete bearer credentials |
+| Overview | `#/admin` | Hero spend figure, pool status, by-model + recent requests; range selector (1 / 7 / 30 / 90 days / all, default 1 day) |
+| Usage | `#/admin/usage` | Filterable, sortable, paginated request log with deltas; range selector (1 / 7 / 30 / 90 days / all, default 1 day) |
+| Client keys | `#/admin/client-keys` | Create / enable / disable / delete bearer credentials; copy full key per row |
 | Upstream | `#/admin/accounts` | Manage the MiniMax key pool |
 | Models | `#/admin/models` | Catalog, aliases, fetch-from-upstream |
 | Quota | `#/admin/quota` | Token-plan balance windows |

@@ -91,7 +91,7 @@ Client format detected from `Authorization: Bearer` shape or route. Body convert
 `client/` — standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (built in the Docker build stage, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`.
 
 - Entry: `client/index.html` → `client/src/main.tsx` → `App.tsx` → `layout/AppShell.tsx` (hash-routed: `#/admin/<page>`).
-- Pages: `client/src/pages/` (Overview, Usage, ClientKeys, Accounts, Aliases, Models, Quota, Settings, Login, RequestDetail, NotFound, Placeholder). Models page shows `aliasCount` per model; Aliases page deep-links via `?target=<model>`.
+- Pages: `client/src/pages/` (Overview, Usage, ClientKeys, Accounts, Aliases, Models, Quota, Settings, Login, RequestDetail, NotFound, Placeholder). Models page shows `aliasCount` per model; Aliases page deep-links via `?target=<model>`. Overview + Usage share a range selector (1/7/30/90 days + all) defaulting to 1 day; `days=0` query param means all-time (no time clause in `aggregateUsage`, null deltas). ClientKeys has a per-row Copy button hitting `GET /api/admin/client-keys/:id/key` (full plaintext key; list stays masked).
 - Components: `client/src/components/` (Card, Stat, Badge, Button, Modal, Toast, CommandPalette, etc.).
 - Styling: `client/src/styles/` — `base.css` (tokens + fonts), `components.css` (component layer), `animations.css`.
 
