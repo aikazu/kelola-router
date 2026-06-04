@@ -275,7 +275,7 @@ function anthropicToOpenAIUsage(u: any): any {
  * so the final chunk carries usage. Idempotent: respects an explicit
  * client choice (even false) by not overwriting.
  */
-export function bodyAddsOpenAIStreamUsage(body: any): any {
+export function bodyAddsOpenAIStreamUsage(body: OpenAIBody): OpenAIBody {
   if (body?.stream !== true) return body;
   if (body.stream_options && 'include_usage' in body.stream_options) return body;
   return { ...body, stream_options: { ...(body.stream_options ?? {}), include_usage: true } };

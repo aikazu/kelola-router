@@ -320,7 +320,7 @@ describe('bodyAddsOpenAIStreamUsage', () => {
       stream: true,
       stream_options: { include_usage: false },
     });
-    expect(out.stream_options.include_usage).toBe(false);
+    expect(out.stream_options?.include_usage).toBe(false);
   });
 
   it('no-op when stream=false', () => {

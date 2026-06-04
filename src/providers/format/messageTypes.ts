@@ -55,6 +55,7 @@ export interface OpenAIBody {
   tools?: unknown[];
   tool_choice?: unknown;
   stream?: boolean;
+  stream_options?: { include_usage?: boolean };
   [extra: string]: unknown; // forward-compat for fields we don't model
 }
 
