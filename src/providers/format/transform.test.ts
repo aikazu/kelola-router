@@ -40,7 +40,7 @@ describe('bodyOpenAIToAnthropic (tools)', () => {
       },
     ]);
     // No `type:"function"` wrapper
-    expect(a.tools[0].type).toBeUndefined();
+    expect((a.tools as { type?: string }[])[0].type).toBeUndefined();
   });
 
   it("rewrites tool_choice: 'auto' → {type:'auto'}", () => {
@@ -119,8 +119,8 @@ describe('bodyAnthropicToOpenAI (tools)', () => {
       system: 'You are helpful',
       messages: [{ role: 'user', content: 'hi' }],
     });
-    expect(o.messages[0]).toEqual({ role: 'system', content: 'You are helpful' });
-    expect(o.messages[1]).toEqual({ role: 'user', content: 'hi' });
+    expect(o.messages![0]).toEqual({ role: 'system', content: 'You are helpful' });
+    expect(o.messages![1]).toEqual({ role: 'user', content: 'hi' });
     expect(o.system).toBeUndefined();
   });
 
@@ -129,7 +129,7 @@ describe('bodyAnthropicToOpenAI (tools)', () => {
       messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
     };
     const o = bodyAnthropicToOpenAI(anthropic);
-    expect(o.messages[0].content).toEqual([{ type: 'text', text: 'hi' }]);
+    expect(o.messages![0].content).toEqual([{ type: 'text', text: 'hi' }]);
   });
 
   it('strips Anthropic-only top-level params (metadata, mcp_servers, context_management, container)', () => {

@@ -38,7 +38,7 @@ export interface OpenAIToolCall {
 }
 
 export interface OpenAIMessage {
-  role?: 'system' | 'developer' | 'user' | 'assistant' | 'tool';
+  role?: string;
   content?: string | ContentBlock[] | null;
   name?: string;
   tool_call_id?: string;
