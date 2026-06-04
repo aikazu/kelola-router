@@ -19,13 +19,16 @@ export interface ContentBlock {
 }
 
 export interface AnthropicMessage {
-  role?: 'user' | 'assistant' | 'system';
+  role?: string;
   content?: string | ContentBlock[];
 }
 
 export interface AnthropicBody {
   system?: string | ContentBlock[];
   messages?: AnthropicMessage[];
+  // Forward-compat for provider-specific fields the proxy forwards but doesn't
+  // model (max_tokens, tools, tool_choice, metadata, mcp_servers, stream_options, …).
+  [extra: string]: unknown;
 }
 
 export interface OpenAIToolCall {
