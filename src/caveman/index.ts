@@ -1,18 +1,20 @@
+import type {
+  ContentBlock,
+  AnthropicMessage as Message,
+} from '../providers/format/messageTypes.js';
 import type { CavemanLevel } from './prompts.js';
 import { CAVEMAN_PROMPTS } from './prompts.js';
 
 const SEP = '\n\n';
 
-type ContentBlock = { type?: string; text?: string; cache_control?: unknown };
-type Message = { role?: string; content?: string | ContentBlock[] };
-
 // Covers both Anthropic (system/messages) and OpenAI (instructions/input) shapes.
-export interface CavemanBody {
+export type CavemanBody = {
   system?: string | ContentBlock[];
   messages?: Message[];
   instructions?: string;
   input?: Message[];
-}
+  [extra: string]: unknown;
+};
 
 export function injectCaveman(body: CavemanBody, level: CavemanLevel): void {
   const prompt = CAVEMAN_PROMPTS[level];

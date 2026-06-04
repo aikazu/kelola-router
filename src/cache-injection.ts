@@ -1,20 +1,7 @@
 import type { CavemanLevel } from './caveman/prompts.js';
+import type { AnthropicBody, ContentBlock } from './providers/format/messageTypes.js';
 
-type CacheControl = { type: 'ephemeral' };
-export interface ContentBlock {
-  type?: string;
-  text?: string;
-  cache_control?: CacheControl;
-  content?: ContentBlock[];
-}
-export interface Message {
-  role?: string;
-  content?: string | ContentBlock[];
-}
-export interface AnthropicBody {
-  system?: string | ContentBlock[];
-  messages?: Message[];
-}
+export type { AnthropicBody, ContentBlock };
 
 export function addDualCacheBreakpoints(body: AnthropicBody, respectCallerMarkers = true): void {
   if (body.system === undefined) return;
