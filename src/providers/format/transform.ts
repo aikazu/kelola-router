@@ -9,6 +9,8 @@
  * deferred (passthrough preserves the upstream shape end-to-end).
  */
 
+import type { AnthropicBody, OpenAIBody } from './messageTypes.js';
+
 const OPENAI_ONLY_PARAMS = [
   'n',
   'logprobs',
@@ -35,7 +37,7 @@ const ANTHROPIC_ONLY_PARAMS = [
 
 /* ──────────────── Body: OpenAI → Anthropic ──────────────── */
 
-export function bodyOpenAIToAnthropic(body: any): any {
+export function bodyOpenAIToAnthropic(body: OpenAIBody): AnthropicBody {
   const out: any = { ...body };
 
   // max_completion_tokens is OpenAI's preferred name; Anthropic uses max_tokens.
@@ -77,7 +79,7 @@ export function bodyOpenAIToAnthropic(body: any): any {
 
 /* ──────────────── Body: Anthropic → OpenAI ──────────────── */
 
-export function bodyAnthropicToOpenAI(body: any): any {
+export function bodyAnthropicToOpenAI(body: AnthropicBody): OpenAIBody {
   const out: any = { ...body };
 
   // Drop Anthropic-only top-level params.
