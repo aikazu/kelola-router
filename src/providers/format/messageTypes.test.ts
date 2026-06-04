@@ -7,7 +7,7 @@ describe('messageTypes', () => {
       system: [{ type: 'text', text: 'a' }],
       messages: [{ role: 'user', content: 'hi' }],
     };
-    expect(body.messages[0].role).toBe('user');
+    expect(body.messages![0].role).toBe('user');
   });
 
   it('OpenAIBody accepts messages + instructions', () => {
@@ -18,7 +18,7 @@ describe('messageTypes', () => {
         { role: 'user', content: 'hi' },
       ],
     };
-    expect(body.messages.length).toBe(2);
+    expect(body.messages!.length).toBe(2);
   });
 
   it('OpenAIMessage and AnthropicMessage have compatible content unions', () => {
