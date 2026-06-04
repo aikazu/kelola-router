@@ -17,9 +17,11 @@ quotaRoutes.get('/quota', (c) => {
           .prepare(
             `SELECT * FROM quota_snapshots
          WHERE account_id = ?
+         AND model_name IS NOT NULL
          AND id IN (
            SELECT MAX(id) FROM quota_snapshots
            WHERE account_id = ?
+           AND model_name IS NOT NULL
            GROUP BY model_name, window_type
          )
          ORDER BY model_name, window_type DESC`

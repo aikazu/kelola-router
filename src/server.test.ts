@@ -453,6 +453,37 @@ describe('SPA admin API endpoints', () => {
     expect(Array.isArray(body)).toBe(true);
   });
 
+  it('/api/admin/quota excludes legacy NULL-model snapshots', async () => {
+    const db = openDb();
+    const acct = createAccount(db, {
+      id: 'acct-null-test',
+      label: 'acct',
+      credit_type: 'token-plan',
+      api_key: 'mm_x',
+    });
+    const ins = db.prepare(
+      `INSERT INTO quota_snapshots (account_id, source, model_name, total_count, remaining_count, used_count, remaining_percent, remains_time, window_type, window_start, window_end, raw_response)
+       VALUES (?, 'test', ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`
+    );
+    // Legacy rows: model_name NULL, no percent.
+    ins.run(acct.id, null, null, null, 0, null, null, '5h');
+    ins.run(acct.id, null, null, null, 0, null, null, 'weekly');
+    // Real rows: named model with percent.
+    ins.run(acct.id, 'general', 0, 0, 0, 99, 1000, '5h');
+    ins.run(acct.id, 'general', 0, 0, 0, 87, 1000, 'weekly');
+
+    const res = await app.request('/api/admin/quota');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<{
+      accountId: string;
+      windows: Array<{ modelName: string }>;
+    }>;
+    const acctRow = body.find((q) => q.accountId === acct.id);
+    expect(acctRow).toBeDefined();
+    // Only the two named windows survive — no NULL-derived duplicate "general" pair.
+    expect(acctRow?.windows.length).toBe(2);
+  });
+
   it('/api/admin/settings returns 200 with all keys', async () => {
     const res = await app.request('/api/admin/settings');
     expect(res.status).toBe(200);
