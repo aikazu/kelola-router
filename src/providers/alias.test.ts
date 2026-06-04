@@ -73,14 +73,14 @@ describe('resolveModel', () => {
 
   it('bodyTransform injects adaptive thinking for known models when client omits thinking', () => {
     const r = resolveModel(db, 'MiniMax-M3', {});
-    const body: any = {};
+    const body: Record<string, unknown> = {};
     r.bodyTransform(body);
     expect(body.thinking).toEqual({ type: 'adaptive' });
   });
 
   it('bodyTransform preserves client-supplied thinking', () => {
     const r = resolveModel(db, 'MiniMax-M3', {});
-    const body: any = { thinking: { type: 'disabled' } };
+    const body: Record<string, unknown> = { thinking: { type: 'disabled' } };
     r.bodyTransform(body);
     expect(body.thinking).toEqual({ type: 'disabled' });
   });

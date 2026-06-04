@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { getModel, type Model } from '../db/repos/models.js';
 import { getSetting } from '../db/repos/settings.js';
 import { resolveAlias } from './aliasCache.js';
+import type { AnthropicBody, OpenAIBody } from './format/messageTypes.js';
 
 /**
  * Models that the MiniMax reference docs (docs/minimax-reference/) list as
@@ -22,14 +23,14 @@ export const ADAPTIVE_THINKING_MODELS: ReadonlySet<string> = new Set([
 
 export interface ResolvedModel {
   upstreamModel: string;
-  bodyTransform: (body: any) => void;
+  bodyTransform: (body: AnthropicBody | OpenAIBody) => void;
   requestedModel: string;
 }
 
 export function resolveModel(
   db: Database.Database,
   requestedName: string,
-  _body: any
+  _body?: AnthropicBody | OpenAIBody
 ): ResolvedModel {
   const target = resolveAlias(db, requestedName);
   const model: Model | null = getModel(db, target);
@@ -42,7 +43,7 @@ export function resolveModel(
   return {
     upstreamModel: model.upstream_model,
     requestedModel: requestedName,
-    bodyTransform: (b: any) => {
+    bodyTransform: (b: AnthropicBody | OpenAIBody) => {
       if (ADAPTIVE_THINKING_MODELS.has(model.upstream_model) && b.thinking === undefined) {
         b.thinking = { type: 'adaptive' };
       }
