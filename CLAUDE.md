@@ -112,9 +112,9 @@ Dev loop: `cd client && npm run dev` (port 5173, proxies `/api` `/login` `/logou
 
 ### Storage
 
-`src/db/index.ts` — `openDb()` opens (or creates) `~/.local/share/kelola-router/router.db` (or `ROUTER_DB_PATH` override; Docker mounts `/data/router.db`), sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Migrations: `src/db/migrations/` — 8 files + `index.ts` (001-initial consolidates the full schema; 002/003 are no-op stubs for legacy DBs; 004 sessions; 005 request-bodies; 006 drop-thinking-fields; 007 model-aliases; 008 quota-percent adds `model_name`/`remaining_percent`/`remains_time` to `quota_snapshots`). Tracked via `user_version` PRAGMA, condition-based skip for legacy.
+`src/db/index.ts` — `openDb()` opens (or creates) `~/.local/share/kelola-router/router.db` (or `ROUTER_DB_PATH` override; Docker mounts `/data/router.db`), sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Migrations: `src/db/migrations/` — single `001-initial.ts` holding the full consolidated schema (accounts, account_model_locks, client_keys, request_logs incl. bodies/headers/`requested_model`, quota_snapshots incl. `model_name`/`remaining_percent`/`remains_time`, models w/ unique `upstream_model` index, model_aliases, sessions, settings) + `index.ts` runner. Tracked via `user_version` PRAGMA (current = 1). Fresh-deploy only; legacy upgrade stubs were dropped.
 
-Repos: `src/db/repos/` — `settings.ts` (1s cache, exposes `clearCache()`), `accounts.ts`, `client_keys.ts`, `models.ts` (+ alias CRUD), `aliases.ts`, `requestLogs.ts`, `quotaSnapshots.ts`, `users.ts`.
+Repos: `src/db/repos/` — `settings.ts` (1s cache, exposes `clearCache()`), `accounts.ts`, `client_keys.ts`, `models.ts` (+ alias CRUD), `aliases.ts`, `requestLogs.ts`, `quotaSnapshots.ts`.
 
 Settings cache: `getSetting` caches for 1s. **Call `clearCache()` from `src/db/repos/settings.ts` in tests** when changing settings mid-test.
 

@@ -195,10 +195,18 @@ async function handleProxy(
     // NOTE: this snapshot must list EVERY field resolved.bodyTransform may write.
     // bodyTransform currently writes: thinking, max_completion_tokens, reasoning_split.
     // If you add a field there, add it here too or the fast path will skip re-serialization.
-    const beforeKeys = JSON.stringify([body.thinking, body.max_completion_tokens, body.reasoning_split]);
+    const beforeKeys = JSON.stringify([
+      body.thinking,
+      body.max_completion_tokens,
+      body.reasoning_split,
+    ]);
     body.model = resolved.upstreamModel;
     resolved.bodyTransform(body);
-    const afterKeys = JSON.stringify([body.thinking, body.max_completion_tokens, body.reasoning_split]);
+    const afterKeys = JSON.stringify([
+      body.thinking,
+      body.max_completion_tokens,
+      body.reasoning_split,
+    ]);
     if (body.model !== origModel || beforeKeys !== afterKeys) bodyDirty = true;
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
@@ -226,7 +234,7 @@ async function handleProxy(
   } | null>(db, 'transport');
 
   try {
-    const upstreamBody = bodyDirty ? body : (text || '{}');
+    const upstreamBody = bodyDirty ? body : text || '{}';
     const resp = await upstreamFetch(url, upstreamBody, headers, transport);
     if (!resp.ok) {
       const errBody = await resp.text();

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
-import { existsSync, statSync, unlinkSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
+import { existsSync, statSync, unlinkSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { log } from '../src/util/log.js';
 
 function defaultDbPath(): string {

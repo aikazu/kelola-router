@@ -151,8 +151,8 @@ src/
 │   └── locks.ts              # per-(account, model) cooldown CRUD
 ├── db/
 │   ├── index.ts              # openDb (WAL, FK, busy_timeout)
-│   ├── migrations/           # 001-initial, 002-admin-key, 003-drop-users, 004-sessions, 005-request-bodies
-│   └── repos/                # client_keys, accounts, models, requestLogs, quotaSnapshots, settings, sessions
+│   ├── migrations/           # 001-initial (single consolidated schema) + index runner
+│   └── repos/                # client_keys, accounts, models, aliases, requestLogs, quotaSnapshots, settings
 ├── providers/                # provider-specific behavior
 │   ├── minimax.ts            # PROVIDER const, upstreamUrl/Headers helpers
 │   ├── baseUrl.ts            # intl vs cn base URL
@@ -321,6 +321,7 @@ Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 
 | Phase | Version | Status | Scope |
 |------:|:--------|:------:|:------|
+| 15 | **v0.15** | ✅ shipped | Quota duplicate-block fix: puller now skips `model_remains[]` items with no `model_name` and the admin query filters `model_name IS NOT NULL`, so legacy NULL-model rows can no longer render as a phantom 0% block. Schema consolidation: migrations 002–008 folded into a single `001-initial` (full schema, `user_version = 1`); legacy upgrade stubs + dead `repos/users.ts` removed — fresh-deploy only |
 | 14 | **v0.14** | ✅ shipped | Usage all-time range (`days=0`, null deltas) + 1-day default; per-row Copy full client key (`GET /client-keys/:id/key`, list stays masked). Quota flow fix + redesign: parse real MiniMax nested `model_remains[]` shape (old parser read a flat shape → "no data"), fix used/remaining semantic swap (`used_count = usage_count`, `remaining_count = total − usage`), store `remaining_percent` + `remains_time` (migration 008); admin API groups latest snapshots per `(model_name, window_type)`; Quota page redesigned as per-model percent bars (general/video) with reset countdown, status dot, count detail when metered |
 | 13 | **v0.13** | ✅ shipped | Hot-path latency cuts (warm SQLite statement executions per request 8 → 5): batched settings read, skip no-op account writes, throttled lock cleanup, client-key lookup cache, deferred request-log insert (off the response path via `setImmediate`), fast-path raw-body passthrough when no transform applies; fixed `stream_options.include_usage` injection (return value was discarded), `adminApi` per-request db handle, `resetDb` closing the handle |
 | 12 | **v0.12** | ✅ shipped | Model aliases (CRUD, cache, `requested_model` log); Biome linter (root + client, `lint`/`lint:fix` scripts); roadmap → `docs/roadmap.md` |

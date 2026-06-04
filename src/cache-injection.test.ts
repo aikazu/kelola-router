@@ -1,22 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { addDualCacheBreakpoints, augmentRequest } from './cache-injection.js';
+import {
+  type AnthropicBody,
+  addDualCacheBreakpoints,
+  augmentRequest,
+  type ContentBlock,
+} from './cache-injection.js';
+
+// Narrow the union to the array branch for assertions.
+const sys = (b: AnthropicBody): ContentBlock[] => b.system as ContentBlock[];
 
 describe('addDualCacheBreakpoints', () => {
   it('no-op for non-Anthropic shape', () => {
-    const body: any = { messages: [{ role: 'user', content: 'hi' }] };
+    const body: AnthropicBody = { messages: [{ role: 'user', content: 'hi' }] };
     addDualCacheBreakpoints(body);
-    expect(body.messages[0].cache_control).toBeUndefined();
+    const first = body.messages?.[0].content as ContentBlock[] | string;
+    expect(typeof first).toBe('string');
   });
 
   it('adds marker to last system block (string → array)', () => {
-    const body: any = { system: 'you are helpful', messages: [] };
+    const body: AnthropicBody = { system: 'you are helpful', messages: [] };
     addDualCacheBreakpoints(body);
     expect(Array.isArray(body.system)).toBe(true);
-    expect(body.system[0].cache_control).toEqual({ type: 'ephemeral' });
+    expect(sys(body)[0].cache_control).toEqual({ type: 'ephemeral' });
   });
 
   it('adds marker to last system block (array)', () => {
-    const body: any = {
+    const body: AnthropicBody = {
       system: [
         { type: 'text', text: 'a' },
         { type: 'text', text: 'b' },
@@ -24,11 +33,11 @@ describe('addDualCacheBreakpoints', () => {
       messages: [],
     };
     addDualCacheBreakpoints(body);
-    expect(body.system[1].cache_control).toEqual({ type: 'ephemeral' });
+    expect(sys(body)[1].cache_control).toEqual({ type: 'ephemeral' });
   });
 
   it('adds marker to last assistant tool_use', () => {
-    const body: any = {
+    const body: AnthropicBody = {
       system: [{ type: 'text', text: 'x', cache_control: { type: 'ephemeral' } }],
       messages: [
         { role: 'user', content: 'hi' },
@@ -36,28 +45,28 @@ describe('addDualCacheBreakpoints', () => {
           role: 'assistant',
           content: [
             { type: 'text', text: 'thinking...' },
-            { type: 'tool_use', id: 'tu_1', name: 'x', input: {} },
+            { type: 'tool_use', text: undefined },
           ],
         },
         { role: 'user', content: 'ok' },
       ],
     };
     addDualCacheBreakpoints(body);
-    const lastAssistant = body.messages[1].content[1];
+    const lastAssistant = (body.messages?.[1].content as ContentBlock[])[1];
     expect(lastAssistant.cache_control).toEqual({ type: 'ephemeral' });
   });
 
   it('respects existing markers (does not overwrite)', () => {
-    const body: any = {
+    const body: AnthropicBody = {
       system: [{ type: 'text', text: 'x', cache_control: { type: 'ephemeral' } }],
       messages: [],
     };
     addDualCacheBreakpoints(body);
-    expect(body.system[0].cache_control).toEqual({ type: 'ephemeral' });
+    expect(sys(body)[0].cache_control).toEqual({ type: 'ephemeral' });
   });
 
   it('respectCallerMarkers=false forces marker even if some blocks have them', () => {
-    const body: any = {
+    const body: AnthropicBody = {
       system: [
         { type: 'text', text: 'a', cache_control: { type: 'ephemeral' } },
         { type: 'text', text: 'b' },
@@ -65,13 +74,13 @@ describe('addDualCacheBreakpoints', () => {
       messages: [],
     };
     addDualCacheBreakpoints(body, false);
-    expect(body.system[1].cache_control).toEqual({ type: 'ephemeral' });
+    expect(sys(body)[1].cache_control).toEqual({ type: 'ephemeral' });
   });
 });
 
 describe('augmentRequest', () => {
   it('runs caveman first (mutates system), then cache markers (wrap augmented prefix)', async () => {
-    const body: any = {
+    const body: AnthropicBody = {
       system: [{ type: 'text', text: 'a', cache_control: { type: 'ephemeral' } }],
       messages: [],
     };
@@ -79,7 +88,7 @@ describe('augmentRequest', () => {
       caveman: { level: 'terse' },
       caching: { autoBreakpoints: true, respectCallerMarkers: true },
     });
-    expect(body.system.length).toBe(2);
-    expect(body.system[1].text).toContain('Be concise');
+    expect(sys(body).length).toBe(2);
+    expect(sys(body)[1].text).toContain('Be concise');
   });
 });

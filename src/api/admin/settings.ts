@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { setPassword } from '../../auth/password.js';
 import { getSetting, setSetting } from '../../db/repos/settings.js';
 import { handleApiError } from './middleware.js';
@@ -20,7 +20,7 @@ settingsRoutes.get('/', (c) => {
   }
 });
 
-const post = (key: string) => async (c: any) => {
+const post = (key: string) => async (c: Context) => {
   try {
     const db = c.get('db') as Database.Database;
     const body = await c.req.json();

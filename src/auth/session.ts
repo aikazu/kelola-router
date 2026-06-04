@@ -38,7 +38,7 @@ export function createSession(
 }
 
 export function validateSession(db: Database.Database, id: string): Session | undefined {
-  if (!id || !id.startsWith('sess_')) return undefined;
+  if (!id?.startsWith('sess_')) return undefined;
   const row = db
     .prepare(`
     SELECT id, user_agent, ip, created_at, expires_at, last_seen FROM sessions WHERE id = ?

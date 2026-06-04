@@ -1,7 +1,7 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import Database from 'better-sqlite3';
-import { mkdtempSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../src/db/migrations/index.js';
 
@@ -20,8 +20,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true });
 });
 
-describe('migration 005', () => {
-  it('adds body + headers + error columns to request_logs', () => {
+describe('request_logs body/header/error columns', () => {
+  it('request_logs has body + headers + error columns', () => {
     const cols = db.prepare('PRAGMA table_info(request_logs)').all() as Array<{ name: string }>;
     const names = cols.map((c) => c.name);
     expect(names).toContain('request_body');

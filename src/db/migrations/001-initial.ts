@@ -1,7 +1,8 @@
 /**
- * Single consolidated initial migration. Final schema for fresh deploys.
- * The older 002 (admin key) + 003 (drop users) are retained as no-op stubs
- * for users who already have a v3 DB; new deploys only see this file.
+ * Single consolidated schema for fresh deploys. This is the only migration:
+ * legacy upgrade stubs (admin-key, drop-users, drop-thinking) and the
+ * incremental ALTERs (request bodies, model aliases, quota percent) have all
+ * been folded in. New databases reach the final schema in one step.
  */
 export const migration_001 = {
   id: 1,
@@ -42,6 +43,7 @@ export const migration_001 = {
       client_key_id           INTEGER,
       account_id              TEXT,
       model                   TEXT NOT NULL,
+      requested_model         TEXT,
       endpoint                TEXT NOT NULL,
       format                  TEXT NOT NULL,
       prompt_tokens           INTEGER NOT NULL DEFAULT 0,
@@ -60,6 +62,11 @@ export const migration_001 = {
       rtk_bytes_saved         INTEGER NOT NULL DEFAULT 0,
       caveman_level           TEXT,
       error_message           TEXT,
+      request_body            TEXT,
+      response_body           TEXT,
+      request_headers         TEXT,
+      response_headers        TEXT,
+      error                   TEXT,
       created_at              TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_logs_client_created ON request_logs(client_key_id, created_at DESC);
@@ -71,9 +78,12 @@ export const migration_001 = {
       id                INTEGER PRIMARY KEY AUTOINCREMENT,
       account_id        TEXT NOT NULL,
       source            TEXT NOT NULL,
+      model_name        TEXT,
       total_count       INTEGER,
       remaining_count   INTEGER,
       used_count        INTEGER,
+      remaining_percent INTEGER,
+      remains_time      INTEGER,
       window_type       TEXT,
       window_start      TEXT,
       window_end        TEXT,
@@ -101,6 +111,27 @@ export const migration_001 = {
       created_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_models_family ON models(family, enabled);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_models_upstream_model ON models(upstream_model);
+
+    CREATE TABLE IF NOT EXISTS model_aliases (
+      alias_name      TEXT PRIMARY KEY,
+      upstream_model  TEXT NOT NULL,
+      label           TEXT,
+      source          TEXT NOT NULL DEFAULT 'user',
+      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (upstream_model) REFERENCES models(upstream_model) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_model_aliases_target ON model_aliases(upstream_model);
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id          TEXT PRIMARY KEY,
+      user_agent  TEXT,
+      ip          TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at  TEXT NOT NULL,
+      last_seen   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 
     CREATE TABLE IF NOT EXISTS settings (
       key         TEXT PRIMARY KEY,
@@ -114,7 +145,7 @@ export const migration_001 = {
       ('caching', '{"autoBreakpoints": true, "respectCallerMarkers": true}'),
       ('minimax', '{"upstreamFormat": "auto", "m3DefaultMaxCompletionTokens": 131072}'),
       ('transport', '{"relay": null, "proxy": null}'),
-      ('build', '{"version": "0.11.0", "schemaVersion": 3}');
+      ('build', '{"version": "0.15.0", "schemaVersion": 1}');
 
     INSERT OR IGNORE INTO models (name, display_name, family, upstream_model, context_window, pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, source) VALUES
       ('MiniMax-M3',             'MiniMax M3',             'm3',   'MiniMax-M3',        1000000, 0.60, 2.40, 0.12, NULL,

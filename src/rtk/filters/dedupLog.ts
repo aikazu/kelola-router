@@ -18,9 +18,7 @@ export const dedupLog: FilterFn = (text: string): string => {
   }
 
   if (result.length > DEDUP_LINE_MAX) {
-    return (
-      result.slice(0, DEDUP_LINE_MAX).join('\n') + `\n... [truncated to ${DEDUP_LINE_MAX} lines]`
-    );
+    return `${result.slice(0, DEDUP_LINE_MAX).join('\n')}\n... [truncated to ${DEDUP_LINE_MAX} lines]`;
   }
   return result.join('\n');
 };

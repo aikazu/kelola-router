@@ -1,7 +1,7 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import Database from 'better-sqlite3';
-import { mkdtempSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../src/db/migrations/index.js';
 
@@ -20,7 +20,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true });
 });
 
-describe('migration 007', () => {
+describe('model_aliases schema', () => {
   it('creates model_aliases table with expected columns', () => {
     const cols = db.prepare('PRAGMA table_info(model_aliases)').all() as Array<{
       name: string;

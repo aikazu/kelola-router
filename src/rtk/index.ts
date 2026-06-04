@@ -44,7 +44,7 @@ export function compressMessages(body: any, enabled: boolean): CompressStats | n
       }
       if (Array.isArray(msg.content)) {
         for (const block of msg.content) {
-          if (!block || block.type !== 'tool_result') continue;
+          if (block?.type !== 'tool_result') continue;
           if (block.is_error === true) continue;
           if (typeof block.content === 'string') {
             block.content = compressText(block.content, stats, 'claude-string');
@@ -88,7 +88,7 @@ function compressText(text: string, stats: CompressStats, shape: string): string
 }
 
 export function formatRtkLog(stats: CompressStats | null): string | null {
-  if (!stats || !stats.hits?.length) return null;
+  if (!stats?.hits?.length) return null;
   const saved = stats.bytesBefore - stats.bytesAfter;
   const pct = stats.bytesBefore > 0 ? ((saved / stats.bytesBefore) * 100).toFixed(1) : '0';
   const filters = [...new Set(stats.hits.map((h) => h.filter))].join(',');

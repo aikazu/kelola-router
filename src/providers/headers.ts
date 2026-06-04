@@ -10,8 +10,8 @@ export function buildHeaders(
     h['x-api-key'] = account.apiKey;
     h['anthropic-version'] = '2023-06-01';
   } else {
-    h['Authorization'] = `Bearer ${account.apiKey}`;
+    h.Authorization = `Bearer ${account.apiKey}`;
   }
-  if (stream) h['Accept'] = 'text/event-stream';
+  if (stream) h.Accept = 'text/event-stream';
   return h;
 }

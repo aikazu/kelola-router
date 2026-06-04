@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
-import { app, resetDb } from '../../src/server.js';
+import { openDb } from '../../src/db/index.js';
 import { createAccount } from '../../src/db/repos/accounts.js';
 import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
-import { openDb } from '../../src/db/index.js';
 import { upsertModel } from '../../src/db/repos/models.js';
+import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
+import { app, resetDb } from '../../src/server.js';
 
 let key: string;
 
@@ -45,10 +45,17 @@ describe('hot-path benchmark', () => {
 
     vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
       Promise.resolve(
-        new Response(JSON.stringify({ id: 'x', choices: [], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        })
+        new Response(
+          JSON.stringify({
+            id: 'x',
+            choices: [],
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }
+        )
       )
     );
 

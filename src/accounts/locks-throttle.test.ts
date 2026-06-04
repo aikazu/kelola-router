@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { openDb } from '../db/index.js';
-import { clearExpiredModelLocks, _resetLockCleanupThrottle } from './locks.js';
+import { _resetLockCleanupThrottle, clearExpiredModelLocks } from './locks.js';
 
 let db: ReturnType<typeof openDb>;
 
@@ -17,13 +17,18 @@ beforeEach(() => {
 it('runs the DELETE at most once within the throttle window', () => {
   const realPrepare = Database.prototype.prepare;
   let deletes = 0;
-  const spy = vi.spyOn(Database.prototype, 'prepare').mockImplementation(function (this: any, sql: string) {
-    const stmt = realPrepare.call(this, sql);
+  const spy = vi.spyOn(Database.prototype, 'prepare').mockImplementation(function (
+    this: Database.Database,
+    sql: string
+  ) {
+    const stmt = realPrepare.call(this, sql) as Database.Statement & {
+      run: (...args: unknown[]) => unknown;
+    };
     if (/DELETE FROM account_model_locks/i.test(sql)) {
-      const origRun = (stmt as any).run.bind(stmt);
-      (stmt as any).run = (...args: unknown[]) => {
+      const origRun = stmt.run.bind(stmt);
+      stmt.run = (...args: unknown[]) => {
         deletes++;
-        return origRun(...(args as Parameters<typeof origRun>));
+        return origRun(...args);
       };
     }
     return stmt;

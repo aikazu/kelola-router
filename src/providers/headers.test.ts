@@ -6,7 +6,7 @@ const account = { provider: 'minimax' as const, apiKey: 'mm_test' };
 describe('buildHeaders', () => {
   it('OpenAI format uses Authorization: Bearer', () => {
     const h = buildHeaders(account, false, 'openai');
-    expect(h['Authorization']).toBe('Bearer mm_test');
+    expect(h.Authorization).toBe('Bearer mm_test');
     expect(h['Content-Type']).toBe('application/json');
   });
 
@@ -19,11 +19,11 @@ describe('buildHeaders', () => {
 
   it('streaming adds Accept: text/event-stream', () => {
     const h = buildHeaders(account, true, 'openai');
-    expect(h['Accept']).toBe('text/event-stream');
+    expect(h.Accept).toBe('text/event-stream');
   });
 
   it('non-streaming has no Accept', () => {
     const h = buildHeaders(account, false, 'openai');
-    expect(h['Accept']).toBeUndefined();
+    expect(h.Accept).toBeUndefined();
   });
 });

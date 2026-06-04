@@ -2,13 +2,13 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { app, resetDb } from '../../src/server.js';
 import { openDb } from '../../src/db/index.js';
 import { createAccount } from '../../src/db/repos/accounts.js';
 import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
 import { upsertModel } from '../../src/db/repos/models.js';
-import { setSetting } from '../../src/db/repos/settings.js';
 import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
+import { setSetting } from '../../src/db/repos/settings.js';
+import { app, resetDb } from '../../src/server.js';
 
 let key: string;
 
@@ -36,9 +36,14 @@ afterEach(async () => {
 describe('fast-path passthrough', () => {
   it('forwards a body equivalent to the client request when no transform applies', async () => {
     let sentBody = '';
-    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts: any) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts) => {
       sentBody = opts.body as string;
-      return Promise.resolve(new Response(JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      );
     });
     // Pre-set the fields bodyTransform would inject for M3, so the transform is a no-op
     // and the fast path engages. stream is unset, so bodyAddsOpenAIStreamUsage injects nothing and the body
@@ -62,17 +67,27 @@ describe('fast-path passthrough', () => {
 
   it('injects stream_options.include_usage for OpenAI streaming and tracks usage', async () => {
     let sentBody = '';
-    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts: any) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts) => {
       sentBody = opts.body as string;
-      const sse = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n' +
+      const sse =
+        'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n' +
         'data: {"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":3,"total_tokens":8}}\n\n' +
         'data: [DONE]\n\n';
-      return Promise.resolve(new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } }));
+      return Promise.resolve(
+        new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+      );
     });
     const res = await app.request('/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M3', messages: [{ role: 'user', content: 'hi' }], stream: true, thinking: { type: 'adaptive' }, max_completion_tokens: 131072, reasoning_split: true }),
+      body: JSON.stringify({
+        model: 'MiniMax-M3',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: true,
+        thinking: { type: 'adaptive' },
+        max_completion_tokens: 131072,
+        reasoning_split: true,
+      }),
     });
     expect(res.status).toBe(200);
     // consume the stream so pipeWithUsage flush + deferred log run
@@ -88,14 +103,25 @@ describe('fast-path passthrough', () => {
     setSetting(db, 'caveman', { level: 'full' });
     db.close();
     let sentBody = '';
-    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts: any) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts) => {
       sentBody = opts.body as string;
-      return Promise.resolve(new Response(JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      );
     });
     const res = await app.request('/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M3', messages: [{ role: 'user', content: 'hi' }], thinking: { type: 'adaptive' }, max_completion_tokens: 131072, reasoning_split: true }),
+      body: JSON.stringify({
+        model: 'MiniMax-M3',
+        messages: [{ role: 'user', content: 'hi' }],
+        thinking: { type: 'adaptive' },
+        max_completion_tokens: 131072,
+        reasoning_split: true,
+      }),
     });
     expect(res.status).toBe(200);
     // Body was processed (valid JSON sent upstream). We don't assert exact caveman content,

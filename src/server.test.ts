@@ -1,6 +1,6 @@
-import { mkdtempSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from './db/index.js';
 import { createAccount } from './db/repos/accounts.js';
@@ -82,7 +82,7 @@ describe('handleProxy with auth + accounts', () => {
     const res = await app.request(req);
     expect(res.status).toBe(200);
     const headers = (spy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
-    expect(headers['Authorization']).toBe('Bearer mm_real_key');
+    expect(headers.Authorization).toBe('Bearer mm_real_key');
   });
 
   it('isolates logs by client key: two different keys produce separate log rows', async () => {

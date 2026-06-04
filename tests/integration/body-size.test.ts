@@ -1,6 +1,6 @@
-import { mkdtempSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../src/db/index.js';
 import { createAccount } from '../../src/db/repos/accounts.js';
@@ -19,7 +19,7 @@ describe('request body size cap', () => {
     resetDb();
     clearCache();
     const db = openDb();
-    const ck = createClientKey(db, { label: 't', key: 'rk_bs' });
+    const _ck = createClientKey(db, { label: 't', key: 'rk_bs' });
     createAccount(db, { id: 'acc_bs', label: 'a1', credit_type: 'payg', api_key: 'mm_test' });
     upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7' });
     setSetting(db, 'transport', { relay: null, proxy: null });

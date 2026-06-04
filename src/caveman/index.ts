@@ -3,7 +3,18 @@ import { CAVEMAN_PROMPTS } from './prompts.js';
 
 const SEP = '\n\n';
 
-export function injectCaveman(body: any, level: CavemanLevel): void {
+type ContentBlock = { type?: string; text?: string; cache_control?: unknown };
+type Message = { role?: string; content?: string | ContentBlock[] };
+
+// Covers both Anthropic (system/messages) and OpenAI (instructions/input) shapes.
+export interface CavemanBody {
+  system?: string | ContentBlock[];
+  messages?: Message[];
+  instructions?: string;
+  input?: Message[];
+}
+
+export function injectCaveman(body: CavemanBody, level: CavemanLevel): void {
   const prompt = CAVEMAN_PROMPTS[level];
   if (!body || !prompt) return;
 
@@ -14,19 +25,19 @@ export function injectCaveman(body: any, level: CavemanLevel): void {
   }
 }
 
-function injectMessagesSystem(body: any, prompt: string): void {
+function injectMessagesSystem(body: CavemanBody, prompt: string): void {
   if (typeof body.instructions === 'string') {
     body.instructions = body.instructions ? `${body.instructions}${SEP}${prompt}` : prompt;
     return;
   }
-  const arr: any[] | null = Array.isArray(body.messages)
+  const arr: Message[] | null = Array.isArray(body.messages)
     ? body.messages
     : Array.isArray(body.input)
       ? body.input
       : null;
   if (!arr) return;
 
-  const idx = arr.findIndex((m: any) => m && (m.role === 'system' || m.role === 'developer'));
+  const idx = arr.findIndex((m) => m && (m.role === 'system' || m.role === 'developer'));
   if (idx >= 0) {
     appendToOpenAIMessage(arr[idx], prompt);
   } else {
@@ -34,7 +45,7 @@ function injectMessagesSystem(body: any, prompt: string): void {
   }
 }
 
-function appendToOpenAIMessage(msg: any, prompt: string): void {
+function appendToOpenAIMessage(msg: Message, prompt: string): void {
   if (typeof msg.content === 'string') {
     msg.content = `${msg.content}${SEP}${prompt}`;
   } else if (Array.isArray(msg.content)) {
@@ -44,7 +55,7 @@ function appendToOpenAIMessage(msg: any, prompt: string): void {
   }
 }
 
-function injectClaudeSystem(body: any, prompt: string): void {
+function injectClaudeSystem(body: CavemanBody, prompt: string): void {
   if (typeof body.system === 'string') {
     body.system = body.system.length > 0 ? `${body.system}${SEP}${prompt}` : prompt;
     return;

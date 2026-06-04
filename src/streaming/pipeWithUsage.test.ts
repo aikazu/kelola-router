@@ -76,12 +76,12 @@ describe('pipeWithUsage', () => {
   it('accepts an AbortSignal and stops enqueuing when aborted', async () => {
     const ac = new AbortController();
     const enc = new TextEncoder();
-    let enqueued = 0;
+    let _enqueued = 0;
     const body = new ReadableStream<Uint8Array>({
       start(c) {
         // Enqueue two chunks, then wait for the abort signal
         c.enqueue(enc.encode('data: chunk1\n\n'));
-        enqueued++;
+        _enqueued++;
         ac.signal.addEventListener('abort', () => c.close());
         setTimeout(() => c.enqueue(enc.encode('data: chunk2\n\n')), 5);
       },

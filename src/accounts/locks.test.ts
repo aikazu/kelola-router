@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../db/index.js';
 import { createAccount } from '../db/repos/accounts.js';
-import { _resetLockCleanupThrottle, clearExpiredModelLocks, getModelLock, setModelLock } from './locks.js';
+import {
+  _resetLockCleanupThrottle,
+  clearExpiredModelLocks,
+  getModelLock,
+  setModelLock,
+} from './locks.js';
 
 let db: ReturnType<typeof openDb>;
 let accountId: string;

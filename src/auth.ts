@@ -48,7 +48,7 @@ export function verifySameOrigin(c: Context): boolean {
   }
 }
 
-export async function csrfGuard(c: Context, next: Next): Promise<Response | void> {
+export async function csrfGuard(c: Context, next: Next): Promise<Response | undefined> {
   if (c.req.method === 'GET' || c.req.method === 'HEAD' || c.req.method === 'OPTIONS') {
     await next();
     return;
@@ -82,7 +82,7 @@ function clientIp(c: Context): string | null {
   return c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
 }
 
-export async function requireApiKey(c: Context, next: Next): Promise<Response | void> {
+export async function requireApiKey(c: Context, next: Next): Promise<Response | undefined> {
   const key = extractBearer(c);
   if (!key) return c.json({ error: 'missing API key' }, 401);
   const db = c.get('db');
@@ -100,7 +100,7 @@ export async function requireApiKey(c: Context, next: Next): Promise<Response | 
  *   4. If no password is set at all → allow (open mode for local dev)
  *   5. If password IS set and none of 1-3 matched → 401 (with login hint)
  */
-export async function requireAdmin(c: Context, next: Next): Promise<Response | void> {
+export async function requireAdmin(c: Context, next: Next): Promise<Response | undefined> {
   const db = c.get('db');
   const passwordSet = isPasswordSet(db);
 

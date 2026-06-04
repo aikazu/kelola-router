@@ -1,7 +1,7 @@
+import { existsSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 import Database from 'better-sqlite3';
-import { existsSync, mkdirSync } from 'fs';
-import { homedir } from 'os';
-import { dirname, join } from 'path';
 import { migrate } from './migrations/index.js';
 
 function defaultDbPath(): string {

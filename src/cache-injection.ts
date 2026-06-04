@@ -1,4 +1,22 @@
-export function addDualCacheBreakpoints(body: any, respectCallerMarkers = true): void {
+import type { CavemanLevel } from './caveman/prompts.js';
+
+type CacheControl = { type: 'ephemeral' };
+export interface ContentBlock {
+  type?: string;
+  text?: string;
+  cache_control?: CacheControl;
+  content?: ContentBlock[];
+}
+export interface Message {
+  role?: string;
+  content?: string | ContentBlock[];
+}
+export interface AnthropicBody {
+  system?: string | ContentBlock[];
+  messages?: Message[];
+}
+
+export function addDualCacheBreakpoints(body: AnthropicBody, respectCallerMarkers = true): void {
   if (body.system === undefined) return;
 
   if (Array.isArray(body.system) && body.system.length > 0) {
@@ -26,7 +44,7 @@ export function addDualCacheBreakpoints(body: any, respectCallerMarkers = true):
   }
 }
 
-function hasAnyCacheControl(arr: any[]): boolean {
+function hasAnyCacheControl(arr: ContentBlock[]): boolean {
   for (const block of arr) {
     if (block?.cache_control) return true;
     if (Array.isArray(block?.content)) {
@@ -39,7 +57,7 @@ function hasAnyCacheControl(arr: any[]): boolean {
 }
 
 export async function augmentRequest(
-  body: any,
+  body: AnthropicBody,
   settings: {
     caveman?: { level: string };
     caching?: { autoBreakpoints: boolean; respectCallerMarkers: boolean };
@@ -47,7 +65,7 @@ export async function augmentRequest(
 ): Promise<void> {
   if (settings.caveman?.level && settings.caveman.level !== 'off') {
     const { injectCaveman } = await import('./caveman/index.js');
-    injectCaveman(body, settings.caveman.level as any);
+    injectCaveman(body, settings.caveman.level as CavemanLevel);
   }
   if (settings.caching?.autoBreakpoints && body.system !== undefined) {
     addDualCacheBreakpoints(body, settings.caching.respectCallerMarkers);

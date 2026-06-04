@@ -22,7 +22,7 @@ clientKeyRoutes.get('/', (c) => {
         label: k.label,
         enabled: !!k.enabled,
         createdAt: k.created_at,
-        keyPreview: k.key.slice(0, 6) + '••••' + k.key.slice(-4),
+        keyPreview: `${k.key.slice(0, 6)}••••${k.key.slice(-4)}`,
       }))
     );
   } catch (e) {
