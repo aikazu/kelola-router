@@ -90,6 +90,15 @@ export function ClientKeys() {
     }
   }
 
+  async function copyKey(id: number) {
+    try {
+      const { key } = await apiFetch<{ key: string }>(`/api/admin/client-keys/${id}/key`);
+      await copy(key);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   async function handleDelete(id: number, label: string) {
     const ok = await confirmDialog({
       title: 'Delete client key',
@@ -151,6 +160,9 @@ export function ClientKeys() {
                   </td>
                   <td title={k.createdAt}>{relativeTime(k.createdAt)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
+                    <Button size="sm" variant="ghost" onClick={() => copyKey(k.id)}>
+                      Copy
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"

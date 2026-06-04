@@ -32,10 +32,14 @@ interface OverviewData {
   }>;
 }
 
+const rangeLabel = (days: number) =>
+  days === 0 ? 'all time' : days === 1 ? 'last 24 hours' : `last ${days} days`;
+
 export function Overview() {
+  const [days, setDays] = useState(1);
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['overview'],
-    queryFn: () => apiFetch<OverviewData>('/api/admin/overview'),
+    queryKey: ['overview', days],
+    queryFn: () => apiFetch<OverviewData>(`/api/admin/overview?days=${days}`),
   });
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -55,13 +59,35 @@ export function Overview() {
             Over<em>view</em>
           </>
         }
-        eyebrow="Operations / 7-day window"
+        eyebrow={`Operations / ${rangeLabel(days)}`}
+        actions={
+          <select
+            value={days}
+            onChange={(e) => setDays(Number((e.target as HTMLSelectElement).value))}
+            style={{
+              background: 'var(--ink-1)',
+              border: '1px solid var(--ink-3)',
+              color: 'var(--text-1)',
+              padding: '8px 10px',
+              borderRadius: 4,
+              fontSize: 12,
+              fontFamily: 'inherit',
+            }}
+          >
+            {[1, 7, 30, 90].map((n) => (
+              <option key={n} value={n}>
+                Last {n} day{n > 1 ? 's' : ''}
+              </option>
+            ))}
+            <option value={0}>All time</option>
+          </select>
+        }
       />
 
       {/* Hero band: dominant cost figure + supporting spec-sheet — asymmetric */}
       <div class="ov-hero">
         <div class="ov-hero-figure surface">
-          <span class="card-eyebrow">Spend · last 7 days</span>
+          <span class="card-eyebrow">Spend · {rangeLabel(days)}</span>
           {isLoading || !data ? (
             <div class="skeleton-cell" style={{ height: 56, width: '60%', marginTop: 10 }} />
           ) : (
@@ -102,7 +128,7 @@ export function Overview() {
       </div>
 
       <div class="ov-cols">
-        <Card title="By model" eyebrow="Last 7 days">
+        <Card title="By model" eyebrow={`By cost · ${rangeLabel(days)}`}>
           {isLoading || !data ? (
             <TableSkeleton rows={3} cols={3} />
           ) : data.byModel.length === 0 ? (

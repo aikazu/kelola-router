@@ -67,7 +67,7 @@ export function Usage() {
     'created_at'
   );
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState(1);
   const [selected, setSelected] = useState<number | null>(null);
 
   // URL sync: read on mount + react to hashchange (back/forward), write on change via replaceState
@@ -160,6 +160,7 @@ export function Usage() {
                 Last {n} day{n > 1 ? 's' : ''}
               </option>
             ))}
+            <option value={0}>All time</option>
           </select>
         }
       />
