@@ -5,9 +5,12 @@ import { isPasswordSet } from '../../auth/password.js';
 import { validateSession } from '../../auth/session.js';
 import { SESSION_COOKIE } from '../../auth.js';
 
-export async function requireAdminJson(c: Context, next: Next): Promise<Response | void> {
+export async function requireAdminJson(c: Context, next: Next): Promise<Response | undefined> {
   const db = c.get('db') as Database.Database;
-  if (!isPasswordSet(db)) return next();
+  if (!isPasswordSet(db)) {
+    await next();
+    return;
+  }
   const sessionId = getCookie(c, SESSION_COOKIE);
   if (!sessionId) {
     return c.json({ error: 'unauthorized', message: 'login required' }, 401);
@@ -16,7 +19,7 @@ export async function requireAdminJson(c: Context, next: Next): Promise<Response
   if (!session) {
     return c.json({ error: 'unauthorized', message: 'session expired' }, 401);
   }
-  return next();
+  await next();
 }
 
 export class ApiError extends Error {
