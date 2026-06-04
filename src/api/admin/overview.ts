@@ -9,7 +9,11 @@ export const overviewRoutes = new Hono();
 overviewRoutes.get('/overview', (c) => {
   try {
     const db = c.get('db') as Database.Database;
-    const agg = aggregateUsage(db, { days: 7 });
+    // days=0 means all-time. Default window: 1 day.
+    const q = c.req.query();
+    const days =
+      q.days !== undefined ? Math.min(365, Math.max(0, Math.floor(Number(q.days)) || 0)) : 1;
+    const agg = aggregateUsage(db, { days });
     const accounts = listAccounts(db);
     const recent = recentLogs(db, { limit: 5 });
     const enabledAccounts = accounts.filter((a) => a.enabled).length;

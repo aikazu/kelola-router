@@ -189,6 +189,36 @@ describe('requestLogs repo', () => {
     expect(agg1.total_requests).toBe(1);
   });
 
+  it('aggregateUsage days=0 includes all-time (ignores window)', () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_test' });
+    createAccount(db, { id: 'a', label: 'L', credit_type: 'payg', api_key: 'k' });
+    insertRequestLog(db, {
+      client_key_id: ck.id,
+      account_id: 'a',
+      model: 'OLD',
+      endpoint: '/v1/x',
+      format: 'openai',
+      prompt_tokens: 1,
+      completion_tokens: 1,
+      cache_creation_tokens: 0,
+      cache_read_tokens: 0,
+      total_tokens: 2,
+      cost_usd: 3,
+      latency_ms: 1,
+      status_code: 200,
+      stream: 0,
+      rtk_bytes_saved: 0,
+    });
+    db.prepare(`UPDATE request_logs SET created_at = '2000-01-01 00:00:00' WHERE id = 1`).run();
+    // 7-day window excludes the ancient log
+    expect(aggregateUsage(db, { days: 7 }).total_requests).toBe(0);
+    // days=0 = all-time, includes it
+    const all = aggregateUsage(db, { days: 0 });
+    expect(all.total_requests).toBe(1);
+    expect(all.total_cost).toBe(3);
+  });
+
   it('cleanupOldLogs deletes > 90 days', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_test' });

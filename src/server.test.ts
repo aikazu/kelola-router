@@ -377,6 +377,37 @@ describe('SPA admin API endpoints', () => {
     expect(body.page).toHaveProperty('totalPages');
   });
 
+  it('/api/admin/usage?days=0 returns all-time with null deltas', async () => {
+    const db = openDb();
+    const ins = (cost: number, daysAgo: number) => {
+      db.prepare(`
+        INSERT INTO request_logs
+          (created_at, model, endpoint, format, prompt_tokens, completion_tokens,
+           cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd,
+           latency_ms, status_code, stream, rtk_bytes_saved)
+        VALUES (?, 'M', '/v1/x', 'openai', 1, 1, 0, 0, 2, ?, 1, 200, 0, 0)
+      `).run(new Date(Date.now() - daysAgo * 86_400_000).toISOString(), cost);
+    };
+    ins(1, 0); // current window
+    ins(2, 1.5); // previous 1-day window — would yield non-null delta at days=1
+    // days=0 = all-time: no previous period, deltas must be null
+    const res = await app.request('/api/admin/usage?days=0');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.summary.deltaCostPct).toBeNull();
+    expect(body.summary.deltaRequestsPct).toBeNull();
+    expect(body.summary.deltaTokensPct).toBeNull();
+    // sanity: all-time picks up both logs
+    expect(body.summary.totalRequests).toBe(2);
+  });
+
+  it('/api/admin/overview?days=0 returns 200 JSON (all-time)', async () => {
+    const res = await app.request('/api/admin/overview?days=0');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('stats');
+  });
+
   it('/api/admin/client-keys returns list (empty)', async () => {
     const res = await app.request('/api/admin/client-keys');
     expect(res.status).toBe(200);

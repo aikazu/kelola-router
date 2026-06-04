@@ -9,7 +9,10 @@ usageRoutes.get('/usage', (c) => {
   try {
     const db = c.get('db') as Database.Database;
     const q = c.req.query();
-    const days = q.days ? Math.min(365, Math.max(1, Number(q.days))) : 30;
+    // days=0 (or absent value "0") means all-time. Default window: 1 day.
+    const days =
+      q.days !== undefined ? Math.min(365, Math.max(0, Math.floor(Number(q.days)) || 0)) : 1;
+    const allTime = days === 0;
     const page = q.page ? Math.max(1, Number(q.page)) : 1;
     const pageSize = q.page_size ? Math.min(200, Math.max(1, Number(q.page_size))) : 50;
     const clientKeyId = q.client_key ? Number(q.client_key) : undefined;
@@ -34,34 +37,43 @@ usageRoutes.get('/usage', (c) => {
       sortBy,
       sortDir,
     };
-    const since = new Date(Date.now() - days * 86_400_000).toISOString();
-    if (!fromIso) filter.fromIso = since;
+    const since = allTime ? null : new Date(Date.now() - days * 86_400_000).toISOString();
+    if (!fromIso && since) filter.fromIso = since;
     const paged = pagedLogs(db, filter);
 
-    // Period 2: same window length immediately before, for delta
-    const prevSince = new Date(Date.now() - 2 * days * 86_400_000).toISOString();
-    const prevTo = since;
-    const prev = aggregateUsage(db, { clientKeyId, days }); // summary on full window
-    const prevRow = db
-      .prepare(`
-      SELECT COALESCE(SUM(cost_usd),0) as cost, COUNT(*) as reqs, COALESCE(SUM(total_tokens),0) as toks
-      FROM request_logs
-      WHERE created_at >= ? AND created_at < ? ${clientKeyId !== undefined ? 'AND client_key_id = ?' : ''}
-    `)
-      .get(
-        ...(clientKeyId !== undefined ? [prevSince, prevTo, clientKeyId] : [prevSince, prevTo])
-      ) as { cost: number; reqs: number; toks: number };
+    // summary on full window (days=0 => all-time inside aggregateUsage)
+    const cur = aggregateUsage(db, { clientKeyId, days });
 
+    // Period 2: same window length immediately before, for delta.
+    // All-time has no previous period, so deltas are null.
     const deltaPct = (a: number, b: number) => (b === 0 ? null : ((a - b) / b) * 100);
+    let deltaCostPct: number | null = null;
+    let deltaRequestsPct: number | null = null;
+    let deltaTokensPct: number | null = null;
+    if (!allTime && since) {
+      const prevSince = new Date(Date.now() - 2 * days * 86_400_000).toISOString();
+      const prevRow = db
+        .prepare(`
+        SELECT COALESCE(SUM(cost_usd),0) as cost, COUNT(*) as reqs, COALESCE(SUM(total_tokens),0) as toks
+        FROM request_logs
+        WHERE created_at >= ? AND created_at < ? ${clientKeyId !== undefined ? 'AND client_key_id = ?' : ''}
+      `)
+        .get(
+          ...(clientKeyId !== undefined ? [prevSince, since, clientKeyId] : [prevSince, since])
+        ) as { cost: number; reqs: number; toks: number };
+      deltaCostPct = deltaPct(cur.total_cost, prevRow.cost);
+      deltaRequestsPct = deltaPct(cur.total_requests, prevRow.reqs);
+      deltaTokensPct = deltaPct(cur.total_tokens, prevRow.toks);
+    }
 
     return c.json({
       summary: {
-        totalCost: prev.total_cost,
-        totalRequests: prev.total_requests,
-        totalTokens: prev.total_tokens,
-        deltaCostPct: deltaPct(prev.total_cost, prevRow.cost),
-        deltaRequestsPct: deltaPct(prev.total_requests, prevRow.reqs),
-        deltaTokensPct: deltaPct(prev.total_tokens, prevRow.toks),
+        totalCost: cur.total_cost,
+        totalRequests: cur.total_requests,
+        totalTokens: cur.total_tokens,
+        deltaCostPct,
+        deltaRequestsPct,
+        deltaTokensPct,
       },
       page: {
         rows: paged.rows.map((l) => ({

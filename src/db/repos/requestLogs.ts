@@ -240,14 +240,18 @@ export function aggregateUsage(
   db: Database.Database,
   filter: { clientKeyId?: number; days: number }
 ): UsageAggregate {
-  const since = new Date(Date.now() - filter.days * 86_400_000).toISOString();
-  const where: string[] = ['created_at > ?'];
-  const params: (string | number)[] = [since];
+  const where: string[] = [];
+  const params: (string | number)[] = [];
+  // days <= 0 means all-time: skip the time-window clause entirely.
+  if (filter.days > 0) {
+    where.push('created_at > ?');
+    params.push(new Date(Date.now() - filter.days * 86_400_000).toISOString());
+  }
   if (filter.clientKeyId !== undefined) {
     where.push('client_key_id = ?');
     params.push(filter.clientKeyId);
   }
-  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const total = db
     .prepare(`
     SELECT COALESCE(SUM(cost_usd), 0) as cost, COUNT(*) as reqs, COALESCE(SUM(total_tokens), 0) as toks
