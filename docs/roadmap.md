@@ -12,6 +12,15 @@ Speculative — these are ideas, not commitments. Edit freely.
 - **Prometheus `/metrics` endpoint** — scrape-friendly counters and histograms
 - **Webhooks for error events** — POST to a configured URL on fatal upstream errors
 
+## v0.15 — 2026-06-04
+
+**Quota phantom-block root cause + schema consolidation.** Cleanup after a dashboard bug where the quota page rendered a duplicate 0% block.
+- **Puller skip nameless items.** `model_remains[]` items without `model_name` (upstream occasionally emits these) are dropped at parse time. The frontend cannot group them, so storing them as NULL-model rows would surface as a phantom `general` pair. Three layers of defense: source (puller skips), read (query filters `model_name IS NOT NULL`), data (legacy NULL rows cleaned out).
+- **Single migration.** Migrations 002-008 folded into one `001-initial.ts` containing the full final schema. Legacy upgrade stubs (admin-key, drop-users, drop-thinking) and the dead `repos/users.ts` tombstone removed. Fresh-deploy only — existing DBs upgrade in place (the consolidated schema is a superset). `user_version = 1`.
+- **Type tightening.** Shared `OpenAIBody` / `AnthropicBody` / `ContentBlock` types in `src/providers/format/messageTypes.ts` reused by `transform.ts`, `cache-injection.ts`, `caveman/index.ts`, `alias.ts`. All 5 functions in `format/transform.ts` now have typed signatures; the `bodyOpenAIToAnthropic` / `bodyAnthropicToOpenAI` / `responseOpenAIToAnthropic` / `responseAnthropicToOpenAI` / `bodyAddsOpenAIStreamUsage` no longer accept or return `any`. Internal `as any` casts inside the function bodies remain (low-risk narrowing deferred to a future plan).
+- **Dead field removed.** `schemaVersion: 1` in the seeded `build` setting was an artifact of the old per-step migration system; the real schema version lives in the `user_version` PRAGMA. Reader audit found zero consumers; field removed.
+- **Lint debt paid down.** `noExplicitAny` warnings dropped from 19 → 14 (across `format/transform.ts` internals + a few pre-existing `rtk/` and `transport/` instances deferred to a follow-up). `noConfusingVoidType` resolved in `src/api/admin/middleware.ts` by aligning with the `Promise<Response | undefined>` convention already used in `src/auth.ts`.
+
 ## v0.14 — 2026-06-04
 
 **Usage all-time range + per-row key copy.**
@@ -21,7 +30,7 @@ Speculative — these are ideas, not commitments. Edit freely.
 **Quota flow fix + redesign.** The quota page showed "no data" because the puller parsed the wrong upstream shape — and the few fields it did store were semantically swapped.
 - **Real shape parsed.** Live MiniMax `token_plan/remains` and `coding_plan/remains` both return nested `{ model_remains: [ { model_name, current_interval_*, current_weekly_*, remains_time, current_*_remaining_percent } ] }`. The old parser read a flat top-level object → every field `undefined` → null snapshots. Rewritten as a single shared parser over both endpoints (token_plan → coding_plan fallback).
 - **Semantic swap fixed.** `current_interval_usage_count` is the amount **used**. Code had stored it as `remaining_count`, and stored `total − usage` (the actual remaining) as `used_count`. Now `used_count = usage_count`, `remaining_count = max(0, total − usage)`.
-- **Percent + reset stored.** Migration 008 adds `model_name`, `remaining_percent`, `remains_time` to `quota_snapshots`. `general` plan is not count-metered (total 0/0), so `remaining_percent` is the only meaningful signal there.
+- **Percent + reset stored.** Migration 008 (consolidated into the single `001-initial` schema in v0.15) added `model_name`, `remaining_percent`, `remains_time` to `quota_snapshots`. `general` plan is not count-metered (total 0/0), so `remaining_percent` is the only meaningful signal there.
 - **API per-model.** `/api/admin/quota` groups latest snapshots by `(model_name, window_type)` instead of collapsing all models into one row; payload gains `modelName`, `remainingPercent`, `remainsTime`.
 - **Page redesign.** Per-model percent bars (general, video) with 5h + weekly windows, gold gradient fill, status dot, `used / total` count detail when metered, and a "resets in 2h 9m" countdown from `remains_time` (new `forwardDuration` helper). Obsidian Gold throughout.
 
