@@ -4,26 +4,44 @@ import { insertQuotaSnapshot } from '../db/repos/quotaSnapshots.js';
 import { getBaseUrl } from './baseUrl.js';
 import { buildHeaders } from './headers.js';
 
-type TokenPlanResponse = {
-  current_interval_total_count: number;
-  current_interval_usage_count: number;
+// Real MiniMax shape (both token_plan and coding_plan endpoints return this):
+// { model_remains: [ { model_name, current_interval_*, current_weekly_*, remains_time, ... } ] }
+interface ModelRemain {
+  model_name: string;
   start_time?: number;
   end_time?: number;
-  current_weekly_total_count: number;
-  current_weekly_usage_count: number;
+  remains_time?: number;
+  current_interval_total_count?: number;
+  current_interval_usage_count?: number;
+  current_interval_remaining_percent?: number;
+  current_weekly_total_count?: number;
+  current_weekly_usage_count?: number;
+  current_weekly_remaining_percent?: number;
   weekly_start_time?: number;
   weekly_end_time?: number;
+  weekly_remains_time?: number;
+}
+
+interface ModelRemainsResponse {
+  model_remains?: ModelRemain[];
+}
+
+type ParsedSnapshot = {
+  account_id: string;
+  source: string;
+  model_name: string | null;
+  total_count: number | null;
+  remaining_count: number | null;
+  used_count: number | null;
+  remaining_percent: number | null;
+  remains_time: number | null;
+  window_type: string | null;
+  window_start: string | null;
+  window_end: string | null;
 };
 
-type CodingPlanResponse = {
-  model_remains?: Array<{
-    model_name: string;
-    current_interval_total_count: number;
-    current_interval_usage_count: number;
-    start_time?: number;
-    end_time?: number;
-  }>;
-};
+const isoOrNull = (ms?: number): string | null =>
+  ms && ms > 0 ? new Date(ms).toISOString() : null;
 
 export async function pullQuota(
   db: Database.Database,
@@ -38,106 +56,77 @@ export async function pullQuota(
     baseUrl: account.base_url ?? '',
     apiKey: account.api_key,
   };
+  const base = getBaseUrl(accountLite, 'openai');
+  const headers = buildHeaders(accountLite, false, 'openai');
 
-  try {
-    const url = `${getBaseUrl(accountLite, 'openai')}/v1/token_plan/remains`;
-    const resp = await fetch(url, {
-      method: 'GET',
-      headers: buildHeaders(accountLite, false, 'openai'),
-    });
-    if (resp.ok) {
-      const data: TokenPlanResponse = await resp.json();
-      const snapshots = parseTokenPlanRemains(data, account.id);
-      const raw = JSON.stringify(data);
-      for (const s of snapshots) insertQuotaSnapshot(db, { ...s, raw_response: raw });
-      return { ok: true };
-    }
-  } catch (e: unknown) {
-    console.warn(
-      `[quota] token_plan pull failed for ${account.id}, falling back:`,
-      (e as Error).message
-    );
-  }
-
-  try {
-    const url = `${getBaseUrl(accountLite, 'openai')}/v1/api/openplatform/coding_plan/remains`;
-    const resp = await fetch(url, {
-      method: 'GET',
-      headers: buildHeaders(accountLite, false, 'openai'),
-    });
-    if (resp.ok) {
-      const data: CodingPlanResponse = await resp.json();
-      const snapshots = parseCodingPlanRemains(data, account.id);
-      const raw = JSON.stringify(data);
-      for (const s of snapshots) insertQuotaSnapshot(db, { ...s, raw_response: raw });
-      return { ok: true };
-    }
-  } catch (e: unknown) {
-    return { ok: false, error: (e as Error).message };
-  }
-
-  return { ok: false, error: 'upstream not ok' };
-}
-
-function parseTokenPlanRemains(
-  data: TokenPlanResponse,
-  accountId: string
-): Array<{
-  account_id: string;
-  source: string;
-  total_count: number | null;
-  remaining_count: number | null;
-  used_count: number | null;
-  window_type: string | null;
-  window_start: string | null;
-  window_end: string | null;
-}> {
-  return [
-    {
-      account_id: accountId,
-      source: 'token_plan',
-      window_type: '5h',
-      total_count: data.current_interval_total_count ?? null,
-      remaining_count: data.current_interval_usage_count ?? null,
-      used_count:
-        (data.current_interval_total_count ?? 0) - (data.current_interval_usage_count ?? 0),
-      window_start: data.start_time ? new Date(data.start_time).toISOString() : null,
-      window_end: data.end_time ? new Date(data.end_time).toISOString() : null,
-    },
-    {
-      account_id: accountId,
-      source: 'token_plan',
-      window_type: 'weekly',
-      total_count: data.current_weekly_total_count ?? null,
-      remaining_count: data.current_weekly_usage_count ?? null,
-      used_count: (data.current_weekly_total_count ?? 0) - (data.current_weekly_usage_count ?? 0),
-      window_start: data.weekly_start_time ? new Date(data.weekly_start_time).toISOString() : null,
-      window_end: data.weekly_end_time ? new Date(data.weekly_end_time).toISOString() : null,
-    },
+  const tried = [
+    { source: 'token_plan', url: `${base}/v1/token_plan/remains` },
+    { source: 'coding_plan', url: `${base}/v1/api/openplatform/coding_plan/remains` },
   ];
+
+  let lastError = 'upstream not ok';
+  for (const t of tried) {
+    try {
+      const resp = await fetch(t.url, { method: 'GET', headers });
+      if (!resp.ok) {
+        lastError = `upstream ${resp.status}`;
+        continue;
+      }
+      const data: ModelRemainsResponse = await resp.json();
+      const snapshots = parseModelRemains(data, account.id, t.source);
+      if (snapshots.length === 0) {
+        lastError = 'empty model_remains';
+        continue;
+      }
+      const raw = JSON.stringify(data);
+      for (const s of snapshots) insertQuotaSnapshot(db, { ...s, raw_response: raw });
+      return { ok: true };
+    } catch (e: unknown) {
+      lastError = (e as Error).message;
+    }
+  }
+
+  return { ok: false, error: lastError };
 }
 
-function parseCodingPlanRemains(
-  data: CodingPlanResponse,
-  accountId: string
-): Array<{
-  account_id: string;
-  source: string;
-  total_count: number | null;
-  remaining_count: number | null;
-  used_count: number | null;
-  window_type: string | null;
-  window_start: string | null;
-  window_end: string | null;
-}> {
-  return (data.model_remains ?? []).map((m) => ({
-    account_id: accountId,
-    source: 'coding_plan',
-    window_type: '5h',
-    total_count: m.current_interval_total_count ?? null,
-    remaining_count: m.current_interval_usage_count ?? null,
-    used_count: (m.current_interval_total_count ?? 0) - (m.current_interval_usage_count ?? 0),
-    window_start: m.start_time ? new Date(m.start_time).toISOString() : null,
-    window_end: m.end_time ? new Date(m.end_time).toISOString() : null,
-  }));
+function parseModelRemains(
+  data: ModelRemainsResponse,
+  accountId: string,
+  source: string
+): ParsedSnapshot[] {
+  const out: ParsedSnapshot[] = [];
+  for (const m of data.model_remains ?? []) {
+    const iTotal = m.current_interval_total_count ?? 0;
+    const iUsed = m.current_interval_usage_count ?? 0;
+    out.push({
+      account_id: accountId,
+      source,
+      model_name: m.model_name ?? null,
+      window_type: '5h',
+      total_count: iTotal,
+      used_count: iUsed,
+      remaining_count: Math.max(0, iTotal - iUsed),
+      remaining_percent: m.current_interval_remaining_percent ?? null,
+      remains_time: m.remains_time ?? null,
+      window_start: isoOrNull(m.start_time),
+      window_end: isoOrNull(m.end_time),
+    });
+
+    const wTotal = m.current_weekly_total_count ?? 0;
+    const wUsed = m.current_weekly_usage_count ?? 0;
+    out.push({
+      account_id: accountId,
+      source,
+      model_name: m.model_name ?? null,
+      window_type: 'weekly',
+      total_count: wTotal,
+      used_count: wUsed,
+      remaining_count: Math.max(0, wTotal - wUsed),
+      remaining_percent: m.current_weekly_remaining_percent ?? null,
+      remains_time: m.weekly_remains_time ?? null,
+      window_start: isoOrNull(m.weekly_start_time),
+      window_end: isoOrNull(m.weekly_end_time),
+    });
+  }
+  return out;
 }

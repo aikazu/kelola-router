@@ -6,6 +6,7 @@ import { migration_004 } from './004-sessions.js';
 import { migration_005 } from './005-request-bodies.js';
 import { migration_006 } from './006-drop-thinking-fields.js';
 import { migration_007 } from './007-model-aliases.js';
+import { migration_008 } from './008-quota-percent.js';
 
 const ALL_MIGRATIONS: Array<{
   id: number;
@@ -20,6 +21,7 @@ const ALL_MIGRATIONS: Array<{
   migration_005,
   migration_006,
   migration_007,
+  migration_008,
 ];
 
 export function migrate(db: Database.Database): void {

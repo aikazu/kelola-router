@@ -4,9 +4,12 @@ export interface QuotaSnapshot {
   id: number;
   account_id: string;
   source: string;
+  model_name: string | null;
   total_count: number | null;
   remaining_count: number | null;
   used_count: number | null;
+  remaining_percent: number | null;
+  remains_time: number | null;
   window_type: string | null;
   window_start: string | null;
   window_end: string | null;
@@ -20,16 +23,19 @@ export function insertQuotaSnapshot(
 ): number {
   const info = db
     .prepare(
-      `INSERT INTO quota_snapshots (account_id, source, total_count, remaining_count, used_count,
-      window_type, window_start, window_end, raw_response)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO quota_snapshots (account_id, source, model_name, total_count, remaining_count,
+      used_count, remaining_percent, remains_time, window_type, window_start, window_end, raw_response)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       s.account_id,
       s.source,
+      s.model_name,
       s.total_count,
       s.remaining_count,
       s.used_count,
+      s.remaining_percent,
+      s.remains_time,
       s.window_type,
       s.window_start,
       s.window_end,
