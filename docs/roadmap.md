@@ -12,6 +12,19 @@ Speculative — these are ideas, not commitments. Edit freely.
 - **Prometheus `/metrics` endpoint** — scrape-friendly counters and histograms
 - **Webhooks for error events** — POST to a configured URL on fatal upstream errors
 
+## v0.14 — 2026-06-04
+
+**Usage all-time range + per-row key copy.**
+- **All-time window.** Overview + Usage range selector gains an "all" option; `days=0` means no time clause in `aggregateUsage` (null deltas). Default range dropped to 1 day.
+- **Copy full client key.** `GET /api/admin/client-keys/:id/key` returns the full plaintext bearer for a per-row Copy button; the list itself stays masked.
+
+**Quota flow fix + redesign.** The quota page showed "no data" because the puller parsed the wrong upstream shape — and the few fields it did store were semantically swapped.
+- **Real shape parsed.** Live MiniMax `token_plan/remains` and `coding_plan/remains` both return nested `{ model_remains: [ { model_name, current_interval_*, current_weekly_*, remains_time, current_*_remaining_percent } ] }`. The old parser read a flat top-level object → every field `undefined` → null snapshots. Rewritten as a single shared parser over both endpoints (token_plan → coding_plan fallback).
+- **Semantic swap fixed.** `current_interval_usage_count` is the amount **used**. Code had stored it as `remaining_count`, and stored `total − usage` (the actual remaining) as `used_count`. Now `used_count = usage_count`, `remaining_count = max(0, total − usage)`.
+- **Percent + reset stored.** Migration 008 adds `model_name`, `remaining_percent`, `remains_time` to `quota_snapshots`. `general` plan is not count-metered (total 0/0), so `remaining_percent` is the only meaningful signal there.
+- **API per-model.** `/api/admin/quota` groups latest snapshots by `(model_name, window_type)` instead of collapsing all models into one row; payload gains `modelName`, `remainingPercent`, `remainsTime`.
+- **Page redesign.** Per-model percent bars (general, video) with 5h + weekly windows, gold gradient fill, status dot, `used / total` count detail when metered, and a "resets in 2h 9m" countdown from `remains_time` (new `forwardDuration` helper). Obsidian Gold throughout.
+
 ## v0.13 — 2026-06-04
 
 **Hot-path latency.** Cut the work the proxy does on top of raw MiniMax latency, with tracking kept 100% intact. Warm per-request SQLite statement executions dropped from 8 → 5 (measured by `tests/bench/hotpath.bench.test.ts`); router overhead against an instant fake upstream roughly halved.

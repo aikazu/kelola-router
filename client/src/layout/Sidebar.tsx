@@ -55,7 +55,7 @@ export function Sidebar({ current }: { current: string }) {
         ))}
       </nav>
       <div class="user-card">
-        <span>v0.13</span>
+        <span>v0.14</span>
         {me?.passwordSet && (
           <button
             onClick={async () => {

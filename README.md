@@ -8,7 +8,7 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.13](https://img.shields.io/badge/release-v0.13-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.13)
+[![v0.14](https://img.shields.io/badge/release-v0.14-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.14)
 [![Tests](https://img.shields.io/badge/tests-294-success?logo=vitest&logoColor=white)](#-development)
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
@@ -321,6 +321,7 @@ Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 
 | Phase | Version | Status | Scope |
 |------:|:--------|:------:|:------|
+| 14 | **v0.14** | ✅ shipped | Usage all-time range (`days=0`, null deltas) + 1-day default; per-row Copy full client key (`GET /client-keys/:id/key`, list stays masked). Quota flow fix + redesign: parse real MiniMax nested `model_remains[]` shape (old parser read a flat shape → "no data"), fix used/remaining semantic swap (`used_count = usage_count`, `remaining_count = total − usage`), store `remaining_percent` + `remains_time` (migration 008); admin API groups latest snapshots per `(model_name, window_type)`; Quota page redesigned as per-model percent bars (general/video) with reset countdown, status dot, count detail when metered |
 | 13 | **v0.13** | ✅ shipped | Hot-path latency cuts (warm SQLite statement executions per request 8 → 5): batched settings read, skip no-op account writes, throttled lock cleanup, client-key lookup cache, deferred request-log insert (off the response path via `setImmediate`), fast-path raw-body passthrough when no transform applies; fixed `stream_options.include_usage` injection (return value was discarded), `adminApi` per-request db handle, `resetDb` closing the handle |
 | 12 | **v0.12** | ✅ shipped | Model aliases (CRUD, cache, `requested_model` log); Biome linter (root + client, `lint`/`lint:fix` scripts); roadmap → `docs/roadmap.md` |
 | 11 | **v0.11** | ✅ shipped | Adaptive thinking: collapse `-thinking` built-ins into base models via allowlist, `thinking.type: "adaptive"` auto-inject, `reasoning_split` follows thinking presence, drop `thinking_enabled`/`thinking_budget` columns, legacy `-thinking` aliases still resolve |
