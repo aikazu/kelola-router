@@ -119,6 +119,27 @@ describe('pullQuota', () => {
     expect(gWk.remaining_percent).toBe(87);
   });
 
+  it('skips model_remains items with no model_name (never inserts NULL-model rows)', async () => {
+    const db = openDb();
+    const a = createAccount(db, { id: 'a7', label: 'L', credit_type: 'token-plan', api_key: 'k' });
+    const body = modelRemainsBody();
+    // Upstream sometimes returns an item without model_name — it cannot be grouped, drop it.
+    (body.model_remains as Array<Record<string, unknown>>).push({
+      current_interval_total_count: 0,
+      current_interval_usage_count: 0,
+      current_weekly_total_count: 0,
+      current_weekly_usage_count: 0,
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(body), { status: 200 })
+    );
+    await pullQuota(db, a);
+    const snaps = latestQuotaByAccount(db, 'a7', 50);
+    // Still 4 (general + video), the nameless item produced nothing.
+    expect(snaps.length).toBe(4);
+    expect(snaps.every((s) => s.model_name != null)).toBe(true);
+  });
+
   it('falls back to coding_plan when token_plan fails', async () => {
     const db = openDb();
     const a = createAccount(db, { id: 'a6', label: 'L', credit_type: 'token-plan', api_key: 'k' });

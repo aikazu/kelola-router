@@ -96,12 +96,14 @@ function parseModelRemains(
 ): ParsedSnapshot[] {
   const out: ParsedSnapshot[] = [];
   for (const m of data.model_remains ?? []) {
+    // No model_name -> ungroupable in the dashboard; skip rather than store a NULL-model row.
+    if (!m.model_name) continue;
     const iTotal = m.current_interval_total_count ?? 0;
     const iUsed = m.current_interval_usage_count ?? 0;
     out.push({
       account_id: accountId,
       source,
-      model_name: m.model_name ?? null,
+      model_name: m.model_name,
       window_type: '5h',
       total_count: iTotal,
       used_count: iUsed,
@@ -117,7 +119,7 @@ function parseModelRemains(
     out.push({
       account_id: accountId,
       source,
-      model_name: m.model_name ?? null,
+      model_name: m.model_name,
       window_type: 'weekly',
       total_count: wTotal,
       used_count: wUsed,
