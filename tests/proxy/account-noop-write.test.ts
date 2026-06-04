@@ -83,11 +83,14 @@ describe('account no-op write guard', () => {
 
     const realPrepare = Database.prototype.prepare;
     let accountUpdates = 0;
-    vi.spyOn(Database.prototype, 'prepare').mockImplementation(function (this: any, sql: string) {
+    vi.spyOn(Database.prototype, 'prepare').mockImplementation(function (
+      this: Database.Database,
+      sql: string
+    ) {
       const stmt = realPrepare.call(this, sql);
       if (/UPDATE accounts/i.test(sql)) {
-        const origRun = (stmt as any).run.bind(stmt);
-        (stmt as any).run = (...args: unknown[]) => {
+        const origRun = (stmt as Database.Statement).run.bind(stmt);
+        (stmt as Database.Statement).run = (...args: unknown[]) => {
           accountUpdates++;
           return origRun(...(args as Parameters<typeof origRun>));
         };
