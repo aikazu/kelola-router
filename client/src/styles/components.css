@@ -348,6 +348,133 @@ table.tbl {
   background: var(--alert);
 }
 
+/* --- Quota --------------------------------------------------------------- */
+.quota-model {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  opacity: 0;
+  animation: quota-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.quota-model:first-of-type {
+  border-top: 0;
+}
+@keyframes quota-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.quota-model-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.quota-model-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex-shrink: 0;
+}
+.status-dot.active {
+  background: var(--signal);
+  box-shadow: 0 0 0 3px rgba(108, 195, 166, 0.14);
+}
+
+.quota-bar-row {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.quota-bar-row:first-child {
+  margin-top: 0;
+}
+.quota-win-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.quota-bar-track {
+  height: 6px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.quota-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold) 60%, var(--gold-bright));
+  transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.quota-bar-fill.warn {
+  background: linear-gradient(90deg, #8a3a30, var(--alert));
+}
+.quota-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+.quota-pct {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: right;
+}
+.quota-pct.warn {
+  color: var(--alert);
+}
+.quota-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.reset-chip {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 560px) {
+  .quota-bar-row {
+    grid-template-columns: 44px 1fr;
+    grid-template-areas: "label bar" "meta meta";
+    row-gap: 6px;
+  }
+  .quota-win-label {
+    grid-area: label;
+  }
+  .quota-bar-track {
+    grid-area: bar;
+  }
+  .quota-meta {
+    grid-area: meta;
+    justify-content: flex-end;
+  }
+}
+
 /* --- Modal --------------------------------------------------------------- */
 .modal-backdrop {
   position: fixed;

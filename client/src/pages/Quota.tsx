@@ -2,17 +2,19 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
-import { Progress } from '../components/Progress';
 import { TableSkeleton } from '../components/Skeleton';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
-import { relativeTime } from '../lib/relativeTime';
+import { forwardDuration, relativeTime } from '../lib/relativeTime';
 
 interface QuotaWindow {
+  modelName: string;
   windowType: string;
   usedCount: number;
   totalCount: number;
   remainingCount: number;
+  remainingPercent: number | null;
+  remainsTime: number | null;
   windowEnd: string | null;
   fetchedAt: string;
 }
@@ -22,6 +24,62 @@ interface AccountQuota {
   creditType: string;
   enabled: boolean;
   windows: QuotaWindow[];
+}
+
+const WINDOW_LABEL: Record<string, string> = { '5h': '5h', weekly: 'wk' };
+const WINDOW_ORDER = ['5h', 'weekly'];
+
+// Percent the bar should show: prefer upstream remaining_percent; else derive from counts.
+function pctOf(w: QuotaWindow): number {
+  if (w.remainingPercent != null) return Math.max(0, Math.min(100, w.remainingPercent));
+  if (w.totalCount > 0) return Math.round((w.remainingCount / w.totalCount) * 100);
+  return 0;
+}
+
+function BarRow({ w }: { w: QuotaWindow }) {
+  const pct = pctOf(w);
+  const warn = pct < 20;
+  return (
+    <div class="quota-bar-row">
+      <span class="quota-win-label">{WINDOW_LABEL[w.windowType] ?? w.windowType}</span>
+      <div class="quota-bar-track">
+        <div class={`quota-bar-fill${warn ? ' warn' : ''}`} style={{ width: `${pct}%` }} />
+      </div>
+      <div class="quota-meta">
+        <span class={`quota-pct${warn ? ' warn' : ''}`}>{pct}%</span>
+        {w.totalCount > 0 && (
+          <span class="quota-count">
+            {w.usedCount.toLocaleString()} / {w.totalCount.toLocaleString()}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModelBlock({ windows, delay }: { windows: QuotaWindow[]; delay: number }) {
+  const ordered = [...windows].sort(
+    (a, b) => WINDOW_ORDER.indexOf(a.windowType) - WINDOW_ORDER.indexOf(b.windowType)
+  );
+  const head = ordered[0];
+  const fiveH = ordered.find((w) => w.windowType === '5h');
+  const reset = fiveH?.remainsTime ?? null;
+  return (
+    <div class="quota-model" style={{ animationDelay: `${delay}ms` }}>
+      <div class="quota-model-head">
+        <span class="status-dot active" />
+        <span class="quota-model-name">{head.modelName}</span>
+        {reset != null && (
+          <span class="reset-chip" style={{ marginLeft: 'auto' }}>
+            resets in {forwardDuration(reset)}
+          </span>
+        )}
+      </div>
+      {ordered.map((w) => (
+        <BarRow key={w.windowType} w={w} />
+      ))}
+    </div>
+  );
 }
 
 export function Quota() {
@@ -56,14 +114,9 @@ export function Quota() {
         eyebrow="Balance / limits"
       />
       {isLoading ? (
-        <>
-          <Card>
-            <TableSkeleton rows={2} cols={2} />
-          </Card>
-          <Card>
-            <TableSkeleton rows={2} cols={2} />
-          </Card>
-        </>
+        <Card>
+          <TableSkeleton rows={3} cols={3} />
+        </Card>
       ) : quotas.length === 0 ? (
         <div class="empty">
           <h3>No accounts</h3>
@@ -71,8 +124,18 @@ export function Quota() {
         </div>
       ) : (
         quotas.map((q) => {
-          const h5 = q.windows.find((w) => w.windowType === '5h');
-          const wk = q.windows.find((w) => w.windowType === 'weekly');
+          // Group this account's windows by model.
+          const byModel = new Map<string, QuotaWindow[]>();
+          for (const w of q.windows) {
+            const list = byModel.get(w.modelName) ?? [];
+            list.push(w);
+            byModel.set(w.modelName, list);
+          }
+          const models = [...byModel.entries()];
+          const lastFetched =
+            q.windows.length > 0
+              ? q.windows.reduce((a, b) => (a.fetchedAt > b.fetchedAt ? a : b)).fetchedAt
+              : null;
           return (
             <Card
               key={q.accountId}
@@ -88,42 +151,15 @@ export function Quota() {
                   Account disabled
                 </p>
               )}
-              {h5 ? (
-                <>
-                  <p class="card-sub">5h window — resets {relativeTime(h5.windowEnd)}</p>
-                  <Progress
-                    value={h5.usedCount}
-                    max={h5.totalCount}
-                    warn={h5.remainingCount < h5.totalCount * 0.2}
-                  />
-                  <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
-                    {h5.usedCount.toLocaleString()} / {h5.totalCount.toLocaleString()} (
-                    {h5.remainingCount.toLocaleString()} remaining)
-                  </p>
-                </>
+              {models.length === 0 ? (
+                <p class="card-sub">No quota data yet — puller refreshes every 5 min.</p>
               ) : (
-                <p class="card-sub">5h: no data</p>
+                models.map(([model, windows], i) => (
+                  <ModelBlock key={model} windows={windows} delay={i * 70} />
+                ))
               )}
-              {wk ? (
-                <div style={{ marginTop: 16 }}>
-                  <p class="card-sub">Weekly — resets {relativeTime(wk.windowEnd)}</p>
-                  <Progress
-                    value={wk.usedCount}
-                    max={wk.totalCount}
-                    warn={wk.remainingCount < wk.totalCount * 0.2}
-                  />
-                  <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
-                    {wk.usedCount.toLocaleString()} / {wk.totalCount.toLocaleString()} (
-                    {wk.remainingCount.toLocaleString()} remaining)
-                  </p>
-                </div>
-              ) : (
-                <p class="card-sub" style={{ marginTop: 16 }}>
-                  Weekly: no data
-                </p>
-              )}
-              <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 12 }}>
-                Last fetched {relativeTime(h5?.fetchedAt ?? wk?.fetchedAt ?? null)}
+              <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 14 }}>
+                Last fetched {relativeTime(lastFetched)}
               </p>
             </Card>
           );
