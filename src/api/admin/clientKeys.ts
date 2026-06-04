@@ -6,6 +6,7 @@ import {
   disableClientKey,
   enableClientKey,
   genClientKey,
+  getClientKey,
   listClientKeys,
 } from '../../db/repos/client_keys.js';
 import { ApiError, handleApiError } from './middleware.js';
@@ -43,6 +44,17 @@ clientKeyRoutes.post('/', (c) => {
         return c.json({ id: created.id, key, label: body.label }, 201);
       })
       .catch((e: unknown) => handleApiError(e));
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+clientKeyRoutes.get('/:id/key', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const row = getClientKey(db, Number(c.req.param('id')));
+    if (!row) throw new ApiError('not_found', 'client key not found', 404);
+    return c.json({ id: row.id, label: row.label, key: row.key });
   } catch (e) {
     return handleApiError(e);
   }

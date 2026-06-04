@@ -408,6 +408,23 @@ describe('SPA admin API endpoints', () => {
     expect(body).toHaveProperty('stats');
   });
 
+  it('/api/admin/client-keys/:id/key returns the full bearer key', async () => {
+    const db = openDb();
+    db.prepare(
+      `INSERT INTO client_keys (label, key, enabled, created_at) VALUES ('app', 'rk_fullsecret123', 1, ?)`
+    ).run(new Date(Date.now()).toISOString());
+    const row = db.prepare(`SELECT id FROM client_keys WHERE label='app'`).get() as { id: number };
+    const res = await app.request(`/api/admin/client-keys/${row.id}/key`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.key).toBe('rk_fullsecret123');
+  });
+
+  it('/api/admin/client-keys/:id/key returns 404 for missing key', async () => {
+    const res = await app.request('/api/admin/client-keys/99999/key');
+    expect(res.status).toBe(404);
+  });
+
   it('/api/admin/client-keys returns list (empty)', async () => {
     const res = await app.request('/api/admin/client-keys');
     expect(res.status).toBe(200);
