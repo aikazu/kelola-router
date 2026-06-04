@@ -38,7 +38,7 @@ const ANTHROPIC_ONLY_PARAMS = [
 /* ──────────────── Body: OpenAI → Anthropic ──────────────── */
 
 export function bodyOpenAIToAnthropic(body: OpenAIBody): AnthropicBody {
-  const out: any = { ...body };
+  const out: Record<string, unknown> = { ...body };
 
   // max_completion_tokens is OpenAI's preferred name; Anthropic uses max_tokens.
   if (out.max_completion_tokens !== undefined && out.max_tokens === undefined) {
@@ -51,9 +51,12 @@ export function bodyOpenAIToAnthropic(body: OpenAIBody): AnthropicBody {
 
   // tools: unwrap {type:"function", function:{...}} → {name, description, input_schema}
   if (Array.isArray(out.tools)) {
-    out.tools = out.tools.map((t: any) => {
-      if (t && t.type === 'function' && t.function) {
-        const { name, description, parameters, ...rest } = t.function;
+    out.tools = out.tools.map((t: unknown) => {
+      if (!t || typeof t !== 'object') return t;
+      const obj = t as { type?: unknown; function?: unknown };
+      if (obj.type === 'function' && obj.function && typeof obj.function === 'object') {
+        const fn = obj.function as { name: unknown; description?: unknown; parameters?: unknown; [k: string]: unknown };
+        const { name, description, parameters, ...rest } = fn;
         return {
           name,
           description,
@@ -69,8 +72,9 @@ export function bodyOpenAIToAnthropic(body: OpenAIBody): AnthropicBody {
   if (typeof out.tool_choice === 'string') {
     out.tool_choice = { type: out.tool_choice === 'required' ? 'any' : out.tool_choice };
   } else if (out.tool_choice && typeof out.tool_choice === 'object') {
-    if (out.tool_choice.type === 'function' && out.tool_choice.function?.name) {
-      out.tool_choice = { type: 'tool', name: out.tool_choice.function.name };
+    const tc = out.tool_choice as { type?: unknown; function?: { name?: unknown } };
+    if (tc.type === 'function' && tc.function?.name) {
+      out.tool_choice = { type: 'tool', name: tc.function.name };
     }
   }
 
@@ -80,7 +84,7 @@ export function bodyOpenAIToAnthropic(body: OpenAIBody): AnthropicBody {
 /* ──────────────── Body: Anthropic → OpenAI ──────────────── */
 
 export function bodyAnthropicToOpenAI(body: AnthropicBody): OpenAIBody {
-  const out: any = { ...body };
+  const out: Record<string, unknown> = { ...body };
 
   // Drop Anthropic-only top-level params.
   for (const k of ANTHROPIC_ONLY_PARAMS) delete out[k];
@@ -95,9 +99,9 @@ export function bodyAnthropicToOpenAI(body: AnthropicBody): OpenAIBody {
 
   // tools: {name, description, input_schema} → {type:"function", function:{...}}
   if (Array.isArray(out.tools)) {
-    out.tools = out.tools.map((t: any) => {
-      if (!t) return t;
-      const { name, description, input_schema, ...rest } = t;
+    out.tools = out.tools.map((t: unknown) => {
+      if (!t || typeof t !== 'object') return t;
+      const { name, description, input_schema, ...rest } = t as { name: unknown; description?: unknown; input_schema?: unknown; [k: string]: unknown };
       return {
         type: 'function',
         function: {
@@ -112,7 +116,7 @@ export function bodyAnthropicToOpenAI(body: AnthropicBody): OpenAIBody {
 
   // tool_choice: Anthropic object → OpenAI string|object
   if (out.tool_choice && typeof out.tool_choice === 'object') {
-    const tc = out.tool_choice;
+    const tc = out.tool_choice as { type?: unknown; name?: unknown };
     if (tc.type === 'auto' || tc.type === 'none') {
       out.tool_choice = tc.type;
     } else if (tc.type === 'any') {
