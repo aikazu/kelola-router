@@ -20,7 +20,7 @@ const NAV: NavItem[] = [
   { key: 'settings', label: 'Settings', href: '/admin/settings', icon: 'settings' },
 ];
 
-export function Sidebar({ current }: { current: string }) {
+export function Sidebar({ current, mobileOpen, onMobileClose }: { current: string; mobileOpen?: boolean; onMobileClose?: () => void }) {
   const qc = useQueryClient();
   const { data: me } = useQuery({
     queryKey: ['me'],
@@ -28,7 +28,9 @@ export function Sidebar({ current }: { current: string }) {
     retry: false,
   });
   return (
-    <aside class="sidebar">
+    <>
+      {mobileOpen && <div class="sidebar-overlay" onClick={onMobileClose} />}
+      <aside class={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}>
       <div class="brand">
         <span class="brand-mark">
           <span class="brand-mark-full">
@@ -46,6 +48,7 @@ export function Sidebar({ current }: { current: string }) {
             key={n.key}
             href={`#${n.href}`}
             class={`nav-item${n.key === current ? ' active' : ''}`}
+            onClick={onMobileClose}
           >
             <span class="nav-icon">
               <Icon name={n.icon} />
@@ -69,5 +72,6 @@ export function Sidebar({ current }: { current: string }) {
         )}
       </div>
     </aside>
+    </>
   );
 }

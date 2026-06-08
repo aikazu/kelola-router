@@ -227,7 +227,14 @@ export function ClientKeys() {
               onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
               placeholder="my-app"
               style={inputStyle}
+              aria-required="true"
+              aria-invalid={label.length === 0 ? undefined : undefined}
             />
+            {label.length === 0 && (
+              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
+                Required — give this key a descriptive name.
+              </span>
+            )}
           </label>
         )}
       </Modal>

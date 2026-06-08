@@ -70,6 +70,7 @@ export function AppShell() {
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [mobileNav, setMobileNav] = useState(false);
 
   useEffect(() => {
     const onHash = () => {
@@ -119,8 +120,17 @@ export function AppShell() {
 
   return (
     <div class="app-layout">
-      <Sidebar current={current} />
+      <Sidebar current={current} mobileOpen={mobileNav} onMobileClose={() => setMobileNav(false)} />
       <main class="main">
+        <button
+          class="hamburger"
+          onClick={() => setMobileNav(true)}
+          aria-label="Open navigation"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 12h18M3 6h18M3 18h18" />
+          </svg>
+        </button>
         <Page current={current} />
       </main>
       <CommandPalette

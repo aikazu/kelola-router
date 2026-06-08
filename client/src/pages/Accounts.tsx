@@ -211,7 +211,13 @@ export function Accounts() {
               value={form.label}
               onInput={(e) => setForm({ ...form, label: (e.target as HTMLInputElement).value })}
               style={inputStyle}
+              aria-required="true"
             />
+            {!form.label && (
+              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
+                Required — a name to identify this account.
+              </span>
+            )}
           </label>
           <label>
             Credit type
@@ -233,7 +239,13 @@ export function Accounts() {
               onInput={(e) => setForm({ ...form, api_key: (e.target as HTMLInputElement).value })}
               placeholder="mm_xxxxxxxx"
               style={inputStyle}
+              aria-required="true"
             />
+            {!form.api_key && (
+              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
+                Required — your MiniMax API key starting with mm_.
+              </span>
+            )}
           </label>
         </div>
       </Modal>
