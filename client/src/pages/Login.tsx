@@ -19,8 +19,8 @@ export function Login() {
     onError: (e: unknown) => {
       const err = e as ApiError;
       const msg = err.retryAfterMs
-        ? `Terlalu banyak percobaan. Coba lagi dalam ${Math.ceil(err.retryAfterMs / 1000)} detik.`
-        : 'Password salah.';
+        ? `Too many attempts. Try again in ${Math.ceil(err.retryAfterMs / 1000)} seconds.`
+        : 'Incorrect password.';
       setErrMsg(msg);
       toast.error(msg);
     },

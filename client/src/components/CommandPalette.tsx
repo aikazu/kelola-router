@@ -69,6 +69,10 @@ export function CommandPalette({
           class="cmdk-input"
           placeholder="Search pages..."
           value={q}
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="cmdk-listbox"
+          aria-activedescendant={items.length > 0 ? `cmdk-item-${active}` : undefined}
           onInput={(e) => setQ((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') {
@@ -82,15 +86,18 @@ export function CommandPalette({
             } else if (e.key === 'Escape') onClose();
           }}
         />
-        <div class="cmdk-list">
+        <div class="cmdk-list" role="listbox" id="cmdk-listbox" aria-label="Pages">
           {items.length === 0 ? (
-            <div class="cmdk-item" style={{ color: 'var(--text-3)' }}>
+            <div class="cmdk-item" style={{ color: 'var(--text-3)' }} role="option" aria-selected="false">
               No matches
             </div>
           ) : (
             items.map((it, i) => (
               <div
                 key={it.href}
+                id={`cmdk-item-${i}`}
+                role="option"
+                aria-selected={i === active}
                 class={`cmdk-item${i === active ? ' active' : ''}`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => onNavigate(it.href)}

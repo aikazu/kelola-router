@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { confirmDialog } from '../components/Confirm';
 import { ErrorState } from '../components/ErrorState';
 import { TableSkeleton } from '../components/Skeleton';
 import { Switch } from '../components/Switch';
@@ -138,7 +139,18 @@ export function Models() {
                   <td>
                     <Switch
                       checked={m.enabled}
-                      onChange={() => toggleMut.mutate({ name: m.name, enabled: m.enabled })}
+                      onChange={async () => {
+                        if (m.enabled) {
+                          const ok = await confirmDialog({
+                            title: 'Disable model',
+                            message: `Disable "${m.name}"? Clients using this model will get 404.`,
+                            confirmLabel: 'Disable',
+                            danger: true,
+                          });
+                          if (!ok) return;
+                        }
+                        toggleMut.mutate({ name: m.name, enabled: m.enabled });
+                      }}
                       label={m.enabled ? 'on' : 'off'}
                     />
                   </td>

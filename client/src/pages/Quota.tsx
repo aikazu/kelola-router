@@ -93,6 +93,7 @@ export function Quota() {
     queryKey: ['quota'],
     queryFn: () => apiFetch<AccountQuota[]>('/api/admin/quota'),
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
 
   if (isError)
@@ -112,6 +113,11 @@ export function Quota() {
           </>
         }
         eyebrow="Balance / limits"
+        actions={
+          <button class="btn btn-ghost btn-sm" onClick={() => refetch()} aria-label="Refresh quota">
+            ↻ Refresh
+          </button>
+        }
       />
       {isLoading ? (
         <Card>

@@ -250,6 +250,10 @@
 }
 
 /* --- Tables -------------------------------------------------------------- */
+.tbl-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 table.tbl {
   width: 100%;
   border-collapse: collapse;

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { confirmDialog } from '../components/Confirm';
 import { ErrorState } from '../components/ErrorState';
 import { Switch } from '../components/Switch';
 import { useToast } from '../components/ToastProvider';
@@ -37,7 +38,7 @@ function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
         e.preventDefault();
         setErr(null);
         if (pw.length < 4) {
-          setErr('Password minimal 4 karakter.');
+          setErr('Password must be at least 4 characters.');
           return;
         }
         if (pw !== confirm) {
@@ -164,12 +165,28 @@ export function Settings() {
       <p class="card-sub">Toggles applied to every proxy request. Changes save immediately.</p>
       <Card title="Dashboard access" sub="Set or change the dashboard password.">
         <PasswordForm onSubmit={(p) => pwMut.mutate({ action: 'set', password: p })} />
+        <button
+          class="btn btn-danger btn-sm"
+          style={{ marginTop: 12 }}
+          onClick={async () => {
+            const ok = await confirmDialog({
+              title: 'Remove password',
+              message: 'Remove dashboard password? The dashboard will be open to anyone with network access.',
+              confirmLabel: 'Remove',
+              danger: true,
+            });
+            if (ok) pwMut.mutate({ action: 'remove' });
+          }}
+        >
+          Remove password
+        </button>
       </Card>
       <Card title="Caveman mode" sub="Injects a terse system prompt to force concise output.">
         <select
           value={data.caveman.level}
           onChange={(e) => cavemanMut.mutate((e.target as HTMLSelectElement).value)}
           style={inputStyle}
+          disabled={cavemanMut.isPending}
         >
           <option value="off">Off</option>
           <option value="terse">Terse</option>

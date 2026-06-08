@@ -179,3 +179,21 @@ kbd {
 :focus:not(:focus-visible) {
   outline: none;
 }
+
+/* --- Skip link --- */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  background: var(--gold);
+  color: var(--text-inv);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 999;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 16px;
+}

@@ -1,19 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
+import { lazy, Suspense } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
 import { CommandPalette } from '../components/CommandPalette';
 import { apiFetch } from '../lib/api';
-import { Accounts } from '../pages/Accounts';
-import { Aliases } from '../pages/Aliases';
-import { ClientKeys } from '../pages/ClientKeys';
-import { Login } from '../pages/Login';
-import { Models } from '../pages/Models';
-import { NotFound } from '../pages/NotFound';
-import { Overview } from '../pages/Overview';
-import { Quota } from '../pages/Quota';
-import { Settings } from '../pages/Settings';
-import { Usage } from '../pages/Usage';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+
+const Accounts = lazy(() => import('../pages/Accounts').then((m) => ({ default: m.Accounts })));
+const Aliases = lazy(() => import('../pages/Aliases').then((m) => ({ default: m.Aliases })));
+const ClientKeys = lazy(() => import('../pages/ClientKeys').then((m) => ({ default: m.ClientKeys })));
+const Login = lazy(() => import('../pages/Login').then((m) => ({ default: m.Login })));
+const Models = lazy(() => import('../pages/Models').then((m) => ({ default: m.Models })));
+const NotFound = lazy(() => import('../pages/NotFound').then((m) => ({ default: m.NotFound })));
+const Overview = lazy(() => import('../pages/Overview').then((m) => ({ default: m.Overview })));
+const Quota = lazy(() => import('../pages/Quota').then((m) => ({ default: m.Quota })));
+const Settings = lazy(() => import('../pages/Settings').then((m) => ({ default: m.Settings })));
+const Usage = lazy(() => import('../pages/Usage').then((m) => ({ default: m.Usage })));
 
 const KNOWN_ROUTES = [
   'overview',
@@ -120,8 +122,9 @@ export function AppShell() {
 
   return (
     <div class="app-layout">
+      <a href="#main-content" class="skip-link">Skip to content</a>
       <Sidebar current={current} mobileOpen={mobileNav} onMobileClose={() => setMobileNav(false)} />
-      <main class="main">
+      <main class="main" id="main-content">
         <button
           class="hamburger"
           onClick={() => setMobileNav(true)}
@@ -131,7 +134,9 @@ export function AppShell() {
             <path d="M3 12h18M3 6h18M3 18h18" />
           </svg>
         </button>
-        <Page current={current} />
+        <Suspense fallback={<p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p>}>
+          <Page current={current} />
+        </Suspense>
       </main>
       <CommandPalette
         open={paletteOpen}
