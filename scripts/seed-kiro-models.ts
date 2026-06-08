@@ -21,9 +21,9 @@ interface KiroBase {
 }
 
 const BASE_MODELS: KiroBase[] = [
-  { upstream: 'claude-sonnet-4-6', display: 'Claude Sonnet 4.6', context: 200000 },
+  { upstream: 'claude-sonnet-4-6', display: 'Claude Sonnet 4.6', context: 1000000 },
   { upstream: 'claude-haiku-4-5', display: 'Claude Haiku 4.5', context: 200000 },
-  { upstream: 'claude-opus-4-8', display: 'Claude Opus 4.8', context: 200000 },
+  { upstream: 'claude-opus-4-8', display: 'Claude Opus 4.8', context: 1000000 },
   { upstream: 'auto', display: 'Kiro Auto', context: 200000 },
 ];
 
