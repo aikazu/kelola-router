@@ -9,11 +9,13 @@ export const settingsRoutes = new Hono();
 settingsRoutes.get('/', (c) => {
   try {
     const db = c.get('db') as Database.Database;
+    const build = getSetting(db, 'build') as { version?: string } | null;
     return c.json({
       caveman: getSetting(db, 'caveman') ?? { level: 'off' },
       caching: getSetting(db, 'caching') ?? { autoBreakpoints: true },
       rtk: getSetting(db, 'rtk') ?? { enabled: true },
       minimax: getSetting(db, 'minimax') ?? {},
+      version: build?.version ?? null,
     });
   } catch (e) {
     return handleApiError(e);

@@ -125,8 +125,11 @@ export function Quota() {
         </Card>
       ) : quotas.length === 0 ? (
         <div class="empty">
-          <h3>No accounts</h3>
-          <p>Add an upstream account to see quota windows.</p>
+          <h3>No quota data</h3>
+          <p>Add an upstream MiniMax account to see quota windows.</p>
+          <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
+            Kiro (AWS) accounts are billed per-seat, not per-token — they don't have quota windows.
+          </p>
         </div>
       ) : (
         quotas.map((q) => {

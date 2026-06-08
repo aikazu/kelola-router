@@ -134,7 +134,8 @@ export function Overview() {
           ) : data.byModel.length === 0 ? (
             <p class="card-sub">No requests yet.</p>
           ) : (
-            <table class="tbl">
+            <div style={{ overflowX: 'auto' }}>
+              <table class="tbl">
               <thead>
                 <tr>
                   <th>Model</th>
@@ -152,6 +153,7 @@ export function Overview() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </Card>
 

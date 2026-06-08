@@ -96,7 +96,7 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
           marginBottom: 16,
         }}
       >
-        {(['summary', 'request', 'response', 'error'] as Tab[]).map((t) => (
+        {(['summary', 'request', 'response', ...(data?.error ? ['error'] : [])] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -230,10 +230,8 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
           <HeadersView headers={data.responseHeaders} />
         </>
       )}
-      {data && tab === 'error' && (
-        <p style={{ color: data.error ? 'var(--danger)' : 'var(--text-3)' }}>
-          {data.error ?? 'No error'}
-        </p>
+      {data && tab === 'error' && data.error && (
+        <p style={{ color: 'var(--danger)' }}>{data.error}</p>
       )}
     </Modal>
   );

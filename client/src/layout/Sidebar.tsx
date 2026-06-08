@@ -9,6 +9,10 @@ interface NavItem {
   icon: IconName;
 }
 
+interface SettingsData {
+  version: string | null;
+}
+
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', href: '/admin', icon: 'overview' },
   { key: 'usage', label: 'Usage', href: '/admin/usage', icon: 'usage' },
@@ -25,6 +29,11 @@ export function Sidebar({ current, mobileOpen, onMobileClose }: { current: strin
   const { data: me } = useQuery({
     queryKey: ['me'],
     queryFn: () => apiFetch<{ authed: boolean; passwordSet: boolean }>('/api/me'),
+    retry: false,
+  });
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => apiFetch<SettingsData>('/api/admin/settings'),
     retry: false,
   });
   return (
@@ -58,7 +67,7 @@ export function Sidebar({ current, mobileOpen, onMobileClose }: { current: strin
         ))}
       </nav>
       <div class="user-card">
-        <span>v0.15</span>
+        <span>{settings?.version ? `v${settings.version}` : ''}</span>
         {me?.passwordSet && (
           <button
             onClick={async () => {
