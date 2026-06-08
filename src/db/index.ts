@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import Database from 'better-sqlite3';
 import { migrate } from './migrations/index.js';
+import { autoSeedModels } from './autoSeed.js';
 
 function defaultDbPath(): string {
   if (process.env.ROUTER_DB_PATH) return process.env.ROUTER_DB_PATH;
@@ -28,5 +29,6 @@ export function openDb(): Database.Database {
   db.pragma('synchronous = NORMAL');
 
   migrate(db);
+  autoSeedModels(db);
   return db;
 }
