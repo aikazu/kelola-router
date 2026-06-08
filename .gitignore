@@ -10,3 +10,5 @@ client/dist/
 client/node_modules/
 .playwright*
 .claude
+.kiro
+.agents
