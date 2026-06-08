@@ -76,14 +76,17 @@ describe('pipeWithUsage', () => {
   it('accepts an AbortSignal and stops enqueuing when aborted', async () => {
     const ac = new AbortController();
     const enc = new TextEncoder();
-    let _enqueued = 0;
     const body = new ReadableStream<Uint8Array>({
       start(c) {
-        // Enqueue two chunks, then wait for the abort signal
         c.enqueue(enc.encode('data: chunk1\n\n'));
-        _enqueued++;
-        ac.signal.addEventListener('abort', () => c.close());
-        setTimeout(() => c.enqueue(enc.encode('data: chunk2\n\n')), 5);
+        ac.signal.addEventListener('abort', () => {
+          try { c.close(); } catch { /* already closed */ }
+        });
+        setTimeout(() => {
+          try {
+            if (!ac.signal.aborted) c.enqueue(enc.encode('data: chunk2\n\n'));
+          } catch { /* controller closed */ }
+        }, 5);
       },
     });
     const r = new Response(body, { status: 200 });
@@ -98,15 +101,17 @@ describe('pipeWithUsage', () => {
     );
 
     // Abort almost immediately
-    setTimeout(() => ac.abort(), 1);
+    ac.abort();
 
     // Read what's available then cancel
     const reader = out.body!.getReader();
     await reader.read();
     await reader.cancel();
 
-    // After abort, the upstream TransformStream's transform() should call ctrl.terminate()
-    // for any further chunks; callback should NOT have fired (we never flushed because we aborted before close)
+    // Let any pending microtasks / timers settle
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // callback should NOT have fired (we aborted before stream close)
     expect(callbackInvoked).toBe(false);
   });
 });
