@@ -265,3 +265,24 @@ accountRoutes.patch('/:id', (c) => {
     return handleApiError(e);
   }
 });
+
+// --- Kiro Usage / Quota ---
+accountRoutes.get('/:id/usage', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const acc = getAccount(db, c.req.param('id'));
+    if (!acc) return c.json({ error: 'account not found' }, 404);
+    if (acc.provider !== 'kiro') return c.json({ error: 'not a Kiro account' }, 400);
+
+    const { ensureAccessToken } = await import('../../providers/kiro/auth.js');
+    const { fetchKiroUsage } = await import('../../providers/kiro/usage.js');
+    const auth = await ensureAccessToken(db, acc);
+    const region = auth.providerData?.region || 'us-east-1';
+    const profileArn = auth.providerData?.profileArn || null;
+    const usage = await fetchKiroUsage(auth.accessToken, { region, profileArn });
+    if (!usage) return c.json({ error: 'failed to fetch usage from Kiro' }, 502);
+    return c.json(usage);
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
