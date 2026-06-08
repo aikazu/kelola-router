@@ -50,6 +50,8 @@ export function Accounts() {
   });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ label: '', credit_type: 'payg', api_key: '' });
+  const [editing, setEditing] = useState<Account | null>(null);
+  const [editForm, setEditForm] = useState({ label: '', api_key: '' });
 
   const createMut = useMutation({
     mutationFn: () => apiFetch('/api/admin/accounts', { method: 'POST', json: form }),
@@ -67,6 +69,16 @@ export function Accounts() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Updated');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const editMut = useMutation({
+    mutationFn: ({ id, label, api_key }: { id: string; label?: string; api_key?: string }) =>
+      apiFetch(`/api/admin/accounts/${id}`, { method: 'PATCH', json: { label, api_key } }),
+    onSuccess: () => {
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success('Account updated');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -166,6 +178,16 @@ export function Accounts() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => {
+                        setEditing(a);
+                        setEditForm({ label: a.label, api_key: '' });
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={async () => {
                         if (a.enabled) {
                           const ok = await confirmDialog({
@@ -246,6 +268,46 @@ export function Accounts() {
                 Required — your MiniMax API key starting with mm_.
               </span>
             )}
+          </label>
+        </div>
+      </Modal>
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={`Edit "${editing?.label ?? ''}"`}
+        footer={
+          <Button
+            onClick={() =>
+              editing &&
+              editMut.mutate({
+                id: editing.id,
+                label: editForm.label || undefined,
+                api_key: editForm.api_key || undefined,
+              })
+            }
+            disabled={(!editForm.label && !editForm.api_key) || editMut.isPending}
+          >
+            {editMut.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label>
+            Label
+            <input
+              value={editForm.label}
+              onInput={(e) => setEditForm({ ...editForm, label: (e.target as HTMLInputElement).value })}
+              style={inputStyle}
+            />
+          </label>
+          <label>
+            New API key (leave empty to keep current)
+            <input
+              value={editForm.api_key}
+              onInput={(e) => setEditForm({ ...editForm, api_key: (e.target as HTMLInputElement).value })}
+              placeholder="mm_xxxxxxxx"
+              style={inputStyle}
+            />
           </label>
         </div>
       </Modal>

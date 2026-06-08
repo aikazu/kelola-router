@@ -7,6 +7,7 @@ import {
   disableAccount,
   enableAccount,
   listAccounts,
+  updateAccount,
 } from '../../db/repos/accounts.js';
 import { ApiError, handleApiError } from './middleware.js';
 
@@ -80,6 +81,27 @@ accountRoutes.delete('/:id', (c) => {
   try {
     deleteAccount(c.get('db') as Database.Database, c.req.param('id'));
     return new Response(null, { status: 204 });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+accountRoutes.patch('/:id', (c) => {
+  try {
+    return c.req
+      .json()
+      .then((body: { label?: string; api_key?: string }) => {
+        const db = c.get('db') as Database.Database;
+        const patch: Record<string, string> = {};
+        if (body.label) patch.label = body.label;
+        if (body.api_key) patch.api_key = body.api_key;
+        if (Object.keys(patch).length === 0) {
+          throw new ApiError('invalid_input', 'Nothing to update', 400);
+        }
+        updateAccount(db, c.req.param('id'), patch);
+        return new Response(null, { status: 204 });
+      })
+      .catch((e: unknown) => handleApiError(e));
   } catch (e) {
     return handleApiError(e);
   }
