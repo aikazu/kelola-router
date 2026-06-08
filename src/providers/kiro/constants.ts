@@ -67,6 +67,20 @@ export const KIRO_CLI_SDK_VERSION = '1.3.15';
 export const KIRO_CLI_STREAMING_API_VERSION = '0.1.16551';
 export const KIRO_CLI_APP_NAME = 'AmazonQ-For-CLI';
 
+/**
+ * The `currentWorkingDirectory` reported in the CLI `envState`.
+ *
+ * Pinned to a Windows-style path on purpose: the CLI User-Agent hardcodes
+ * `os/windows` (the wire format verified against a real Windows kiro-cli), so
+ * the envState must report Windows too. The router itself runs in a Linux
+ * container, so deriving this from `process.cwd()` / `process.platform` would
+ * yield `os/windows` (UA) + `operatingSystem: "linux"` (envState) — an internal
+ * inconsistency a real CLI never produces. See
+ * docs/notes/kiro-cli-reverse-engineering.md §10.
+ */
+export const KIRO_CLI_WORKING_DIRECTORY = 'C:\\Users\\user';
+export const KIRO_CLI_OPERATING_SYSTEM = 'windows';
+
 /** Build the aws-sdk-rust User-Agent string the real Kiro CLI sends. */
 export function kiroCliUserAgent(api: 'streaming' | 'runtime' = 'streaming'): string {
   return (

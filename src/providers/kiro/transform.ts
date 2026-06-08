@@ -17,6 +17,8 @@ import {
   buildThinkingSystemPrefix,
   isThinkingEnabled,
   KIRO_AGENTIC_SYSTEM_PROMPT,
+  KIRO_CLI_OPERATING_SYSTEM,
+  KIRO_CLI_WORKING_DIRECTORY,
   KIRO_DEFAULT_PERSONA,
   type KiroPersona,
   resolveKiroModel,
@@ -116,12 +118,20 @@ export interface KiroCredentials {
   persona?: KiroPersona;
 }
 
-/** Build the envState block the Kiro CLI attaches to every user message. */
+/**
+ * Build the envState block the Kiro CLI attaches to every user message.
+ *
+ * Pinned to the verified Windows fingerprint to stay consistent with the
+ * hardcoded `os/windows` User-Agent — see KIRO_CLI_WORKING_DIRECTORY in
+ * constants.ts and docs/notes/kiro-cli-reverse-engineering.md §10. Deliberately
+ * NOT derived from process.platform: the router runs in a Linux container, and a
+ * UA=windows + envState=linux mismatch is something a real CLI never sends.
+ */
 function buildEnvState(): { operatingSystem: string; currentWorkingDirectory: string } {
-  const platform = process.platform;
-  const operatingSystem =
-    platform === 'win32' ? 'windows' : platform === 'darwin' ? 'macos' : 'linux';
-  return { operatingSystem, currentWorkingDirectory: process.cwd() };
+  return {
+    operatingSystem: KIRO_CLI_OPERATING_SYSTEM,
+    currentWorkingDirectory: KIRO_CLI_WORKING_DIRECTORY,
+  };
 }
 
 function safeJSONParse(str: unknown, fallback: unknown): unknown {

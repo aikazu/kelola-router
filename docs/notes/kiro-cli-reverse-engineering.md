@@ -297,3 +297,39 @@ prints `buildKiroPayload('auto', {...}, {persona:'cli'})` is the fastest diff) �
   values may exist for different CLI modes (e.g. non-chat agent tasks).
 - **Prompt caching fields.** `GetProfile` advertises `promptCaching` per model; the
   router does not yet send cache checkpoints on the cli path.
+
+
+---
+
+## 10. OS fingerprint consistency (cross-platform / Linux Docker)
+
+**The whole router runs cross-platform fine** (no Windows-only syscalls; `better-sqlite3`
+builds on Linux/macOS; the Docker base image is Linux; `process.platform`/`process.cwd()`/
+`homedir()`/`path.join()` are all portable; auto-import degrades gracefully when
+`~/.aws/sso/cache` is absent). So "does it run on Linux?" → **yes**.
+
+**But the cli persona fingerprint must stay internally consistent.** The cli User-Agent
+hardcodes `os/windows` (in `kiroCliUserAgent()` / `kiroCliAmzUserAgent()` in `constants.ts`)
+because that is the exact wire format captured from a real **Windows** kiro-cli. The IDE
+persona UA likewise hardcodes `os/windows#10.0.26200` in `index.ts`.
+
+Originally `buildEnvState()` derived `operatingSystem` from `process.platform`. Since the
+router actually runs in a **Linux** container, that produced a request with:
+
+- `User-Agent: ... os/windows ...`  (hardcoded)
+- `envState.operatingSystem: "linux"`  (dynamic)
+- `envState.currentWorkingDirectory: "/app"`
+
+i.e. **UA says Windows, envState says Linux** — a combination a real kiro-cli never emits,
+which is exactly the kind of inconsistency that raises ban risk for the cli persona.
+
+**Decision (2026-06-09): pin the cli fingerprint to the verified Windows profile.**
+`buildEnvState()` now returns the constants `KIRO_CLI_OPERATING_SYSTEM = 'windows'` +
+`KIRO_CLI_WORKING_DIRECTORY = 'C:\\Users\\user'` (both in `constants.ts`), so UA + envState
+all agree and match the one capture we actually verified — regardless of host OS.
+
+**If you ever want true Linux/macOS-native mimicry:** do NOT just flip `os/windows` →
+`os/linux` from memory. Capture a real kiro-cli on that OS first (§6) — the UA tail differs
+(kernel/version suffixes, possibly a different `lang/rust` build), and getting it wrong is
+worse than a consistent Windows profile. Then make UA **and** envState **and** cwd all derive
+from the same verified per-OS source together.

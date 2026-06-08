@@ -121,8 +121,8 @@ describe('buildKiroPayload', () => {
       expect(payload.conversationState.agentContinuationId).toBeDefined();
       expect(payload.conversationState.agentTaskType).toBe('vibe');
       expect(payload.inferenceConfig).toBeUndefined();
-      expect(cm.userInputMessageContext?.envState?.operatingSystem).toBeDefined();
-      expect(cm.userInputMessageContext?.envState?.currentWorkingDirectory).toBeDefined();
+      expect(cm.userInputMessageContext?.envState?.operatingSystem).toBe('windows');
+      expect(cm.userInputMessageContext?.envState?.currentWorkingDirectory).toMatch(/^[A-Z]:\\/);
     });
 
     it('CLI persona sets origin + envState on history user turns too', () => {
