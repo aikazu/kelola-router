@@ -17,6 +17,7 @@ interface Account {
   label: string;
   provider?: string;
   authMethod?: string | null;
+  persona?: string | null;
   creditType: string;
   status: string;
   enabled: boolean;
@@ -90,7 +91,7 @@ export function Accounts() {
   const [autoImportError, setAutoImportError] = useState('');
 
   const [editing, setEditing] = useState<Account | null>(null);
-  const [editForm, setEditForm] = useState({ label: '', api_key: '' });
+  const [editForm, setEditForm] = useState({ label: '', api_key: '', persona: 'ide' });
 
   function resetForms() {
     setProvider('minimax');
@@ -247,8 +248,18 @@ export function Accounts() {
     onError: (e: Error) => toast.error(e.message),
   });
   const editMut = useMutation({
-    mutationFn: ({ id, label, api_key }: { id: string; label?: string; api_key?: string }) =>
-      apiFetch(`/api/admin/accounts/${id}`, { method: 'PATCH', json: { label, api_key } }),
+    mutationFn: ({
+      id,
+      label,
+      api_key,
+      persona,
+    }: {
+      id: string;
+      label?: string;
+      api_key?: string;
+      persona?: string;
+    }) =>
+      apiFetch(`/api/admin/accounts/${id}`, { method: 'PATCH', json: { label, api_key, persona } }),
     onSuccess: () => {
       setEditing(null);
       qc.invalidateQueries({ queryKey: ['accounts'] });
@@ -499,6 +510,11 @@ export function Accounts() {
                     <Badge variant={a.provider === 'kiro' ? 'warn' : 'muted'}>
                       {a.provider === 'kiro' ? `kiro${a.authMethod ? ` · ${a.authMethod}` : ''}` : 'minimax'}
                     </Badge>
+                    {a.provider === 'kiro' && (
+                      <Badge variant={a.persona === 'cli' ? 'active' : 'muted'} style={{ marginLeft: 6 }}>
+                        {a.persona === 'cli' ? 'CLI' : 'IDE'}
+                      </Badge>
+                    )}
                   </td>
                   <td>
                     <Badge variant={a.creditType === 'token-plan' ? 'warn' : 'active'}>
@@ -516,7 +532,7 @@ export function Accounts() {
                   <td>{a.backoffLevel}</td>
                   <td title={a.rateLimitedUntil ?? ''}>{relativeTime(a.rateLimitedUntil)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setEditForm({ label: a.label, api_key: '' }); }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setEditForm({ label: a.label, api_key: '', persona: a.persona === 'cli' ? 'cli' : 'ide' }); }}>
                       Edit
                     </Button>
                     <Button size="sm" variant="ghost" onClick={async () => {
@@ -623,8 +639,24 @@ export function Accounts() {
         title={`Edit "${editing?.label ?? ''}"`}
         footer={
           <Button
-            onClick={() => editing && editMut.mutate({ id: editing.id, label: editForm.label || undefined, api_key: editForm.api_key || undefined })}
-            disabled={(!editForm.label && !editForm.api_key) || editMut.isPending}
+            onClick={() =>
+              editing &&
+              editMut.mutate({
+                id: editing.id,
+                label: editForm.label || undefined,
+                api_key: editForm.api_key || undefined,
+                persona:
+                  editing.provider === 'kiro' && editForm.persona !== editing.persona
+                    ? editForm.persona
+                    : undefined,
+              })
+            }
+            disabled={
+              (!editForm.label &&
+                !editForm.api_key &&
+                !(editing?.provider === 'kiro' && editForm.persona !== editing?.persona)) ||
+              editMut.isPending
+            }
           >
             {editMut.isPending ? 'Saving…' : 'Save'}
           </Button>
@@ -639,6 +671,23 @@ export function Accounts() {
             New API key (leave empty to keep current)
             <input value={editForm.api_key} onInput={(e) => setEditForm({ ...editForm, api_key: (e.target as HTMLInputElement).value })} placeholder="mm_xxxxxxxx" style={inputStyle} />
           </label>
+          {editing?.provider === 'kiro' && (
+            <label>
+              Persona (upstream identity)
+              <select
+                value={editForm.persona}
+                onChange={(e) => setEditForm({ ...editForm, persona: (e.target as HTMLSelectElement).value })}
+                style={inputStyle}
+              >
+                <option value="ide">IDE (legacy · stable · codewhisperer.amazonaws.com)</option>
+                <option value="cli">CLI (experimental · runtime.kiro.dev)</option>
+              </select>
+              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
+                IDE mimics the Kiro IDE wire format (default, battle-tested). CLI mimics the real
+                kiro-cli (aws-sdk-rust / AmazonQ-For-CLI). Switch only this account; others stay on IDE.
+              </span>
+            </label>
+          )}
         </div>
       </Modal>
     </>

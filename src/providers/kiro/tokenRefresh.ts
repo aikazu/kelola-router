@@ -17,6 +17,8 @@ export interface KiroProviderData {
   clientSecret?: string;
   region?: string;
   profileArn?: string;
+  /** Which upstream client identity to mimic: 'ide' (legacy) or 'cli' (experimental). */
+  persona?: 'ide' | 'cli';
 }
 
 export interface KiroRefreshResult {

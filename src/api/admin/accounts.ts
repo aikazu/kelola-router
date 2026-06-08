@@ -6,6 +6,7 @@ import {
   deleteAccount,
   disableAccount,
   enableAccount,
+  getAccount,
   listAccounts,
   updateAccount,
 } from '../../db/repos/accounts.js';
@@ -25,12 +26,15 @@ accountRoutes.get('/', (c) => {
     return c.json(
       listAccounts(db).map((a) => {
         let authMethod: string | null = null;
+        let persona: string | null = null;
         if (a.provider === 'kiro' && a.provider_data) {
           try {
-            authMethod =
-              (JSON.parse(a.provider_data) as { authMethod?: string }).authMethod ?? null;
+            const pd = JSON.parse(a.provider_data) as { authMethod?: string; persona?: string };
+            authMethod = pd.authMethod ?? null;
+            persona = pd.persona === 'cli' ? 'cli' : 'ide';
           } catch {
             authMethod = null;
+            persona = 'ide';
           }
         }
         return {
@@ -38,6 +42,7 @@ accountRoutes.get('/', (c) => {
           label: a.label,
           provider: a.provider,
           authMethod,
+          persona,
           creditType: a.credit_type,
           status: a.status,
           enabled: !!a.enabled,
@@ -224,11 +229,27 @@ accountRoutes.patch('/:id', (c) => {
   try {
     return c.req
       .json()
-      .then((body: { label?: string; api_key?: string }) => {
+      .then((body: { label?: string; api_key?: string; persona?: string; profileArn?: string }) => {
         const db = c.get('db') as Database.Database;
         const patch: Record<string, string> = {};
         if (body.label) patch.label = body.label;
         if (body.api_key) patch.api_key = body.api_key;
+        // persona + profileArn live inside the Kiro provider_data JSON blob.
+        if (body.persona !== undefined || body.profileArn !== undefined) {
+          const acc = getAccount(db, c.req.param('id'));
+          if (!acc) throw new ApiError('not_found', 'account not found', 404);
+          let pd: Record<string, unknown> = {};
+          if (acc.provider_data) {
+            try {
+              pd = JSON.parse(acc.provider_data) as Record<string, unknown>;
+            } catch {
+              pd = {};
+            }
+          }
+          if (body.persona !== undefined) pd.persona = body.persona === 'cli' ? 'cli' : 'ide';
+          if (body.profileArn !== undefined) pd.profileArn = body.profileArn;
+          patch.provider_data = JSON.stringify(pd);
+        }
         if (Object.keys(patch).length === 0) {
           throw new ApiError('invalid_input', 'Nothing to update', 400);
         }

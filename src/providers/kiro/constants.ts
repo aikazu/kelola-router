@@ -10,9 +10,72 @@
 
 export const KIRO_DEFAULT_REGION = 'us-east-1';
 
-/** Build the generateAssistantResponse endpoint for a region. */
+/**
+ * Which upstream client identity the router mimics for a Kiro account.
+ *   - `ide` (legacy, default): the Kiro IDE path via the AWS CodeWhisperer host
+ *     (`codewhisperer.{region}.amazonaws.com`). Stable, battle-tested.
+ *   - `cli` (experimental): the Kiro CLI path via the Kiro runtime host
+ *     (`runtime.{region}.kiro.dev`). Mirrors the real `kiro-cli` wire format
+ *     (aws-sdk-rust UA, `AmazonQ-For-CLI` app name, `KIRO_CLI` origin).
+ */
+export type KiroPersona = 'ide' | 'cli';
+
+export const KIRO_DEFAULT_PERSONA: KiroPersona = 'ide';
+
+/** Normalize an arbitrary stored value into a known persona (defaults to ide). */
+export function resolveKiroPersona(value: string | null | undefined): KiroPersona {
+  return value === 'cli' ? 'cli' : 'ide';
+}
+
+/** IDE (legacy) generateAssistantResponse endpoint for a region. */
 export function kiroEndpoint(region: string = KIRO_DEFAULT_REGION): string {
   return `https://codewhisperer.${region}.amazonaws.com/generateAssistantResponse`;
+}
+
+/** CLI (experimental) Kiro runtime endpoint for a region (root POST, x-amz-target). */
+export function kiroCliEndpoint(region: string = KIRO_DEFAULT_REGION): string {
+  return `https://runtime.${region}.kiro.dev/`;
+}
+
+/** Resolve the upstream chat endpoint for a persona + region. */
+export function resolveKiroEndpoint(persona: KiroPersona, region: string): string {
+  return persona === 'cli' ? kiroCliEndpoint(region) : kiroEndpoint(region);
+}
+
+/**
+ * Convert a router upstream model id (hyphenated, e.g. `claude-sonnet-4-6`) to
+ * the dotted version the Kiro CLI runtime endpoint expects (`claude-sonnet-4.6`).
+ * The `runtime.{region}.kiro.dev` host rejects hyphenated version ids with
+ * INVALID_MODEL_ID; the legacy IDE host accepts both. Non-versioned ids such as
+ * `auto` pass through unchanged.
+ */
+export function toCliModelId(upstreamModel: string): string {
+  return upstreamModel.replace(/-(\d+)-(\d+)$/, '-$1.$2');
+}
+
+/** Kiro CLI build identity (captured from real kiro-cli 2.6.0 traffic). */
+export const KIRO_CLI_VERSION = '2.6.0';
+export const KIRO_CLI_SDK_VERSION = '1.3.15';
+export const KIRO_CLI_STREAMING_API_VERSION = '0.1.16551';
+export const KIRO_CLI_APP_NAME = 'AmazonQ-For-CLI';
+
+/** Build the aws-sdk-rust User-Agent string the real Kiro CLI sends. */
+export function kiroCliUserAgent(): string {
+  return (
+    `aws-sdk-rust/${KIRO_CLI_SDK_VERSION} ua/2.1 ` +
+    `api/codewhispererstreaming/${KIRO_CLI_STREAMING_API_VERSION} os/windows lang/rust/1.92.0 ` +
+    `exec-env/${KIRO_CLI_APP_NAME} Version/${KIRO_CLI_VERSION} md/appVersion-${KIRO_CLI_VERSION} ` +
+    `app/${KIRO_CLI_APP_NAME}`
+  );
+}
+
+/** The `x-amz-user-agent` variant (uses `m/F` instead of the md/appVersion tail). */
+export function kiroCliAmzUserAgent(): string {
+  return (
+    `aws-sdk-rust/${KIRO_CLI_SDK_VERSION} ua/2.1 ` +
+    `api/codewhispererstreaming/${KIRO_CLI_STREAMING_API_VERSION} os/windows lang/rust/1.92.0 ` +
+    `exec-env/${KIRO_CLI_APP_NAME} Version/${KIRO_CLI_VERSION} m/F app/${KIRO_CLI_APP_NAME}`
+  );
 }
 
 /** Social-auth (Builder ID via Kiro desktop) refresh endpoint. */

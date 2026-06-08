@@ -10,12 +10,19 @@ import { proxyAwareFetch } from '../../transport/proxyFetch.js';
 import type { TransportConfig } from '../../transport/types.js';
 import { kiroResponseToOpenAIJson, type OpenAICompletion } from './assembler.js';
 import { ensureAccessToken, type KiroAuth } from './auth.js';
-import { KIRO_DEFAULT_REGION, kiroEndpoint } from './constants.js';
+import {
+  KIRO_DEFAULT_REGION,
+  type KiroPersona,
+  kiroCliAmzUserAgent,
+  kiroCliUserAgent,
+  resolveKiroEndpoint,
+  resolveKiroPersona,
+} from './constants.js';
 import type { KiroProviderData } from './tokenRefresh.js';
 import { buildKiroPayload, type OpenAIChatBody } from './transform.js';
 
 const KIRO_SDK_VERSION = '1.0.0';
-const KIRO_IDE_VERSION = '0.10.32';
+const KIRO_IDE_VERSION = '0.12.292';
 
 function regionFor(providerData: KiroProviderData | null): string {
   const arn = providerData?.profileArn;
@@ -27,7 +34,24 @@ function regionFor(providerData: KiroProviderData | null): string {
 }
 
 /** Per-account fingerprint headers Kiro upstream validates (stable machineId). */
-function buildKiroHeaders(auth: KiroAuth): Record<string, string> {
+function buildKiroHeaders(auth: KiroAuth, persona: KiroPersona): Record<string, string> {
+  if (persona === 'cli') {
+    // Mirror the real kiro-cli wire format (aws-sdk-rust, AmazonQ-For-CLI).
+    return {
+      'Content-Type': 'application/x-amz-json-1.0',
+      Accept: '*/*',
+      'X-Amz-Target': 'AmazonCodeWhispererStreamingService.GenerateAssistantResponse',
+      'Amz-Sdk-Invocation-Id': randomUUID(),
+      'Amz-Sdk-Request': 'attempt=1; max=3',
+      'User-Agent': kiroCliUserAgent(),
+      'x-amz-user-agent': kiroCliAmzUserAgent(),
+      'x-amzn-codewhisperer-optout': 'false',
+      'Accept-Encoding': 'gzip',
+      Authorization: `Bearer ${auth.accessToken}`,
+    };
+  }
+
+  // IDE (legacy) path: aws-sdk-js + KiroIDE fingerprint against codewhisperer host.
   const seed =
     auth.providerData?.clientId || auth.providerData?.profileArn || auth.accessToken || 'kiro';
   const machineId = createHash('sha256').update(String(seed)).digest('hex');
@@ -71,12 +95,14 @@ export async function executeKiro(args: {
   const { db, account, model, body, stream, transport, signal } = args;
 
   const auth = await ensureAccessToken(db, account, transport);
+  const persona = resolveKiroPersona(auth.providerData?.persona);
   const { payload, upstreamModel } = buildKiroPayload(model, body, {
     accessToken: auth.accessToken,
     providerData: auth.providerData,
+    persona,
   });
-  const url = kiroEndpoint(regionFor(auth.providerData));
-  const headers = buildKiroHeaders(auth);
+  const url = resolveKiroEndpoint(persona, regionFor(auth.providerData));
+  const headers = buildKiroHeaders(auth, persona);
 
   const resp = await proxyAwareFetch(
     url,

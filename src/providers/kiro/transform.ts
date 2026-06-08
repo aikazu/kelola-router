@@ -17,7 +17,10 @@ import {
   buildThinkingSystemPrefix,
   isThinkingEnabled,
   KIRO_AGENTIC_SYSTEM_PROMPT,
+  KIRO_DEFAULT_PERSONA,
+  type KiroPersona,
   resolveKiroModel,
+  toCliModelId,
 } from './constants.js';
 
 // --- Loose OpenAI input shapes (clients vary; keep tolerant) ---
@@ -69,9 +72,14 @@ interface KiroToolSpec {
     inputSchema: { json: Record<string, unknown> };
   };
 }
+interface KiroEnvState {
+  operatingSystem?: string;
+  currentWorkingDirectory?: string;
+}
 interface KiroUserInputContext {
   tools?: KiroToolSpec[];
   toolResults?: KiroToolResult[];
+  envState?: KiroEnvState;
 }
 interface KiroUserInputMessage {
   content: string;
@@ -91,10 +99,12 @@ interface KiroHistoryItem {
 }
 export interface KiroPayload {
   conversationState: {
-    chatTriggerType: string;
+    chatTriggerType?: string;
     conversationId: string;
     currentMessage: { userInputMessage: KiroUserInputMessage };
     history: KiroHistoryItem[];
+    agentContinuationId?: string;
+    agentTaskType?: string;
   };
   profileArn?: string;
   inferenceConfig?: { maxTokens?: number; temperature?: number; topP?: number };
@@ -103,6 +113,15 @@ export interface KiroPayload {
 export interface KiroCredentials {
   accessToken?: string;
   providerData?: { profileArn?: string } | null;
+  persona?: KiroPersona;
+}
+
+/** Build the envState block the Kiro CLI attaches to every user message. */
+function buildEnvState(): { operatingSystem: string; currentWorkingDirectory: string } {
+  const platform = process.platform;
+  const operatingSystem =
+    platform === 'win32' ? 'windows' : platform === 'darwin' ? 'macos' : 'linux';
+  return { operatingSystem, currentWorkingDirectory: process.cwd() };
 }
 
 function safeJSONParse(str: unknown, fallback: unknown): unknown {
@@ -406,6 +425,30 @@ export function buildKiroPayload(
   finalContent = `${prefixParts.join('\n\n')}\n\n${finalContent}`;
 
   const cur = currentMessage.userInputMessage!;
+  const persona: KiroPersona = credentials?.persona ?? KIRO_DEFAULT_PERSONA;
+  const isCli = persona === 'cli';
+  const origin = isCli ? 'KIRO_CLI' : 'AI_EDITOR';
+  // The CLI runtime endpoint expects dotted version ids (claude-sonnet-4.6);
+  // the IDE host accepts the hyphenated router id as-is.
+  const payloadModelId = isCli ? toCliModelId(upstreamModel) : upstreamModel;
+
+  // CLI persona attaches envState to every user message and uses no
+  // chatTriggerType; IDE persona keeps the legacy MANUAL trigger.
+  if (isCli) {
+    const envState = buildEnvState();
+    for (const item of history) {
+      const uim = item.userInputMessage;
+      if (!uim) continue;
+      uim.origin = origin;
+      uim.modelId = toCliModelId(uim.modelId);
+      if (!uim.userInputMessageContext) uim.userInputMessageContext = {};
+      uim.userInputMessageContext.envState = envState;
+    }
+  }
+
+  const curContext = cur.userInputMessageContext ?? (isCli ? {} : undefined);
+  if (isCli && curContext) curContext.envState = buildEnvState();
+
   const payload: KiroPayload = {
     conversationState: {
       chatTriggerType: 'MANUAL',
@@ -413,20 +456,21 @@ export function buildKiroPayload(
       currentMessage: {
         userInputMessage: {
           content: finalContent,
-          modelId: upstreamModel,
-          origin: 'AI_EDITOR',
+          modelId: payloadModelId,
+          origin,
           ...(cur.images?.length ? { images: cur.images } : {}),
-          ...(cur.userInputMessageContext
-            ? { userInputMessageContext: cur.userInputMessageContext }
-            : {}),
+          ...(curContext ? { userInputMessageContext: curContext } : {}),
         },
       },
       history,
+      // The Kiro CLI tags each agentic turn; runtime.kiro.dev expects these.
+      ...(isCli ? { agentContinuationId: randomUUID(), agentTaskType: 'vibe' } : {}),
     },
   };
 
   if (profileArn) payload.profileArn = profileArn;
-  if (maxTokens || temperature !== undefined || topP !== undefined) {
+  // The CLI runtime endpoint rejects inferenceConfig; only the IDE path sends it.
+  if (!isCli && (maxTokens || temperature !== undefined || topP !== undefined)) {
     payload.inferenceConfig = {};
     if (maxTokens) payload.inferenceConfig.maxTokens = maxTokens;
     if (temperature !== undefined) payload.inferenceConfig.temperature = temperature;
