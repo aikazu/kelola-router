@@ -135,50 +135,52 @@ export function ClientKeys() {
             <p>Create one to give an app access to the proxy.</p>
           </div>
         ) : (
-          <table class="tbl">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Label</th>
-                <th>Bearer key</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {keys.map((k) => (
-                <tr key={k.id}>
-                  <td>{k.id}</td>
-                  <td>{k.label}</td>
-                  <td class="mono">
-                    <code>{k.keyPreview}</code>
-                  </td>
-                  <td>
-                    <Badge variant={k.enabled ? 'active' : 'muted'}>
-                      {k.enabled ? 'active' : 'disabled'}
-                    </Badge>
-                  </td>
-                  <td title={k.createdAt}>{relativeTime(k.createdAt)}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    <Button size="sm" variant="ghost" onClick={() => copyKey(k.id)}>
-                      Copy
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => toggleMut.mutate({ id: k.id, enabled: k.enabled })}
-                    >
-                      {k.enabled ? 'Disable' : 'Enable'}
-                    </Button>
-                    <Button size="sm" variant="danger" onClick={() => handleDelete(k.id, k.label)}>
-                      Delete
-                    </Button>
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Bearer key</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {keys.map((k) => (
+                  <tr key={k.id}>
+                    <td>{k.label}</td>
+                    <td class="mono">
+                      <code>{k.keyPreview}</code>
+                    </td>
+                    <td>
+                      <Badge variant={k.enabled ? 'active' : 'muted'}>
+                        {k.enabled ? 'active' : 'disabled'}
+                      </Badge>
+                    </td>
+                    <td title={k.createdAt}>{relativeTime(k.createdAt)}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
+                        <Button size="sm" variant="ghost" onClick={() => copyKey(k.id)}>
+                          Copy
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => toggleMut.mutate({ id: k.id, enabled: k.enabled })}
+                        >
+                          {k.enabled ? 'Disable' : 'Enable'}
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(k.id, k.label)}>
+                          Del
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
       <Modal

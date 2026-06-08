@@ -161,6 +161,7 @@ export function Aliases() {
             )}
           </p>
         ) : (
+          <div style={{ overflowX: 'auto' }}>
           <table class="tbl">
             <thead>
               <tr>
@@ -184,13 +185,14 @@ export function Aliases() {
                   <td class="card-sub mono" style={{ fontSize: 12 }}>
                     {a.createdAt}
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td>
+                    <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
                     <Button size="sm" onClick={() => setEditing(a)}>
                       Edit
-                    </Button>{' '}
+                    </Button>
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="danger"
                       onClick={async () => {
                         if (
                           await confirmDialog({
@@ -204,13 +206,15 @@ export function Aliases() {
                         }
                       }}
                     >
-                      Delete
+                      Del
                     </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 
