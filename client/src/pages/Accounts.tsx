@@ -507,11 +507,8 @@ export function Accounts() {
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <Badge variant={a.provider === 'kiro' ? 'active' : 'muted'}>
-                        {a.provider === 'kiro' ? 'kiro' : 'minimax'}
+                        {a.provider === 'kiro' ? `kiro · ${a.authMethod || 'token'}` : 'minimax'}
                       </Badge>
-                      {a.provider === 'kiro' && a.authMethod && (
-                        <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 4 }}>{a.authMethod}</span>
-                      )}
                       {a.provider === 'kiro' && (
                         <Badge variant={a.persona === 'cli' ? 'warn' : 'muted'} style={{ marginLeft: 6 }}>
                           {a.persona === 'cli' ? 'CLI' : 'IDE'}
