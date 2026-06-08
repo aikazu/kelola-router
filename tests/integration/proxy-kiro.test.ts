@@ -2,12 +2,12 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { openDb } from '../../src/db/index.js';
 import { createAccount, updateAccount } from '../../src/db/repos/accounts.js';
 import { createClientKey } from '../../src/db/repos/client_keys.js';
 import { enableModel, upsertModel } from '../../src/db/repos/models.js';
 import { flushDeferredLogs, recentLogs } from '../../src/db/repos/requestLogs.js';
 import { clearCache, setSetting } from '../../src/db/repos/settings.js';
-import { openDb } from '../../src/db/index.js';
 import { clearAliasCache } from '../../src/providers/aliasCache.js';
 import { app, resetDb } from '../../src/server.js';
 
@@ -66,7 +66,11 @@ beforeEach(() => {
   resetDb();
   clearCache();
   const db = openDb();
-  upsertModel(db, { name: 'claude-sonnet-4-5', upstream_model: 'claude-sonnet-4-5', provider: 'kiro' });
+  upsertModel(db, {
+    name: 'claude-sonnet-4-5',
+    upstream_model: 'claude-sonnet-4-5',
+    provider: 'kiro',
+  });
   enableModel(db, 'claude-sonnet-4-5');
   createAccount(db, {
     id: 'kiro1',

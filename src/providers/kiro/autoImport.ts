@@ -25,7 +25,10 @@ export async function autoImportFromSsoCache(): Promise<AutoImportResult> {
   try {
     files = await readdir(cachePath);
   } catch {
-    return { found: false, error: 'AWS SSO cache not found (~/.aws/sso/cache). Login to Kiro IDE first.' };
+    return {
+      found: false,
+      error: 'AWS SSO cache not found (~/.aws/sso/cache). Login to Kiro IDE first.',
+    };
   }
 
   // Try kiro-auth-token.json first

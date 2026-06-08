@@ -18,6 +18,7 @@ import {
   resolveKiroEndpoint,
   resolveKiroPersona,
 } from './constants.js';
+import { ensureProfileArn } from './profile.js';
 import type { KiroProviderData } from './tokenRefresh.js';
 import { buildKiroPayload, type OpenAIChatBody } from './transform.js';
 
@@ -96,6 +97,10 @@ export async function executeKiro(args: {
 
   const auth = await ensureAccessToken(db, account, transport);
   const persona = resolveKiroPersona(auth.providerData?.persona);
+  // The CLI runtime host requires a profileArn; discover + cache it on first use.
+  if (persona === 'cli') {
+    await ensureProfileArn(db, account, auth, transport, signal);
+  }
   const { payload, upstreamModel } = buildKiroPayload(model, body, {
     accessToken: auth.accessToken,
     providerData: auth.providerData,

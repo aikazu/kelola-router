@@ -37,6 +37,14 @@ export function kiroCliEndpoint(region: string = KIRO_DEFAULT_REGION): string {
   return `https://runtime.${region}.kiro.dev/`;
 }
 
+/**
+ * CLI management endpoint for a region (profile discovery, model listing).
+ * Hosts `AmazonCodeWhispererService.{ListAvailableProfiles,GetProfile,...}`.
+ */
+export function kiroCliManagementEndpoint(region: string = KIRO_DEFAULT_REGION): string {
+  return `https://management.${region}.kiro.dev/`;
+}
+
 /** Resolve the upstream chat endpoint for a persona + region. */
 export function resolveKiroEndpoint(persona: KiroPersona, region: string): string {
   return persona === 'cli' ? kiroCliEndpoint(region) : kiroEndpoint(region);
@@ -60,20 +68,20 @@ export const KIRO_CLI_STREAMING_API_VERSION = '0.1.16551';
 export const KIRO_CLI_APP_NAME = 'AmazonQ-For-CLI';
 
 /** Build the aws-sdk-rust User-Agent string the real Kiro CLI sends. */
-export function kiroCliUserAgent(): string {
+export function kiroCliUserAgent(api: 'streaming' | 'runtime' = 'streaming'): string {
   return (
     `aws-sdk-rust/${KIRO_CLI_SDK_VERSION} ua/2.1 ` +
-    `api/codewhispererstreaming/${KIRO_CLI_STREAMING_API_VERSION} os/windows lang/rust/1.92.0 ` +
+    `api/codewhisperer${api}/${KIRO_CLI_STREAMING_API_VERSION} os/windows lang/rust/1.92.0 ` +
     `exec-env/${KIRO_CLI_APP_NAME} Version/${KIRO_CLI_VERSION} md/appVersion-${KIRO_CLI_VERSION} ` +
     `app/${KIRO_CLI_APP_NAME}`
   );
 }
 
 /** The `x-amz-user-agent` variant (uses `m/F` instead of the md/appVersion tail). */
-export function kiroCliAmzUserAgent(): string {
+export function kiroCliAmzUserAgent(api: 'streaming' | 'runtime' = 'streaming'): string {
   return (
     `aws-sdk-rust/${KIRO_CLI_SDK_VERSION} ua/2.1 ` +
-    `api/codewhispererstreaming/${KIRO_CLI_STREAMING_API_VERSION} os/windows lang/rust/1.92.0 ` +
+    `api/codewhisperer${api}/${KIRO_CLI_STREAMING_API_VERSION} os/windows lang/rust/1.92.0 ` +
     `exec-env/${KIRO_CLI_APP_NAME} Version/${KIRO_CLI_VERSION} m/F app/${KIRO_CLI_APP_NAME}`
   );
 }

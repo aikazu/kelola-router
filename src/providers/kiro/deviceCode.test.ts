@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { startDeviceCodeFlow, pollDeviceToken } from './deviceCode.js';
+import { pollDeviceToken, startDeviceCodeFlow } from './deviceCode.js';
 
 // Mock proxyAwareFetch
 vi.mock('../../transport/proxyFetch.js', () => ({
@@ -7,6 +7,7 @@ vi.mock('../../transport/proxyFetch.js', () => ({
 }));
 
 import { proxyAwareFetch } from '../../transport/proxyFetch.js';
+
 const mockFetch = proxyAwareFetch as ReturnType<typeof vi.fn>;
 
 describe('startDeviceCodeFlow', () => {
@@ -24,7 +25,8 @@ describe('startDeviceCodeFlow', () => {
           deviceCode: 'dc-xyz',
           userCode: 'ABCD-EFGH',
           verificationUri: 'https://device.sso.us-east-1.amazonaws.com/',
-          verificationUriComplete: 'https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-EFGH',
+          verificationUriComplete:
+            'https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-EFGH',
           expiresIn: 600,
           interval: 5,
         }),
@@ -56,11 +58,19 @@ describe('startDeviceCodeFlow', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          deviceCode: 'd', userCode: 'U', verificationUri: 'https://x', verificationUriComplete: 'https://x?u=U', expiresIn: 300,
+          deviceCode: 'd',
+          userCode: 'U',
+          verificationUri: 'https://x',
+          verificationUriComplete: 'https://x?u=U',
+          expiresIn: 300,
         }),
       });
 
-    const result = await startDeviceCodeFlow({ authMethod: 'idc', region: 'eu-west-1', startUrl: 'https://my-org.awsapps.com/start' });
+    const result = await startDeviceCodeFlow({
+      authMethod: 'idc',
+      region: 'eu-west-1',
+      startUrl: 'https://my-org.awsapps.com/start',
+    });
 
     expect(result.region).toBe('eu-west-1');
     expect(result.authMethod).toBe('idc');
@@ -73,14 +83,18 @@ describe('startDeviceCodeFlow', () => {
 
   it('throws on register failure', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 400, text: async () => 'bad request' });
-    await expect(startDeviceCodeFlow({ authMethod: 'builder-id' })).rejects.toThrow('Client registration failed');
+    await expect(startDeviceCodeFlow({ authMethod: 'builder-id' })).rejects.toThrow(
+      'Client registration failed'
+    );
   });
 
   it('throws on device auth failure', async () => {
     mockFetch
       .mockResolvedValueOnce({ ok: true, json: async () => ({ clientId: 'c', clientSecret: 's' }) })
       .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'server error' });
-    await expect(startDeviceCodeFlow({ authMethod: 'builder-id' })).rejects.toThrow('Device authorization failed');
+    await expect(startDeviceCodeFlow({ authMethod: 'builder-id' })).rejects.toThrow(
+      'Device authorization failed'
+    );
   });
 });
 
@@ -136,7 +150,12 @@ describe('pollDeviceToken', () => {
       json: async () => ({ accessToken: 'at', refreshToken: 'rt', expiresIn: 3600 }),
     });
 
-    await pollDeviceToken({ deviceCode: 'dc', clientId: 'c', clientSecret: 's', region: 'ap-southeast-1' });
+    await pollDeviceToken({
+      deviceCode: 'dc',
+      clientId: 'c',
+      clientSecret: 's',
+      region: 'ap-southeast-1',
+    });
     expect(mockFetch.mock.calls[0][0]).toBe('https://oidc.ap-southeast-1.amazonaws.com/token');
   });
 });

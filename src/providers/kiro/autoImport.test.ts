@@ -11,11 +11,15 @@ vi.mock('node:os', () => ({
 }));
 
 import { readdir, readFile } from 'node:fs/promises';
+
 const mockReaddir = readdir as ReturnType<typeof vi.fn>;
 const mockReadFile = readFile as ReturnType<typeof vi.fn>;
 
 describe('autoImportFromSsoCache', () => {
-  beforeEach(() => { mockReaddir.mockReset(); mockReadFile.mockReset(); });
+  beforeEach(() => {
+    mockReaddir.mockReset();
+    mockReadFile.mockReset();
+  });
 
   it('returns found when kiro-auth-token.json has valid token', async () => {
     mockReaddir.mockResolvedValue(['kiro-auth-token.json', 'other.json']);

@@ -71,8 +71,7 @@ export async function startDeviceCodeFlow(
 ): Promise<DeviceCodeStartResult> {
   const region = input.region?.trim() || KIRO_DEFAULT_REGION;
   const startUrl =
-    input.startUrl?.trim() ||
-    (input.authMethod === 'idc' ? '' : KIRO_BUILDER_ID_START_URL);
+    input.startUrl?.trim() || (input.authMethod === 'idc' ? '' : KIRO_BUILDER_ID_START_URL);
   if (input.authMethod === 'idc' && !startUrl) {
     throw new Error('IAM Identity Center requires a startUrl');
   }

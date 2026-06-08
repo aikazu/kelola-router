@@ -14,8 +14,8 @@ import {
   buildKiroAccountFields,
   type KiroImportInput,
 } from '../../providers/kiro/accountImport.js';
-import { startDeviceCodeFlow, pollDeviceToken } from '../../providers/kiro/deviceCode.js';
 import { autoImportFromSsoCache } from '../../providers/kiro/autoImport.js';
+import { pollDeviceToken, startDeviceCodeFlow } from '../../providers/kiro/deviceCode.js';
 import { ApiError, handleApiError } from './middleware.js';
 
 export const accountRoutes = new Hono();
@@ -123,7 +123,11 @@ accountRoutes.post('/kiro', (c) => {
 
 accountRoutes.post('/kiro/device-code', async (c) => {
   try {
-    const body = (await c.req.json()) as { authMethod?: string; region?: string; startUrl?: string };
+    const body = (await c.req.json()) as {
+      authMethod?: string;
+      region?: string;
+      startUrl?: string;
+    };
     const authMethod = body.authMethod === 'idc' ? 'idc' : 'builder-id';
     const result = await startDeviceCodeFlow({
       authMethod,
