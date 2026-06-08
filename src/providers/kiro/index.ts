@@ -1,0 +1,110 @@
+/**
+ * Kiro executor — turns an OpenAI chat-completions request into a Kiro
+ * (AWS CodeWhisperer) call and returns an OpenAI-shaped response (SSE chunk
+ * stream or buffered chat.completion). Adapted from the 9router reference (MIT).
+ */
+import { createHash, randomUUID } from 'node:crypto';
+import type Database from 'better-sqlite3';
+import type { Account } from '../../db/repos/accounts.js';
+import { proxyAwareFetch } from '../../transport/proxyFetch.js';
+import type { TransportConfig } from '../../transport/types.js';
+import { kiroResponseToOpenAIJson, type OpenAICompletion } from './assembler.js';
+import { ensureAccessToken, type KiroAuth } from './auth.js';
+import { KIRO_DEFAULT_REGION, kiroEndpoint } from './constants.js';
+import type { KiroProviderData } from './tokenRefresh.js';
+import { buildKiroPayload, type OpenAIChatBody } from './transform.js';
+
+const KIRO_SDK_VERSION = '1.0.0';
+const KIRO_IDE_VERSION = '0.10.32';
+
+function regionFor(providerData: KiroProviderData | null): string {
+  const arn = providerData?.profileArn;
+  if (arn) {
+    const parts = arn.split(':');
+    if (parts.length >= 4 && parts[3]) return parts[3];
+  }
+  return providerData?.region || KIRO_DEFAULT_REGION;
+}
+
+/** Per-account fingerprint headers Kiro upstream validates (stable machineId). */
+function buildKiroHeaders(auth: KiroAuth): Record<string, string> {
+  const seed =
+    auth.providerData?.clientId || auth.providerData?.profileArn || auth.accessToken || 'kiro';
+  const machineId = createHash('sha256').update(String(seed)).digest('hex');
+  const userAgent =
+    `aws-sdk-js/${KIRO_SDK_VERSION} ua/2.1 os/windows#10.0.26200 lang/js ` +
+    `md/nodejs#22.21.1 api/codewhispererruntime#${KIRO_SDK_VERSION} m/N,E ` +
+    `KiroIDE-${KIRO_IDE_VERSION}-${machineId}`;
+  return {
+    'Content-Type': 'application/json',
+    Accept: 'application/vnd.amazon.eventstream',
+    'X-Amz-Target': 'AmazonCodeWhispererStreamingService.GenerateAssistantResponse',
+    'Amz-Sdk-Invocation-Id': randomUUID(),
+    'Amz-Sdk-Request': 'attempt=1; max=3',
+    'User-Agent': userAgent,
+    'x-amz-user-agent': `aws-sdk-js/${KIRO_SDK_VERSION} KiroIDE-${KIRO_IDE_VERSION}-${machineId}`,
+    Authorization: `Bearer ${auth.accessToken}`,
+  };
+}
+
+export interface KiroExecuteResult {
+  ok: boolean;
+  status: number;
+  /** Raw upstream Kiro binary event-stream Response when stream=true and ok. */
+  rawStreamResponse?: Response;
+  /** Buffered OpenAI completion when stream=false and ok. */
+  json?: OpenAICompletion;
+  /** Raw upstream error body when !ok. */
+  errorBody?: string;
+  upstreamModel: string;
+}
+
+export async function executeKiro(args: {
+  db: Database.Database;
+  account: Account;
+  model: string;
+  body: OpenAIChatBody;
+  stream: boolean;
+  transport: TransportConfig | null;
+  signal?: AbortSignal;
+}): Promise<KiroExecuteResult> {
+  const { db, account, model, body, stream, transport, signal } = args;
+
+  const auth = await ensureAccessToken(db, account, transport);
+  const { payload, upstreamModel } = buildKiroPayload(model, body, {
+    accessToken: auth.accessToken,
+    providerData: auth.providerData,
+  });
+  const url = kiroEndpoint(regionFor(auth.providerData));
+  const headers = buildKiroHeaders(auth);
+
+  const resp = await proxyAwareFetch(
+    url,
+    { method: 'POST', headers, body: JSON.stringify(payload), signal },
+    transport
+  );
+
+  if (!resp.ok) {
+    return {
+      ok: false,
+      status: resp.status,
+      errorBody: await resp.text(),
+      upstreamModel,
+    };
+  }
+
+  if (stream) {
+    return {
+      ok: true,
+      status: resp.status,
+      rawStreamResponse: resp,
+      upstreamModel,
+    };
+  }
+  return {
+    ok: true,
+    status: resp.status,
+    json: await kiroResponseToOpenAIJson(resp, model),
+    upstreamModel,
+  };
+}
