@@ -1,6 +1,6 @@
 # 🛰️ Kelola Router
 
-> Local-first API router for [MiniMax](https://minimax.io) — single provider, multi-account, intelligent fallback, prompt caching, RTK + Caveman compression, and a built-in dashboard.
+> Local-first API router — MiniMax + Kiro (AWS CodeWhisperer) upstreams, multi-account, intelligent fallback, prompt caching, RTK + Caveman compression, and a built-in dashboard.
 
 [![Bun](https://img.shields.io/badge/bun-recommended-f9f1e1?logo=bun&logoColor=black)](https://bun.sh)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
@@ -8,8 +8,8 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.14](https://img.shields.io/badge/release-v0.14-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.14)
-[![Tests](https://img.shields.io/badge/tests-294-success?logo=vitest&logoColor=white)](#-development)
+[![v0.16](https://img.shields.io/badge/release-v0.16-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.16)
+[![Tests](https://img.shields.io/badge/tests-391-success?logo=vitest&logoColor=white)](#-development)
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
 ```text
@@ -30,6 +30,7 @@
 ## ✨ Features
 
 - 🔌 **Drop-in OpenAI + Anthropic compatibility** — `/v1/chat/completions`, `/v1/messages`, `/v1/messages/count_tokens`, `/v1/models`
+- 🟣 **Kiro upstream (AWS CodeWhisperer / Amazon Q)** — second provider alongside MiniMax, routed by model. OAuth refresh-token auth (paste token / AWS Builder ID / AWS IAM Identity Center), AWS event-stream binary protocol translated to OpenAI **and native Anthropic SSE** (streaming for Claude Code + hermes-agent). Auto token refresh + caching
 - 🛠️ **Tool use passthrough with cross-format conversion** — `tools` / `tool_use` / `tool_calls` flow correctly between client + upstream regardless of which SDK you use (Anthropic SDK ↔ OpenAI SDK ↔ MiniMax upstream)
 - 🔀 **Cross-format routing** — set `upstreamFormat` in `settings.minimax` (or `ROUTER_UPSTREAM_FORMAT` env) to route OpenAI clients to Anthropic upstream or vice versa; body + non-stream response converted automatically
 - 📺 **OpenAI `stream_options.include_usage` auto-injected** — accurate per-client cost tracking even if the client forgets to set it
@@ -166,6 +167,16 @@ src/
 │   └── format/               # cross-format body + response conversion
 │       ├── transform.ts      # tools/tool_choice/tool_use/tool_calls between OpenAI↔Anthropic
 │       └── negotiate.ts      # decide upstream format from client + override
+│   └── kiro/                 # Kiro (AWS CodeWhisperer) provider
+│       ├── constants.ts      # endpoints, -thinking/-agentic resolution, thinking-mode prompt
+│       ├── transform.ts      # OpenAI → CodeWhisperer conversationState
+│       ├── eventstream.ts    # AWS event-stream binary frame decoder
+│       ├── assembler.ts      # events → OpenAI SSE chunks + buffered JSON
+│       ├── anthropicSse.ts   # events → native Anthropic Messages SSE
+│       ├── tokenRefresh.ts   # AWS SSO OIDC / Kiro social refresh
+│       ├── auth.ts           # ensureAccessToken (DB-cached, auto-refresh)
+│       ├── accountImport.ts  # paste JSON / Builder ID / IDC / social
+│       └── index.ts          # executeKiro
 ├── rtk/                      # RTK compression pipeline
 │   ├── index.ts              # compressMessages + formatRtkLog
 │   ├── applyFilter.ts        # generic filter runner
@@ -271,6 +282,10 @@ npm run dev           # tsx watch src/server.ts
 npm run add-client-key -- --label myapp
 npm run add-account -- --label "main" --credit-type payg --api-key mm_xxx
 npx tsx scripts/seed-models.ts   # idempotent: upsert 9 builtin MiniMax models
+
+# Kiro (AWS CodeWhisperer) upstream
+npx tsx scripts/seed-kiro-models.ts                                   # builtin Kiro/Claude models
+npm run add-kiro-account -- --label kiro1 --refresh-token eyJ...      # + optional --client-id/--client-secret/--region/--profile-arn
 npx tsx scripts/reset.ts --yes   # delete db + WAL/SHM sidecars
 ```
 
@@ -321,6 +336,7 @@ Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 
 | Phase | Version | Status | Scope |
 |------:|:--------|:------:|:------|
+| 16 | **v0.16** | ✅ shipped | Kiro (AWS CodeWhisperer / Amazon Q) as a second upstream provider, routed by model `provider`. Additive migration `002-kiro` (`provider`/`access_token`/`token_expires_at`/`provider_data` on accounts, `provider` on models). New `src/providers/kiro/` modules: CodeWhisperer request transform, AWS event-stream binary decoder, OpenAI SSE + **native Anthropic Messages SSE** assemblers (Claude Code/hermes streaming), token refresh (AWS SSO OIDC / Kiro social) with DB-cached auto-refresh. Account import — paste credential JSON / AWS Builder ID / AWS IAM Identity Center / refresh token — via `POST /api/admin/accounts/kiro` + dashboard form. `seed-kiro-models` + `add-kiro-account` CLI. 18 unit tests + end-to-end proxy integration test (mocked binary upstream) |
 | 15 | **v0.15** | ✅ shipped | Quota duplicate-block fix: puller now skips `model_remains[]` items with no `model_name` and the admin query filters `model_name IS NOT NULL`, so legacy NULL-model rows can no longer render as a phantom 0% block. Schema consolidation: migrations 002–008 folded into a single `001-initial` (full schema, `user_version = 1`); legacy upgrade stubs + dead `repos/users.ts` removed — fresh-deploy only |
 | 14 | **v0.14** | ✅ shipped | Usage all-time range (`days=0`, null deltas) + 1-day default; per-row Copy full client key (`GET /client-keys/:id/key`, list stays masked). Quota flow fix + redesign: parse real MiniMax nested `model_remains[]` shape (old parser read a flat shape → "no data"), fix used/remaining semantic swap (`used_count = usage_count`, `remaining_count = total − usage`), store `remaining_percent` + `remains_time` (consolidated into the single `001-initial` schema in v0.15); admin API groups latest snapshots per `(model_name, window_type)`; Quota page redesigned as per-model percent bars (general/video) with reset countdown, status dot, count detail when metered |
 | 13 | **v0.13** | ✅ shipped | Hot-path latency cuts (warm SQLite statement executions per request 8 → 5): batched settings read, skip no-op account writes, throttled lock cleanup, client-key lookup cache, deferred request-log insert (off the response path via `setImmediate`), fast-path raw-body passthrough when no transform applies; fixed `stream_options.include_usage` injection (return value was discarded), `adminApi` per-request db handle, `resetDb` closing the handle |

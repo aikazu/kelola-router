@@ -12,6 +12,16 @@ Speculative — these are ideas, not commitments. Edit freely.
 - **Prometheus `/metrics` endpoint** — scrape-friendly counters and histograms
 - **Webhooks for error events** — POST to a configured URL on fatal upstream errors
 
+## v0.16 — 2026-06-08
+
+**Kiro (AWS CodeWhisperer) as a second upstream provider.** The router is no longer MiniMax-only: requests routed by the resolved model's `provider`. MiniMax stays the default and its path is unchanged.
+- **Multi-provider schema.** Migration `002-kiro` (additive) adds `provider` + `access_token` + `token_expires_at` + `provider_data` to `accounts`, and `provider` to `models`. Existing rows default to `provider = 'minimax'`. Kiro accounts store their OAuth **refresh token** in `api_key` (non-null + unique), cache the short-lived bearer in `access_token`, and keep SSO/OIDC fields in `provider_data` JSON.
+- **Kiro provider modules** (`src/providers/kiro/`): `constants` (endpoints, `-thinking`/`-agentic` model resolution, thinking-mode prompt injection), `transform` (OpenAI → CodeWhisperer `conversationState`: tools, tool results, images, system folding), `eventstream` (AWS event-stream binary frame decoder), `assembler` (events → OpenAI SSE chunks + buffered JSON), `anthropicSse` (events → native Anthropic Messages SSE), `tokenRefresh` (AWS SSO OIDC vs Kiro social), `auth` (`ensureAccessToken` — DB-cached, auto-refresh with 5-min buffer), `index` (executor).
+- **Native Anthropic streaming.** `/v1/messages` (Claude Code, hermes-agent) streams real Anthropic SSE — `message_start` → `content_block_*` (text / thinking / tool_use) → `message_delta` → `message_stop`. `/v1/chat/completions` streams OpenAI SSE. Both pipe through `pipeWithUsage` for telemetry.
+- **Full account import.** Add Kiro accounts via dashboard or API (`POST /api/admin/accounts/kiro`) with: paste credential JSON (Kiro IDE / AWS SSO cache), AWS Builder ID, AWS IAM Identity Center (IDC), or raw refresh token. `buildKiroAccountFields` parses the blob and infers the auth method. CLI: `npm run add-kiro-account`, `npm run seed-kiro-models`.
+- **Tests.** 18 new unit tests (constants, transform, event-stream, OpenAI + Anthropic assemblers, account import) + a 4-case end-to-end integration test (`tests/integration/proxy-kiro.test.ts`) that drives the full proxy path against a mocked binary upstream (OpenAI JSON, OpenAI SSE, Anthropic SSE, 503 fallback). Suite: 391 server tests green.
+- **Not yet verified live.** The CodeWhisperer wire format + token refresh are modelled on a known-good reference, not yet confirmed against the live AWS endpoint (requires a real Kiro account).
+
 ## v0.15 — 2026-06-04
 
 **Quota phantom-block root cause + schema consolidation.** Cleanup after a dashboard bug where the quota page rendered a duplicate 0% block.

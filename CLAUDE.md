@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`kelola-router` — local-first API router for [MiniMax](https://minimax.io). Single-user self-host model. OpenAI + Anthropic compatible proxy, multi-account pool with fallback, prompt caching, model aliases, RTK + Caveman compression, built-in dashboard. SQLite (WAL) for state. Hono on Node 20+.
+`kelola-router` — local-first API router. Single-user self-host model. OpenAI + Anthropic compatible proxy, multi-account pool with fallback, prompt caching, model aliases, RTK + Caveman compression, built-in dashboard. SQLite (WAL) for state. Hono on Node 20+.
+
+**Upstream providers** (routed by the resolved model's `provider` column):
+- **MiniMax** (default) — [minimax.io](https://minimax.io), API-key bearer, HTTP-JSON.
+- **Kiro** (AWS CodeWhisperer / Amazon Q) — OAuth refresh-token auth, AWS event-stream binary protocol, translated to/from OpenAI + Anthropic. See "Kiro provider" below.
 
 ## Commands
 
@@ -32,6 +36,8 @@ npm run add-client-key -- --label myapp
 npm run add-account   -- --label "PAYG main" --credit-type payg --api-key mm_xxx
 npm run seed-models                # idempotent: upsert 18 builtin models
 npm run reset                      # rm db + WAL/SHM sidecars
+npm run seed-kiro-models           # idempotent: upsert builtin Kiro (Claude/AWS) models
+npm run add-kiro-account -- --label kiro1 --refresh-token eyJ...   # + optional --client-id/--client-secret/--region/--profile-arn
 ```
 
 Docker:
@@ -86,6 +92,17 @@ Client format detected from `Authorization: Bearer` shape or route. Body convert
 - `MINIMAX_REGION=intl|cn` switches base URL (`src/providers/baseUrl.ts`).
 - `reasoning_split` (settings.minimax): when on, M3 returns structured `reasoning_content` instead of `<think>` tags in content.
 
+### Kiro provider (`src/providers/kiro/`)
+
+Kiro = AWS CodeWhisperer / Amazon Q. Not MiniMax-shaped — a separate provider path branched in `handleProxy` (`src/server.ts`) when the resolved model's `provider === 'kiro'` → `handleKiroProxy`.
+
+- **Auth.** A Kiro `accounts` row stores its OAuth **refresh token** in `api_key`, the cached bearer in `access_token`, expiry in `token_expires_at`, and SSO/OIDC fields in `provider_data` JSON. `auth.ensureAccessToken` returns a valid bearer, refreshing + persisting when within a 5-min buffer. `tokenRefresh.refreshKiroToken` picks AWS SSO OIDC (`oidc.{region}.amazonaws.com/token`, when `clientId`+`clientSecret` present) vs Kiro desktop social (`prod.us-east-1.auth.desktop.kiro.dev/refreshToken`).
+- **Request.** `transform.buildKiroPayload` converts an OpenAI body to CodeWhisperer `conversationState` (system/tool folded to user turns, tools → `toolSpecification`, images, `-thinking` injects `<thinking_mode>enabled</thinking_mode>`, `-agentic` injects the chunked-write prompt; suffixes stripped before upstream).
+- **Response.** Upstream replies in the AWS event-stream **binary** framing. `eventstream.decodeFrames` parses frames; `assembler` re-emits OpenAI SSE chunks / buffered `chat.completion`; `anthropicSse` re-emits native Anthropic Messages SSE (`message_start` → `content_block_*` for text/thinking/tool_use → `message_delta` → `message_stop`). `index.executeKiro` ties it together; `handleKiroProxy` converts per client format and pipes via `pipeWithUsage`.
+- **Account import.** `accountImport.buildKiroAccountFields` builds the row from a pasted credential JSON (Kiro IDE / AWS SSO cache) or explicit fields; methods: `token` / `builder-id` / `idc` / `social`. Exposed at `POST /api/admin/accounts/kiro` and the dashboard Accounts form.
+- **Models.** Seeded via `scripts/seed-kiro-models.ts` with `provider='kiro'`, `family='kiro'`; synthetic `-thinking` / `-agentic` / `-thinking-agentic` variants keep their suffix in `upstream_model` (the executor strips it).
+- **Not yet live-verified.** Wire format + refresh modelled on a known-good reference; confirm against a real Kiro account before relying on it.
+
 ### Dashboard
 
 `client/` — standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (built in the Docker build stage, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`.
@@ -112,7 +129,7 @@ Dev loop: `cd client && npm run dev` (port 5173, proxies `/api` `/login` `/logou
 
 ### Storage
 
-`src/db/index.ts` — `openDb()` opens (or creates) `~/.local/share/kelola-router/router.db` (or `ROUTER_DB_PATH` override; Docker mounts `/data/router.db`), sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Migrations: `src/db/migrations/` — single `001-initial.ts` holding the full consolidated schema (accounts, account_model_locks, client_keys, request_logs incl. bodies/headers/`requested_model`, quota_snapshots incl. `model_name`/`remaining_percent`/`remains_time`, models w/ unique `upstream_model` index, model_aliases, sessions, settings) + `index.ts` runner. Tracked via `user_version` PRAGMA (current = 1). Fresh-deploy only; legacy upgrade stubs were dropped.
+`src/db/index.ts` — `openDb()` opens (or creates) `~/.local/share/kelola-router/router.db` (or `ROUTER_DB_PATH` override; Docker mounts `/data/router.db`), sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Migrations: `src/db/migrations/` — single `001-initial.ts` holding the full consolidated schema (accounts, account_model_locks, client_keys, request_logs incl. bodies/headers/`requested_model`, quota_snapshots incl. `model_name`/`remaining_percent`/`remains_time`, models w/ unique `upstream_model` index, model_aliases, sessions, settings) + `index.ts` runner. Tracked via `user_version` PRAGMA (current = 2). Migrations run in order, skipping any `id <= user_version`. `002-kiro.ts` is additive (`ALTER TABLE ADD COLUMN`): `provider`/`access_token`/`token_expires_at`/`provider_data` on `accounts`, `provider` on `models` — existing MiniMax DBs upgrade in place.
 
 Repos: `src/db/repos/` — `settings.ts` (1s cache, exposes `clearCache()`), `accounts.ts`, `client_keys.ts`, `models.ts` (+ alias CRUD), `aliases.ts`, `requestLogs.ts`, `quotaSnapshots.ts`.
 
