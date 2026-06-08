@@ -133,7 +133,15 @@ export function AppShell() {
       />
       {helpOpen && (
         <div class="modal-backdrop" onClick={() => setHelpOpen(false)}>
-          <div class="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+          <div
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Keyboard shortcuts"
+            style={{ maxWidth: 400 }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === 'Escape') setHelpOpen(false); }}
+          >
             <div class="modal-header">
               <div class="modal-title">Keyboard shortcuts</div>
               <button class="modal-close" onClick={() => setHelpOpen(false)} aria-label="Close">

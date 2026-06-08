@@ -7,6 +7,7 @@ const ITEMS = [
   { label: 'Client keys', href: '/admin/client-keys', keys: 'g c' },
   { label: 'Upstream accounts', href: '/admin/accounts', keys: 'g a' },
   { label: 'Models', href: '/admin/models', keys: 'g m' },
+  { label: 'Aliases', href: '/admin/aliases', keys: 'g l' },
   { label: 'Quota', href: '/admin/quota', keys: 'g q' },
   { label: 'Settings', href: '/admin/settings', keys: 'g s' },
 ];

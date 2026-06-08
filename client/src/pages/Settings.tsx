@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { ErrorState } from '../components/ErrorState';
 import { Switch } from '../components/Switch';
 import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
@@ -85,7 +86,7 @@ function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
 export function Settings() {
   const qc = useQueryClient();
   const toast = useToast();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['settings'],
     queryFn: () => apiFetch<SettingsData>('/api/admin/settings'),
   });
@@ -96,6 +97,7 @@ export function Settings() {
       qc.invalidateQueries({ queryKey: ['settings'] });
       toast.success('Saved');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
   const rtkMut = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -104,6 +106,7 @@ export function Settings() {
       qc.invalidateQueries({ queryKey: ['settings'] });
       toast.success('Saved');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
   const cachingMut = useMutation({
     mutationFn: (autoBreakpoints: boolean) =>
@@ -112,6 +115,7 @@ export function Settings() {
       qc.invalidateQueries({ queryKey: ['settings'] });
       toast.success('Saved');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
   const minimaxMut = useMutation({
     mutationFn: (b: object) => apiFetch('/api/admin/settings/minimax', { method: 'POST', json: b }),
@@ -119,6 +123,7 @@ export function Settings() {
       qc.invalidateQueries({ queryKey: ['settings'] });
       toast.success('Saved');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
   const pwMut = useMutation({
     mutationFn: (b: { action: string; password?: string }) =>
@@ -127,7 +132,16 @@ export function Settings() {
       qc.invalidateQueries({ queryKey: ['me'] });
       toast.success('Updated');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
+
+  if (isError)
+    return (
+      <>
+        <TopBar title="Settings" />
+        <ErrorState error={error as Error} onRetry={() => refetch()} />
+      </>
+    );
 
   if (isLoading || !data)
     return (

@@ -47,7 +47,7 @@ export function ToastProvider({ children }: { children: ComponentChildren }) {
   return (
     <Ctx.Provider value={ctx}>
       {children}
-      <div class="toast-stack">
+      <div class="toast-stack" role="status" aria-live="polite">
         {items.map((i) => (
           <ToastView key={i.id} item={i} />
         ))}

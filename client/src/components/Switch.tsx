@@ -8,6 +8,8 @@ export function Switch({ checked, onChange, label }: SwitchProps) {
     <label class="switch">
       <input
         type="checkbox"
+        role="switch"
+        aria-checked={checked}
         checked={checked}
         onChange={(e) => onChange((e.target as HTMLInputElement).checked)}
       />

@@ -85,6 +85,7 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
       stroke-width="1.8"
       stroke-linecap="round"
       stroke-linejoin="round"
+      aria-hidden="true"
     >
       {paths[name]}
     </svg>

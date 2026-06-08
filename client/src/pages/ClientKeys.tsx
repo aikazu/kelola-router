@@ -72,6 +72,7 @@ export function ClientKeys() {
       qc.invalidateQueries({ queryKey: ['client-keys'] });
       toast.success('Updated');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
   const deleteMut = useMutation({
     mutationFn: (id: number) => apiFetch(`/api/admin/client-keys/${id}`, { method: 'DELETE' }),

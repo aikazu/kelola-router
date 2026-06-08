@@ -22,7 +22,7 @@
   /* text ramp */
   --text-1: #f0ede7;
   --text-2: #a39f97;
-  --text-3: #6e6a62;
+  --text-3: #8a8680;
   --text-inv: #0a0a0a;
 
   /* semantic */
@@ -169,4 +169,13 @@ kbd {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* --- Focus visible --- */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
 }

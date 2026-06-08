@@ -68,6 +68,7 @@ export function Accounts() {
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Updated');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
   const deleteMut = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/admin/accounts/${id}`, { method: 'DELETE' }),

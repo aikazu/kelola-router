@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useId, useRef } from 'preact/hooks';
 
 export interface ModalProps {
   open: boolean;
@@ -11,10 +11,30 @@ export interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, footer, width }: ModalProps) {
+  const titleId = useId();
+  const modalRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      if (e.key === 'Tab') {
+        const el = modalRef.current;
+        if (!el) return;
+        const focusable = el.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -28,9 +48,16 @@ export function Modal({ open, onClose, title, children, footer, width }: ModalPr
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div class="modal" style={width ? { maxWidth: `${width}px` } : undefined}>
+      <div
+        ref={modalRef}
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        style={width ? { maxWidth: `${width}px` } : undefined}
+      >
         <div class="modal-header">
-          <div class="modal-title">{title}</div>
+          <div class="modal-title" id={titleId}>{title}</div>
           <button class="modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>
