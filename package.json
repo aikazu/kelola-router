@@ -22,7 +22,9 @@
     "test:watch": "vitest",
     "add-client-key": "tsx scripts/add-client-key.ts",
     "add-account": "tsx scripts/add-account.ts",
+    "add-kiro-account": "tsx scripts/add-kiro-account.ts",
     "seed-models": "tsx scripts/seed-models.ts",
+    "seed-kiro-models": "tsx scripts/seed-kiro-models.ts",
     "reset": "tsx scripts/reset.ts",
     "typecheck": "tsc --noEmit"
   },
