@@ -13,12 +13,13 @@
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
 ```text
-┌──────────┐     ┌──────────────────────────────┐     ┌─────────────┐
-│  client  │────▶│        Kelola Router         │────▶│  MiniMax    │
-│ (curl,   │     │                              │     │  upstream   │
-│  SDK,    │     │  auth → augment → compress   │     │  (intl/cn)  │
-│  IDE)    │◀────│  → resolve → select → proxy  │◀────│             │
-└──────────┘     └──────────────────────────────┘     └─────────────┘
+┌──────────┐     ┌──────────────────────────────┐     ┌────────────────────┐
+│  client  │     │        Kelola Router         │ ──▶ │  MiniMax (intl/cn) │
+│ (curl,   │ ──▶ │                              │     └────────────────────┘
+│  SDK,    │     │  auth → augment → compress   │     ┌────────────────────┐
+│  IDE,    │ ◀── │  → resolve → select → proxy  │ ──▶ │  Kiro (AWS Code-   │
+│  Claude) │     │       (routed by model)      │     │  Whisperer / Q)    │
+└──────────┘     └──────────────────────────────┘     └────────────────────┘
                            │
                            ▼
                    ┌───────────────┐
