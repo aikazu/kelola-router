@@ -13,6 +13,8 @@ import {
   buildKiroAccountFields,
   type KiroImportInput,
 } from '../../providers/kiro/accountImport.js';
+import { startDeviceCodeFlow, pollDeviceToken } from '../../providers/kiro/deviceCode.js';
+import { autoImportFromSsoCache } from '../../providers/kiro/autoImport.js';
 import { ApiError, handleApiError } from './middleware.js';
 
 export const accountRoutes = new Hono();
@@ -107,6 +109,85 @@ accountRoutes.post('/kiro', (c) => {
         return c.json({ id: acc.id, label: acc.label, provider: 'kiro' }, 201);
       })
       .catch((e: unknown) => handleApiError(e));
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+// --- Kiro Device Code Flow (AWS Builder ID / IAM IDC) ---
+
+accountRoutes.post('/kiro/device-code', async (c) => {
+  try {
+    const body = (await c.req.json()) as { authMethod?: string; region?: string; startUrl?: string };
+    const authMethod = body.authMethod === 'idc' ? 'idc' : 'builder-id';
+    const result = await startDeviceCodeFlow({
+      authMethod,
+      region: body.region,
+      startUrl: body.startUrl,
+    });
+    return c.json(result);
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+accountRoutes.post('/kiro/poll', async (c) => {
+  try {
+    const body = (await c.req.json()) as {
+      deviceCode: string;
+      clientId: string;
+      clientSecret: string;
+      region?: string;
+      authMethod?: string;
+      startUrl?: string;
+      label?: string;
+    };
+    if (!body.deviceCode || !body.clientId || !body.clientSecret) {
+      throw new ApiError('invalid_input', 'deviceCode, clientId, clientSecret required', 400);
+    }
+    const result = await pollDeviceToken({
+      deviceCode: body.deviceCode,
+      clientId: body.clientId,
+      clientSecret: body.clientSecret,
+      region: body.region,
+    });
+    if (result.status !== 'success') {
+      return c.json(result);
+    }
+    // Token obtained — save account
+    const db = c.get('db') as Database.Database;
+    const region = body.region?.trim() || 'us-east-1';
+    const authMethod = body.authMethod === 'idc' ? 'idc' : 'builder-id';
+    const providerData = JSON.stringify({
+      authMethod,
+      clientId: body.clientId,
+      clientSecret: body.clientSecret,
+      region,
+      ...(body.startUrl ? { startUrl: body.startUrl } : {}),
+    });
+    const expiresAt = result.expiresIn
+      ? new Date(Date.now() + result.expiresIn * 1000).toISOString()
+      : null;
+    const id = ulid();
+    const acc = createAccount(db, {
+      id,
+      label: body.label || `kiro-${authMethod}`,
+      credit_type: 'payg',
+      api_key: result.refreshToken!,
+      provider: 'kiro',
+      provider_data: providerData,
+    });
+    updateAccount(db, id, { access_token: result.accessToken!, token_expires_at: expiresAt });
+    return c.json({ status: 'success', id: acc.id, label: acc.label, provider: 'kiro' });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+accountRoutes.get('/kiro/auto-import', async (c) => {
+  try {
+    const result = await autoImportFromSsoCache();
+    return c.json(result);
   } catch (e) {
     return handleApiError(e);
   }
