@@ -1,7 +1,11 @@
 import type Database from 'better-sqlite3';
 import { migration_001 } from './001-initial.js';
+import { migration_002 } from './002-kiro.js';
 
-const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [migration_001];
+const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
+  migration_001,
+  migration_002,
+];
 
 export function migrate(db: Database.Database): void {
   const current = Number(db.pragma('user_version', { simple: true }));

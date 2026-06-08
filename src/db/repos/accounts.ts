@@ -1,5 +1,7 @@
 import type Database from 'better-sqlite3';
 
+export type ProviderName = 'minimax' | 'kiro';
+
 export interface Account {
   id: string;
   label: string;
@@ -12,24 +14,36 @@ export interface Account {
   last_error: string | null;
   status: 'active' | 'error' | 'disabled';
   created_at: string;
+  /** Upstream provider. Defaults to 'minimax' for legacy rows. */
+  provider: ProviderName;
+  /** Kiro: cached short-lived bearer (refreshed from api_key=refresh_token). */
+  access_token: string | null;
+  /** Kiro: ISO timestamp when access_token expires. */
+  token_expires_at: string | null;
+  /** Kiro: JSON blob {clientId, clientSecret, region, profileArn, authMethod}. */
+  provider_data: string | null;
 }
 
 export type AccountCreate = Pick<Account, 'id' | 'label' | 'credit_type' | 'api_key'> & {
   base_url?: string | null;
   enabled?: boolean;
+  provider?: ProviderName;
+  provider_data?: string | null;
 };
 
 export function createAccount(db: Database.Database, input: AccountCreate): Account {
   db.prepare(`
-    INSERT INTO accounts (id, label, credit_type, api_key, base_url, enabled)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO accounts (id, label, credit_type, api_key, base_url, enabled, provider, provider_data)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     input.id,
     input.label,
     input.credit_type,
     input.api_key,
     input.base_url ?? null,
-    input.enabled === false ? 0 : 1
+    input.enabled === false ? 0 : 1,
+    input.provider ?? 'minimax',
+    input.provider_data ?? null
   );
   return getAccount(db, input.id)!;
 }
@@ -53,6 +67,15 @@ export function listEnabledAccounts(db: Database.Database): Account[] {
   return db
     .prepare(`SELECT * FROM accounts WHERE enabled = 1 ORDER BY created_at`)
     .all() as Account[];
+}
+
+export function listEnabledAccountsByProvider(
+  db: Database.Database,
+  provider: ProviderName
+): Account[] {
+  return db
+    .prepare(`SELECT * FROM accounts WHERE enabled = 1 AND provider = ? ORDER BY created_at`)
+    .all(provider) as Account[];
 }
 
 export function updateAccount(db: Database.Database, id: string, patch: Partial<Account>): void {

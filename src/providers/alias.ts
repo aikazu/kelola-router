@@ -25,6 +25,7 @@ export interface ResolvedModel {
   upstreamModel: string;
   bodyTransform: (body: AnthropicBody | OpenAIBody) => void;
   requestedModel: string;
+  provider: string;
 }
 
 export function resolveModel(
@@ -43,6 +44,7 @@ export function resolveModel(
   return {
     upstreamModel: model.upstream_model,
     requestedModel: requestedName,
+    provider: model.provider ?? 'minimax',
     bodyTransform: (b: AnthropicBody | OpenAIBody) => {
       if (ADAPTIVE_THINKING_MODELS.has(model.upstream_model) && b.thinking === undefined) {
         b.thinking = { type: 'adaptive' };

@@ -16,6 +16,8 @@ export interface Model {
   source: string;
   enabled: number;
   created_at: string;
+  /** Upstream provider. Defaults to 'minimax' for legacy rows. */
+  provider: string;
 }
 
 export type ModelUpsert = Pick<Model, 'name' | 'upstream_model'> & Partial<Model>;
@@ -46,8 +48,8 @@ export function upsertModel(db: Database.Database, m: ModelUpsert): void {
   } else {
     db.prepare(`
       INSERT INTO models (name, upstream_model, display_name, family, context_window,
-                          pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, capabilities, source, enabled)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                          pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, capabilities, source, enabled, provider)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       m.name,
       m.upstream_model,
@@ -61,7 +63,8 @@ export function upsertModel(db: Database.Database, m: ModelUpsert): void {
       m.pricing_tiers ?? null,
       m.capabilities ?? null,
       m.source ?? 'manual',
-      m.enabled === 0 ? 0 : 1
+      m.enabled === 0 ? 0 : 1,
+      m.provider ?? 'minimax'
     );
   }
 }
