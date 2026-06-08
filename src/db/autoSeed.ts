@@ -4,8 +4,8 @@
  * additions, and existing deployments are never overwritten.
  */
 import type Database from 'better-sqlite3';
-import { upsertModel, type ModelUpsert } from './repos/models.js';
 import { log } from '../util/log.js';
+import { type ModelUpsert, upsertModel } from './repos/models.js';
 
 // ── MiniMax built-in models ────────────────────────────────────────────────
 

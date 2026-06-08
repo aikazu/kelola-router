@@ -3,8 +3,8 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
-import { migrate } from './migrations/index.js';
 import { autoSeedModels } from './autoSeed.js';
+import { migrate } from './migrations/index.js';
 
 function defaultDbPath(): string {
   if (process.env.ROUTER_DB_PATH) return process.env.ROUTER_DB_PATH;
@@ -21,16 +21,25 @@ function defaultDbPath(): string {
 /** Keep `settings.build.version` in sync with package.json on every startup. */
 function syncBuildVersion(db: Database.Database): void {
   try {
-    const base = typeof import.meta.dirname === 'string' ? import.meta.dirname : dirname(fileURLToPath(import.meta.url));
+    const base =
+      typeof import.meta.dirname === 'string'
+        ? import.meta.dirname
+        : dirname(fileURLToPath(import.meta.url));
     const pkg = JSON.parse(readFileSync(join(base, '../../package.json'), 'utf-8'));
     const version = pkg.version as string;
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'build'").get() as { value: string } | undefined;
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'build'").get() as
+      | { value: string }
+      | undefined;
     const current = row ? JSON.parse(row.value) : {};
     if (current.version !== version) {
       current.version = version;
-      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('build', ?)").run(JSON.stringify(current));
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('build', ?)").run(
+        JSON.stringify(current)
+      );
     }
-  } catch { /* best-effort */ }
+  } catch {
+    /* best-effort */
+  }
 }
 
 export function openDb(): Database.Database {

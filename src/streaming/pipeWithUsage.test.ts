@@ -80,12 +80,18 @@ describe('pipeWithUsage', () => {
       start(c) {
         c.enqueue(enc.encode('data: chunk1\n\n'));
         ac.signal.addEventListener('abort', () => {
-          try { c.close(); } catch { /* already closed */ }
+          try {
+            c.close();
+          } catch {
+            /* already closed */
+          }
         });
         setTimeout(() => {
           try {
             if (!ac.signal.aborted) c.enqueue(enc.encode('data: chunk2\n\n'));
-          } catch { /* controller closed */ }
+          } catch {
+            /* controller closed */
+          }
         }, 5);
       },
     });
