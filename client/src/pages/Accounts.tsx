@@ -304,7 +304,7 @@ export function Accounts() {
           <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
             Open the link below and enter this code:
           </p>
-          <div style={{ background: 'var(--ink-2)', border: '2px solid var(--gold)', borderRadius: 8, padding: '12px 24px', fontSize: 24, fontFamily: 'var(--mono)', letterSpacing: 4, fontWeight: 700 }}>
+          <div style={{ background: 'var(--ink-2)', border: '2px solid var(--gold)', borderRadius: 8, padding: '12px 24px', fontSize: 24, fontFamily: 'var(--font-mono)', letterSpacing: 4, fontWeight: 700 }}>
             {deviceData?.userCode}
           </div>
           <a
@@ -329,12 +329,12 @@ export function Accounts() {
       );
     }
     if (deviceStep === 'success') {
-      return <p style={{ color: 'var(--green)', textAlign: 'center', padding: 16, fontWeight: 600 }}>✓ Account connected successfully!</p>;
+      return <p style={{ color: 'var(--success)', textAlign: 'center', padding: 16, fontWeight: 600 }}>✓ Account connected successfully!</p>;
     }
     if (deviceStep === 'error') {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-          <p style={{ color: 'var(--red)', fontSize: 13 }}>{deviceError}</p>
+          <p style={{ color: 'var(--danger)', fontSize: 13 }}>{deviceError}</p>
           <Button onClick={startDeviceCode} size="sm">Retry</Button>
         </div>
       );
@@ -355,12 +355,12 @@ export function Accounts() {
         {kiroMethod === 'idc' && (
           <>
             <label>
-              IDC Start URL <span style={{ color: 'var(--red)' }}>*</span>
+              IDC Start URL <span style={{ color: 'var(--danger)' }}>*</span>
               <input
                 value={kiroForm.startUrl}
                 onInput={(e) => setKiroForm({ ...kiroForm, startUrl: (e.target as HTMLInputElement).value })}
                 placeholder="https://your-org.awsapps.com/start"
-                style={{ ...inputStyle, fontFamily: 'var(--mono)' }}
+                style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
               />
             </label>
             <label>
@@ -391,8 +391,8 @@ export function Accounts() {
     if (autoImportStatus === 'found') {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ background: 'var(--ink-2)', border: '1px solid var(--green)', borderRadius: 6, padding: 12 }}>
-            <span style={{ color: 'var(--green)', fontWeight: 600 }}>✓ Token detected</span>
+          <div style={{ background: 'var(--ink-2)', border: '1px solid var(--success)', borderRadius: 6, padding: 12 }}>
+            <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Token detected</span>
             <span style={{ color: 'var(--text-3)', fontSize: 11, marginLeft: 8 }}>from {autoImportSource}</span>
           </div>
           <label>
@@ -413,7 +413,7 @@ export function Accounts() {
     if (autoImportStatus === 'error') {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <p style={{ color: 'var(--red)', fontSize: 13 }}>{autoImportError}</p>
+          <p style={{ color: 'var(--danger)', fontSize: 13 }}>{autoImportError}</p>
           <Button onClick={doAutoImport} size="sm">Retry</Button>
         </div>
       );
@@ -454,7 +454,7 @@ export function Accounts() {
               }
             }}
             placeholder='Paste token JSON or raw refresh token (aorAAAAAG…)'
-            style={{ ...inputStyle, minHeight: 100, fontFamily: 'var(--mono, monospace)' }}
+            style={{ ...inputStyle, minHeight: 100, fontFamily: 'var(--font-mono, monospace)' }}
           />
           <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
             From ~/.aws/sso/cache/kiro-auth-token.json or paste the refresh token directly.
@@ -467,89 +467,95 @@ export function Accounts() {
   return (
     <>
       <TopBar
-        title={<>Upstream <em>accounts</em></>}
+        title={<>Up<em>stream</em></>}
         eyebrow="Upstream key pool"
         actions={<Button onClick={() => setOpen(true)}>+ Add account</Button>}
       />
       <p class="card-sub">
-        Upstream accounts. MiniMax uses an API key; Kiro (AWS CodeWhisperer) supports OAuth Device
-        Code Flow (Builder ID / IAM IDC), auto-import from Kiro IDE, or manual token paste. The
-        router fans out across enabled accounts with backoff + per-model locks.
+        MiniMax uses API keys. Kiro (AWS) supports OAuth, auto-import from Kiro IDE, or manual token paste.
+        The router fans out across enabled accounts with exponential backoff.
       </p>
       <Card>
         {isError ? (
           <ErrorState error={error as Error} onRetry={() => refetch()} />
         ) : isLoading ? (
-          <TableSkeleton rows={3} cols={8} />
+          <TableSkeleton rows={3} cols={6} />
         ) : accounts.length === 0 ? (
           <div class="empty">
-            <h3>No upstream accounts yet</h3>
-            <p>Add a MiniMax API key or connect Kiro to start routing requests.</p>
+            <h3>No upstream accounts</h3>
+            <p>Add a MiniMax API key or connect a Kiro (AWS) account to start proxying.</p>
           </div>
         ) : (
-          <table class="tbl">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Label</th>
-                <th>Provider</th>
-                <th>Credit</th>
-                <th>Status</th>
-                <th>Last error</th>
-                <th>Backoff</th>
-                <th>Rate-limited until</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((a) => (
-                <tr key={a.id}>
-                  <td class="mono">{a.id}</td>
-                  <td>{a.label}</td>
-                  <td>
-                    <Badge variant={a.provider === 'kiro' ? 'warn' : 'muted'}>
-                      {a.provider === 'kiro' ? `kiro${a.authMethod ? ` · ${a.authMethod}` : ''}` : 'minimax'}
-                    </Badge>
-                    {a.provider === 'kiro' && (
-                      <Badge variant={a.persona === 'cli' ? 'active' : 'muted'} style={{ marginLeft: 6 }}>
-                        {a.persona === 'cli' ? 'CLI' : 'IDE'}
-                      </Badge>
-                    )}
-                  </td>
-                  <td>
-                    <Badge variant={a.creditType === 'token-plan' ? 'warn' : 'active'}>
-                      {a.creditType}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge variant={statusVariant(a.status, a.enabled)} pulse={a.status === 'rate_limited'}>
-                      {a.enabled ? a.status : 'disabled'}
-                    </Badge>
-                  </td>
-                  <td class="mono" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={a.lastError ?? ''}>
-                    {a.lastError ?? '—'}
-                  </td>
-                  <td>{a.backoffLevel}</td>
-                  <td title={a.rateLimitedUntil ?? ''}>{relativeTime(a.rateLimitedUntil)}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setEditForm({ label: a.label, api_key: '', persona: a.persona === 'cli' ? 'cli' : 'ide' }); }}>
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={async () => {
-                      if (a.enabled) {
-                        const ok = await confirmDialog({ title: 'Disable account', message: `Disable "${a.label}"?`, confirmLabel: 'Disable', danger: true });
-                        if (!ok) return;
-                      }
-                      toggleMut.mutate({ id: a.id, enabled: a.enabled });
-                    }}>
-                      {a.enabled ? 'Disable' : 'Enable'}
-                    </Button>
-                    <Button size="sm" variant="danger" onClick={() => handleDelete(a.id, a.label)}>Delete</Button>
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Provider</th>
+                  <th>Status</th>
+                  <th>Backoff</th>
+                  <th>Last error</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {accounts.map((a) => (
+                  <tr key={a.id}>
+                    <td>
+                      <span style={{ fontWeight: 500 }}>{a.label}</span>
+                      <span class="mono" style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}>{a.id}</span>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <Badge variant={a.provider === 'kiro' ? 'active' : 'muted'}>
+                        {a.provider === 'kiro' ? 'kiro' : 'minimax'}
+                      </Badge>
+                      {a.provider === 'kiro' && a.authMethod && (
+                        <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 4 }}>{a.authMethod}</span>
+                      )}
+                      {a.provider === 'kiro' && (
+                        <Badge variant={a.persona === 'cli' ? 'warn' : 'muted'} style={{ marginLeft: 6 }}>
+                          {a.persona === 'cli' ? 'CLI' : 'IDE'}
+                        </Badge>
+                      )}
+                    </td>
+                    <td>
+                      <Badge variant={statusVariant(a.status, a.enabled)} pulse={a.status === 'rate_limited'}>
+                        {a.enabled ? a.status : 'disabled'}
+                      </Badge>
+                      {a.rateLimitedUntil && (
+                        <span style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }} title={a.rateLimitedUntil}>
+                          until {relativeTime(a.rateLimitedUntil)}
+                        </span>
+                      )}
+                    </td>
+                    <td class="mono">{a.backoffLevel || '—'}</td>
+                    <td style={{ maxWidth: 220, fontSize: 11, color: 'var(--text-3)' }}>
+                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.lastError ?? ''}>
+                        {a.lastError ?? '—'}
+                      </span>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setEditForm({ label: a.label, api_key: '', persona: a.persona === 'cli' ? 'cli' : 'ide' }); }}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={async () => {
+                          if (a.enabled) {
+                            const ok = await confirmDialog({ title: 'Disable account', message: `Disable "${a.label}"?`, confirmLabel: 'Disable', danger: true });
+                            if (!ok) return;
+                          }
+                          toggleMut.mutate({ id: a.id, enabled: a.enabled });
+                        }}>
+                          {a.enabled ? 'Disable' : 'Enable'}
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(a.id, a.label)}>Del</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 

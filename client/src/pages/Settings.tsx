@@ -14,6 +14,7 @@ interface SettingsData {
   caching: { autoBreakpoints: boolean };
   rtk: { enabled: boolean };
   minimax: { upstreamFormat?: string };
+  version: string | null;
 }
 
 const inputStyle: any = {
