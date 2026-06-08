@@ -145,7 +145,7 @@ export const migration_001 = {
       ('caching', '{"autoBreakpoints": true, "respectCallerMarkers": true}'),
       ('minimax', '{"upstreamFormat": "auto", "m3DefaultMaxCompletionTokens": 131072}'),
       ('transport', '{"relay": null, "proxy": null}'),
-      ('build', '{"version": "0.15.0"}');
+      ('build', '{"version": "0.16.0"}');
 
     INSERT OR IGNORE INTO models (name, display_name, family, upstream_model, context_window, pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, source) VALUES
       ('MiniMax-M3',             'MiniMax M3',             'm3',   'MiniMax-M3',        1000000, 0.60, 2.40, 0.12, NULL,
