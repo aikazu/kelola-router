@@ -26,8 +26,8 @@ interface AccountQuota {
   windows: QuotaWindow[];
 }
 
-const WINDOW_LABEL: Record<string, string> = { '5h': '5h', weekly: 'wk' };
-const WINDOW_ORDER = ['5h', 'weekly'];
+const WINDOW_LABEL: Record<string, string> = { '5h': '5h', weekly: 'wk', monthly: 'mo' };
+const WINDOW_ORDER = ['5h', 'weekly', 'monthly'];
 
 // Percent the bar should show: prefer upstream remaining_percent; else derive from counts.
 function pctOf(w: QuotaWindow): number {
@@ -126,10 +126,7 @@ export function Quota() {
       ) : quotas.length === 0 ? (
         <div class="empty">
           <h3>No quota data</h3>
-          <p>Add an upstream MiniMax account to see quota windows.</p>
-          <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
-            Kiro (AWS) accounts are billed per-seat, not per-token — they don't have quota windows.
-          </p>
+          <p>Add an upstream account to see quota windows.</p>
         </div>
       ) : (
         quotas.map((q) => {
