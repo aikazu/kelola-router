@@ -15,6 +15,8 @@ import { relativeTime } from '../lib/relativeTime';
 interface Account {
   id: string;
   label: string;
+  provider?: string;
+  authMethod?: string | null;
   creditType: string;
   status: string;
   enabled: boolean;
@@ -49,15 +51,44 @@ export function Accounts() {
     queryFn: () => apiFetch<Account[]>('/api/admin/accounts'),
   });
   const [open, setOpen] = useState(false);
+  const [provider, setProvider] = useState<'minimax' | 'kiro'>('minimax');
   const [form, setForm] = useState({ label: '', credit_type: 'payg', api_key: '' });
+  const [kiroForm, setKiroForm] = useState({
+    label: '',
+    method: 'token' as 'token' | 'builder-id' | 'idc' | 'social',
+    credentialJson: '',
+    refreshToken: '',
+    clientId: '',
+    clientSecret: '',
+    region: '',
+    profileArn: '',
+  });
   const [editing, setEditing] = useState<Account | null>(null);
   const [editForm, setEditForm] = useState({ label: '', api_key: '' });
 
+  function resetForms() {
+    setProvider('minimax');
+    setForm({ label: '', credit_type: 'payg', api_key: '' });
+    setKiroForm({
+      label: '',
+      method: 'token',
+      credentialJson: '',
+      refreshToken: '',
+      clientId: '',
+      clientSecret: '',
+      region: '',
+      profileArn: '',
+    });
+  }
+
   const createMut = useMutation({
-    mutationFn: () => apiFetch('/api/admin/accounts', { method: 'POST', json: form }),
+    mutationFn: () =>
+      provider === 'kiro'
+        ? apiFetch('/api/admin/accounts/kiro', { method: 'POST', json: kiroForm })
+        : apiFetch('/api/admin/accounts', { method: 'POST', json: form }),
     onSuccess: () => {
       setOpen(false);
-      setForm({ label: '', credit_type: 'payg', api_key: '' });
+      resetForms();
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Account added');
     },
@@ -116,12 +147,13 @@ export function Accounts() {
             Upstream <em>accounts</em>
           </>
         }
-        eyebrow="MiniMax key pool"
+        eyebrow="Upstream key pool"
         actions={<Button onClick={() => setOpen(true)}>+ Add account</Button>}
       />
       <p class="card-sub">
-        Pool of MiniMax API keys. The router fans out across enabled accounts with backoff +
-        per-model locks when one returns 429/5xx.
+        Upstream accounts. MiniMax uses an API key; Kiro (AWS CodeWhisperer) imports a token /
+        Builder ID / IAM Identity Center credential. The router fans out across enabled accounts of
+        the same provider with backoff + per-model locks.
       </p>
       <Card>
         {isError ? (
@@ -139,6 +171,7 @@ export function Accounts() {
               <tr>
                 <th>ID</th>
                 <th>Label</th>
+                <th>Provider</th>
                 <th>Credit</th>
                 <th>Status</th>
                 <th>Last error</th>
@@ -152,6 +185,11 @@ export function Accounts() {
                 <tr key={a.id}>
                   <td class="mono">{a.id}</td>
                   <td>{a.label}</td>
+                  <td>
+                    <Badge variant={a.provider === 'kiro' ? 'warn' : 'muted'}>
+                      {a.provider === 'kiro' ? `kiro${a.authMethod ? ` · ${a.authMethod}` : ''}` : 'minimax'}
+                    </Badge>
+                  </td>
                   <td>
                     <Badge variant={a.creditType === 'token-plan' ? 'warn' : 'active'}>
                       {a.creditType}
@@ -216,11 +254,16 @@ export function Accounts() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="Add MiniMax account"
+        title="Add account"
         footer={
           <Button
             onClick={() => createMut.mutate()}
-            disabled={!form.label || !form.api_key || createMut.isPending}
+            disabled={
+              createMut.isPending ||
+              (provider === 'minimax'
+                ? !form.label || !form.api_key
+                : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
+            }
           >
             {createMut.isPending ? 'Adding…' : 'Add'}
           </Button>
@@ -228,47 +271,174 @@ export function Accounts() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <label>
-            Label{' '}
-            <input
-              value={form.label}
-              onInput={(e) => setForm({ ...form, label: (e.target as HTMLInputElement).value })}
-              style={inputStyle}
-              aria-required="true"
-            />
-            {!form.label && (
-              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
-                Required — a name to identify this account.
-              </span>
-            )}
-          </label>
-          <label>
-            Credit type
+            Provider
             <select
-              value={form.credit_type}
-              onChange={(e) =>
-                setForm({ ...form, credit_type: (e.target as HTMLSelectElement).value })
-              }
+              value={provider}
+              onChange={(e) => setProvider((e.target as HTMLSelectElement).value as 'minimax' | 'kiro')}
               style={inputStyle}
             >
-              <option value="payg">PAYG</option>
-              <option value="token-plan">Token Plan</option>
+              <option value="minimax">MiniMax (API key)</option>
+              <option value="kiro">Kiro (AWS CodeWhisperer)</option>
             </select>
           </label>
-          <label>
-            MiniMax API key{' '}
-            <input
-              value={form.api_key}
-              onInput={(e) => setForm({ ...form, api_key: (e.target as HTMLInputElement).value })}
-              placeholder="mm_xxxxxxxx"
-              style={inputStyle}
-              aria-required="true"
-            />
-            {!form.api_key && (
-              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
-                Required — your MiniMax API key starting with mm_.
-              </span>
-            )}
-          </label>
+
+          {provider === 'minimax' ? (
+            <>
+              <label>
+                Label{' '}
+                <input
+                  value={form.label}
+                  onInput={(e) => setForm({ ...form, label: (e.target as HTMLInputElement).value })}
+                  style={inputStyle}
+                  aria-required="true"
+                />
+              </label>
+              <label>
+                Credit type
+                <select
+                  value={form.credit_type}
+                  onChange={(e) =>
+                    setForm({ ...form, credit_type: (e.target as HTMLSelectElement).value })
+                  }
+                  style={inputStyle}
+                >
+                  <option value="payg">PAYG</option>
+                  <option value="token-plan">Token Plan</option>
+                </select>
+              </label>
+              <label>
+                MiniMax API key{' '}
+                <input
+                  value={form.api_key}
+                  onInput={(e) => setForm({ ...form, api_key: (e.target as HTMLInputElement).value })}
+                  placeholder="mm_xxxxxxxx"
+                  style={inputStyle}
+                  aria-required="true"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label>
+                Label{' '}
+                <input
+                  value={kiroForm.label}
+                  onInput={(e) =>
+                    setKiroForm({ ...kiroForm, label: (e.target as HTMLInputElement).value })
+                  }
+                  placeholder="kiro1"
+                  style={inputStyle}
+                />
+              </label>
+              <label>
+                Import method
+                <select
+                  value={kiroForm.method}
+                  onChange={(e) =>
+                    setKiroForm({
+                      ...kiroForm,
+                      method: (e.target as HTMLSelectElement).value as typeof kiroForm.method,
+                    })
+                  }
+                  style={inputStyle}
+                >
+                  <option value="token">Paste credentials (token JSON)</option>
+                  <option value="builder-id">AWS Builder ID</option>
+                  <option value="idc">AWS IAM Identity Center</option>
+                  <option value="social">Refresh token only (social)</option>
+                </select>
+              </label>
+
+              {kiroForm.method === 'token' ? (
+                <label>
+                  Credential JSON
+                  <textarea
+                    value={kiroForm.credentialJson}
+                    onInput={(e) =>
+                      setKiroForm({
+                        ...kiroForm,
+                        credentialJson: (e.target as HTMLTextAreaElement).value,
+                      })
+                    }
+                    placeholder='Paste ~/.aws/sso/cache/kiro-auth-token.json contents — {"accessToken":"…","refreshToken":"…","expiresAt":"…"}'
+                    style={{ ...inputStyle, minHeight: 120, fontFamily: 'var(--mono, monospace)' }}
+                  />
+                  <span
+                    style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}
+                  >
+                    From Kiro IDE or the AWS SSO cache file. clientId/clientSecret (if present) are
+                    detected automatically.
+                  </span>
+                </label>
+              ) : (
+                <label>
+                  Refresh token{' '}
+                  <input
+                    value={kiroForm.refreshToken}
+                    onInput={(e) =>
+                      setKiroForm({ ...kiroForm, refreshToken: (e.target as HTMLInputElement).value })
+                    }
+                    placeholder="eyJ…"
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              {(kiroForm.method === 'builder-id' || kiroForm.method === 'idc') && (
+                <>
+                  <label>
+                    Client ID{' '}
+                    <input
+                      value={kiroForm.clientId}
+                      onInput={(e) =>
+                        setKiroForm({ ...kiroForm, clientId: (e.target as HTMLInputElement).value })
+                      }
+                      style={inputStyle}
+                    />
+                  </label>
+                  <label>
+                    Client secret{' '}
+                    <input
+                      value={kiroForm.clientSecret}
+                      onInput={(e) =>
+                        setKiroForm({
+                          ...kiroForm,
+                          clientSecret: (e.target as HTMLInputElement).value,
+                        })
+                      }
+                      style={inputStyle}
+                    />
+                  </label>
+                </>
+              )}
+
+              {kiroForm.method === 'idc' && (
+                <label>
+                  Region{' '}
+                  <input
+                    value={kiroForm.region}
+                    onInput={(e) =>
+                      setKiroForm({ ...kiroForm, region: (e.target as HTMLInputElement).value })
+                    }
+                    placeholder="eu-central-1"
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              <label>
+                Profile ARN (optional)
+                <input
+                  value={kiroForm.profileArn}
+                  onInput={(e) =>
+                    setKiroForm({ ...kiroForm, profileArn: (e.target as HTMLInputElement).value })
+                  }
+                  placeholder="arn:aws:codewhisperer:us-east-1:…:profile/…"
+                  style={inputStyle}
+                />
+              </label>
+            </>
+          )}
         </div>
       </Modal>
       <Modal
