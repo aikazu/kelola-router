@@ -92,6 +92,9 @@ export function Console() {
   const [events, setEvents] = useState<FlowEvent[]>([]);
   const [paused, setPaused] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [filterModel, setFilterModel] = useState('');
+  const [filterAccount, setFilterAccount] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'success' | 'error'>('all');
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
   const boxRef = useRef<HTMLDivElement>(null);
@@ -140,6 +143,34 @@ export function Console() {
     }
   }, [events]);
 
+  const filteredEvents = useMemo(() => {
+    if (!filterModel && !filterAccount && filterStatus === 'all') return events;
+
+    const blocks = new Map<string, FlowEvent[]>();
+    for (const e of events) {
+      const list = blocks.get(e.reqId) ?? [];
+      list.push(e);
+      blocks.set(e.reqId, list);
+    }
+
+    const allowedReqIds = new Set<string>();
+    for (const [reqId, evts] of blocks) {
+      const start = evts.find((e) => e.phase === 'start') as Extract<FlowEvent, { phase: 'start' }> | undefined;
+      const account = evts.find((e) => e.phase === 'account') as Extract<FlowEvent, { phase: 'account' }> | undefined;
+      const done = evts.find((e) => e.phase === 'done') as Extract<FlowEvent, { phase: 'done' }> | undefined;
+      const error = evts.find((e) => e.phase === 'error');
+
+      if (filterModel && start && !start.model?.toLowerCase().includes(filterModel.toLowerCase())) continue;
+      if (filterAccount && account && !account.accountLabel?.toLowerCase().includes(filterAccount.toLowerCase())) continue;
+      if (filterStatus === 'success' && (error || (done && done.status >= 400))) continue;
+      if (filterStatus === 'error' && !error && (!done || done.status < 400)) continue;
+
+      allowedReqIds.add(reqId);
+    }
+
+    return events.filter((e) => allowedReqIds.has(e.reqId));
+  }, [events, filterModel, filterAccount, filterStatus]);
+
   return (
     <div>
       <TopBar
@@ -158,6 +189,42 @@ export function Console() {
           </div>
         }
       />
+      <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--border, rgba(255,255,255,0.06))' }}>
+        <input
+          type="text"
+          placeholder="Filter model…"
+          value={filterModel}
+          onInput={(e) => setFilterModel((e.target as HTMLInputElement).value)}
+          class="input"
+          style={{ maxWidth: 160, padding: '4px 8px', fontSize: 12 }}
+        />
+        <input
+          type="text"
+          placeholder="Filter account…"
+          value={filterAccount}
+          onInput={(e) => setFilterAccount((e.target as HTMLInputElement).value)}
+          class="input"
+          style={{ maxWidth: 140, padding: '4px 8px', fontSize: 12 }}
+        />
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus((e.target as HTMLSelectElement).value as 'all' | 'success' | 'error')}
+          style={{ padding: '4px 8px', fontSize: 12 }}
+        >
+          <option value="all">All status</option>
+          <option value="success">Success (2xx/3xx)</option>
+          <option value="error">Errors (4xx/5xx)</option>
+        </select>
+        {(filterModel || filterAccount || filterStatus !== 'all') && (
+          <button
+            class="btn btn-ghost btn-sm"
+            onClick={() => { setFilterModel(''); setFilterAccount(''); setFilterStatus('all'); }}
+            style={{ fontSize: 11 }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
       <div
         class="console-scroll"
         ref={boxRef}
@@ -166,7 +233,7 @@ export function Console() {
           stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         }}
       >
-        <ConsoleBlocks events={events} />
+        <ConsoleBlocks events={filteredEvents} />
         {events.length === 0 && <div class="console-empty">Waiting for requests…</div>}
       </div>
     </div>
