@@ -74,6 +74,16 @@ export const migration_001 = {
     CREATE INDEX IF NOT EXISTS idx_logs_model_created ON request_logs(model, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_logs_status ON request_logs(status_code, created_at DESC);
 
+    -- Performance: additive indexes (safe to re-run on existing DBs).
+    CREATE INDEX IF NOT EXISTS idx_logs_model_created_cost
+      ON request_logs(model, created_at, cost_usd);
+    CREATE INDEX IF NOT EXISTS idx_logs_created_at
+      ON request_logs(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_accounts_enabled_status
+      ON accounts(enabled, status, credit_type);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_client_keys_active_key
+      ON client_keys(key) WHERE enabled = 1;
+
     CREATE TABLE IF NOT EXISTS quota_snapshots (
       id                INTEGER PRIMARY KEY AUTOINCREMENT,
       account_id        TEXT NOT NULL,
