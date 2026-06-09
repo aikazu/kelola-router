@@ -225,7 +225,7 @@ async function handleProxy(
     status: a.status as AccountState['status'],
     enabled: !!a.enabled,
   }));
-  const selMode = (getSetting(db, 'selection.mode') as SelectionMode | null) ?? 'lowest-backoff';
+  const selMode = (getSetting<{ mode: SelectionMode }>(db, 'selection'))?.mode ?? 'lowest-backoff';
   const { account, reason, nextCursor } = selectAccount(accountStates, {
     mode: selMode,
     cursor: rrCursor,

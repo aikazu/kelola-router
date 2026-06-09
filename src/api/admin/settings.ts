@@ -15,6 +15,7 @@ settingsRoutes.get('/', (c) => {
       caching: getSetting(db, 'caching') ?? { autoBreakpoints: true },
       rtk: getSetting(db, 'rtk') ?? { enabled: true },
       minimax: getSetting(db, 'minimax') ?? {},
+      selection: getSetting(db, 'selection') ?? { mode: 'lowest-backoff' },
       version: build?.version ?? null,
     });
   } catch (e) {
@@ -37,6 +38,7 @@ settingsRoutes.post('/caveman', post('caveman'));
 settingsRoutes.post('/rtk', post('rtk'));
 settingsRoutes.post('/caching', post('caching'));
 settingsRoutes.post('/minimax', post('minimax'));
+settingsRoutes.post('/selection', post('selection'));
 
 settingsRoutes.post('/password', async (c) => {
   try {
