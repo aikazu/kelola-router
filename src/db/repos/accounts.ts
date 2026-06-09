@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { cachedStmt } from '../cachedStmt.js';
 
 export type ProviderName = 'minimax' | 'kiro';
 
@@ -40,10 +41,13 @@ export type AccountCreate = Pick<Account, 'id' | 'label' | 'credit_type' | 'api_
 };
 
 export function createAccount(db: Database.Database, input: AccountCreate): Account {
-  db.prepare(`
+  cachedStmt(
+    db,
+    `
     INSERT INTO accounts (id, label, credit_type, api_key, base_url, enabled, provider, provider_data)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `
+  ).run(
     input.id,
     input.label,
     input.credit_type,
@@ -57,33 +61,34 @@ export function createAccount(db: Database.Database, input: AccountCreate): Acco
 }
 
 export function getAccount(db: Database.Database, id: string): Account | null {
-  return (db.prepare(`SELECT * FROM accounts WHERE id = ?`).get(id) as Account | undefined) ?? null;
+  return (
+    (cachedStmt(db, `SELECT * FROM accounts WHERE id = ?`).get(id) as Account | undefined) ?? null
+  );
 }
 
 export function getAccountByApiKey(db: Database.Database, apiKey: string): Account | null {
   return (
-    (db.prepare(`SELECT * FROM accounts WHERE api_key = ?`).get(apiKey) as Account | undefined) ??
+    (cachedStmt(db, `SELECT * FROM accounts WHERE api_key = ?`).get(apiKey) as Account | undefined) ??
     null
   );
 }
 
 export function listAccounts(db: Database.Database): Account[] {
-  return db.prepare(`SELECT * FROM accounts ORDER BY created_at`).all() as Account[];
+  return cachedStmt(db, `SELECT * FROM accounts ORDER BY created_at`).all() as Account[];
 }
 
 export function listEnabledAccounts(db: Database.Database): Account[] {
-  return db
-    .prepare(`SELECT * FROM accounts WHERE enabled = 1 ORDER BY created_at`)
-    .all() as Account[];
+  return cachedStmt(db, `SELECT * FROM accounts WHERE enabled = 1 ORDER BY created_at`).all() as Account[];
 }
 
 export function listEnabledAccountsByProvider(
   db: Database.Database,
   provider: ProviderName
 ): Account[] {
-  return db
-    .prepare(`SELECT * FROM accounts WHERE enabled = 1 AND provider = ? ORDER BY created_at`)
-    .all(provider) as Account[];
+  return cachedStmt(
+    db,
+    `SELECT * FROM accounts WHERE enabled = 1 AND provider = ? ORDER BY created_at`
+  ).all(provider) as Account[];
 }
 
 export function updateAccount(db: Database.Database, id: string, patch: Partial<Account>): void {
@@ -91,17 +96,17 @@ export function updateAccount(db: Database.Database, id: string, patch: Partial<
   if (keys.length === 0) return;
   const set = keys.map((k) => `${k} = ?`).join(', ');
   const values = keys.map((k) => (patch as Record<string, unknown>)[k]);
-  db.prepare(`UPDATE accounts SET ${set} WHERE id = ?`).run(...values, id);
+  cachedStmt(db, `UPDATE accounts SET ${set} WHERE id = ?`).run(...values, id);
 }
 
 export function enableAccount(db: Database.Database, id: string): void {
-  db.prepare(`UPDATE accounts SET enabled = 1 WHERE id = ?`).run(id);
+  cachedStmt(db, `UPDATE accounts SET enabled = 1 WHERE id = ?`).run(id);
 }
 
 export function disableAccount(db: Database.Database, id: string): void {
-  db.prepare(`UPDATE accounts SET enabled = 0 WHERE id = ?`).run(id);
+  cachedStmt(db, `UPDATE accounts SET enabled = 0 WHERE id = ?`).run(id);
 }
 
 export function deleteAccount(db: Database.Database, id: string): void {
-  db.prepare(`DELETE FROM accounts WHERE id = ?`).run(id);
+  cachedStmt(db, `DELETE FROM accounts WHERE id = ?`).run(id);
 }

@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { cachedStmt } from '../cachedStmt.js';
 
 export interface ClientKey {
   id: number;
@@ -35,16 +36,17 @@ export function genClientKey(): string {
 }
 
 export function createClientKey(db: Database.Database, input: ClientKeyCreate): ClientKey {
-  const info = db
-    .prepare(`INSERT INTO client_keys (label, key, enabled) VALUES (?, ?, ?)`)
-    .run(input.label, input.key, input.enabled === false ? 0 : 1);
+  const info = cachedStmt(
+    db,
+    `INSERT INTO client_keys (label, key, enabled) VALUES (?, ?, ?)`
+  ).run(input.label, input.key, input.enabled === false ? 0 : 1);
   clearClientKeyCache(db);
   return getClientKey(db, info.lastInsertRowid as number)!;
 }
 
 export function getClientKey(db: Database.Database, id: number): ClientKey | null {
   return (
-    (db.prepare(`SELECT * FROM client_keys WHERE id = ?`).get(id) as ClientKey | undefined) ?? null
+    (cachedStmt(db, `SELECT * FROM client_keys WHERE id = ?`).get(id) as ClientKey | undefined) ?? null
   );
 }
 
@@ -53,7 +55,7 @@ export function getClientKeyByKey(db: Database.Database, key: string): ClientKey
   const hit = c.get(key);
   if (hit && hit.expiry > Date.now()) return hit.value;
   const row =
-    (db.prepare(`SELECT * FROM client_keys WHERE key = ? AND enabled = 1`).get(key) as
+    (cachedStmt(db, `SELECT * FROM client_keys WHERE key = ? AND enabled = 1`).get(key) as
       | ClientKey
       | undefined) ?? null;
   c.set(key, { value: row, expiry: Date.now() + CK_TTL_MS });
@@ -61,20 +63,20 @@ export function getClientKeyByKey(db: Database.Database, key: string): ClientKey
 }
 
 export function listClientKeys(db: Database.Database): ClientKey[] {
-  return db.prepare(`SELECT * FROM client_keys ORDER BY id`).all() as ClientKey[];
+  return cachedStmt(db, `SELECT * FROM client_keys ORDER BY id`).all() as ClientKey[];
 }
 
 export function disableClientKey(db: Database.Database, id: number): void {
-  db.prepare(`UPDATE client_keys SET enabled = 0 WHERE id = ?`).run(id);
+  cachedStmt(db, `UPDATE client_keys SET enabled = 0 WHERE id = ?`).run(id);
   clearClientKeyCache(db);
 }
 
 export function enableClientKey(db: Database.Database, id: number): void {
-  db.prepare(`UPDATE client_keys SET enabled = 1 WHERE id = ?`).run(id);
+  cachedStmt(db, `UPDATE client_keys SET enabled = 1 WHERE id = ?`).run(id);
   clearClientKeyCache(db);
 }
 
 export function deleteClientKey(db: Database.Database, id: number): void {
-  db.prepare(`DELETE FROM client_keys WHERE id = ?`).run(id);
+  cachedStmt(db, `DELETE FROM client_keys WHERE id = ?`).run(id);
   clearClientKeyCache(db);
 }
