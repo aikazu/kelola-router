@@ -11,6 +11,9 @@
  * header parsing (the headers we care about — `:event-type` — are strings).
  */
 
+// One decoder for the whole module — no per-frame allocation.
+const SHARED_DECODER = new TextDecoder('utf-8', { fatal: false });
+
 export interface KiroEvent {
   eventType: string;
   headers: Record<string, string>;
@@ -26,18 +29,18 @@ export interface DecodeResult {
 function parseFrame(data: Uint8Array): KiroEvent | null {
   try {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    const totalLength = view.getUint32(0, false);
     const headersLength = view.getUint32(4, false);
 
     const headers: Record<string, string> = {};
     let offset = 12; // after 8-byte prelude + 4-byte prelude CRC
     const headerEnd = 12 + headersLength;
-    const decoder = new TextDecoder();
 
     while (offset < headerEnd && offset < data.length) {
       const nameLen = data[offset]!;
       offset++;
       if (offset + nameLen > data.length) break;
-      const name = decoder.decode(data.slice(offset, offset + nameLen));
+      const name = SHARED_DECODER.decode(data.subarray(offset, offset + nameLen));
       offset += nameLen;
       const headerType = data[offset]!;
       offset++;
@@ -45,7 +48,7 @@ function parseFrame(data: Uint8Array): KiroEvent | null {
         const valueLen = (data[offset]! << 8) | data[offset + 1]!;
         offset += 2;
         if (offset + valueLen > data.length) break;
-        headers[name] = decoder.decode(data.slice(offset, offset + valueLen));
+        headers[name] = SHARED_DECODER.decode(data.subarray(offset, offset + valueLen));
         offset += valueLen;
       } else {
         break;
@@ -53,10 +56,10 @@ function parseFrame(data: Uint8Array): KiroEvent | null {
     }
 
     const payloadStart = 12 + headersLength;
-    const payloadEnd = data.length - 4; // exclude message CRC
+    const payloadEnd = totalLength - 4; // exclude message CRC
     let payload: Record<string, unknown> | null = null;
     if (payloadEnd > payloadStart) {
-      const payloadStr = decoder.decode(data.slice(payloadStart, payloadEnd));
+      const payloadStr = SHARED_DECODER.decode(data.subarray(payloadStart, payloadEnd));
       if (payloadStr && payloadStr.trim()) {
         try {
           payload = JSON.parse(payloadStr) as Record<string, unknown>;
@@ -75,24 +78,27 @@ function parseFrame(data: Uint8Array): KiroEvent | null {
 /**
  * Decode as many complete frames as `buffer` contains. Returns the decoded
  * events and any trailing partial bytes (`rest`) to prepend to the next chunk.
+ *
+ * The same `DataView` is reused across all frames in a single call (cheap).
+ * `rest` is a zero-copy subarray view — no per-frame copy chain.
  */
 export function decodeFrames(buffer: Uint8Array): DecodeResult {
   const events: KiroEvent[] = [];
-  let buf = buffer;
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  let offset = 0;
   let guard = 0;
   const maxIterations = 100000;
+  const len = buffer.length;
 
-  while (buf.length >= 16 && guard < maxIterations) {
+  while (offset + 16 <= len && guard < maxIterations) {
     guard++;
-    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-    const totalLength = view.getUint32(0, false);
-    if (totalLength < 16 || totalLength > buf.length) break;
-
-    const frame = buf.slice(0, totalLength);
-    buf = buf.slice(totalLength);
+    const totalLength = view.getUint32(offset, false);
+    if (totalLength < 16 || offset + totalLength > len) break;
+    const frame = buffer.subarray(offset, offset + totalLength);
     const event = parseFrame(frame);
     if (event) events.push(event);
+    offset += totalLength;
   }
 
-  return { events, rest: buf };
+  return { events, rest: buffer.subarray(offset) };
 }
