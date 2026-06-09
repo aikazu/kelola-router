@@ -17,6 +17,7 @@ const Quota = lazy(() => import('../pages/Quota').then((m) => ({ default: m.Quot
 const Settings = lazy(() => import('../pages/Settings').then((m) => ({ default: m.Settings })));
 const Transports = lazy(() => import('../pages/Transports').then((m) => ({ default: m.Transports })));
 const Usage = lazy(() => import('../pages/Usage').then((m) => ({ default: m.Usage })));
+const Console = lazy(() => import('../pages/Console').then((m) => ({ default: m.Console })));
 
 const KNOWN_ROUTES = [
   'overview',
@@ -27,6 +28,7 @@ const KNOWN_ROUTES = [
   'aliases',
   'quota',
   'transports',
+  'console',
   'settings',
 ];
 
@@ -60,6 +62,8 @@ function Page({ current }: { current: string }) {
       return <Quota />;
     case 'transports':
       return <Transports />;
+    case 'console':
+      return <Console />;
     case 'settings':
       return <Settings />;
     case 'overview':
@@ -94,6 +98,7 @@ export function AppShell() {
       l: '/admin/aliases',
       q: '/admin/quota',
       t: '/admin/transports',
+      n: '/admin/console',
       s: '/admin/settings',
     };
     const onKey = (e: KeyboardEvent) => {
@@ -192,6 +197,9 @@ export function AppShell() {
               </div>
               <div>
                 <kbd>g</kbd> then <kbd>q</kbd> — quota
+              </div>
+              <div>
+                <kbd>g</kbd> then <kbd>n</kbd> — console
               </div>
               <div>
                 <kbd>g</kbd> then <kbd>s</kbd> — settings

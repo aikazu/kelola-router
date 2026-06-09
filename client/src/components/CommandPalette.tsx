@@ -10,6 +10,7 @@ const ITEMS = [
   { label: 'Aliases', href: '/admin/aliases', keys: 'g l' },
   { label: 'Quota', href: '/admin/quota', keys: 'g q' },
   { label: 'Proxies', href: '/admin/transports', keys: 'g t' },
+  { label: 'Console', href: '/admin/console', keys: 'g n' },
   { label: 'Settings', href: '/admin/settings', keys: 'g s' },
 ];
 
