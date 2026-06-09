@@ -31,6 +31,7 @@ export interface RequestLog {
   request_headers: string | null;
   response_headers: string | null;
   error: string | null;
+  req_id: string | null;
 }
 
 export type RequestLogInsert = Omit<
@@ -49,6 +50,7 @@ export type RequestLogInsert = Omit<
   | 'response_headers'
   | 'error'
   | 'requested_model'
+  | 'req_id'
 > & {
   ttft_ms?: number | null;
   base_resp_code?: number | null;
@@ -62,6 +64,7 @@ export type RequestLogInsert = Omit<
   response_headers?: string | null;
   error?: string | null;
   requested_model?: string | null;
+  req_id?: string | null;
 };
 
 export function insertRequestLog(db: Database.Database, log: RequestLogInsert): number {
@@ -70,8 +73,8 @@ export function insertRequestLog(db: Database.Database, log: RequestLogInsert): 
     INSERT INTO request_logs (client_key_id, account_id, model, requested_model, endpoint, format, prompt_tokens, completion_tokens,
       cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, latency_ms, ttft_ms, status_code,
       base_resp_code, stream, relay_path, proxy_path, rtk_bytes_saved, caveman_level, error_message,
-      request_body, response_body, request_headers, response_headers, error)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      request_body, response_body, request_headers, response_headers, error, req_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
     .run(
       log.client_key_id,
@@ -100,7 +103,8 @@ export function insertRequestLog(db: Database.Database, log: RequestLogInsert): 
       log.response_body ?? null,
       log.request_headers ?? null,
       log.response_headers ?? null,
-      log.error ?? null
+      log.error ?? null,
+      log.req_id ?? null
     );
   return info.lastInsertRowid as number;
 }
