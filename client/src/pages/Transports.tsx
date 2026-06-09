@@ -55,6 +55,9 @@ export function Transports() {
   });
   const [testResults, setTestResults] = useState<Record<string, TestResult | 'loading'>>({});
 
+  const [editing, setEditing] = useState<Transport | null>(null);
+  const [editForm, setEditForm] = useState({ label: '', url: '', kind: '' });
+
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [bulkKind, setBulkKind] = useState<'http' | 'socks5'>('http');
@@ -92,6 +95,17 @@ export function Transports() {
       qc.invalidateQueries({ queryKey: ['transports'] });
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Deleted');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const editMut = useMutation({
+    mutationFn: ({ id, ...fields }: { id: string; label?: string; url?: string; kind?: string }) =>
+      apiFetch(`/api/admin/transports/${id}`, { method: 'PATCH', json: fields }),
+    onSuccess: () => {
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ['transports'] });
+      toast.success('Transport updated');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -252,6 +266,9 @@ export function Transports() {
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', gap: 4 }}>
+                          <Button size="sm" variant="ghost" onClick={() => { setEditing(t); setEditForm({ label: t.label, url: t.url, kind: t.kind }); }}>
+                            Edit
+                          </Button>
                           <Button size="sm" variant="ghost" disabled={tr === 'loading'} onClick={() => runTest(t.id)}>
                             {tr === 'loading' ? 'Testing…' : 'Test'}
                           </Button>
@@ -392,6 +409,47 @@ export function Transports() {
           <span style={{ color: 'var(--text-3)', fontSize: 11 }}>
             Formats: <code>ip:port:user:pass</code>, <code>ip:port</code>, <code>user:pass@ip:port</code>, or full URL. Lines starting with # are ignored.
           </span>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={`Edit "${editing?.label ?? ''}"`}
+        footer={
+          <Button
+            onClick={() => {
+              if (!editing) return;
+              const payload: Record<string, string> = {};
+              if (editForm.label !== editing.label) payload.label = editForm.label;
+              if (editForm.url !== editing.url) payload.url = editForm.url;
+              if (editForm.kind !== editing.kind) payload.kind = editForm.kind;
+              editMut.mutate({ id: editing.id, ...payload });
+            }}
+            disabled={editMut.isPending}
+          >
+            {editMut.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label>
+            Label
+            <input value={editForm.label} onInput={(e) => setEditForm({ ...editForm, label: (e.target as HTMLInputElement).value })} class="input" />
+          </label>
+          <label>
+            Kind
+            <select value={editForm.kind} onChange={(e) => setEditForm({ ...editForm, kind: (e.target as HTMLSelectElement).value })} class="input">
+              <option value="http">HTTP</option>
+              <option value="socks5">SOCKS5</option>
+              <option value="vercel">Vercel</option>
+              <option value="cloudflare">Cloudflare</option>
+            </select>
+          </label>
+          <label>
+            URL
+            <input value={editForm.url} onInput={(e) => setEditForm({ ...editForm, url: (e.target as HTMLInputElement).value })} class="input" placeholder="http://user:pass@ip:port" />
+          </label>
         </div>
       </Modal>
     </>
