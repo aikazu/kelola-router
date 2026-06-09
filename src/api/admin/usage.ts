@@ -17,11 +17,6 @@ usageRoutes.get('/usage', (c) => {
     const page = q.page ? Math.max(1, Number(q.page)) : 1;
     const pageSize = q.page_size ? Math.min(200, Math.max(1, Number(q.page_size))) : 50;
     const clientKeyId = q.client_key ? Number(q.client_key) : undefined;
-    const cacheKey = `usage:${days}:${clientKeyId ?? 'all'}`;
-    const cached = getAdminCached<unknown>(cacheKey);
-    if (cached) {
-      return c.json(cached);
-    }
     const model = q.model || undefined;
     const statusCode = q.status ? Number(q.status) : undefined;
     const search = q.q || undefined;
@@ -29,6 +24,23 @@ usageRoutes.get('/usage', (c) => {
     const toIso = q.to || undefined;
     const sortBy = (q.sort_by as PagedLogFilter['sortBy']) || 'created_at';
     const sortDir = (q.sort_dir as PagedLogFilter['sortDir']) || 'desc';
+    const cacheKey = `usage:${JSON.stringify({
+      days,
+      clientKeyId: clientKeyId ?? null,
+      page,
+      pageSize,
+      model: model ?? null,
+      statusCode: statusCode ?? null,
+      search: search ?? null,
+      fromIso: fromIso ?? null,
+      toIso: toIso ?? null,
+      sortBy,
+      sortDir,
+    })}`;
+    const cached = getAdminCached<unknown>(cacheKey);
+    if (cached) {
+      return c.json(cached);
+    }
 
     // Period 1: requested window for summary + page
     const filter: PagedLogFilter = {
