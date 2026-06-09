@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
 import { TableSkeleton } from '../components/Skeleton';
+import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
 import { forwardDuration, relativeTime } from '../lib/relativeTime';
@@ -161,6 +162,9 @@ export function Quota() {
     return next;
   });
 
+  const qc = useQueryClient();
+  const toast = useToast();
+
   const {
     data: quotas = [],
     isLoading,
@@ -173,6 +177,15 @@ export function Quota() {
     queryFn: () => apiFetch<AccountQuota[]>('/api/admin/quota'),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
+  });
+
+  const pullMut = useMutation({
+    mutationFn: () => apiFetch('/api/admin/quota/pull', { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quota'] });
+      toast.success('Quota refreshed from upstream');
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   if (isError)
@@ -193,14 +206,24 @@ export function Quota() {
         }
         eyebrow="Balance / limits"
         actions={
-          <button
-            class="btn btn-ghost btn-sm"
-            onClick={() => refetch()}
-            aria-label="Refresh quota"
-            disabled={isFetching}
-          >
-            <span class={isFetching ? 'refresh-spin' : ''}>↻</span>{' '}Refresh
-          </button>
+          <>
+            <button
+              class="btn btn-ghost btn-sm"
+              onClick={() => pullMut.mutate()}
+              disabled={pullMut.isPending}
+              title="Fetch fresh quota from upstream providers"
+            >
+              <span class={pullMut.isPending ? 'refresh-spin' : ''}>⟳</span> Pull upstream
+            </button>
+            <button
+              class="btn btn-ghost btn-sm"
+              onClick={() => refetch()}
+              aria-label="Refresh quota"
+              disabled={isFetching}
+            >
+              <span class={isFetching ? 'refresh-spin' : ''}>↻</span>{' '}Refresh
+            </button>
+          </>
         }
       />
       {isLoading ? (

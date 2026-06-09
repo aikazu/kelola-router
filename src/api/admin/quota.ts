@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { listAccounts } from '../../db/repos/accounts.js';
 import { ensureAccessToken } from '../../providers/kiro/auth.js';
 import { fetchKiroUsage } from '../../providers/kiro/usage.js';
+import { tickQuotaOnce } from '../../scheduler/quotaPull.js';
 import { handleApiError } from './middleware.js';
 
 export const quotaRoutes = new Hono();
@@ -113,6 +114,16 @@ quotaRoutes.get('/quota', async (c) => {
       });
     }
     return c.json(results);
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+quotaRoutes.post('/quota/pull', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    await tickQuotaOnce(db);
+    return c.json({ ok: true });
   } catch (e) {
     return handleApiError(e);
   }
