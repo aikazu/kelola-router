@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { invalidateDispatcher } from '../../transport/dispatcherCache.js';
+import { invalidateSocks } from '../../transport/socksLoader.js';
 
 export type TransportType = 'proxy' | 'relay';
 export type TransportKind = 'http' | 'socks5' | 'vercel' | 'cloudflare';
@@ -83,7 +84,8 @@ export function updateTransport(
 export function deleteTransport(db: Database.Database, id: string): void {
   const existing = getTransport(db, id);
   db.prepare(`DELETE FROM transports WHERE id = ?`).run(id);
-  if (existing && existing.type === 'proxy' && existing.kind !== 'socks5') {
-    invalidateDispatcher(existing.url);
+  if (existing && existing.type === 'proxy') {
+    if (existing.kind === 'socks5') invalidateSocks(existing.url);
+    else invalidateDispatcher(existing.url);
   }
 }
