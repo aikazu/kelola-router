@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../db/index.js';
 import { createAccount, updateAccount } from '../db/repos/accounts.js';
-import { setSetting } from '../db/repos/settings.js';
+import { clearCache, setSetting } from '../db/repos/settings.js';
 import { createTransport, updateTransport } from '../db/repos/transports.js';
 import { __resetRotationState, resolveTransportForAccount } from './resolve.js';
 
@@ -34,6 +34,26 @@ describe('resolveTransportForAccount', () => {
     const acc = mkAccount('a2');
     const cfg = resolveTransportForAccount(db, acc);
     expect(cfg?.proxy?.url).toBe('http://global:8080');
+  });
+
+  it('does not keep a stale cached global fallback after settings.transport changes', () => {
+    setSetting(db, 'transport', {
+      relay: null,
+      proxy: { kind: 'http', url: 'http://global-old:8080' },
+    });
+    const acc = mkAccount('a2b');
+
+    const first = resolveTransportForAccount(db, acc);
+
+    setSetting(db, 'transport', {
+      relay: null,
+      proxy: { kind: 'http', url: 'http://global-new:8080' },
+    });
+    clearCache();
+    const second = resolveTransportForAccount(db, acc);
+
+    expect(first?.proxy?.url).toBe('http://global-old:8080');
+    expect(second?.proxy?.url).toBe('http://global-new:8080');
   });
 
   it('resolves a single proxy assignment', () => {

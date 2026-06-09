@@ -132,6 +132,10 @@ export function resolveTransportForAccount(
     if (cfg) return setResolvedTransportCache(db, account, cfg);
   }
 
-  // 4. Global fallback. 5. null (direct) handled by globalTransport returning null.
-  return setResolvedTransportCache(db, account, globalTransport(db));
+  // 4. Global fallback should stay uncached so settings.transport updates are visible immediately.
+  const global = globalTransport(db);
+  if (global) return global;
+
+  // 5. null (direct) remains cacheable for unassigned accounts.
+  return setResolvedTransportCache(db, account, null);
 }
