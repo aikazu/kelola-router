@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { serve } from '@hono/node-server';
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import { ulid } from 'ulid';
 import { checkFallbackError } from './accounts/errorRules.js';
 import { clearExpiredModelLocks, getModelLock, setModelLock } from './accounts/locks.js';
@@ -18,6 +19,7 @@ import {
   verifySameOrigin,
 } from './auth.js';
 import { augmentRequest } from './cache-injection.js';
+import { consoleBus } from './console/bus.js';
 import { openDb } from './db/index.js';
 import {
   createAccount,
@@ -575,6 +577,27 @@ app.post('/v1/messages/count_tokens', requireApiKey, (c) =>
 );
 app.post('/v1/embeddings', requireApiKey, (c) =>
   c.json({ error: 'embeddings not supported by MiniMax' }, 501)
+);
+
+app.get('/api/admin/console/stream', requireAdmin, (c) =>
+  streamSSE(c, async (stream) => {
+    for (const ev of consoleBus.recent()) {
+      await stream.writeSSE({ data: JSON.stringify(ev) });
+    }
+    let alive = true;
+    const off = consoleBus.subscribe((ev) => {
+      if (alive) void stream.writeSSE({ data: JSON.stringify(ev) });
+    });
+    stream.onAbort(() => {
+      alive = false;
+      off();
+    });
+    // Heartbeat until aborted.
+    while (alive) {
+      await stream.sleep(15000);
+      if (alive) await stream.writeSSE({ data: '', event: 'ping' });
+    }
+  })
 );
 app.get('/v1/models', requireApiKey, async (c) => {
   const db = c.get('db');
