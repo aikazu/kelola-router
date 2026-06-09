@@ -80,8 +80,8 @@ export function enableModel(db: Database.Database, name: string): void {
 export function bulkToggleModels(db: Database.Database, names: string[], enabled: boolean): number {
   if (names.length === 0) return 0;
   const placeholders = names.map(() => '?').join(',');
-  const r = db.prepare(
-    `UPDATE models SET enabled = ? WHERE name IN (${placeholders})`
-  ).run(enabled ? 1 : 0, ...names);
+  const r = db
+    .prepare(`UPDATE models SET enabled = ? WHERE name IN (${placeholders})`)
+    .run(enabled ? 1 : 0, ...names);
   return r.changes;
 }

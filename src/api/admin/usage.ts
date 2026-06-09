@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
+import { listAccounts } from '../../db/repos/accounts.js';
 import { aggregateUsage, type PagedLogFilter, pagedLogs } from '../../db/repos/requestLogs.js';
 import { getAdminCached, setAdminCached } from './cache.js';
 import { handleApiError } from './middleware.js';
@@ -17,6 +18,7 @@ usageRoutes.get('/usage', (c) => {
     const page = q.page ? Math.max(1, Number(q.page)) : 1;
     const pageSize = q.page_size ? Math.min(200, Math.max(1, Number(q.page_size))) : 50;
     const clientKeyId = q.client_key ? Number(q.client_key) : undefined;
+    const accountId = q.account_id || undefined;
     const model = q.model || undefined;
     const statusCode = q.status ? Number(q.status) : undefined;
     const search = q.q || undefined;
@@ -27,6 +29,7 @@ usageRoutes.get('/usage', (c) => {
     const cacheKey = `usage:${JSON.stringify({
       days,
       clientKeyId: clientKeyId ?? null,
+      accountId: accountId ?? null,
       page,
       pageSize,
       model: model ?? null,
@@ -45,6 +48,7 @@ usageRoutes.get('/usage', (c) => {
     // Period 1: requested window for summary + page
     const filter: PagedLogFilter = {
       clientKeyId,
+      accountId,
       model,
       statusCode,
       search,
@@ -58,6 +62,10 @@ usageRoutes.get('/usage', (c) => {
     const since = allTime ? null : new Date(Date.now() - days * 86_400_000).toISOString();
     if (!fromIso && since) filter.fromIso = since;
     const paged = pagedLogs(db, filter);
+
+    // Build account label map for response enrichment
+    const accounts = listAccounts(db);
+    const accountLabelMap = new Map(accounts.map((a) => [a.id, a.label]));
 
     // summary on full window (days=0 => all-time inside aggregateUsage)
     const cur = aggregateUsage(db, { clientKeyId, days });
@@ -106,6 +114,7 @@ usageRoutes.get('/usage', (c) => {
           completionTokens: l.completion_tokens,
           clientKeyId: l.client_key_id,
           accountId: l.account_id,
+          accountLabel: (l.account_id && accountLabelMap.get(l.account_id)) ?? null,
           error: l.error,
         })),
         total: paged.total,

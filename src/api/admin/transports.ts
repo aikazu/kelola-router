@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
+import { listAccounts } from '../../db/repos/accounts.js';
 import {
   createTransport,
   deleteTransport,
@@ -47,8 +48,23 @@ function assertUrl(url: string): void {
 transportRoutes.get('/', (c) => {
   try {
     const db = c.get('db') as Database.Database;
+    const transports = listTransports(db);
+    const accounts = listAccounts(db);
+    const countMap = new Map<string, number>();
+    for (const t of transports) {
+      let count = 0;
+      for (const a of accounts) {
+        if (a.proxy_id === t.id || a.relay_id === t.id) {
+          count++;
+          continue;
+        }
+        const pool: string[] = a.proxy_pool ? JSON.parse(a.proxy_pool) : [];
+        if (pool.includes(t.id)) count++;
+      }
+      countMap.set(t.id, count);
+    }
     return c.json(
-      listTransports(db).map((t) => ({
+      transports.map((t) => ({
         id: t.id,
         label: t.label,
         type: t.type,
@@ -56,6 +72,7 @@ transportRoutes.get('/', (c) => {
         url: t.url,
         enabled: t.enabled,
         createdAt: t.created_at,
+        usageCount: countMap.get(t.id) ?? 0,
       }))
     );
   } catch (e) {

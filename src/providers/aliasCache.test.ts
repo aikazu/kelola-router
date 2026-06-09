@@ -64,7 +64,10 @@ describe('aliasCache', () => {
 
   it('suffixed model not affected by shadowing alias', () => {
     upsertModel(db, { name: 'claude-opus-4-8', upstream_model: 'claude-opus-4-8' });
-    upsertModel(db, { name: 'claude-opus-4-8-thinking', upstream_model: 'claude-opus-4-8-thinking' });
+    upsertModel(db, {
+      name: 'claude-opus-4-8-thinking',
+      upstream_model: 'claude-opus-4-8-thinking',
+    });
     upsertAlias(db, { aliasName: 'claude-opus-4-8', upstreamModel: 'MiniMax-M3' });
     clearAliasCache();
     // Shadowed model resolves to alias target

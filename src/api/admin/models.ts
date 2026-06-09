@@ -54,7 +54,10 @@ modelRoutes.post('/bulk-toggle', async (c) => {
     const db = c.get('db') as Database.Database;
     const { names, enabled } = await c.req.json<{ names: string[]; enabled: boolean }>();
     if (!Array.isArray(names) || names.length === 0 || typeof enabled !== 'boolean') {
-      return c.json({ error: 'invalid_body', message: 'names: string[], enabled: boolean required' }, 400);
+      return c.json(
+        { error: 'invalid_body', message: 'names: string[], enabled: boolean required' },
+        400
+      );
     }
     const updated = bulkToggleModels(db, names, enabled);
     return c.json({ updated });

@@ -23,6 +23,7 @@ overviewRoutes.get('/overview', (c) => {
     const accounts = listAccounts(db);
     const recent = recentLogs(db, { limit: 5 });
     const enabledAccounts = accounts.filter((a) => a.enabled).length;
+    const accountLabelMap = new Map(accounts.map((a) => [a.id, a.label]));
     const ckRow = db.prepare(`SELECT COUNT(*) as n FROM client_keys WHERE enabled = 1`).get() as {
       n: number;
     };
@@ -45,6 +46,7 @@ overviewRoutes.get('/overview', (c) => {
         latencyMs: r.latency_ms,
         clientKeyId: r.client_key_id,
         accountId: r.account_id,
+        accountLabel: (r.account_id && accountLabelMap.get(r.account_id)) ?? null,
       })),
     };
 

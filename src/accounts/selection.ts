@@ -10,7 +10,8 @@ export function selectAccount(
   opts: SelectionOpts = { mode: 'lowest-backoff' }
 ): SelectionResult {
   const available = filterAvailableAccounts(accounts);
-  if (available.length === 0) return { account: null, reason: opts.mode === 'sticky' ? 'fallback' : opts.mode };
+  if (available.length === 0)
+    return { account: null, reason: opts.mode === 'sticky' ? 'fallback' : opts.mode };
 
   if (opts.mode === 'round-robin') {
     const cursor = opts.cursor ?? 0;

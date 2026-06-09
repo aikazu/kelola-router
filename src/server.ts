@@ -226,7 +226,12 @@ async function handleProxy(
     enabled: !!a.enabled,
   }));
   const selMode = (getSetting(db, 'selection.mode') as SelectionMode | null) ?? 'lowest-backoff';
-  const { account, reason, nextCursor } = selectAccount(accountStates, { mode: selMode, cursor: rrCursor, clientKeyId: clientKey?.id, stickyMap });
+  const { account, reason, nextCursor } = selectAccount(accountStates, {
+    mode: selMode,
+    cursor: rrCursor,
+    clientKeyId: clientKey?.id,
+    stickyMap,
+  });
   if (nextCursor != null) rrCursor = nextCursor;
   if (!account) return c.json({ error: 'all accounts unavailable' }, 503);
   const acc = allAccounts.find((a) => a.id === account.id)!;
@@ -548,8 +553,18 @@ async function handleKiroProxy(
     status: a.status as AccountState['status'],
     enabled: !!a.enabled,
   }));
-  const kiroSelMode = (getSetting(db, 'selection.mode') as SelectionMode | null) ?? 'lowest-backoff';
-  const { account: picked, reason: kiroReason, nextCursor: kiroNext } = selectAccount(states, { mode: kiroSelMode, cursor: rrCursor, clientKeyId: clientKey?.id, stickyMap });
+  const kiroSelMode =
+    (getSetting(db, 'selection.mode') as SelectionMode | null) ?? 'lowest-backoff';
+  const {
+    account: picked,
+    reason: kiroReason,
+    nextCursor: kiroNext,
+  } = selectAccount(states, {
+    mode: kiroSelMode,
+    cursor: rrCursor,
+    clientKeyId: clientKey?.id,
+    stickyMap,
+  });
   if (kiroNext != null) rrCursor = kiroNext;
   if (!picked) return c.json({ error: 'all Kiro accounts unavailable' }, 503);
   const acc = accounts.find((a) => a.id === picked.id)!;

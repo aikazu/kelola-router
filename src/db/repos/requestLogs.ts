@@ -286,6 +286,7 @@ export function recentLogs(db: Database.Database, filter: LogFilter = {}): Reque
 
 export interface PagedLogFilter {
   clientKeyId?: number;
+  accountId?: string;
   model?: string;
   statusCode?: number;
   search?: string;
@@ -313,6 +314,10 @@ export function pagedLogs(db: Database.Database, filter: PagedLogFilter): PagedL
   if (filter.clientKeyId !== undefined) {
     where.push('client_key_id = ?');
     params.push(filter.clientKeyId);
+  }
+  if (filter.accountId) {
+    where.push('account_id = ?');
+    params.push(filter.accountId);
   }
   if (filter.model) {
     where.push('model = ?');

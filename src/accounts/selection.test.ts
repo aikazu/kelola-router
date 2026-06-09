@@ -100,7 +100,9 @@ describe('selectAccount', () => {
     it('returns null for all modes', () => {
       expect(selectAccount([], { mode: 'lowest-backoff' }).account).toBeNull();
       expect(selectAccount([], { mode: 'round-robin', cursor: 0 }).account).toBeNull();
-      expect(selectAccount([], { mode: 'sticky', clientKeyId: 1, stickyMap: new Map() }).account).toBeNull();
+      expect(
+        selectAccount([], { mode: 'sticky', clientKeyId: 1, stickyMap: new Map() }).account
+      ).toBeNull();
     });
   });
 });

@@ -9,8 +9,8 @@ import { setPassword } from '../../../src/auth/password.js';
 import { createSession } from '../../../src/auth/session.js';
 import { SESSION_COOKIE } from '../../../src/auth.js';
 import { migrate } from '../../../src/db/migrations/index.js';
-import { getModel, upsertModel } from '../../../src/db/repos/models.js';
 import { createClientKey, genClientKey, getClientKey } from '../../../src/db/repos/client_keys.js';
+import { getModel, upsertModel } from '../../../src/db/repos/models.js';
 
 let db: Database.Database;
 let dir: string;
