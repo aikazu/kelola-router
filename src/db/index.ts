@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import { autoSeedModels } from './autoSeed.js';
+import { applyPragmas } from './migratePragmas.js';
 import { migrate } from './migrations/index.js';
 
 function defaultDbPath(): string {
@@ -48,10 +49,7 @@ export function openDb(): Database.Database {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
   const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  db.pragma('busy_timeout = 5000');
-  db.pragma('synchronous = NORMAL');
+  applyPragmas(db);
 
   migrate(db);
   autoSeedModels(db);
