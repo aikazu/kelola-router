@@ -11,6 +11,27 @@ import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
 import { disableHotPathMetrics, enableHotPathMetrics, readHotPathMetrics } from '../../src/runtime/hotPathMetrics.js';
 import { app, resetDb } from '../../src/server.js';
 
+const statementMethods = ['run', 'get', 'all'] as const;
+type StatementMethod = (typeof statementMethods)[number];
+type SpyableStatement = Database.Statement & Record<StatementMethod, (...args: unknown[]) => unknown>;
+
+const isSpyableStatement = (value: unknown): value is SpyableStatement => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<Record<StatementMethod, unknown>>;
+  return statementMethods.every((method) => typeof candidate[method] === 'function');
+};
+
+const wrapStatementMethod = (stmt: SpyableStatement, method: StatementMethod, onCall: () => void) => {
+  const original = stmt[method];
+  stmt[method] = ((...args: unknown[]) => {
+    onCall();
+    return original.apply(stmt, args);
+  }) as typeof original;
+};
+
 let key: string;
 
 beforeEach(() => {
@@ -32,15 +53,18 @@ describe('hot-path benchmark', () => {
   it('measures statements + overhead per request', async () => {
     const realPrepare = Database.prototype.prepare;
     let stmtRuns = 0;
-    vi.spyOn(Database.prototype, 'prepare').mockImplementation(function (this: any, sql: string) {
+    vi.spyOn(Database.prototype, 'prepare').mockImplementation(function (sql: string) {
       const stmt = realPrepare.call(this, sql);
-      for (const m of ['run', 'get', 'all'] as const) {
-        const orig = (stmt as any)[m].bind(stmt);
-        (stmt as any)[m] = (...args: unknown[]) => {
-          stmtRuns++;
-          return orig(...(args as Parameters<typeof orig>));
-        };
+      if (!isSpyableStatement(stmt)) {
+        return stmt;
       }
+
+      for (const method of statementMethods) {
+        wrapStatementMethod(stmt, method, () => {
+          stmtRuns++;
+        });
+      }
+
       return stmt;
     });
 
