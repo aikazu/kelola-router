@@ -82,3 +82,7 @@ export function deleteClientKey(db: Database.Database, id: number): void {
   cachedStmt(db, `DELETE FROM client_keys WHERE id = ?`).run(id);
   clearClientKeyCache(db);
 }
+
+export function updateClientKeyLabel(db: Database.Database, id: number, label: string): void {
+  cachedStmt(db, `UPDATE client_keys SET label = ? WHERE id = ?`).run(label, id);
+}

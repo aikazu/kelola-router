@@ -8,6 +8,7 @@ import {
   genClientKey,
   getClientKey,
   listClientKeys,
+  updateClientKeyLabel,
 } from '../../db/repos/client_keys.js';
 import { ApiError, handleApiError } from './middleware.js';
 
@@ -73,6 +74,23 @@ clientKeyRoutes.post('/:id/enable', (c) => {
   try {
     enableClientKey(c.get('db') as Database.Database, Number(c.req.param('id')));
     return new Response(null, { status: 204 });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+clientKeyRoutes.patch('/:id', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const id = Number(c.req.param('id'));
+    const { label } = await c.req.json<{ label: string }>();
+    if (!label || typeof label !== 'string' || !label.trim()) {
+      return c.json({ error: 'invalid_body', message: 'label required' }, 400);
+    }
+    updateClientKeyLabel(db, id, label.trim());
+    const key = getClientKey(db, id);
+    if (!key) return c.json({ error: 'not_found', message: 'Key not found' }, 404);
+    return c.json({ id: key.id, label: key.label });
   } catch (e) {
     return handleApiError(e);
   }

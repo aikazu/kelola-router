@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { listAliasesForTargets } from '../../db/repos/aliases.js';
-import { disableModel, enableModel, listModels } from '../../db/repos/models.js';
+import { bulkToggleModels, disableModel, enableModel, listModels } from '../../db/repos/models.js';
 import { handleApiError } from './middleware.js';
 
 export const modelRoutes = new Hono();
@@ -44,6 +44,20 @@ modelRoutes.post('/:name/enable', (c) => {
   try {
     enableModel(c.get('db') as Database.Database, decodeURIComponent(c.req.param('name')));
     return new Response(null, { status: 204 });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+modelRoutes.post('/bulk-toggle', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const { names, enabled } = await c.req.json<{ names: string[]; enabled: boolean }>();
+    if (!Array.isArray(names) || names.length === 0 || typeof enabled !== 'boolean') {
+      return c.json({ error: 'invalid_body', message: 'names: string[], enabled: boolean required' }, 400);
+    }
+    const updated = bulkToggleModels(db, names, enabled);
+    return c.json({ updated });
   } catch (e) {
     return handleApiError(e);
   }
