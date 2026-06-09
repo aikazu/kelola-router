@@ -37,24 +37,21 @@ export function createTransport(db: Database.Database, input: TransportCreate): 
   db.prepare(`
     INSERT INTO transports (id, label, type, kind, url, enabled)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(
-    input.id,
-    input.label,
-    input.type,
-    input.kind,
-    input.url,
-    input.enabled === false ? 0 : 1
-  );
+  `).run(input.id, input.label, input.type, input.kind, input.url, input.enabled === false ? 0 : 1);
   return getTransport(db, input.id)!;
 }
 
 export function getTransport(db: Database.Database, id: string): Transport | null {
-  const row = db.prepare(`SELECT * FROM transports WHERE id = ?`).get(id) as TransportRow | undefined;
+  const row = db.prepare(`SELECT * FROM transports WHERE id = ?`).get(id) as
+    | TransportRow
+    | undefined;
   return row ? rowToTransport(row) : null;
 }
 
 export function listTransports(db: Database.Database): Transport[] {
-  const rows = db.prepare(`SELECT * FROM transports ORDER BY created_at, id`).all() as TransportRow[];
+  const rows = db
+    .prepare(`SELECT * FROM transports ORDER BY created_at, id`)
+    .all() as TransportRow[];
   return rows.map(rowToTransport);
 }
 

@@ -109,14 +109,18 @@ describe('POST /api/admin/transports', () => {
 
 describe('PATCH /api/admin/transports/:id', () => {
   it('updates label and enabled', async () => {
-    const created = await (await createProxy({ label: 'a', type: 'proxy', kind: 'http', url: 'http://a' })).json();
+    const created = await (
+      await createProxy({ label: 'a', type: 'proxy', kind: 'http', url: 'http://a' })
+    ).json();
     const res = await app.request(`/api/admin/transports/${created.id}`, {
       method: 'PATCH',
       headers: baseHeaders(),
       body: JSON.stringify({ label: 'b', enabled: false }),
     });
     expect(res.status).toBe(204);
-    const list = await (await app.request('/api/admin/transports', { headers: baseHeaders() })).json();
+    const list = await (
+      await app.request('/api/admin/transports', { headers: baseHeaders() })
+    ).json();
     expect(list[0].label).toBe('b');
     expect(list[0].enabled).toBe(false);
   });
@@ -133,13 +137,17 @@ describe('PATCH /api/admin/transports/:id', () => {
 
 describe('DELETE /api/admin/transports/:id', () => {
   it('returns 204 and removes the row', async () => {
-    const created = await (await createProxy({ label: 'a', type: 'proxy', kind: 'http', url: 'http://a' })).json();
+    const created = await (
+      await createProxy({ label: 'a', type: 'proxy', kind: 'http', url: 'http://a' })
+    ).json();
     const del = await app.request(`/api/admin/transports/${created.id}`, {
       method: 'DELETE',
       headers: baseHeaders(),
     });
     expect(del.status).toBe(204);
-    const list = await (await app.request('/api/admin/transports', { headers: baseHeaders() })).json();
+    const list = await (
+      await app.request('/api/admin/transports', { headers: baseHeaders() })
+    ).json();
     expect(list).toHaveLength(0);
   });
 
@@ -155,7 +163,9 @@ describe('DELETE /api/admin/transports/:id', () => {
 describe('POST /api/admin/transports/:id/test', () => {
   it('reports ok + latency when fetch succeeds', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
-    const created = await (await createProxy({ label: 'r', type: 'relay', kind: 'vercel', url: 'https://relay.app' })).json();
+    const created = await (
+      await createProxy({ label: 'r', type: 'relay', kind: 'vercel', url: 'https://relay.app' })
+    ).json();
     const res = await app.request(`/api/admin/transports/${created.id}/test`, {
       method: 'POST',
       headers: baseHeaders(),
@@ -169,7 +179,9 @@ describe('POST /api/admin/transports/:id/test', () => {
 
   it('reports ok:false when fetch throws', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNREFUSED'));
-    const created = await (await createProxy({ label: 'r', type: 'relay', kind: 'vercel', url: 'https://relay.app' })).json();
+    const created = await (
+      await createProxy({ label: 'r', type: 'relay', kind: 'vercel', url: 'https://relay.app' })
+    ).json();
     const res = await app.request(`/api/admin/transports/${created.id}/test`, {
       method: 'POST',
       headers: baseHeaders(),

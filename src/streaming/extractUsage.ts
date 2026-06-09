@@ -84,7 +84,7 @@ export function extractUsageFromSSEStream(
           completion_tokens: (u.completion_tokens as number) ?? 0,
           cache_creation_tokens: 0,
           cache_read_tokens:
-            ((u.prompt_tokens_details as { cached_tokens?: number } | undefined)?.cached_tokens) ?? 0,
+            (u.prompt_tokens_details as { cached_tokens?: number } | undefined)?.cached_tokens ?? 0,
           total_tokens: (u.total_tokens as number) ?? 0,
         };
       } else {

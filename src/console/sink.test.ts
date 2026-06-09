@@ -4,7 +4,15 @@ import { ConsoleBus } from './bus.js';
 import { attachStdoutSink } from './sink.js';
 import type { FlowEvent } from './types.js';
 
-const ev: FlowEvent = { phase: 'start', reqId: 'a', ts: '2026-06-09T00:00:00.000Z', method: 'POST', path: '/v1/messages', model: 'm', alias: null };
+const ev: FlowEvent = {
+  phase: 'start',
+  reqId: 'a',
+  ts: '2026-06-09T00:00:00.000Z',
+  method: 'POST',
+  path: '/v1/messages',
+  model: 'm',
+  alias: null,
+};
 
 afterEach(() => {
   vi.restoreAllMocks();

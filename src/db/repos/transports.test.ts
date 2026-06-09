@@ -46,14 +46,26 @@ describe('transports repo', () => {
   });
 
   it('getTransport returns by id, null when missing', () => {
-    createTransport(db, { id: 'tp_a', label: 'A', type: 'proxy', kind: 'http', url: 'http://h:8080' });
+    createTransport(db, {
+      id: 'tp_a',
+      label: 'A',
+      type: 'proxy',
+      kind: 'http',
+      url: 'http://h:8080',
+    });
     expect(getTransport(db, 'tp_a')?.label).toBe('A');
     expect(getTransport(db, 'nope')).toBeNull();
   });
 
   it('listTransports returns all ordered by created_at', () => {
     createTransport(db, { id: 'tp_1', label: 'one', type: 'proxy', kind: 'http', url: 'http://1' });
-    createTransport(db, { id: 'tp_2', label: 'two', type: 'relay', kind: 'cloudflare', url: 'http://2' });
+    createTransport(db, {
+      id: 'tp_2',
+      label: 'two',
+      type: 'relay',
+      kind: 'cloudflare',
+      url: 'http://2',
+    });
     const all = listTransports(db);
     expect(all.map((t) => t.id)).toEqual(['tp_1', 'tp_2']);
   });

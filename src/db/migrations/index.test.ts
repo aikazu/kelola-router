@@ -11,9 +11,9 @@ beforeEach(() => {
 describe('migration 001 additive indexes', () => {
   it('creates the performance indexes', () => {
     const db = openDb();
-    const rows = db
-      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index'`)
-      .all() as { name: string }[];
+    const rows = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'index'`).all() as {
+      name: string;
+    }[];
     const names = new Set(rows.map((r) => r.name));
     expect(names.has('idx_logs_model_created_cost')).toBe(true);
     expect(names.has('idx_logs_created_at')).toBe(true);

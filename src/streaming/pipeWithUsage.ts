@@ -1,5 +1,5 @@
-import { TailBuffer } from './tailBuffer.js';
 import { extractUsageFromSSEStream, type SSEUsage } from './extractUsage.js';
+import { TailBuffer } from './tailBuffer.js';
 
 export type UsageCallback = (usage: SSEUsage | null, rawText: string) => void;
 

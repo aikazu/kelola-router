@@ -5,8 +5,9 @@
  * SSE streaming) and can aggregate them into a single `chat.completion` object
  * (for non-streaming responses). Adapted from the 9router reference (MIT).
  */
-import { decodeFrames, type KiroEvent } from './eventstream.js';
+
 import { ChunkAccumulator } from './chunkAccumulator.js';
+import { decodeFrames, type KiroEvent } from './eventstream.js';
 
 export interface OpenAIToolCallDelta {
   index: number;

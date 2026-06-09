@@ -1,6 +1,7 @@
 // src/console/sink.ts
-import type { ConsoleBus } from './bus.js';
+
 import { Coalescer } from '../util/coalescer.js';
+import type { ConsoleBus } from './bus.js';
 import { renderStdout } from './format.js';
 
 export interface SinkOptions {

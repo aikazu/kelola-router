@@ -5,7 +5,14 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../index.js';
 import { createAccount } from './accounts.js';
 import { createClientKey } from './client_keys.js';
-import { aggregateUsage, cleanupOldLogs, insertRequestLog, insertRequestLogDeferred, recentLogs, flushDeferredLogs } from './requestLogs.js';
+import {
+  aggregateUsage,
+  cleanupOldLogs,
+  flushDeferredLogs,
+  insertRequestLog,
+  insertRequestLogDeferred,
+  recentLogs,
+} from './requestLogs.js';
 
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'rl-')), 't.db');

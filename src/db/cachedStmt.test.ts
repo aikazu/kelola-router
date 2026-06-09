@@ -2,8 +2,8 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, expect, it } from 'vitest';
-import { openDb } from './index.js';
 import { cachedStmt } from './cachedStmt.js';
+import { openDb } from './index.js';
 
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'cs-')), 't.db');

@@ -10,7 +10,10 @@ export interface LruOptions<V> {
  */
 export class Lru<V> {
   private map = new Map<string, V>();
-  constructor(private readonly max: number, private readonly opts: LruOptions<V> = {}) {}
+  constructor(
+    private readonly max: number,
+    private readonly opts: LruOptions<V> = {}
+  ) {}
 
   get size(): number {
     return this.map.size;

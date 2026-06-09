@@ -1,8 +1,9 @@
 // tests/console/sse.test.ts
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('GET /api/admin/console/stream', () => {
   beforeEach(() => {
@@ -19,8 +20,13 @@ describe('GET /api/admin/console/stream', () => {
     resetDb();
     const { consoleBus } = await import('../../src/console/bus.js');
     consoleBus.emit({
-      phase: 'start', reqId: 'seed', ts: '2026-06-09T00:00:00.000Z',
-      method: 'POST', path: '/v1/messages', model: 'm', alias: null,
+      phase: 'start',
+      reqId: 'seed',
+      ts: '2026-06-09T00:00:00.000Z',
+      method: 'POST',
+      path: '/v1/messages',
+      model: 'm',
+      alias: null,
     });
 
     const res = await app.request('/api/admin/console/stream', {

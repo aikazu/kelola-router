@@ -66,11 +66,11 @@ import { PROVIDER, upstreamHeaders, upstreamUrl } from './providers/minimax.js';
 import { parseError } from './providers/parseError.js';
 import { calculateCost } from './providers/pricing.js';
 import { upstreamFetch } from './providers/upstreamFetch.js';
-import { resolveTransportForAccount } from './transport/resolve.js';
 import { headersToJson, truncateBody } from './proxy/capture.js';
 import { compressMessages, formatRtkLog } from './rtk/index.js';
 import { startQuotaPuller, stopQuotaPuller } from './scheduler/quotaPull.js';
 import { pipeWithUsage } from './streaming/pipeWithUsage.js';
+import { resolveTransportForAccount } from './transport/resolve.js';
 import { getHost, getPort } from './util/env.js';
 import { log } from './util/log.js';
 
@@ -168,8 +168,7 @@ async function handleProxy(
 
   // Determine upstream format. Default = same as client. Override via
   // settings.minimax.upstreamFormat or ROUTER_UPSTREAM_FORMAT env.
-  const overrideRaw =
-    minimax?.upstreamFormat ?? process.env.ROUTER_UPSTREAM_FORMAT ?? 'auto';
+  const overrideRaw = minimax?.upstreamFormat ?? process.env.ROUTER_UPSTREAM_FORMAT ?? 'auto';
   const upstreamFormat = getUpstreamFormat(format, overrideRaw as 'auto' | 'openai' | 'anthropic');
 
   // OpenAI streaming: ensure include_usage so the final chunk carries usage.
@@ -268,9 +267,13 @@ async function handleProxy(
   const transport = resolveTransportForAccount(db, acc);
   if (transport) {
     if (transport.relay) {
-      consoleBus.emit(buildTransport(reqId, new Date().toISOString(), 'relay', transport.relay.url));
+      consoleBus.emit(
+        buildTransport(reqId, new Date().toISOString(), 'relay', transport.relay.url)
+      );
     } else if (transport.proxy) {
-      consoleBus.emit(buildTransport(reqId, new Date().toISOString(), 'proxy', transport.proxy.url));
+      consoleBus.emit(
+        buildTransport(reqId, new Date().toISOString(), 'proxy', transport.proxy.url)
+      );
     }
   }
 
@@ -401,12 +404,8 @@ async function handleProxy(
       if (format !== upstreamFormat) {
         const converted =
           upstreamFormat === 'anthropic'
-            ? responseAnthropicToOpenAI(
-                parsed as Parameters<typeof responseAnthropicToOpenAI>[0]
-              )
-            : responseOpenAIToAnthropic(
-                parsed as Parameters<typeof responseOpenAIToAnthropic>[0]
-              );
+            ? responseAnthropicToOpenAI(parsed as Parameters<typeof responseAnthropicToOpenAI>[0])
+            : responseOpenAIToAnthropic(parsed as Parameters<typeof responseOpenAIToAnthropic>[0]);
         respBody = JSON.stringify(converted);
         const convUsage = (converted as { usage?: typeof usage }).usage;
         usage = convUsage ?? parsed.usage ?? {};
@@ -502,7 +501,14 @@ async function handleKiroProxy(
   const reqId = genReqId();
   c.set('reqId', reqId);
   consoleBus.emit(
-    buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, modelName, requestedModel ?? null)
+    buildStart(
+      reqId,
+      new Date().toISOString(),
+      c.req.method,
+      upstreamPath,
+      modelName,
+      requestedModel ?? null
+    )
   );
 
   const accounts = listEnabledAccountsByProvider(db, 'kiro');
@@ -523,9 +529,13 @@ async function handleKiroProxy(
   const transport = resolveTransportForAccount(db, acc);
   if (transport) {
     if (transport.relay) {
-      consoleBus.emit(buildTransport(reqId, new Date().toISOString(), 'relay', transport.relay.url));
+      consoleBus.emit(
+        buildTransport(reqId, new Date().toISOString(), 'relay', transport.relay.url)
+      );
     } else if (transport.proxy) {
-      consoleBus.emit(buildTransport(reqId, new Date().toISOString(), 'proxy', transport.proxy.url));
+      consoleBus.emit(
+        buildTransport(reqId, new Date().toISOString(), 'proxy', transport.proxy.url)
+      );
     }
   }
 

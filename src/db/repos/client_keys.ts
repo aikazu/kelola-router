@@ -36,17 +36,19 @@ export function genClientKey(): string {
 }
 
 export function createClientKey(db: Database.Database, input: ClientKeyCreate): ClientKey {
-  const info = cachedStmt(
-    db,
-    `INSERT INTO client_keys (label, key, enabled) VALUES (?, ?, ?)`
-  ).run(input.label, input.key, input.enabled === false ? 0 : 1);
+  const info = cachedStmt(db, `INSERT INTO client_keys (label, key, enabled) VALUES (?, ?, ?)`).run(
+    input.label,
+    input.key,
+    input.enabled === false ? 0 : 1
+  );
   clearClientKeyCache(db);
   return getClientKey(db, info.lastInsertRowid as number)!;
 }
 
 export function getClientKey(db: Database.Database, id: number): ClientKey | null {
   return (
-    (cachedStmt(db, `SELECT * FROM client_keys WHERE id = ?`).get(id) as ClientKey | undefined) ?? null
+    (cachedStmt(db, `SELECT * FROM client_keys WHERE id = ?`).get(id) as ClientKey | undefined) ??
+    null
   );
 }
 

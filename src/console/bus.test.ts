@@ -4,7 +4,15 @@ import { ConsoleBus } from './bus.js';
 import type { FlowEvent } from './types.js';
 
 function ev(reqId: string): FlowEvent {
-  return { phase: 'start', reqId, ts: '2026-06-09T00:00:00.000Z', method: 'POST', path: '/v1/messages', model: 'm', alias: null };
+  return {
+    phase: 'start',
+    reqId,
+    ts: '2026-06-09T00:00:00.000Z',
+    method: 'POST',
+    path: '/v1/messages',
+    model: 'm',
+    alias: null,
+  };
 }
 
 describe('ConsoleBus', () => {

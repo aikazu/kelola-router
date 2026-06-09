@@ -9,6 +9,7 @@ const C = {
   dim: '\x1b[2m',
 };
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 export function stripAnsi(s: string): string {
   return s.replace(ANSI_RE, '');

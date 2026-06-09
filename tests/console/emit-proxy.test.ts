@@ -1,8 +1,9 @@
 // tests/console/emit-proxy.test.ts
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('handleProxy emits flow events', () => {
   beforeEach(() => {
@@ -27,9 +28,16 @@ describe('handleProxy emits flow events', () => {
     createAccount(db, { label: 'acct1', api_key: 'mm_x', credit_type: 'payg' });
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ choices: [{ message: { content: 'hi' } }], usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 } }), {
-        status: 200, headers: { 'content-type': 'application/json' },
-      })
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'hi' } }],
+          usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }
+      )
     );
 
     const { consoleBus } = await import('../../src/console/bus.js');
@@ -38,7 +46,12 @@ describe('handleProxy emits flow events', () => {
 
     await app.request('/v1/chat/completions', {
       method: 'POST',
-      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json', origin: 'http://localhost', host: 'localhost' },
+      headers: {
+        authorization: `Bearer ${key}`,
+        'content-type': 'application/json',
+        origin: 'http://localhost',
+        host: 'localhost',
+      },
       body: JSON.stringify({ model: 'MiniMax-M2', messages: [{ role: 'user', content: 'hi' }] }),
     });
     const { flushDeferredLogs } = await import('../../src/db/repos/requestLogs.js');

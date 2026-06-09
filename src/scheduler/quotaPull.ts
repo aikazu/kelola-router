@@ -1,8 +1,8 @@
 import type Database from 'better-sqlite3';
 import { cleanupExpiredSessions } from '../auth/session.js';
 import { listAccounts } from '../db/repos/accounts.js';
-import { cleanupOldLogs } from '../db/repos/requestLogs.js';
 import { cleanupOldQuota } from '../db/repos/quotaSnapshots.js';
+import { cleanupOldLogs } from '../db/repos/requestLogs.js';
 import { pullQuota } from '../providers/quota.js';
 import { log } from '../util/log.js';
 

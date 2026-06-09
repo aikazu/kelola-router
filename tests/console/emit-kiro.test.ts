@@ -10,7 +10,9 @@ describe('kiro emit wiring', () => {
   it('bus accepts a start event (smoke)', () => {
     const seen: string[] = [];
     const off = consoleBus.subscribe((e) => seen.push(e.reqId));
-    consoleBus.emit(buildStart('k1', '2026-06-09T00:00:00.000Z', 'POST', '/v1/messages', 'kiro-claude', null));
+    consoleBus.emit(
+      buildStart('k1', '2026-06-09T00:00:00.000Z', 'POST', '/v1/messages', 'kiro-claude', null)
+    );
     off();
     expect(seen).toContain('k1');
   });

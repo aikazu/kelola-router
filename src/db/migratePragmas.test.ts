@@ -1,8 +1,8 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { applyPragmas } from './migratePragmas.js';
 
 beforeEach(() => {

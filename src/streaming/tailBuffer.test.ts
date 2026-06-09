@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TailBuffer, parseSseDataLines } from './tailBuffer.js';
+import { parseSseDataLines, TailBuffer } from './tailBuffer.js';
 
 describe('TailBuffer', () => {
   it('keeps the most recent N bytes (drops oldest chunks first)', () => {

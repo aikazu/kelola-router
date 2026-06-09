@@ -145,36 +145,37 @@ function flushDb(db: Database.Database): void {
     try {
       const tx = db.transaction((rows: RequestLogInsert[]) => {
         const stmt = getInsertStmt(db);
-        for (const r of rows) stmt.run(
-          r.client_key_id,
-          r.account_id,
-          r.model,
-          r.requested_model ?? null,
-          r.endpoint,
-          r.format,
-          r.prompt_tokens,
-          r.completion_tokens,
-          r.cache_creation_tokens,
-          r.cache_read_tokens,
-          r.total_tokens,
-          r.cost_usd,
-          r.latency_ms,
-          r.ttft_ms ?? null,
-          r.status_code,
-          r.base_resp_code ?? null,
-          r.stream ? 1 : 0,
-          r.relay_path ?? null,
-          r.proxy_path ?? null,
-          r.rtk_bytes_saved,
-          r.caveman_level ?? null,
-          r.error_message ?? null,
-          r.request_body ?? null,
-          r.response_body ?? null,
-          r.request_headers ?? null,
-          r.response_headers ?? null,
-          r.error ?? null,
-          r.req_id ?? null
-        );
+        for (const r of rows)
+          stmt.run(
+            r.client_key_id,
+            r.account_id,
+            r.model,
+            r.requested_model ?? null,
+            r.endpoint,
+            r.format,
+            r.prompt_tokens,
+            r.completion_tokens,
+            r.cache_creation_tokens,
+            r.cache_read_tokens,
+            r.total_tokens,
+            r.cost_usd,
+            r.latency_ms,
+            r.ttft_ms ?? null,
+            r.status_code,
+            r.base_resp_code ?? null,
+            r.stream ? 1 : 0,
+            r.relay_path ?? null,
+            r.proxy_path ?? null,
+            r.rtk_bytes_saved,
+            r.caveman_level ?? null,
+            r.error_message ?? null,
+            r.request_body ?? null,
+            r.response_body ?? null,
+            r.request_headers ?? null,
+            r.response_headers ?? null,
+            r.error ?? null,
+            r.req_id ?? null
+          );
       });
       tx(batch);
     } catch (err) {

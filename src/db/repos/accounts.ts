@@ -68,8 +68,9 @@ export function getAccount(db: Database.Database, id: string): Account | null {
 
 export function getAccountByApiKey(db: Database.Database, apiKey: string): Account | null {
   return (
-    (cachedStmt(db, `SELECT * FROM accounts WHERE api_key = ?`).get(apiKey) as Account | undefined) ??
-    null
+    (cachedStmt(db, `SELECT * FROM accounts WHERE api_key = ?`).get(apiKey) as
+      | Account
+      | undefined) ?? null
   );
 }
 
@@ -78,7 +79,10 @@ export function listAccounts(db: Database.Database): Account[] {
 }
 
 export function listEnabledAccounts(db: Database.Database): Account[] {
-  return cachedStmt(db, `SELECT * FROM accounts WHERE enabled = 1 ORDER BY created_at`).all() as Account[];
+  return cachedStmt(
+    db,
+    `SELECT * FROM accounts WHERE enabled = 1 ORDER BY created_at`
+  ).all() as Account[];
 }
 
 export function listEnabledAccountsByProvider(
