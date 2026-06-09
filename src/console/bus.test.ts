@@ -46,4 +46,18 @@ describe('ConsoleBus', () => {
     bus.emit(ev('a'));
     expect(good).toHaveBeenCalledOnce();
   });
+
+  it('preserves insertion order across wrap-around at capacity', () => {
+    const small = new ConsoleBus(3);
+    for (let i = 0; i < 10; i++) small.emit(ev(`r${i}`));
+    // Should contain r7, r8, r9 (the 3 most-recent).
+    expect(small.recent().map((e) => e.reqId)).toEqual(['r7', 'r8', 'r9']);
+  });
+
+  it('emit is O(1) regardless of capacity', () => {
+    const huge = new ConsoleBus(1000);
+    const start = Date.now();
+    for (let i = 0; i < 10_000; i++) huge.emit(ev(`r${i}`));
+    expect(Date.now() - start).toBeLessThan(500);
+  });
 });

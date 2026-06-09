@@ -4,13 +4,18 @@ import type { FlowEvent } from './types.js';
 type Subscriber = (ev: FlowEvent) => void;
 
 export class ConsoleBus {
-  private buffer: FlowEvent[] = [];
+  private buf: (FlowEvent | undefined)[];
+  private head = 0; // next write index
+  private size = 0; // number of valid entries (<= cap)
   private subs = new Set<Subscriber>();
-  constructor(private readonly cap = 200) {}
+  constructor(private readonly cap = 200) {
+    this.buf = new Array(cap);
+  }
 
   emit(ev: FlowEvent): void {
-    this.buffer.push(ev);
-    if (this.buffer.length > this.cap) this.buffer.shift();
+    this.buf[this.head] = ev;
+    this.head = (this.head + 1) % this.cap;
+    if (this.size < this.cap) this.size++;
     for (const fn of this.subs) {
       try {
         fn(ev);
@@ -28,7 +33,15 @@ export class ConsoleBus {
   }
 
   recent(): FlowEvent[] {
-    return [...this.buffer];
+    const out: FlowEvent[] = [];
+    // Start from the oldest valid entry; if buf isn't full yet, that's
+    // (head - size) modulo cap.
+    const start = this.size < this.cap ? (this.head - this.size + this.cap) % this.cap : this.head;
+    for (let i = 0; i < this.size; i++) {
+      const ev = this.buf[(start + i) % this.cap];
+      if (ev !== undefined) out.push(ev);
+    }
+    return out;
   }
 }
 
