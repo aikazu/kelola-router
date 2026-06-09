@@ -7,8 +7,8 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.16](https://img.shields.io/badge/release-v0.16-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.16)
-[![Tests](https://img.shields.io/badge/tests-423-success?logo=vitest&logoColor=white)](#-development)
+[![v0.17](https://img.shields.io/badge/release-v0.17-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.17)
+[![Tests](https://img.shields.io/badge/tests-505-success?logo=vitest&logoColor=white)](#-development)
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
 ```text
@@ -41,6 +41,7 @@
 - 🗃️ **SQLite-WAL storage** — zero-config persistence with idempotent migrations
 - 🔤 **Model aliases** — user-defined model-name → upstream-model mapping; CRUD via `/admin/aliases`, in-memory cache with TTL, `requested_model` logged per request, `?target=<model>` deep link from Models page, `aliasCount` per model in `/api/admin/models`
 - 📊 **Per-request telemetry** — token usage, latency, cache hits, account attribution
+- 🖥️ **Live Console** — dashboard page streaming per-request flow events (start → account → transport → done/error) over SSE from a ring-buffered in-process bus, with Pause / Clear / auto-scroll, live/reconnecting indicator, and matching colored lines on server stdout (gated by `CONSOLE_FLOW=0` to silence)
 - 👥 **Client keys with per-key usage** — one bearer = one client identity; admin can see per-key breakdown on `/admin/usage`
 - 🔁 **Pool fallback across upstream MiniMax keys** — admin adds N MiniMax keys; router fans out + backoffs + locks per-model
 - 🪶 **RTK compression + Caveman mode + dual cache injection** — per-setting toggles in dashboard
@@ -51,7 +52,7 @@
 - 🌐 **Fetch from upstream** — `/admin/models` can pull MiniMax's current model list; 404 fallback shows a clear message
 - 🎨 **Obsidian Gold dashboard** — Preact SPA (`client/`) with a dark-canvas + single-gold-accent theme, Fraunces/Inter/JetBrains Mono type stack, command palette (`⌘K`), keyboard nav (`g` then key), and live request telemetry
 - 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 423 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 505 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🚀 Quick Start
 
@@ -269,7 +270,7 @@ Per-user setting `user_settings.account_mode` controls selection: `sticky` (sess
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (423 tests)
+npm test              # vitest run (505 tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
@@ -332,6 +333,7 @@ Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 
 | Phase | Version | Status | Scope |
 |------:|:--------|:------:|:------|
+| 17 | **v0.17** | ✅ shipped | **Live Console** — in-process flow event bus + SSE stream + dashboard page. `src/console/` modules: `bus.ts` (200-event ring buffer + throwing-subscriber isolation), `format.ts` (pure ANSI renderer with `stripAnsi` / `fmtTokens`), `flow.ts` (5 event builders + `genReqId`), `sink.ts` (env-gated stdout writer, `CONSOLE_FLOW=0` to silence). Both proxy paths (`handleProxy` MiniMax + `handleKiroProxy`) emit `start` / `account` / `transport` / `done` / `error` events with a shared `reqId`; log inserts carry the same `reqId`. `GET /api/admin/console/stream` (Hono `streamSSE`) backfills recent + live + 15s heartbeat. Migration `004-reqid` adds nullable `req_id` on `request_logs` (additive; `user_version = 4`). Dashboard `Console` page (`/admin/console`, hotkey `g n`, palette entry) — `EventSource` → grouped blocks by `reqId` (start / account / transport / done / error lines), Pause / Clear / auto-scroll-stick, live dot. +19 tests: 4 `bus`, 7 `format`, 5 `flow`, 2 `sink`, 1 `sse` (backfill), 1 `migration-004`, 1 `requestlog-reqid` roundtrip, 1 `emit-proxy` integration, 1 `emit-kiro` smoke; 423 → 484 server tests, 19 → 21 client tests. Server stdout gets the same lines colored (gold reqid, green ✓, red ✗) by default |
 | 16 | **v0.16** | ✅ shipped | Kiro (AWS CodeWhisperer / Amazon Q) as a second upstream provider, routed by model `provider`. Additive migration `002-kiro` (`provider`/`access_token`/`token_expires_at`/`provider_data` on accounts, `provider` on models). New `src/providers/kiro/` modules: CodeWhisperer request transform, AWS event-stream binary decoder, OpenAI SSE + **native Anthropic Messages SSE** assemblers (Claude Code/hermes streaming), token refresh (AWS SSO OIDC / Kiro social) with DB-cached auto-refresh. Account import — paste credential JSON / AWS Builder ID / AWS IAM Identity Center / refresh token — via `POST /api/admin/accounts/kiro` + dashboard form. **OAuth Device Code Flow** for AWS Builder ID / IAM Identity Center (one-click login from dashboard): `POST /kiro/device-code` + `POST /kiro/poll`. **Auto-import** from Kiro IDE (`~/.aws/sso/cache`): `GET /kiro/auto-import`. `seed-kiro-models` + `add-kiro-account` CLI. **Switchable per-account persona** — `ide` (legacy, default; `codewhisperer.*.amazonaws.com` + KiroIDE fingerprint) ⇄ `cli` (experimental; `runtime.*.kiro.dev` mirroring the real kiro-cli wire format, verified against captured traffic) toggled from the dashboard or `PATCH /accounts/:id {persona}`, with CLI model-id dotting + automatic `profileArn` discovery via `ListAvailableProfiles`. **Live-verified** against real AWS/Kiro endpoints. 18 unit tests + end-to-end proxy integration test (mocked binary upstream) |
 | 15 | **v0.15** | ✅ shipped | Quota duplicate-block fix: puller now skips `model_remains[]` items with no `model_name` and the admin query filters `model_name IS NOT NULL`, so legacy NULL-model rows can no longer render as a phantom 0% block. Schema consolidation: migrations 002–008 folded into a single `001-initial` (full schema, `user_version = 1`); legacy upgrade stubs + dead `repos/users.ts` removed — fresh-deploy only |
 | 14 | **v0.14** | ✅ shipped | Usage all-time range (`days=0`, null deltas) + 1-day default; per-row Copy full client key (`GET /client-keys/:id/key`, list stays masked). Quota flow fix + redesign: parse real MiniMax nested `model_remains[]` shape (old parser read a flat shape → "no data"), fix used/remaining semantic swap (`used_count = usage_count`, `remaining_count = total − usage`), store `remaining_percent` + `remains_time` (consolidated into the single `001-initial` schema in v0.15); admin API groups latest snapshots per `(model_name, window_type)`; Quota page redesigned as per-model percent bars (general/video) with reset countdown, status dot, count detail when metered |

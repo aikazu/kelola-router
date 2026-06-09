@@ -2,6 +2,16 @@
 
 > Newest first. The latest shipped version sits at the top under its version heading.
 
+## v0.17 — 2026-06-09
+
+**Live Console.** A single in-process bus streams per-request proxy flow events to two sinks: the dashboard's new `Console` page over SSE, and server stdout as colored lines. Both proxy paths (`handleProxy` MiniMax, `handleKiroProxy`) emit `start` → `account` → `transport` → `done`/`error` with a shared `reqId`, which also lands on `request_logs.req_id` so a flow block links to its Request Detail row.
+- **`src/console/` module.** `types.ts` (FlowEvent discriminated union — `FlowReason` / `TransportKind`), `bus.ts` (`ConsoleBus` class + 200-event ring buffer + throwing-subscriber isolation + `consoleBus` singleton), `format.ts` (pure ANSI renderer with `stripAnsi` / `fmtTokens` / `fmtLatency` — exported for tests), `flow.ts` (`genReqId` 4-byte hex + 5 `build*` helpers, message string trimmed to 200 chars), `sink.ts` (`attachStdoutSink` — gated by `CONSOLE_FLOW=0`, no-op in that case). All four phases covered by 18 unit tests.
+- **SSE endpoint.** `GET /api/admin/console/stream` (Hono `streamSSE`, `requireAdmin`) — streams `consoleBus.recent()` to the new client (backfill), then live events via `bus.subscribe`, with a 15s heartbeat and `stream.onAbort` cleanup so disconnected clients stop receiving.
+- **Emit wiring in `src/server.ts`.** A short hex `reqId` is generated in each handler, set on the Hono context, and threaded through every emit + every `insertRequestLog*` call. `TransportConfig` `kind`/`label` mapped to `'relay'` / `'proxy'` + the respective URL. Error path emits a `buildError` with the status + first 200 chars of the body; the catch arm uses `c.get('reqId') ?? '----'` so the final error line still correlates.
+- **Migration `004-reqid`.** Additive `ALTER TABLE request_logs ADD COLUMN req_id TEXT`; `user_version = 4`. Existing rows stay NULL.
+- **Dashboard Console page.** `client/src/pages/Console.tsx` (Preact) — `EventSource` over `/api/admin/console/stream`, in-memory event list (capped 600 ≈ 200 blocks), pure `ConsoleBlocks` group-by-reqId component exported separately for testability, Pause / Clear buttons (uses `TopBar` actions slot), live-vs-reconnecting dot, "Waiting for requests…" empty state, and auto-scroll-stick that breaks off the bottom on manual scroll. Obsidian Gold styling: gold `reqid`, green ✓ for `done`, red ✗ for `error` / `status >= 400`. Wired into `AppShell` (lazy + `KNOWN_ROUTES` + `g n` hotkey + help modal), `Sidebar` (with new `console` terminal icon in `Icon.tsx`), and `CommandPalette`. 2 client tests on `ConsoleBlocks` (summary + error block).
+- **Verification.** 484 server tests (was 465 → +19) + 21 client tests (was 19 → +2). `npm run typecheck` clean. `cd client && npm run build` clean. Lint baseline unchanged (20 errors / 44 warnings — all pre-existing).
+
 ## Next up
 
 Speculative — these are ideas, not commitments. Edit freely.

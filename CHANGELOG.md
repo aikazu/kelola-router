@@ -1,0 +1,148 @@
+# Changelog
+
+All notable changes to **kelola-router** are documented in this file.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.17.0] — 2026-06-09
+
+### Added
+
+- **Live Console.** In-process flow event bus (`src/console/`) that streams per-request proxy events to a dashboard page over SSE and to server stdout as colored lines.
+  - New module `src/console/`: `types` (`FlowEvent` discriminated union — `start` / `account` / `transport` / `done` / `error`), `bus` (`ConsoleBus` class with a 200-event ring buffer, throwing-subscriber isolation, `consoleBus` singleton), `format` (pure ANSI renderer with `stripAnsi` / `fmtTokens` / `fmtLatency` helpers, exported for tests), `flow` (`genReqId` 4-byte hex + 5 `build*` helpers; error `message` truncated to 200 chars), `sink` (`attachStdoutSink` — gated by `CONSOLE_FLOW=0`, no-op when set).
+  - SSE endpoint `GET /api/admin/console/stream` (Hono `streamSSE`, `requireAdmin`) — backfills `consoleBus.recent()` to a new client, then streams live events with a 15-second heartbeat and `stream.onAbort` cleanup on disconnect.
+  - Emits wired into both proxy paths in `src/server.ts` (`handleProxy` MiniMax, `handleKiroProxy`) — a shared `reqId` is generated per request, set on the Hono context, and threaded through every emit and every `insertRequestLog*` call. `TransportConfig` `relay` / `proxy` mapped to the `transport` event `kind` (`'relay'` / `'proxy'`) with the URL as `label`. Error path emits `buildError(status, body.slice(0, 200))`; the catch arm uses `c.get('reqId') ?? '----'` so the terminal line still correlates.
+  - Migration `004-reqid` (additive) — nullable `req_id` column on `request_logs`; `user_version` advances 3 → 4. Existing rows stay NULL.
+  - Dashboard `Console` page (`/admin/console`, Preact) — `EventSource` over the new stream, in-memory event list capped at 600 (≈ 200 request blocks), pure `ConsoleBlocks` group-by-reqId component exported separately for testability. Pause / Clear buttons, live-vs-reconnecting dot, "Waiting for requests…" empty state, auto-scroll-stick that breaks off the bottom on manual scroll. Obsidian Gold styling: gold `reqid`, green ✓ for `done`, red ✗ for `error` or `status >= 400`. Wired into `AppShell` (lazy + `KNOWN_ROUTES` + `g n` hotkey + help modal entry), `Sidebar` (new `console` terminal icon in `Icon.tsx`), and `CommandPalette`.
+- 19 new server tests (`bus` 4, `format` 7, `flow` 5, `sink` 2, `sse` 1, `migration-004` 1, `requestlog-reqid` 1, `emit-proxy` 1 integration, `emit-kiro` 1 smoke) and 2 new client tests for `ConsoleBlocks` (summary + error block).
+
+### Changed
+
+- `requestLogs.ts` insert signature gains an optional `req_id` field; existing call sites stay unchanged (field is nullable, no migration required for new rows).
+
+### Verification
+
+- 484/484 server tests pass (`npx vitest run`).
+- 21/21 client tests pass (`cd client && npx vitest run`).
+- `npm run typecheck` clean.
+- `cd client && npm run build` clean.
+- Lint baseline unchanged (20 errors / 44 warnings — all pre-existing).
+
+## [0.16.0] — 2026-06-08
+
+### Added
+
+- **Kiro (AWS CodeWhisperer / Amazon Q) as a second upstream provider.** The router is no longer MiniMax-only; requests route by the resolved model's `provider`. MiniMax stays the default and its path is unchanged.
+- Additive migration `002-kiro` — `provider` / `access_token` / `token_expires_at` / `provider_data` on `accounts`, `provider` on `models`. Existing rows default to `provider = 'minimax'`.
+- New `src/providers/kiro/` modules: `constants` (endpoints, `-thinking` / `-agentic` model resolution, thinking-mode prompt injection), `transform` (OpenAI → CodeWhisperer `conversationState`: tools, tool results, images, system folding), `eventstream` (AWS event-stream binary frame decoder), `assembler` (events → OpenAI SSE chunks + buffered JSON), `anthropicSse` (events → native Anthropic Messages SSE), `tokenRefresh` (AWS SSO OIDC vs Kiro social), `auth` (`ensureAccessToken` — DB-cached, auto-refresh with 5-minute buffer), `index` (executor).
+- Native Anthropic streaming for `/v1/messages` (Claude Code, hermes-agent) — `message_start` → `content_block_*` (text / thinking / tool_use) → `message_delta` → `message_stop`. `/v1/chat/completions` streams OpenAI SSE. Both pipe through `pipeWithUsage` for telemetry.
+- Full account import: dashboard form or `POST /api/admin/accounts/kiro` — paste credential JSON (Kiro IDE / AWS SSO cache), AWS Builder ID, AWS IAM Identity Center (IDC), or raw refresh token. `buildKiroAccountFields` parses the blob and infers the auth method.
+- **OAuth Device Code Flow** for AWS Builder ID / IAM Identity Center (one-click login from the dashboard) — `POST /kiro/device-code` + `POST /kiro/poll`.
+- **Auto-import** from Kiro IDE (`~/.aws/sso/cache`) — `GET /kiro/auto-import`.
+- `seed-kiro-models` + `add-kiro-account` CLI scripts.
+- **Switchable per-account persona** (`ide` ⇄ `cli`) — toggled from the dashboard or `PATCH /api/admin/accounts/:id {persona}`.
+  - `ide` (legacy, default) — Kiro IDE path via `codewhisperer.{region}.amazonaws.com` with the aws-sdk-js + `KiroIDE` fingerprint.
+  - `cli` (experimental) — mirrors the real `kiro-cli` 2.6.0 wire format **verified byte-for-byte against captured traffic**: `runtime.{region}.kiro.dev` host, `aws-sdk-rust` / `AmazonQ-For-CLI` User-Agent, `application/x-amz-json-1.0`, `origin: KIRO_CLI`, `chatTriggerType: MANUAL`, `agentContinuationId` + `agentTaskType: vibe`, per-message `envState`, no `inferenceConfig`. Model ids are converted to the dotted form the runtime host requires (`claude-sonnet-4-6` → `claude-sonnet-4.6`).
+  - **Automatic `profileArn` discovery.** The CLI runtime host rejects requests without a `profileArn`. On first CLI-persona use the router calls `AmazonCodeWhispererService.ListAvailableProfiles` on `management.{region}.kiro.dev` (wire format captured from kiro-cli), then caches the resolved ARN into `provider_data` so discovery runs once.
+
+### Verification
+
+- **Live-verified** against real AWS / Kiro endpoints with a real account — chat, streaming, thinking, and all catalog models return 200.
+- 18 new unit tests (constants, transform, event-stream, OpenAI + Anthropic assemblers, account import) + a 4-case end-to-end integration test (`tests/integration/proxy-kiro.test.ts`) that drives the full proxy path against a mocked binary upstream (OpenAI JSON, OpenAI SSE, Anthropic SSE, 503 fallback).
+
+## [0.15.0] — 2026-06-04
+
+### Added
+
+- All-time window for Overview + Usage range selector (`days=0` → no time clause, null deltas). Default range dropped to 1 day.
+- Copy full client key — `GET /api/admin/client-keys/:id/key` returns the full plaintext bearer for a per-row Copy button; the list itself stays masked.
+
+### Fixed
+
+- **Quota phantom-block root cause.** The Quota page rendered a duplicate 0% block because the puller stored `model_remains[]` items without a `model_name` (the upstream emits these occasionally) and the frontend grouped them into a phantom `general` pair. Three layers of defense: source (puller skips nameless items), read (admin query filters `model_name IS NOT NULL`), data (legacy NULL-model rows cleaned out).
+- **Quota flow fix + redesign.** The puller parsed the wrong upstream shape (flat top-level object) and the few fields it did store were semantically swapped. Live MiniMax `token_plan/remains` and `coding_plan/remains` both return nested `{ model_remains: [ … ] }`. Rewritten as a single shared parser over both endpoints (token_plan → coding_plan fallback). `used_count = usage_count`, `remaining_count = max(0, total − usage)`. Migration 008 (consolidated into the single `001-initial` schema in v0.15) added `model_name`, `remaining_percent`, `remains_time` to `quota_snapshots`. API groups latest snapshots per `(model_name, window_type)`; Quota page redesigned as per-model percent bars (general / video) with reset countdown, status dot, count detail when metered.
+
+### Changed
+
+- **Schema consolidation.** Migrations 002–008 folded into a single `001-initial.ts` containing the full final schema. Legacy upgrade stubs (admin-key, drop-users, drop-thinking) and the dead `repos/users.ts` tombstone removed. Fresh-deploy only — existing DBs upgrade in place (the consolidated schema is a superset). `user_version = 1`.
+- **Type tightening.** Shared `OpenAIBody` / `AnthropicBody` / `ContentBlock` types in `src/providers/format/messageTypes.ts` reused by `transform.ts`, `cache-injection.ts`, `caveman/index.ts`, `alias.ts`. All 5 functions in `format/transform.ts` now have typed signatures; `bodyOpenAIToAnthropic` / `bodyAnthropicToOpenAI` / `responseOpenAIToAnthropic` / `responseAnthropicToOpenAI` / `bodyAddsOpenAIStreamUsage` no longer accept or return `any`. Internal `as any` casts inside function bodies remain (low-risk narrowing deferred to a follow-up).
+- **Dead field removed.** `schemaVersion: 1` in the seeded `build` setting was an artifact of the old per-step migration system; the real schema version lives in the `user_version` PRAGMA. Reader audit found zero consumers; field removed.
+- **Lint debt paid down.** `noExplicitAny` warnings dropped from 19 → 14 (across `format/transform.ts` internals + a few pre-existing `rtk/` and `transport/` instances deferred to a follow-up). `noConfusingVoidType` resolved in `src/api/admin/middleware.ts` by aligning with the `Promise<Response | undefined>` convention already used in `src/auth.ts`.
+
+## [0.14.0] — 2026-06-04
+
+### Added
+
+- All-time window for Usage (`days=0`, null deltas) + 1-day default.
+- Per-row Copy full client key (`GET /client-keys/:id/key`, list stays masked).
+
+### Fixed
+
+- Quota flow fix + redesign: parse real MiniMax nested `model_remains[]` shape, fix used/remaining semantic swap, store `remaining_percent` + `remains_time`, admin API groups latest snapshots per `(model_name, window_type)`, Quota page redesigned as per-model percent bars.
+
+## [0.13.0] — 2026-06-04
+
+### Added
+
+- Hot-path latency reduction: batched settings read, skip no-op account writes, throttled lock cleanup, client-key lookup cache, deferred request-log insert, fast-path passthrough.
+- `tests/bench/hotpath.bench.test.ts` — warm per-request SQLite statement executions dropped from 8 → 5.
+
+### Fixed
+
+- `stream_options.include_usage` was never actually injected (the helper returned a new object whose return value was discarded at the call site) — now captured and merged, so OpenAI streaming usage/cost tracking works. This makes the v0.8 "auto-injection" claim true.
+- `adminApi` captured a stale db handle at import time and overrode the per-request handle — now reads `c.get('db')` from context.
+- `resetDb()` now closes the SQLite handle before nulling it (releases Windows file locks; fixes temp-dir cleanup `EPERM` in the test suite).
+- Replaced a stale `MiniMax-M3-thinking` proxy test (that behavior was dropped in v0.11 — everything is adaptive) with an adaptive-thinking-injection test.
+
+## [0.12.0] — 2026-06-03
+
+### Added
+
+- **Model aliases.** User-defined model-name → upstream-model mapping.
+  - CRUD via `/admin/aliases` dashboard page + `/api/admin/aliases` JSON API.
+  - In-memory cache with TTL + cache-bust on write.
+  - `requested_model` column on `request_logs` (preserves the alias the client sent).
+  - `?target=<model>` deep link from the Models page.
+  - `aliasCount` per model surfaced in `/api/admin/models`.
+- **Biome linter.** Single tool, lint+format, replacing the need for ESLint + Prettier. `biome.json` at root for `src/`, `tests/`, `scripts/`; `client/biome.json` for the Preact SPA. `npm run lint` / `npm run lint:fix` in both `package.json` files. Strict rules downgraded to `warn` for v0.12 baseline; real fixes in v0.13+.
+
+### Changed
+
+- `CLAUDE.md` polish — new `### Server modules` map (`caveman/`, `rtk/`, `streaming/`, `transport/`, `scheduler/`, `auth/`, `util/`); `db/repos/` inventory; `dev` command corrected to `concurrently`; Obsidian Gold theme paragraph trimmed.
+- README refresh — `v0.11` → `v0.12` badge; aliases feature added to the feature list; this roadmap linked from the bottom.
+
+## [0.11.0] — 2026-06-02
+
+### Changed
+
+- **Adaptive thinking.** M3 + docs-listed models default to adaptive thinking. `thinkingEnabled` dropped from `/api/admin/models`; `-thinking` aliases preserved for backwards-compat.
+
+### Added
+
+- **Dashboard SPA rebuild.** Preact + Vite SPA. Obsidian Gold theme (obsidian canvas + single gold accent). Command palette (`⌘K`), keyboard nav (`g` then key), hash-routed pages. `client/dist/` baked into the Docker image.
+
+### Fixed
+
+- Docker entrypoint fix. Work on Windows hosts (CRLF + exec bit on `docker-entrypoint.sh`).
+
+## [0.10.0] — 2026-06-02
+
+### Added
+
+- **Flow gaps.** Five-phase plan covering CSRF / session / security hardening, proxy pipeline cleanup, backend reliability, UI login + a11y, UI navigation + forms. See `docs/superpowers/plans/2026-06-02-flow-gaps*.md`.
+
+## [0.9.0] — 2026-05-31
+
+### Added
+
+- **Foundation.** OpenAI + Anthropic compatibility, multi-account pool with sticky + round-robin selection, prompt caching (cache_control dual breakpoints), RTK + Caveman compression, built-in dashboard, SQLite-WAL, Hono on Node 20+. Six-phase plan: `docs/superpowers/plans/2026-06-01-minimax-router*.md`.
+
+[0.17.0]: https://github.com/aikazu/kelola-router/compare/v0.16.0...v0.17.0
+[0.16.0]: https://github.com/aikazu/kelola-router/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/aikazu/kelola-router/compare/v0.14...v0.15.0
+[0.14.0]: https://github.com/aikazu/kelola-router/compare/v0.13...v0.14.0
+[0.13.0]: https://github.com/aikazu/kelola-router/compare/v0.12...v0.13.0
+[0.12.0]: https://github.com/aikazu/kelola-router/compare/v0.12-model-aliases...v0.12
+[0.11.0]: https://github.com/aikazu/kelola-router/compare/v0.6...v0.11.0
+[0.10.0]: https://github.com/aikazu/kelola-router/compare/v0.6...v0.10.0
+[0.9.0]: https://github.com/aikazu/kelola-router/compare/v0.5...v0.6
