@@ -28,6 +28,12 @@ interface Account {
   proxyId?: string | null;
   proxyPool?: string[];
   proxyRotateEvery?: number;
+  lockedModels?: number;
+}
+
+interface ModelLock {
+  model: string;
+  locked_until: string;
 }
 
 interface Transport {
@@ -99,6 +105,13 @@ export function Accounts() {
     queryKey: ['transports'],
     queryFn: () => apiFetch<Transport[]>('/api/admin/transports'),
   });
+  // Model locks for the currently-editing account.
+  const { data: locksData, refetch: refetchLocks } = useQuery({
+    queryKey: ['account-locks', editing?.id],
+    queryFn: () => apiFetch<{ locks: ModelLock[] }>(`/api/admin/accounts/${editing!.id}/locks`),
+    enabled: !!editing,
+  });
+  const locks = locksData?.locks ?? [];
   const proxies = transports.filter((t) => t.type === 'proxy');
   const relays = transports.filter((t) => t.type === 'relay');
   const [tpMode, setTpMode] = useState<'none' | 'proxy' | 'pool' | 'relay'>('none');
@@ -307,6 +320,16 @@ export function Accounts() {
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Deleted');
     },
+  });
+  const unlockMut = useMutation({
+    mutationFn: ({ accountId, model }: { accountId: string; model: string }) =>
+      apiFetch(`/api/admin/accounts/${accountId}/locks/${encodeURIComponent(model)}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      refetchLocks();
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success('Model unlocked');
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const statusVariant = (s: string, e: boolean) => {
@@ -558,6 +581,9 @@ export function Accounts() {
                         <span style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }} title={a.rateLimitedUntil}>
                           until {relativeTime(a.rateLimitedUntil)}
                         </span>
+                      )}
+                      {(a.lockedModels ?? 0) > 0 && (
+                        <Badge variant="warn" style={{ marginLeft: 4 }}>🔒 {a.lockedModels}</Badge>
                       )}
                     </td>
                     <td class="mono">{a.backoffLevel || '—'}</td>
@@ -837,6 +863,33 @@ export function Accounts() {
               </div>
             )}
           </div>
+
+          {/* --- Model Locks --- */}
+          {locks.length > 0 && (
+            <div style={{ borderTop: '1px solid var(--ink-3)', paddingTop: 12, marginTop: 4 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>🔒 Locked models</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                {locks.map((l) => (
+                  <div key={l.model} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--ink-2)', borderRadius: 6, padding: '6px 10px' }}>
+                    <div>
+                      <span class="mono" style={{ fontSize: 12 }}>{l.model}</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 8 }}>
+                        until {relativeTime(l.locked_until)}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => unlockMut.mutate({ accountId: editing!.id, model: l.model })}
+                      disabled={unlockMut.isPending}
+                    >
+                      Unlock
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </>

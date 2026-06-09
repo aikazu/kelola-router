@@ -23,6 +23,12 @@ export const accountRoutes = new Hono();
 accountRoutes.get('/', (c) => {
   try {
     const db = c.get('db') as Database.Database;
+    const lockCounts = db
+      .prepare(
+        `SELECT account_id, COUNT(*) as cnt FROM account_model_locks WHERE locked_until > datetime('now') GROUP BY account_id`
+      )
+      .all() as Array<{ account_id: string; cnt: number }>;
+    const lockMap = new Map(lockCounts.map((r) => [r.account_id, r.cnt]));
     return c.json(
       listAccounts(db).map((a) => {
         let authMethod: string | null = null;
@@ -53,6 +59,7 @@ accountRoutes.get('/', (c) => {
           proxyId: a.proxy_id,
           proxyPool: a.proxy_pool ? (JSON.parse(a.proxy_pool) as string[]) : [],
           proxyRotateEvery: a.proxy_rotate_every,
+          lockedModels: lockMap.get(a.id) ?? 0,
         };
       })
     );
@@ -338,6 +345,34 @@ accountRoutes.get('/:id/usage', async (c) => {
     const usage = await fetchKiroUsage(auth.accessToken, { region, profileArn });
     if (!usage) return c.json({ error: 'failed to fetch usage from Kiro' }, 502);
     return c.json(usage);
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+// --- Model Locks ---
+accountRoutes.get('/:id/locks', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const locks = db
+      .prepare(
+        `SELECT model, locked_until FROM account_model_locks WHERE account_id = ? AND locked_until > datetime('now')`
+      )
+      .all(c.req.param('id')) as Array<{ model: string; locked_until: string }>;
+    return c.json({ locks });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+accountRoutes.delete('/:id/locks/:model', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    db.prepare(`DELETE FROM account_model_locks WHERE account_id = ? AND model = ?`).run(
+      c.req.param('id'),
+      c.req.param('model')
+    );
+    return new Response(null, { status: 204 });
   } catch (e) {
     return handleApiError(e);
   }
