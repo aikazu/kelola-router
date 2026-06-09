@@ -291,6 +291,11 @@ function AliasModal({
               Letters, digits, . _ : - only (1-128 chars)
             </span>
           )}
+          {name && models.some((m) => m.name === name) && (
+            <span style={{ fontSize: 11, color: 'var(--gold, #c9a352)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              ⚡ This alias shadows built-in model "{name}". Requests for this name route to the alias target instead.
+            </span>
+          )}
         </label>
         <label style={{ display: 'grid', gap: 4 }}>
           <span class="card-sub mono" style={{ fontSize: 12, textTransform: 'uppercase' }}>

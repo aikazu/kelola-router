@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -46,6 +46,15 @@ export function Models() {
     error,
     refetch,
   } = useQuery({ queryKey: ['models'], queryFn: () => apiFetch<Model[]>('/api/admin/models') });
+  const { data: aliases = [] } = useQuery({
+    queryKey: ['aliases'],
+    queryFn: () => apiFetch<{ aliases: Array<{ aliasName: string }> }>('/api/admin/aliases').then((r) => r.aliases),
+  });
+  const shadowedNames = useMemo(
+    () => new Set(aliases.filter((a) => models.some((m) => m.name === a.aliasName)).map((a) => a.aliasName)),
+    [aliases, models]
+  );
+
   const [search, setSearch] = useState('');
   const [providerFilter, setProviderFilter] = useState<'all' | 'minimax' | 'kiro'>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -180,7 +189,14 @@ export function Models() {
                         onChange={() => toggleSelect(m.name)}
                       />
                     </td>
-                    <td class="mono">{m.name}</td>
+                    <td class="mono">
+                      {m.name}
+                      {shadowedNames.has(m.name) && (
+                        <span style={{ marginLeft: 6, fontSize: 9, color: 'var(--gold, #c9a352)', fontFamily: 'var(--font-body, inherit)' }}>
+                          ⚡ shadowed
+                        </span>
+                      )}
+                    </td>
                     <td>
                       <Badge variant={m.provider === 'kiro' ? 'active' : 'muted'}>{m.provider}</Badge>
                     </td>
