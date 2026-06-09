@@ -20,6 +20,14 @@ import {
 } from './auth.js';
 import { augmentRequest } from './cache-injection.js';
 import { consoleBus } from './console/bus.js';
+import {
+  buildAccount,
+  buildDone,
+  buildError,
+  buildStart,
+  buildTransport,
+  genReqId,
+} from './console/flow.js';
 import { openDb } from './db/index.js';
 import {
   createAccount,
@@ -232,6 +240,20 @@ async function handleProxy(
   }
   const requestedModel = resolved.requestedModel;
 
+  const reqId = genReqId();
+  c.set('reqId', reqId);
+  consoleBus.emit(
+    buildStart(
+      reqId,
+      new Date().toISOString(),
+      c.req.method,
+      upstreamPath,
+      resolved.upstreamModel,
+      requestedModel ?? null
+    )
+  );
+  consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, 'round-robin'));
+
   clearExpiredModelLocks(db);
   if (isModelLockActive(getModelLock(db, account.id, resolved.upstreamModel))) {
     return c.json({ error: `model ${resolved.upstreamModel} temporarily locked` }, 429);
@@ -248,6 +270,13 @@ async function handleProxy(
     upstreamFormat
   );
   const transport = resolveTransportForAccount(db, acc);
+  if (transport) {
+    if (transport.relay) {
+      consoleBus.emit(buildTransport(reqId, new Date().toISOString(), 'relay', transport.relay.url));
+    } else if (transport.proxy) {
+      consoleBus.emit(buildTransport(reqId, new Date().toISOString(), 'proxy', transport.proxy.url));
+    }
+  }
 
   try {
     const upstreamBody = bodyDirty ? body : text || '{}';
@@ -282,6 +311,9 @@ async function handleProxy(
       if (decision.source === 'balance') {
         disableAccount(db, account.id);
       }
+      consoleBus.emit(
+        buildError(reqId, new Date().toISOString(), resp.status, errBody.slice(0, 200))
+      );
       return c.body(errBody, resp.status as any, {
         'content-type': resp.headers.get('content-type') ?? 'application/json',
       });
@@ -339,7 +371,21 @@ async function handleProxy(
           response_body: truncateBody(raw),
           request_headers: headersToJson(c.req.raw.headers),
           response_headers: headersToJson(resp.headers),
+          req_id: reqId,
         });
+        consoleBus.emit(
+          buildDone(
+            reqId,
+            new Date().toISOString(),
+            resp.status,
+            null,
+            prompt,
+            completion,
+            cacheRead,
+            cost,
+            Date.now() - startMs
+          )
+        );
       });
       return piped;
     }
@@ -398,12 +444,28 @@ async function handleProxy(
       response_body: truncateBody(respBody),
       request_headers: headersToJson(c.req.raw.headers),
       response_headers: headersToJson(resp.headers),
+      req_id: reqId,
     });
+    consoleBus.emit(
+      buildDone(
+        reqId,
+        new Date().toISOString(),
+        resp.status,
+        null,
+        usage.prompt_tokens ?? 0,
+        usage.completion_tokens ?? 0,
+        usage.prompt_tokens_details?.cached_tokens ?? 0,
+        cost,
+        Date.now() - c.get('startTime')
+      )
+    );
     return c.body(respBody, resp.status as any, {
       'content-type': resp.headers.get('content-type') ?? 'application/json',
     });
   } catch (e: any) {
     log.error({ err: e.message }, 'upstream unreachable');
+    const rid = c.get('reqId') ?? '----';
+    consoleBus.emit(buildError(rid, new Date().toISOString(), 502, e.message));
     return c.json({ error: `upstream unreachable: ${e.message}` }, 502);
   }
 }
