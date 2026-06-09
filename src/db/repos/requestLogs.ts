@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import type { Statement } from 'better-sqlite3';
 import { log } from '../../util/log.js';
 
 export interface RequestLog {
@@ -67,72 +68,152 @@ export type RequestLogInsert = Omit<
   req_id?: string | null;
 };
 
-export function insertRequestLog(db: Database.Database, log: RequestLogInsert): number {
-  const info = db
-    .prepare(`
-    INSERT INTO request_logs (client_key_id, account_id, model, requested_model, endpoint, format, prompt_tokens, completion_tokens,
-      cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, latency_ms, ttft_ms, status_code,
-      base_resp_code, stream, relay_path, proxy_path, rtk_bytes_saved, caveman_level, error_message,
-      request_body, response_body, request_headers, response_headers, error, req_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-    .run(
-      log.client_key_id,
-      log.account_id,
-      log.model,
-      log.requested_model ?? null,
-      log.endpoint,
-      log.format,
-      log.prompt_tokens,
-      log.completion_tokens,
-      log.cache_creation_tokens,
-      log.cache_read_tokens,
-      log.total_tokens,
-      log.cost_usd,
-      log.latency_ms,
-      log.ttft_ms ?? null,
-      log.status_code,
-      log.base_resp_code ?? null,
-      log.stream ? 1 : 0,
-      log.relay_path ?? null,
-      log.proxy_path ?? null,
-      log.rtk_bytes_saved,
-      log.caveman_level ?? null,
-      log.error_message ?? null,
-      log.request_body ?? null,
-      log.response_body ?? null,
-      log.request_headers ?? null,
-      log.response_headers ?? null,
-      log.error ?? null,
-      log.req_id ?? null
-    );
+const BATCH_SIZE = 50;
+const BATCH_MS = 50;
+
+const stmtCache = new WeakMap<Database.Database, Statement>();
+function getInsertStmt(db: Database.Database): Statement {
+  let s = stmtCache.get(db);
+  if (!s) {
+    s = db.prepare(`
+      INSERT INTO request_logs (
+        client_key_id, account_id, model, requested_model, endpoint, format,
+        prompt_tokens, completion_tokens, cache_creation_tokens, cache_read_tokens,
+        total_tokens, cost_usd, latency_ms, ttft_ms, status_code, base_resp_code,
+        stream, relay_path, proxy_path, rtk_bytes_saved, caveman_level, error_message,
+        request_body, response_body, request_headers, response_headers, error, req_id
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      )
+    `);
+    stmtCache.set(db, s);
+  }
+  return s;
+}
+
+export function insertRequestLog(db: Database.Database, entry: RequestLogInsert): number {
+  const info = getInsertStmt(db).run(
+    entry.client_key_id,
+    entry.account_id,
+    entry.model,
+    entry.requested_model ?? null,
+    entry.endpoint,
+    entry.format,
+    entry.prompt_tokens,
+    entry.completion_tokens,
+    entry.cache_creation_tokens,
+    entry.cache_read_tokens,
+    entry.total_tokens,
+    entry.cost_usd,
+    entry.latency_ms,
+    entry.ttft_ms ?? null,
+    entry.status_code,
+    entry.base_resp_code ?? null,
+    entry.stream ? 1 : 0,
+    entry.relay_path ?? null,
+    entry.proxy_path ?? null,
+    entry.rtk_bytes_saved,
+    entry.caveman_level ?? null,
+    entry.error_message ?? null,
+    entry.request_body ?? null,
+    entry.response_body ?? null,
+    entry.request_headers ?? null,
+    entry.response_headers ?? null,
+    entry.error ?? null,
+    entry.req_id ?? null
+  );
   return info.lastInsertRowid as number;
 }
 
-const pending = new Set<Promise<void>>();
+const pending = new Map<Database.Database, RequestLogInsert[]>();
+const timers = new WeakMap<Database.Database, NodeJS.Timeout>();
+const pendingPromises = new Set<Promise<void>>();
+
+function enqueueFlush(db: Database.Database): void {
+  if (timers.has(db)) return;
+  const t = setTimeout(() => flushDb(db), BATCH_MS);
+  if (t.unref) t.unref();
+  timers.set(db, t);
+}
+
+function flushDb(db: Database.Database): void {
+  const batch = pending.get(db);
+  timers.delete(db);
+  if (!batch || batch.length === 0) return;
+  pending.delete(db);
+  const p = new Promise<void>((resolve) => {
+    try {
+      const tx = db.transaction((rows: RequestLogInsert[]) => {
+        const stmt = getInsertStmt(db);
+        for (const r of rows) stmt.run(
+          r.client_key_id,
+          r.account_id,
+          r.model,
+          r.requested_model ?? null,
+          r.endpoint,
+          r.format,
+          r.prompt_tokens,
+          r.completion_tokens,
+          r.cache_creation_tokens,
+          r.cache_read_tokens,
+          r.total_tokens,
+          r.cost_usd,
+          r.latency_ms,
+          r.ttft_ms ?? null,
+          r.status_code,
+          r.base_resp_code ?? null,
+          r.stream ? 1 : 0,
+          r.relay_path ?? null,
+          r.proxy_path ?? null,
+          r.rtk_bytes_saved,
+          r.caveman_level ?? null,
+          r.error_message ?? null,
+          r.request_body ?? null,
+          r.response_body ?? null,
+          r.request_headers ?? null,
+          r.response_headers ?? null,
+          r.error ?? null,
+          r.req_id ?? null
+        );
+      });
+      tx(batch);
+    } catch (err) {
+      log.warn({ err: (err as Error).message }, 'batched request-log insert failed');
+    }
+    resolve();
+  });
+  pendingPromises.add(p);
+  void p.then(() => pendingPromises.delete(p));
+}
 
 /**
  * Queue a request-log insert to run after the current task, off the response
- * critical path. The row is still written in full. Tests await flushDeferredLogs().
+ * critical path. Inserts are batched (50ms window or 50 entries, whichever
+ * first) so a single fsync amortizes many rows. Tests await flushDeferredLogs().
  */
-export function insertRequestLogDeferred(db: Database.Database, logEntry: RequestLogInsert): void {
-  const p = new Promise<void>((resolve) => {
-    setImmediate(() => {
-      try {
-        insertRequestLog(db, logEntry);
-      } catch (err) {
-        log.warn({ err: (err as Error).message }, 'deferred request-log insert failed');
-      }
-      resolve();
-    });
-  });
-  pending.add(p);
-  void p.then(() => pending.delete(p));
+export function insertRequestLogDeferred(db: Database.Database, entry: RequestLogInsert): void {
+  let queue = pending.get(db);
+  if (!queue) {
+    queue = [];
+    pending.set(db, queue);
+  }
+  queue.push(entry);
+  if (queue.length >= BATCH_SIZE) {
+    const t = timers.get(db);
+    if (t) {
+      clearTimeout(t);
+      timers.delete(db);
+    }
+    flushDb(db);
+  } else {
+    enqueueFlush(db);
+  }
 }
 
 /** Await all queued deferred inserts (test determinism / graceful shutdown). */
 export async function flushDeferredLogs(): Promise<void> {
-  await Promise.all([...pending]);
+  for (const db of pending.keys()) flushDb(db);
+  await Promise.all([...pendingPromises]);
 }
 
 export function getRequestLogById(db: Database.Database, id: number): RequestLog | null {

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../index.js';
 import { createAccount } from './accounts.js';
 import { createClientKey } from './client_keys.js';
-import { aggregateUsage, cleanupOldLogs, insertRequestLog, recentLogs } from './requestLogs.js';
+import { aggregateUsage, cleanupOldLogs, insertRequestLog, insertRequestLogDeferred, recentLogs, flushDeferredLogs } from './requestLogs.js';
 
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'rl-')), 't.db');
@@ -217,6 +217,33 @@ describe('requestLogs repo', () => {
     const all = aggregateUsage(db, { days: 0 });
     expect(all.total_requests).toBe(1);
     expect(all.total_cost).toBe(3);
+  });
+
+  it('insertRequestLogDeferred batches up to 50ms or 50 entries', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_t' });
+    createAccount(db, { id: 'a', label: 'L', credit_type: 'payg', api_key: 'k' });
+    const entry = {
+      client_key_id: ck.id,
+      account_id: 'a',
+      model: 'X',
+      endpoint: '/v1/x',
+      format: 'openai' as const,
+      prompt_tokens: 1,
+      completion_tokens: 1,
+      cache_creation_tokens: 0,
+      cache_read_tokens: 0,
+      total_tokens: 2,
+      cost_usd: 0,
+      latency_ms: 1,
+      status_code: 200,
+      stream: 0 as const,
+      rtk_bytes_saved: 0,
+    };
+    for (let i = 0; i < 100; i++) insertRequestLogDeferred(db, entry);
+    await flushDeferredLogs();
+    const logs = recentLogs(db, { limit: 200 });
+    expect(logs.length).toBe(100);
   });
 
   it('cleanupOldLogs deletes > 90 days', () => {
