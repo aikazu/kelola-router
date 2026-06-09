@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { invalidateDispatcher } from '../../transport/dispatcherCache.js';
+import { invalidateResolvedTransportCache } from '../../transport/resolvedCache.js';
 import { invalidateSocks } from '../../transport/socksLoader.js';
 
 export type TransportType = 'proxy' | 'relay';
@@ -38,6 +39,7 @@ export function createTransport(db: Database.Database, input: TransportCreate): 
     INSERT INTO transports (id, label, type, kind, url, enabled)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(input.id, input.label, input.type, input.kind, input.url, input.enabled === false ? 0 : 1);
+  invalidateResolvedTransportCache(db);
   return getTransport(db, input.id)!;
 }
 
@@ -76,6 +78,7 @@ export function updateTransport(
       else if (patch.kind) invalidateDispatcher(patch.url);
     }
   }
+  invalidateResolvedTransportCache(db);
 }
 
 export function deleteTransport(db: Database.Database, id: string): void {
@@ -85,4 +88,5 @@ export function deleteTransport(db: Database.Database, id: string): void {
     if (existing.kind === 'socks5') invalidateSocks(existing.url);
     else invalidateDispatcher(existing.url);
   }
+  invalidateResolvedTransportCache(db);
 }

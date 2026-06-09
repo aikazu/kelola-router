@@ -1,11 +1,11 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../db/index.js';
 import { createAccount, updateAccount } from '../db/repos/accounts.js';
 import { setSetting } from '../db/repos/settings.js';
-import { createTransport } from '../db/repos/transports.js';
+import { createTransport, updateTransport } from '../db/repos/transports.js';
 import { __resetRotationState, resolveTransportForAccount } from './resolve.js';
 
 let db: ReturnType<typeof openDb>;
@@ -141,5 +141,52 @@ describe('resolveTransportForAccount', () => {
     setSetting(db, 'transport', { relay: null, proxy: { kind: 'http', url: 'http://global' } });
     const acc = { ...mkAccount('a10'), proxy_id: 'ghost' };
     expect(resolveTransportForAccount(db, acc)?.proxy?.url).toBe('http://global');
+  });
+
+  it('caches resolved proxy pool transport for a short TTL', () => {
+    createTransport(db, { id: 'p1', label: 'p1', type: 'proxy', kind: 'http', url: 'http://p1' });
+    createTransport(db, { id: 'p2', label: 'p2', type: 'proxy', kind: 'http', url: 'http://p2' });
+    const acc = {
+      ...mkAccount('a11'),
+      proxy_pool: JSON.stringify(['p1', 'p2']),
+      proxy_rotate_every: 10,
+    };
+
+    const first = resolveTransportForAccount(db, acc);
+    const second = resolveTransportForAccount(db, acc);
+
+    expect(first?.proxy?.url).toBe('http://p1');
+    expect(second?.proxy?.url).toBe('http://p1');
+  });
+
+  it('expires resolved proxy pool transport cache after the short TTL', () => {
+    vi.useFakeTimers();
+    createTransport(db, { id: 'p1', label: 'p1', type: 'proxy', kind: 'http', url: 'http://p1' });
+    createTransport(db, { id: 'p2', label: 'p2', type: 'proxy', kind: 'http', url: 'http://p2' });
+    const acc = {
+      ...mkAccount('a11b'),
+      proxy_pool: JSON.stringify(['p1', 'p2']),
+      proxy_rotate_every: 1,
+    };
+
+    const first = resolveTransportForAccount(db, acc);
+    vi.advanceTimersByTime(1001);
+    const second = resolveTransportForAccount(db, acc);
+
+    expect(first?.proxy?.url).toBe('http://p1');
+    expect(second?.proxy?.url).toBe('http://p2');
+    vi.useRealTimers();
+  });
+
+  it('invalidates resolved transport cache when a transport changes', () => {
+    createTransport(db, { id: 'p1', label: 'p1', type: 'proxy', kind: 'http', url: 'http://old' });
+    const acc = { ...mkAccount('a12'), proxy_id: 'p1' };
+
+    const first = resolveTransportForAccount(db, acc);
+    updateTransport(db, 'p1', { url: 'http://new' });
+    const second = resolveTransportForAccount(db, acc);
+
+    expect(first?.proxy?.url).toBe('http://old');
+    expect(second?.proxy?.url).toBe('http://new');
   });
 });

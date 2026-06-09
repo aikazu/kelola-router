@@ -2,7 +2,38 @@ import type Database from 'better-sqlite3';
 import type { Account } from '../db/repos/accounts.js';
 import { getSetting } from '../db/repos/settings.js';
 import { getTransport } from '../db/repos/transports.js';
+import {
+  getResolvedTransportCache,
+  setResolvedTransportCache,
+  setResolvedTransportPoolCache,
+} from './resolvedCache.js';
 import type { ProxyKind, RelayKind, TransportConfig } from './types.js';
+
+interface ActiveProxyTransport {
+  kind: ProxyKind;
+  url: string;
+}
+
+function pickFromActivePool(account: Account, active: ActiveProxyTransport[]): TransportConfig {
+  const every = Math.max(1, account.proxy_rotate_every || 1);
+  const state = rotation.get(account.id) ?? { cursor: 0, count: 0 };
+  const idx = state.cursor % active.length;
+  const picked = active[idx]!;
+  state.count += 1;
+  if (state.count >= every) {
+    state.count = 0;
+    state.cursor = (state.cursor + 1) % active.length;
+  }
+  rotation.set(account.id, state);
+  return { relay: null, proxy: { kind: picked.kind, url: picked.url } };
+}
+
+function activeProxyPool(db: Database.Database, poolIds: string[]): ActiveProxyTransport[] {
+  return poolIds
+    .map((id) => getTransport(db, id))
+    .filter((t): t is NonNullable<typeof t> => !!t && t.type === 'proxy' && t.enabled)
+    .map((t) => ({ kind: t.kind as ProxyKind, url: t.url }));
+}
 
 /**
  * In-memory rotation state for proxy pools, keyed by account id.
@@ -68,42 +99,39 @@ export function resolveTransportForAccount(
   db: Database.Database,
   account: Account
 ): TransportConfig | null {
+  const cached = getResolvedTransportCache(db, account);
+  if (cached?.kind === 'value') return cached.value;
+  if (cached?.kind === 'pool' && cached.active.length > 0) {
+    return pickFromActivePool(account, cached.active);
+  }
+
   // 1. Relay (mutually exclusive with proxy).
   if (account.relay_id) {
     const t = getTransport(db, account.relay_id);
     if (t && t.type === 'relay' && t.enabled) {
-      return { relay: { kind: t.kind as RelayKind, url: t.url }, proxy: null };
+      return setResolvedTransportCache(db, account, {
+        relay: { kind: t.kind as RelayKind, url: t.url },
+        proxy: null,
+      });
     }
   }
 
   // 2. Proxy pool (round-robin, skipping disabled members).
   const poolIds = parsePool(account.proxy_pool);
   if (poolIds.length > 0) {
-    const active = poolIds
-      .map((id) => getTransport(db, id))
-      .filter((t): t is NonNullable<typeof t> => !!t && t.type === 'proxy' && t.enabled);
+    const active = activeProxyPool(db, poolIds);
     if (active.length > 0) {
-      const every = Math.max(1, account.proxy_rotate_every || 1);
-      const state = rotation.get(account.id) ?? { cursor: 0, count: 0 };
-      const idx = state.cursor % active.length;
-      const picked = active[idx]!;
-      // Advance counter; rotate cursor once we've served `every` requests.
-      state.count += 1;
-      if (state.count >= every) {
-        state.count = 0;
-        state.cursor = (state.cursor + 1) % active.length;
-      }
-      rotation.set(account.id, state);
-      return { relay: null, proxy: { kind: picked.kind as ProxyKind, url: picked.url } };
+      setResolvedTransportPoolCache(db, account, active);
+      return pickFromActivePool(account, active);
     }
   }
 
   // 3. Single proxy.
   if (account.proxy_id) {
     const cfg = asProxyConfig(db, account.proxy_id);
-    if (cfg) return cfg;
+    if (cfg) return setResolvedTransportCache(db, account, cfg);
   }
 
   // 4. Global fallback. 5. null (direct) handled by globalTransport returning null.
-  return globalTransport(db);
+  return setResolvedTransportCache(db, account, globalTransport(db));
 }
