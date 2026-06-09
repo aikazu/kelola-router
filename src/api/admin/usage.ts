@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { aggregateUsage, type PagedLogFilter, pagedLogs } from '../../db/repos/requestLogs.js';
+import { getAdminCached, setAdminCached } from './cache.js';
 import { handleApiError } from './middleware.js';
 
 export const usageRoutes = new Hono();
@@ -16,6 +17,11 @@ usageRoutes.get('/usage', (c) => {
     const page = q.page ? Math.max(1, Number(q.page)) : 1;
     const pageSize = q.page_size ? Math.min(200, Math.max(1, Number(q.page_size))) : 50;
     const clientKeyId = q.client_key ? Number(q.client_key) : undefined;
+    const cacheKey = `usage:${days}:${clientKeyId ?? 'all'}`;
+    const cached = getAdminCached<unknown>(cacheKey);
+    if (cached) {
+      return c.json(cached);
+    }
     const model = q.model || undefined;
     const statusCode = q.status ? Number(q.status) : undefined;
     const search = q.q || undefined;
@@ -66,7 +72,7 @@ usageRoutes.get('/usage', (c) => {
       deltaTokensPct = deltaPct(cur.total_tokens, prevRow.toks);
     }
 
-    return c.json({
+    const payload = {
       summary: {
         totalCost: cur.total_cost,
         totalRequests: cur.total_requests,
@@ -95,7 +101,9 @@ usageRoutes.get('/usage', (c) => {
         pageSize: paged.pageSize,
         totalPages: paged.totalPages,
       },
-    });
+    };
+
+    return c.json(setAdminCached(cacheKey, payload));
   } catch (e) {
     return handleApiError(e);
   }

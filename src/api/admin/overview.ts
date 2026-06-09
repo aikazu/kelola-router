@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { listAccounts } from '../../db/repos/accounts.js';
 import { aggregateUsage, recentLogs } from '../../db/repos/requestLogs.js';
+import { getAdminCached, setAdminCached } from './cache.js';
 import { handleApiError } from './middleware.js';
 
 export const overviewRoutes = new Hono();
@@ -13,6 +14,11 @@ overviewRoutes.get('/overview', (c) => {
     const q = c.req.query();
     const days =
       q.days !== undefined ? Math.min(365, Math.max(0, Math.floor(Number(q.days)) || 0)) : 1;
+    const cacheKey = `overview:${days}`;
+    const cached = getAdminCached<unknown>(cacheKey);
+    if (cached) {
+      return c.json(cached);
+    }
     const agg = aggregateUsage(db, { days });
     const accounts = listAccounts(db);
     const recent = recentLogs(db, { limit: 5 });
@@ -20,7 +26,7 @@ overviewRoutes.get('/overview', (c) => {
     const ckRow = db.prepare(`SELECT COUNT(*) as n FROM client_keys WHERE enabled = 1`).get() as {
       n: number;
     };
-    return c.json({
+    const payload = {
       stats: {
         totalCost: agg.total_cost,
         totalRequests: agg.total_requests,
@@ -40,7 +46,9 @@ overviewRoutes.get('/overview', (c) => {
         clientKeyId: r.client_key_id,
         accountId: r.account_id,
       })),
-    });
+    };
+
+    return c.json(setAdminCached(cacheKey, payload));
   } catch (e) {
     return handleApiError(e);
   }
