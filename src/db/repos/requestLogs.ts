@@ -68,9 +68,32 @@ export type RequestLogInsert = Omit<
   req_id?: string | null;
 };
 
-const BATCH_SIZE = 50;
-const BATCH_MS = 50;
-const MAX_PENDING_PER_DB = 1000;
+const DEFAULT_BATCH_SIZE = 50;
+const DEFAULT_BATCH_MS = 50;
+const DEFAULT_MAX_PENDING_PER_DB = 1000;
+
+const deferredLogQueueConfig = {
+  batchSize: DEFAULT_BATCH_SIZE,
+  batchMs: DEFAULT_BATCH_MS,
+  maxPendingPerDb: DEFAULT_MAX_PENDING_PER_DB,
+};
+
+export function configureDeferredLogQueueForTests(config: {
+  batchSize?: number;
+  batchMs?: number;
+  maxPendingPerDb?: number;
+}): void {
+  deferredLogQueueConfig.batchSize = config.batchSize ?? deferredLogQueueConfig.batchSize;
+  deferredLogQueueConfig.batchMs = config.batchMs ?? deferredLogQueueConfig.batchMs;
+  deferredLogQueueConfig.maxPendingPerDb =
+    config.maxPendingPerDb ?? deferredLogQueueConfig.maxPendingPerDb;
+}
+
+export function resetDeferredLogQueueConfigForTests(): void {
+  deferredLogQueueConfig.batchSize = DEFAULT_BATCH_SIZE;
+  deferredLogQueueConfig.batchMs = DEFAULT_BATCH_MS;
+  deferredLogQueueConfig.maxPendingPerDb = DEFAULT_MAX_PENDING_PER_DB;
+}
 
 const stmtCache = new WeakMap<Database.Database, Statement>();
 function getInsertStmt(db: Database.Database): Statement {
@@ -145,7 +168,7 @@ export function getDeferredLogQueueStats(db: Database.Database): DeferredLogQueu
 
 function enqueueFlush(db: Database.Database): void {
   if (timers.has(db)) return;
-  const t = setTimeout(() => flushDb(db), BATCH_MS);
+  const t = setTimeout(() => flushDb(db), deferredLogQueueConfig.batchMs);
   if (t.unref) t.unref();
   timers.set(db, t);
 }
@@ -212,12 +235,12 @@ export function insertRequestLogDeferred(db: Database.Database, entry: RequestLo
     queue = [];
     pending.set(db, queue);
   }
-  if (queue.length >= MAX_PENDING_PER_DB) {
+  if (queue.length >= deferredLogQueueConfig.maxPendingPerDb) {
     queue.shift();
     dropped.set(db, (dropped.get(db) ?? 0) + 1);
   }
   queue.push(entry);
-  if (queue.length >= BATCH_SIZE) {
+  if (queue.length >= deferredLogQueueConfig.batchSize) {
     const t = timers.get(db);
     if (t) {
       clearTimeout(t);

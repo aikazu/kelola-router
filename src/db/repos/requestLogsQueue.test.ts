@@ -6,9 +6,11 @@ import { openDb } from '../index.js';
 import { createAccount } from './accounts.js';
 import { createClientKey } from './client_keys.js';
 import {
+  configureDeferredLogQueueForTests,
   flushDeferredLogs,
   getDeferredLogQueueStats,
   insertRequestLogDeferred,
+  resetDeferredLogQueueConfigForTests,
   type RequestLogInsert,
 } from './requestLogs.js';
 
@@ -34,6 +36,7 @@ function entry(clientKeyId: number): RequestLogInsert {
 
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'rlq-')), 't.db');
+  resetDeferredLogQueueConfigForTests();
 });
 
 describe('requestLogs deferred queue', () => {
@@ -51,18 +54,20 @@ describe('requestLogs deferred queue', () => {
     await flushDeferredLogs();
   });
 
-  it('does not let pending queue grow unbounded under heavy inserts', async () => {
+  it('drops oldest entries once pending queue hits hard cap', async () => {
+    configureDeferredLogQueueForTests({ batchSize: 2000, maxPendingPerDb: 1000 });
+
     const db = openDb();
     const clientKey = createClientKey(db, { label: 'u', key: 'rk_test' });
     createAccount(db, { id: 'acc_1', label: 'L', credit_type: 'payg', api_key: 'k' });
 
-    for (let i = 0; i < 1100; i++) {
+    for (let i = 0; i < 1101; i++) {
       insertRequestLogDeferred(db, entry(clientKey.id));
     }
 
     const stats = getDeferredLogQueueStats(db);
-    expect(stats.pending).toBeLessThanOrEqual(1000);
-    expect(stats.dropped).toBeGreaterThanOrEqual(0);
+    expect(stats.pending).toBe(1000);
+    expect(stats.dropped).toBeGreaterThan(0);
 
     await flushDeferredLogs();
   });
