@@ -272,7 +272,7 @@ async function handleProxy(
       c.req.method,
       upstreamPath,
       resolved.upstreamModel,
-      requestedModel ?? null
+      requestedModel && requestedModel !== resolved.upstreamModel ? requestedModel : null
     )
   );
   consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, reason));
