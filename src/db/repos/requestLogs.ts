@@ -70,6 +70,7 @@ export type RequestLogInsert = Omit<
 
 const BATCH_SIZE = 50;
 const BATCH_MS = 50;
+const MAX_PENDING_PER_DB = 1000;
 
 const stmtCache = new WeakMap<Database.Database, Statement>();
 function getInsertStmt(db: Database.Database): Statement {
@@ -127,7 +128,20 @@ export function insertRequestLog(db: Database.Database, entry: RequestLogInsert)
 
 const pending = new Map<Database.Database, RequestLogInsert[]>();
 const timers = new WeakMap<Database.Database, NodeJS.Timeout>();
+const dropped = new WeakMap<Database.Database, number>();
 const pendingPromises = new Set<Promise<void>>();
+
+export interface DeferredLogQueueStats {
+  pending: number;
+  dropped: number;
+}
+
+export function getDeferredLogQueueStats(db: Database.Database): DeferredLogQueueStats {
+  return {
+    pending: pending.get(db)?.length ?? 0,
+    dropped: dropped.get(db) ?? 0,
+  };
+}
 
 function enqueueFlush(db: Database.Database): void {
   if (timers.has(db)) return;
@@ -197,6 +211,10 @@ export function insertRequestLogDeferred(db: Database.Database, entry: RequestLo
   if (!queue) {
     queue = [];
     pending.set(db, queue);
+  }
+  if (queue.length >= MAX_PENDING_PER_DB) {
+    queue.shift();
+    dropped.set(db, (dropped.get(db) ?? 0) + 1);
   }
   queue.push(entry);
   if (queue.length >= BATCH_SIZE) {
