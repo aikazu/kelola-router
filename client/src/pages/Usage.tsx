@@ -28,6 +28,7 @@ interface UsageLog {
   completionTokens: number;
   clientKeyId: number | null;
   accountId: string | null;
+  accountLabel: string | null;
   error: string | null;
 }
 interface UsageSummary {
@@ -69,6 +70,7 @@ export function Usage() {
   );
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [days, setDays] = useState(1);
+  const [accountFilter, setAccountFilter] = useState<string>('');
   const [selected, setSelected] = useState<number | null>(null);
 
   // Debounce search input so each keystroke doesn't refetch the usage query.
@@ -87,6 +89,7 @@ export function Usage() {
       if (p.get('days')) setDays(Number(p.get('days')));
       if (p.get('q')) setSearch(p.get('q')!);
       if (p.get('status')) setStatusFilter(p.get('status') as any);
+      if (p.get('account_id')) setAccountFilter(p.get('account_id')!);
     };
     onHash();
     window.addEventListener('hashchange', onHash);
@@ -105,8 +108,9 @@ export function Usage() {
     if (debouncedSearch) p.set('q', debouncedSearch);
     if (statusFilter !== 'all')
       p.set('status', statusFilter === '2xx' ? '200' : statusFilter === '4xx' ? '400' : '500');
+    if (accountFilter) p.set('account_id', accountFilter);
     return p.toString();
-  }, [page, pageSize, days, sortBy, sortDir, clientKeyId, debouncedSearch, statusFilter]);
+  }, [page, pageSize, days, sortBy, sortDir, clientKeyId, debouncedSearch, statusFilter, accountFilter]);
 
   useEffect(() => {
     const newHash = `#/admin/usage?${params}`;
@@ -118,6 +122,10 @@ export function Usage() {
   const { data: keys } = useQuery({
     queryKey: ['client-keys'],
     queryFn: () => apiFetch<ClientKey[]>('/api/admin/client-keys'),
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => apiFetch<Array<{ id: string; label: string }>>('/api/admin/accounts'),
   });
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['usage', params],
@@ -187,6 +195,20 @@ export function Usage() {
             <option value="2xx">2xx success</option>
             <option value="4xx">4xx client error</option>
             <option value="5xx">5xx server error</option>
+          </select>
+          <select
+            value={accountFilter}
+            onChange={(e) => {
+              setAccountFilter((e.target as HTMLSelectElement).value);
+              setPage(1);
+            }}
+          >
+            <option value="">All accounts</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
           </select>
           <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
             Client:
@@ -264,6 +286,7 @@ export function Usage() {
                       Time{sortArrow('created_at')}
                     </th>
                     <th>Model</th>
+                    <th>Account</th>
                     <th onClick={() => setSort('total_tokens')} style={{ cursor: 'pointer' }}>
                       Tokens{sortArrow('total_tokens')}
                     </th>
@@ -294,6 +317,7 @@ export function Usage() {
                     >
                       <td title={l.createdAt}>{relativeTime(l.createdAt)}</td>
                       <td>{l.model}</td>
+                      <td>{l.accountLabel ?? '—'}</td>
                       <td>{l.totalTokens.toLocaleString()}</td>
                       <td>${l.cost.toFixed(4)}</td>
                       <td>{l.latencyMs}ms</td>
