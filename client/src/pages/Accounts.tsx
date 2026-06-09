@@ -528,6 +528,7 @@ export function Accounts() {
                   <th>Provider</th>
                   <th>Status</th>
                   <th>Backoff</th>
+                  <th>Transport</th>
                   <th>Last error</th>
                   <th></th>
                 </tr>
@@ -560,6 +561,22 @@ export function Accounts() {
                       )}
                     </td>
                     <td class="mono">{a.backoffLevel || '—'}</td>
+                    <td>
+                      {(() => {
+                        if (a.relayId) {
+                          const relay = transports.find((t) => t.id === a.relayId);
+                          return <Badge variant="active">☁ {relay?.label ?? 'relay'}</Badge>;
+                        }
+                        if (a.proxyPool && a.proxyPool.length > 0) {
+                          return <Badge variant="warn">🔀 Pool({a.proxyPool.length})</Badge>;
+                        }
+                        if (a.proxyId) {
+                          const proxy = transports.find((t) => t.id === a.proxyId);
+                          return <Badge variant="warn">🔀 {proxy?.label ?? 'proxy'}</Badge>;
+                        }
+                        return <Badge variant="muted">Direct</Badge>;
+                      })()}
+                    </td>
                     <td style={{ maxWidth: 220, fontSize: 11, color: 'var(--text-3)' }}>
                       <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.lastError ?? ''}>
                         {a.lastError ?? '—'}
