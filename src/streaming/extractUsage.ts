@@ -1,3 +1,5 @@
+import { parseSseDataLines, type TailBuffer } from './tailBuffer.js';
+
 export interface SSEUsage {
   prompt_tokens: number;
   completion_tokens: number;
@@ -60,4 +62,43 @@ function extractAnthropic(raw: string): SSEParseResult {
     } catch {}
   }
   return { usage, raw };
+}
+
+/** Incrementally extract SSE usage from a chunk via a TailBuffer. */
+export function extractUsageFromSSEStream(
+  tail: TailBuffer,
+  chunk: string,
+  format: 'openai' | 'anthropic',
+  last: SSEUsage | null
+): SSEUsage | null {
+  const { lines } = parseSseDataLines(tail, chunk);
+  if (lines.length === 0) return last;
+  for (const payload of lines) {
+    try {
+      const obj = JSON.parse(payload) as Record<string, unknown>;
+      const u = obj.usage as Record<string, unknown> | undefined;
+      if (!u) continue;
+      if (format === 'openai') {
+        last = {
+          prompt_tokens: (u.prompt_tokens as number) ?? 0,
+          completion_tokens: (u.completion_tokens as number) ?? 0,
+          cache_creation_tokens: 0,
+          cache_read_tokens:
+            ((u.prompt_tokens_details as { cached_tokens?: number } | undefined)?.cached_tokens) ?? 0,
+          total_tokens: (u.total_tokens as number) ?? 0,
+        };
+      } else {
+        last = {
+          prompt_tokens: (u.input_tokens as number) ?? 0,
+          completion_tokens: (u.output_tokens as number) ?? 0,
+          cache_creation_tokens: (u.cache_creation_input_tokens as number) ?? 0,
+          cache_read_tokens: (u.cache_read_input_tokens as number) ?? 0,
+          total_tokens: ((u.input_tokens as number) ?? 0) + ((u.output_tokens as number) ?? 0),
+        };
+      }
+    } catch {
+      // ignore malformed payloads
+    }
+  }
+  return last;
 }

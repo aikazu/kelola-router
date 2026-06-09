@@ -1,6 +1,9 @@
-import { extractUsageFromSSE, type SSEUsage } from './extractUsage.js';
+import { TailBuffer } from './tailBuffer.js';
+import { extractUsageFromSSEStream, type SSEUsage } from './extractUsage.js';
 
 export type UsageCallback = (usage: SSEUsage | null, rawText: string) => void;
+
+const TAIL_BYTES = 32 * 1024;
 
 /**
  * Tee an upstream SSE response: forward every byte to the client unchanged,
@@ -20,8 +23,9 @@ export async function pipeWithUsage(
     onUsage(null, '');
     return upstream;
   }
-  const decoder = new TextDecoder();
-  let raw = '';
+  const decoder = new TextDecoder('utf-8', { fatal: false });
+  let usage: SSEUsage | null = null;
+  const tail = new TailBuffer(TAIL_BYTES);
   let aborted = false;
   if (signal) {
     if (signal.aborted) aborted = true;
@@ -40,14 +44,15 @@ export async function pipeWithUsage(
         ctrl.terminate();
         return;
       }
-      raw += decoder.decode(chunk, { stream: true });
+      const text = decoder.decode(chunk, { stream: true });
+      usage = extractUsageFromSSEStream(tail, text, format, usage);
       ctrl.enqueue(chunk);
     },
     flush() {
       if (aborted) return;
-      raw += decoder.decode();
-      const { usage } = extractUsageFromSSE(raw, format);
-      onUsage(usage, raw);
+      const tailText = decoder.decode();
+      usage = extractUsageFromSSEStream(tail, tailText, format, usage);
+      onUsage(usage, tail.snapshot());
     },
   });
   return new Response(upstream.body.pipeThrough(tee), {
