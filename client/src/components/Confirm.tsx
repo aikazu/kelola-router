@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useSyncExternalStore } from 'preact/compat';
 import { Button } from './Button';
 import { Modal } from './Modal';
 
@@ -9,52 +9,63 @@ interface ConfirmOpts {
   danger?: boolean;
 }
 
-let pending: ((ok: boolean) => void) | null = null;
-let opts: ConfirmOpts | null = null;
+interface ConfirmState {
+  pending: ((ok: boolean) => void) | null;
+  opts: ConfirmOpts | null;
+}
+
+let state: ConfirmState = { pending: null, opts: null };
 const listeners = new Set<() => void>();
+function emit() {
+  for (const l of listeners) l();
+}
 
 export function confirmDialog(o: ConfirmOpts): Promise<boolean> {
   return new Promise((resolve) => {
-    pending = resolve;
-    opts = o;
-    listeners.forEach((l) => l());
+    state = { pending: resolve, opts: o };
+    emit();
   });
 }
 
+function subscribe(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+function getSnapshot(): ConfirmState {
+  return state;
+}
+
 export function ConfirmHost() {
-  const [, force] = useState(0);
-  const subscribe = (fn: () => void) => {
-    listeners.add(fn);
-    return () => listeners.delete(fn);
-  };
-  subscribe(() => force((x) => x + 1));
+  // useSyncExternalStore scopes re-renders to ConfirmHost only — no more
+  // global re-render of the entire App tree on every confirmDialog() call.
+  const s = useSyncExternalStore(subscribe, getSnapshot);
 
-  const open = pending !== null && opts !== null;
+  const open = s.pending !== null && s.opts !== null;
   const close = (ok: boolean) => {
-    if (pending) pending(ok);
-    pending = null;
-    opts = null;
-    force((x) => x + 1);
+    if (s.pending) s.pending(ok);
+    state = { pending: null, opts: null };
+    emit();
   };
 
-  if (!open || !opts) return null;
+  if (!open || !s.opts) return null;
   return (
     <Modal
       open
       onClose={() => close(false)}
-      title={opts.title}
+      title={s.opts.title}
       footer={
         <>
           <Button variant="ghost" onClick={() => close(false)}>
             Cancel
           </Button>
-          <Button variant={opts.danger ? 'danger' : 'primary'} onClick={() => close(true)}>
-            {opts.confirmLabel ?? 'Confirm'}
+          <Button variant={s.opts.danger ? 'danger' : 'primary'} onClick={() => close(true)}>
+            {s.opts.confirmLabel ?? 'Confirm'}
           </Button>
         </>
       }
     >
-      <p style={{ color: 'var(--text-2)' }}>{opts.message}</p>
+      <p style={{ color: 'var(--text-2)' }}>{s.opts.message}</p>
     </Modal>
   );
 }

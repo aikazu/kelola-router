@@ -96,6 +96,19 @@ export function Console() {
   pausedRef.current = paused;
   const boxRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
+  // RAF-batched event buffer. Decouples SSE message rate from React renders.
+  const pendingRef = useRef<FlowEvent[]>([]);
+  const rafRef = useRef<number | null>(null);
+  const flush = () => {
+    rafRef.current = null;
+    if (pendingRef.current.length === 0) return;
+    const batch = pendingRef.current;
+    pendingRef.current = [];
+    setEvents((prev) => {
+      const next = prev.length + batch.length > MAX_EVENTS ? [...prev, ...batch] : [...prev, ...batch];
+      return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
+    });
+  };
 
   useEffect(() => {
     const es = new EventSource('/api/admin/console/stream');
@@ -105,15 +118,20 @@ export function Console() {
       if (!m.data || pausedRef.current) return;
       try {
         const ev = JSON.parse(m.data) as FlowEvent;
-        setEvents((prev) => {
-          const next = [...prev, ev];
-          return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
-        });
+        // Buffer the event; flush on the next animation frame so bursts of
+        // SSE messages collapse into one setState per frame (~16ms).
+        pendingRef.current.push(ev);
+        if (!rafRef.current) {
+          rafRef.current = requestAnimationFrame(flush);
+        }
       } catch {
         /* heartbeat / malformed */
       }
     };
-    return () => es.close();
+    return () => {
+      es.close();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   useEffect(() => {

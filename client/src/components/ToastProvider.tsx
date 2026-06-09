@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { createContext } from 'preact';
-import { useCallback, useContext, useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { type ToastItem, type ToastVariant, ToastView } from './Toast';
 
 interface ToastContext {
@@ -39,11 +39,15 @@ export function ToastProvider({ children }: { children: ComponentChildren }) {
     timers.current.set(id, handle);
   }, []);
 
-  const ctx: ToastContext = {
-    success: (m) => add(m, 'success'),
-    error: (m) => add(m, 'error'),
-    info: (m) => add(m, 'info'),
-  };
+  // Memoize the ctx object so consumers don't re-render on every toast add/remove.
+  const ctx = useMemo<ToastContext>(
+    () => ({
+      success: (m: string) => add(m, 'success'),
+      error: (m: string) => add(m, 'error'),
+      info: (m: string) => add(m, 'info'),
+    }),
+    [add]
+  );
   return (
     <Ctx.Provider value={ctx}>
       {children}

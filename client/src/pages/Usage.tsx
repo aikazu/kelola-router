@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
@@ -62,6 +62,7 @@ export function Usage() {
   const [pageSize, setPageSize] = useState(50);
   const [clientKeyId, setClientKeyId] = useState<number | undefined>(undefined);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | '2xx' | '4xx' | '5xx'>('all');
   const [sortBy, setSortBy] = useState<'created_at' | 'cost_usd' | 'latency_ms' | 'total_tokens'>(
     'created_at'
@@ -69,6 +70,13 @@ export function Usage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [days, setDays] = useState(1);
   const [selected, setSelected] = useState<number | null>(null);
+
+  // Debounce search input so each keystroke doesn't refetch the usage query.
+  // 300ms feels instant to the user but collapses bursts of typing into one fetch.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   // URL sync: read on mount + react to hashchange (back/forward), write on change via replaceState
   useEffect(() => {
@@ -94,11 +102,11 @@ export function Usage() {
       sort_dir: sortDir,
     });
     if (clientKeyId) p.set('client_key', String(clientKeyId));
-    if (search) p.set('q', search);
+    if (debouncedSearch) p.set('q', debouncedSearch);
     if (statusFilter !== 'all')
       p.set('status', statusFilter === '2xx' ? '200' : statusFilter === '4xx' ? '400' : '500');
     return p.toString();
-  }, [page, pageSize, days, sortBy, sortDir, clientKeyId, search, statusFilter]);
+  }, [page, pageSize, days, sortBy, sortDir, clientKeyId, debouncedSearch, statusFilter]);
 
   useEffect(() => {
     const newHash = `#/admin/usage?${params}`;
@@ -145,15 +153,6 @@ export function Usage() {
               setDays(Number((e.target as HTMLSelectElement).value));
               setPage(1);
             }}
-            style={{
-              background: 'var(--ink-1)',
-              border: '1px solid var(--ink-3)',
-              color: 'var(--text-1)',
-              padding: '8px 10px',
-              borderRadius: 4,
-              fontSize: 12,
-              fontFamily: 'inherit',
-            }}
           >
             {[1, 7, 30, 90].map((n) => (
               <option key={n} value={n}>
@@ -175,32 +174,13 @@ export function Usage() {
               setSearch((e.target as HTMLInputElement).value);
               setPage(1);
             }}
-            style={{
-              flex: 1,
-              minWidth: 200,
-              background: 'var(--ink-1)',
-              border: '1px solid var(--ink-3)',
-              color: 'var(--text-1)',
-              padding: '8px 10px',
-              borderRadius: 4,
-              fontFamily: 'inherit',
-              fontSize: 13,
-            }}
+            style={{ flex: 1, minWidth: 200 }}
           />
           <select
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter((e.target as HTMLSelectElement).value as any);
               setPage(1);
-            }}
-            style={{
-              background: 'var(--ink-1)',
-              border: '1px solid var(--ink-3)',
-              color: 'var(--text-1)',
-              padding: '8px 10px',
-              borderRadius: 4,
-              fontSize: 12,
-              fontFamily: 'inherit',
             }}
           >
             <option value="all">All status</option>

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
@@ -130,18 +131,25 @@ export function Quota() {
         </div>
       ) : (
         quotas.map((q) => {
-          // Group this account's windows by model.
-          const byModel = new Map<string, QuotaWindow[]>();
-          for (const w of q.windows) {
-            const list = byModel.get(w.modelName) ?? [];
-            list.push(w);
-            byModel.set(w.modelName, list);
-          }
-          const models = [...byModel.entries()];
-          const lastFetched =
-            q.windows.length > 0
-              ? q.windows.reduce((a, b) => (a.fetchedAt > b.fetchedAt ? a : b)).fetchedAt
-              : null;
+          // Group this account's windows by model. useMemo on the
+          // pre-bucketed array keeps each quota card cheap on refetch.
+          const grouped = useMemo(() => {
+            const byModel = new Map<string, QuotaWindow[]>();
+            for (const w of q.windows) {
+              const list = byModel.get(w.modelName) ?? [];
+              list.push(w);
+              byModel.set(w.modelName, list);
+            }
+            return [...byModel.entries()];
+          }, [q.windows]);
+          const lastFetched = useMemo(
+            () =>
+              q.windows.length > 0
+                ? q.windows.reduce((a, b) => (a.fetchedAt > b.fetchedAt ? a : b)).fetchedAt
+                : null,
+            [q.windows]
+          );
+          const models = grouped;
           return (
             <Card
               key={q.accountId}
