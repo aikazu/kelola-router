@@ -2,7 +2,6 @@
 
 > Local-first API router — MiniMax + Kiro (AWS CodeWhisperer) upstreams, multi-account, intelligent fallback, prompt caching, RTK + Caveman compression, and a built-in dashboard.
 
-[![Bun](https://img.shields.io/badge/bun-recommended-f9f1e1?logo=bun&logoColor=black)](https://bun.sh)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
@@ -58,20 +57,14 @@
 
 ### Prerequisites
 
-- **[Bun](https://bun.sh) ≥ 1.3** (recommended for blazing-fast install) **or Node.js ≥ 20**
+- **Node.js ≥ 20**
 - A MiniMax API key (`mm_…`) for testing
-
-> **Note:** the dev/test server uses `better-sqlite3` (Node native binding), so the runtime stays on **Node**, not Bun. Bun is recommended for install speed and lockfile benefits.
 
 ### Install
 
 ```bash
-# recommended — ~3x faster
 git clone https://github.com/aikazu/kelola-router.git
 cd kelola-router
-bun install
-
-# or with npm
 npm install
 
 cp .env.example .env

@@ -1,7 +1,7 @@
 # Build stage
 FROM node:22-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json bun.lock* ./
+COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src/ ./src/

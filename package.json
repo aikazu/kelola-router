@@ -5,8 +5,7 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=20",
-    "bun": ">=1.3"
+    "node": ">=20"
   },
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",

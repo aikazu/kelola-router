@@ -28,7 +28,7 @@ npm run lint         # biome check .
 npm run lint:fix     # biome check --write .
 ```
 
-Runners: `bun` is supported (engines: `node>=20`, `bun>=1.3`); `bun.lock` is checked in. `npm` and `bun` both work for the root scripts.
+Runner: `npm` only (engine: `node>=20`). Use `npm`/`npm ci` for install; `package-lock.json` is the lockfile.
 
 CLI scripts (power-user; dashboard covers these):
 ```bash
