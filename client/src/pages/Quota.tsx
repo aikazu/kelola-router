@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
@@ -35,6 +35,11 @@ function pctOf(w: QuotaWindow): number {
   if (w.remainingPercent != null) return Math.max(0, Math.min(100, w.remainingPercent));
   if (w.totalCount > 0) return Math.round((w.remainingCount / w.totalCount) * 100);
   return 0;
+}
+
+function worstPercent(windows: QuotaWindow[]): number {
+  if (windows.length === 0) return 100;
+  return Math.min(...windows.map(pctOf));
 }
 
 function BarRow({ w }: { w: QuotaWindow }) {
@@ -83,13 +88,86 @@ function ModelBlock({ windows, delay }: { windows: QuotaWindow[]; delay: number 
   );
 }
 
+function AccountRow({ q, expanded, onToggle }: { q: AccountQuota; expanded: boolean; onToggle: () => void }) {
+  const grouped = useMemo(() => {
+    const byModel = new Map<string, QuotaWindow[]>();
+    for (const w of q.windows) {
+      const list = byModel.get(w.modelName) ?? [];
+      list.push(w);
+      byModel.set(w.modelName, list);
+    }
+    return [...byModel.entries()];
+  }, [q.windows]);
+
+  const worst = worstPercent(q.windows);
+  const fiveHWindow = q.windows.find((w) => w.windowType === '5h');
+  const weeklyWindow = q.windows.find((w) => w.windowType === 'weekly');
+  const fiveHPct = fiveHWindow ? pctOf(fiveHWindow) : null;
+  const weeklyPct = weeklyWindow ? pctOf(weeklyWindow) : null;
+  const reset = fiveHWindow?.remainsTime ?? weeklyWindow?.remainsTime ?? null;
+  const lastFetched = q.windows.length > 0
+    ? q.windows.reduce((a, b) => (a.fetchedAt > b.fetchedAt ? a : b)).fetchedAt
+    : null;
+  const warnHealth = worst < 20;
+
+  return (
+    <>
+      <tr onClick={onToggle} style={{ cursor: 'pointer' }} title={lastFetched ? `Last fetched ${relativeTime(lastFetched)}` : undefined}>
+        <td style={{ width: 24, color: 'var(--text-3)' }}>{expanded ? '▾' : '▸'}</td>
+        <td style={{ fontWeight: 500 }}>
+          {q.label}
+          {!q.enabled && <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>disabled</span>}
+        </td>
+        <td><Badge variant={q.creditType === 'token-plan' ? 'warn' : 'active'}>{q.creditType}</Badge></td>
+        <td>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div class="quota-bar-track" style={{ width: 60 }}>
+              <div class={`quota-bar-fill${warnHealth ? ' warn' : ''}`} style={{ width: `${worst}%` }} />
+            </div>
+            <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: warnHealth ? 'var(--alert)' : 'var(--text-2)' }}>{worst}%</span>
+          </div>
+        </td>
+        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{fiveHPct != null ? `${fiveHPct}%` : '—'}</td>
+        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{weeklyPct != null ? `${weeklyPct}%` : '—'}</td>
+        <td style={{ fontSize: 11, fontFamily: 'var(--font-mono)' }}>{reset != null ? forwardDuration(reset) : '—'}</td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={7} style={{ padding: '12px 16px', background: 'var(--surface-2, rgba(255,255,255,0.02))' }}>
+            {grouped.length === 0 ? (
+              <p class="card-sub">No quota data yet — puller refreshes every 5 min.</p>
+            ) : (
+              grouped.map(([model, windows], i) => (
+                <ModelBlock key={model} windows={windows} delay={i * 70} />
+              ))
+            )}
+            {lastFetched && (
+              <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 14 }}>
+                Last fetched {relativeTime(lastFetched)}
+              </p>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 export function Quota() {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => setExpanded((s) => {
+    const next = new Set(s);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
   const {
     data: quotas = [],
     isLoading,
     isError,
     error,
     refetch,
+    isFetching,
   } = useQuery({
     queryKey: ['quota'],
     queryFn: () => apiFetch<AccountQuota[]>('/api/admin/quota'),
@@ -115,8 +193,13 @@ export function Quota() {
         }
         eyebrow="Balance / limits"
         actions={
-          <button class="btn btn-ghost btn-sm" onClick={() => refetch()} aria-label="Refresh quota">
-            ↻ Refresh
+          <button
+            class="btn btn-ghost btn-sm"
+            onClick={() => refetch()}
+            aria-label="Refresh quota"
+            disabled={isFetching}
+          >
+            <span class={isFetching ? 'refresh-spin' : ''}>↻</span>{' '}Refresh
           </button>
         }
       />
@@ -130,54 +213,31 @@ export function Quota() {
           <p>Add an upstream account to see quota windows.</p>
         </div>
       ) : (
-        quotas.map((q) => {
-          // Group this account's windows by model. useMemo on the
-          // pre-bucketed array keeps each quota card cheap on refetch.
-          const grouped = useMemo(() => {
-            const byModel = new Map<string, QuotaWindow[]>();
-            for (const w of q.windows) {
-              const list = byModel.get(w.modelName) ?? [];
-              list.push(w);
-              byModel.set(w.modelName, list);
-            }
-            return [...byModel.entries()];
-          }, [q.windows]);
-          const lastFetched = useMemo(
-            () =>
-              q.windows.length > 0
-                ? q.windows.reduce((a, b) => (a.fetchedAt > b.fetchedAt ? a : b)).fetchedAt
-                : null,
-            [q.windows]
-          );
-          const models = grouped;
-          return (
-            <Card
-              key={q.accountId}
-              title={q.label}
-              actions={
-                <Badge variant={q.creditType === 'token-plan' ? 'warn' : 'active'}>
-                  {q.creditType}
-                </Badge>
-              }
-            >
-              {!q.enabled && (
-                <p class="card-sub" style={{ color: 'var(--warning)' }}>
-                  Account disabled
-                </p>
-              )}
-              {models.length === 0 ? (
-                <p class="card-sub">No quota data yet — puller refreshes every 5 min.</p>
-              ) : (
-                models.map(([model, windows], i) => (
-                  <ModelBlock key={model} windows={windows} delay={i * 70} />
-                ))
-              )}
-              <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 14 }}>
-                Last fetched {relativeTime(lastFetched)}
-              </p>
-            </Card>
-          );
-        })
+        <Card>
+          <table class="tbl" style={{ width: '100%' }}>
+            <thead>
+              <tr>
+                <th style={{ width: 24 }} />
+                <th>Account</th>
+                <th>Type</th>
+                <th>Health</th>
+                <th>5h</th>
+                <th>Weekly</th>
+                <th>Resets in</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quotas.map((q) => (
+                <AccountRow
+                  key={q.accountId}
+                  q={q}
+                  expanded={expanded.has(q.accountId)}
+                  onToggle={() => toggleExpand(q.accountId)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </Card>
       )}
     </>
   );
