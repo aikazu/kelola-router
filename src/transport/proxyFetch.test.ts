@@ -1,8 +1,13 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { proxyAwareFetch } from './proxyFetch.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { _resetEnvProxyMemo, proxyAwareFetch } from './proxyFetch.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  _resetEnvProxyMemo();
+});
+
+beforeEach(() => {
+  _resetEnvProxyMemo();
 });
 
 describe('proxyAwareFetch', () => {

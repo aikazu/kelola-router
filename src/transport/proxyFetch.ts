@@ -13,26 +13,42 @@ function normalizeProxyUrl(url: string | null | undefined): string | null {
   }
 }
 
+const envProxyMemo = new Map<string, string | null>();
+
 function getEnvProxyUrl(targetUrl: string): string | null {
-  const noProxy = process.env.NO_PROXY || process.env.no_proxy;
-  if (noProxy && shouldBypassByNoProxy(targetUrl, noProxy)) return null;
-  const protocol = new URL(targetUrl).protocol;
-  if (protocol === 'https:') {
-    return (
-      process.env.HTTPS_PROXY ||
-      process.env.https_proxy ||
-      process.env.ALL_PROXY ||
-      process.env.all_proxy ||
-      null
-    );
+  let host: string;
+  try {
+    host = new URL(targetUrl).host;
+  } catch {
+    return null;
   }
-  return (
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy ||
-    process.env.ALL_PROXY ||
-    process.env.all_proxy ||
-    null
-  );
+  const cached = envProxyMemo.get(host);
+  if (cached !== undefined) return cached;
+  const noProxy = process.env.NO_PROXY || process.env.no_proxy;
+  if (noProxy && shouldBypassByNoProxy(targetUrl, noProxy)) {
+    envProxyMemo.set(host, null);
+    return null;
+  }
+  const protocol = new URL(targetUrl).protocol;
+  const out =
+    protocol === 'https:'
+      ? process.env.HTTPS_PROXY ||
+        process.env.https_proxy ||
+        process.env.ALL_PROXY ||
+        process.env.all_proxy ||
+        null
+      : process.env.HTTP_PROXY ||
+        process.env.http_proxy ||
+        process.env.ALL_PROXY ||
+        process.env.all_proxy ||
+        null;
+  envProxyMemo.set(host, out);
+  return out;
+}
+
+/** Test helper — clear the env-proxy memo between cases. */
+export function _resetEnvProxyMemo(): void {
+  envProxyMemo.clear();
 }
 
 function shouldBypassByNoProxy(targetUrl: string, noProxyValue: string): boolean {
