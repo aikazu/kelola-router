@@ -10,6 +10,7 @@ export type IconName =
   | 'quota'
   | 'settings'
   | 'transports'
+  | 'console'
   | 'search';
 
 const paths: Record<IconName, JSX.Element> = {
@@ -81,6 +82,13 @@ const paths: Record<IconName, JSX.Element> = {
       <path d="M7 12h6" />
       <path d="M13 12l4-5" />
       <path d="M13 12l4 5" />
+    </>
+  ),
+  console: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M7 9l3 3-3 3" />
+      <path d="M13 15h4" />
     </>
   ),
 };
