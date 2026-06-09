@@ -19,6 +19,7 @@ interface Transport {
   url: string;
   enabled: boolean;
   createdAt: string;
+  usageCount: number;
 }
 
 interface TestResult {
@@ -53,6 +54,12 @@ export function Transports() {
     url: '',
   });
   const [testResults, setTestResults] = useState<Record<string, TestResult | 'loading'>>({});
+
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkKind, setBulkKind] = useState<'http' | 'socks5'>('http');
+  const [bulkPrefix, setBulkPrefix] = useState('proxy');
+  const [bulkProgress, setBulkProgress] = useState<{ total: number; done: number; errors: number } | null>(null);
 
   function resetForm() {
     setForm({ label: '', type: 'proxy', kind: 'http', url: '' });
@@ -112,6 +119,53 @@ export function Transports() {
     if (ok) deleteMut.mutate(id);
   }
 
+  function parseBulkLines(): string[] {
+    return bulkText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'))
+      .map((line) => {
+        const parts = line.split(':');
+        if (parts.length === 4) {
+          const [ip, port, user, pass] = parts;
+          return `${bulkKind}://${user}:${pass}@${ip}:${port}`;
+        }
+        if (parts.length === 2 && !line.includes('//')) {
+          return `${bulkKind}://${line}`;
+        }
+        if (line.includes('@')) {
+          return `${bulkKind}://${line}`;
+        }
+        return line;
+      });
+  }
+
+  async function runBulkImport() {
+    const urls = parseBulkLines();
+    if (!urls.length) return;
+    setBulkProgress({ total: urls.length, done: 0, errors: 0 });
+    let done = 0;
+    let errors = 0;
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        await apiFetch('/api/admin/transports', {
+          method: 'POST',
+          json: { label: `${bulkPrefix}-${i + 1}`, type: 'proxy', kind: bulkKind, url: urls[i] },
+        });
+      } catch {
+        errors++;
+      }
+      done++;
+      setBulkProgress({ total: urls.length, done, errors });
+    }
+    qc.invalidateQueries({ queryKey: ['transports'] });
+    if (errors === 0) toast.success(`Imported ${done} proxies`);
+    else toast.error(`Imported ${done - errors}/${done}, ${errors} failed`);
+    setBulkOpen(false);
+    setBulkText('');
+    setBulkProgress(null);
+  }
+
   function onTypeChange(type: 'proxy' | 'relay') {
     setForm({ ...form, type, kind: type === 'proxy' ? 'http' : 'vercel' });
   }
@@ -123,7 +177,12 @@ export function Transports() {
       <TopBar
         title={<>Pro<em>xies</em></>}
         eyebrow="Network transports"
-        actions={<Button onClick={() => setOpen(true)}>+ Add transport</Button>}
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="ghost" onClick={() => setBulkOpen(true)}>Bulk import</Button>
+            <Button onClick={() => setOpen(true)}>+ Add transport</Button>
+          </div>
+        }
       />
       <p class="card-sub">
         Define HTTP/SOCKS5 proxies and Vercel/Cloudflare relays here, then assign them per account on
@@ -147,6 +206,7 @@ export function Transports() {
                   <th>Label</th>
                   <th>Type</th>
                   <th>URL</th>
+                  <th>Used by</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -171,6 +231,12 @@ export function Transports() {
                         <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.url}>
                           {t.url}
                         </span>
+                      </td>
+                      <td>
+                        {t.usageCount > 0
+                          ? <span style={{ fontWeight: 500 }}>{t.usageCount} account{t.usageCount !== 1 ? 's' : ''}</span>
+                          : <span style={{ color: 'var(--text-3)' }}>—</span>
+                        }
                       </td>
                       <td>
                         <Badge variant={t.enabled ? 'active' : 'muted'}>
@@ -272,6 +338,60 @@ export function Transports() {
                 : 'Proxy URL. Credentials may be embedded as user:pass@host.'}
             </span>
           </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulkOpen}
+        onClose={() => { setBulkOpen(false); setBulkText(''); setBulkProgress(null); }}
+        title="Bulk import proxies"
+        footer={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {bulkProgress && (
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                {bulkProgress.done}/{bulkProgress.total}{bulkProgress.errors > 0 ? ` (${bulkProgress.errors} err)` : ''}
+              </span>
+            )}
+            <Button
+              onClick={runBulkImport}
+              disabled={!!bulkProgress || parseBulkLines().length === 0}
+            >
+              {bulkProgress ? 'Importing…' : 'Import'}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label>
+            Protocol
+            <select value={bulkKind} onChange={(e) => setBulkKind((e.target as HTMLSelectElement).value as 'http' | 'socks5')} class="input">
+              <option value="http">http</option>
+              <option value="socks5">socks5</option>
+            </select>
+          </label>
+          <label>
+            Label prefix
+            <input
+              value={bulkPrefix}
+              onInput={(e) => setBulkPrefix((e.target as HTMLInputElement).value)}
+              placeholder="proxy"
+              class="input"
+            />
+          </label>
+          <label>
+            Proxy list {parseBulkLines().length > 0 && <Badge variant="active">{parseBulkLines().length}</Badge>}
+            <textarea
+              value={bulkText}
+              onInput={(e) => setBulkText((e.target as HTMLTextAreaElement).value)}
+              placeholder={'ip:port:user:pass\nip:port\nuser:pass@ip:port\n# comments ignored'}
+              class="input"
+              rows={8}
+              style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 12, resize: 'vertical' }}
+            />
+          </label>
+          <span style={{ color: 'var(--text-3)', fontSize: 11 }}>
+            Formats: <code>ip:port:user:pass</code>, <code>ip:port</code>, <code>user:pass@ip:port</code>, or full URL. Lines starting with # are ignored.
+          </span>
         </div>
       </Modal>
     </>
