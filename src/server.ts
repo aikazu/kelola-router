@@ -499,6 +499,12 @@ async function handleKiroProxy(
   const requestedModel = resolved.requestedModel;
   const modelName = resolved.upstreamModel;
 
+  const reqId = genReqId();
+  c.set('reqId', reqId);
+  consoleBus.emit(
+    buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, modelName, requestedModel ?? null)
+  );
+
   const accounts = listEnabledAccountsByProvider(db, 'kiro');
   if (accounts.length === 0) return c.json({ error: 'no Kiro accounts configured' }, 503);
   const states: AccountState[] = accounts.map((a) => ({
@@ -512,8 +518,16 @@ async function handleKiroProxy(
   const picked = selectAccount(states);
   if (!picked) return c.json({ error: 'all Kiro accounts unavailable' }, 503);
   const acc = accounts.find((a) => a.id === picked.id)!;
+  consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, 'round-robin'));
 
   const transport = resolveTransportForAccount(db, acc);
+  if (transport) {
+    if (transport.relay) {
+      consoleBus.emit(buildTransport(reqId, new Date().toISOString(), 'relay', transport.relay.url));
+    } else if (transport.proxy) {
+      consoleBus.emit(buildTransport(reqId, new Date().toISOString(), 'proxy', transport.proxy.url));
+    }
+  }
 
   const logUsage = (
     usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null,
@@ -523,6 +537,12 @@ async function handleKiroProxy(
   ): void => {
     const prompt = usage?.prompt_tokens ?? 0;
     const completion = usage?.completion_tokens ?? 0;
+    const cost = calculateCost(db, modelName, {
+      prompt_tokens: prompt,
+      completion_tokens: completion,
+      cache_creation_tokens: 0,
+      cache_read_tokens: 0,
+    });
     insertRequestLogDeferred(db, {
       client_key_id: clientKey.id,
       account_id: acc.id,
@@ -535,12 +555,7 @@ async function handleKiroProxy(
       cache_creation_tokens: 0,
       cache_read_tokens: 0,
       total_tokens: usage?.total_tokens ?? prompt + completion,
-      cost_usd: calculateCost(db, modelName, {
-        prompt_tokens: prompt,
-        completion_tokens: completion,
-        cache_creation_tokens: 0,
-        cache_read_tokens: 0,
-      }),
+      cost_usd: cost,
       latency_ms: Date.now() - startMs,
       status_code: statusCode,
       base_resp_code: undefined,
@@ -550,7 +565,21 @@ async function handleKiroProxy(
       response_body: truncateBody(responseBody),
       request_headers: headersToJson(c.req.raw.headers),
       response_headers: undefined,
+      req_id: reqId,
     });
+    consoleBus.emit(
+      buildDone(
+        reqId,
+        new Date().toISOString(),
+        statusCode,
+        null,
+        prompt,
+        completion,
+        0,
+        cost,
+        Date.now() - startMs
+      )
+    );
   };
 
   try {
@@ -584,6 +613,9 @@ async function handleKiroProxy(
         }),
         status: result.status === 401 ? 'error' : 'active',
       });
+      consoleBus.emit(
+        buildError(reqId, new Date().toISOString(), result.status, errBody.slice(0, 200))
+      );
       return c.body(errBody || JSON.stringify({ error: 'kiro upstream error' }), result.status, {
         'content-type': 'application/json',
       });
@@ -626,6 +658,8 @@ async function handleKiroProxy(
     return c.body(respBody, result.status as any, { 'content-type': 'application/json' });
   } catch (e: any) {
     log.error({ err: e.message }, 'kiro upstream error');
+    const rid = c.get('reqId') ?? '----';
+    consoleBus.emit(buildError(rid, new Date().toISOString(), 502, e.message));
     return c.json({ error: `kiro upstream error: ${e.message}` }, 502);
   }
 }
