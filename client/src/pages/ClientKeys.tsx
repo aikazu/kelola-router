@@ -36,6 +36,8 @@ export function ClientKeys() {
   const [createOpen, setCreateOpen] = useState(false);
   const [label, setLabel] = useState('');
   const [created, setCreated] = useState<{ key: string; label: string } | null>(null);
+  const [editingLabel, setEditingLabel] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const createMut = useMutation({
     mutationFn: (l: string) =>
@@ -48,6 +50,16 @@ export function ClientKeys() {
       setLabel('');
       qc.invalidateQueries({ queryKey: ['client-keys'] });
       toast.success('Key created');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const labelMut = useMutation({
+    mutationFn: ({ id, label }: { id: number; label: string }) =>
+      apiFetch(`/api/admin/client-keys/${id}`, { method: 'PATCH', json: { label } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-keys'] });
+      setEditingLabel(null);
+      toast.success('Label updated');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -137,7 +149,24 @@ export function ClientKeys() {
               <tbody>
                 {keys.map((k) => (
                   <tr key={k.id}>
-                    <td>{k.label}</td>
+                    <td onDblClick={() => { setEditingLabel(k.id); setEditValue(k.label); }}>
+                      {editingLabel === k.id ? (
+                        <input
+                          value={editValue}
+                          onInput={(e) => setEditValue((e.target as HTMLInputElement).value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && editValue.trim()) labelMut.mutate({ id: k.id, label: editValue.trim() });
+                            if (e.key === 'Escape') setEditingLabel(null);
+                          }}
+                          onBlur={() => setEditingLabel(null)}
+                          class="input"
+                          style={{ padding: '2px 6px', fontSize: 13, width: '100%' }}
+                          autoFocus
+                        />
+                      ) : (
+                        <span style={{ cursor: 'text' }} title="Double-click to edit">{k.label}</span>
+                      )}
+                    </td>
                     <td class="mono">
                       <code>{k.keyPreview}</code>
                     </td>
