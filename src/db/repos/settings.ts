@@ -1,6 +1,14 @@
 import type Database from 'better-sqlite3';
 
-const TTL_MS = 1000;
+const DEFAULT_TTL_MS = 1000;
+const TTL_OVERRIDES: Record<string, number> = {
+  // Global transport changes rarely; bump TTL to reduce hot-path DB reads
+  // for accounts that fall back to the global proxy/relay.
+  transport: 5000,
+};
+function ttlFor(key: string): number {
+  return TTL_OVERRIDES[key] ?? DEFAULT_TTL_MS;
+}
 const caches = new WeakMap<Database.Database, Map<string, { value: unknown; expiry: number }>>();
 
 function getCache(db: Database.Database): Map<string, { value: unknown; expiry: number }> {
@@ -33,7 +41,7 @@ export function getSetting<T = unknown>(db: Database.Database, key: string): T |
   if (!row) return null;
 
   const value = JSON.parse(row.value);
-  c.set(key, { value, expiry: Date.now() + TTL_MS });
+  c.set(key, { value, expiry: Date.now() + ttlFor(key) });
   return value as T;
 }
 
@@ -43,11 +51,10 @@ export function getAllSettings(db: Database.Database): Record<string, unknown> {
     value: string;
   }[];
   const c = getCache(db);
-  const expiry = Date.now() + TTL_MS;
   const out: Record<string, unknown> = {};
   for (const row of rows) {
     const value = JSON.parse(row.value);
-    c.set(row.key, { value, expiry });
+    c.set(row.key, { value, expiry: Date.now() + ttlFor(row.key) });
     out[row.key] = value;
   }
   return out;
