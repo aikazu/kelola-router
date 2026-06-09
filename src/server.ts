@@ -130,7 +130,7 @@ async function handleProxy(
   }
   let bodyDirty = false;
   const db = c.get('db');
-  getAllSettings(db); // warm per-db settings cache: one query instead of many lookups
+  const allSettings = getAllSettings(db);
 
   // Provider routing: if the requested model belongs to a non-MiniMax provider,
   // branch to that provider's path. Unknown models fall through to the MiniMax
@@ -144,22 +144,19 @@ async function handleProxy(
     /* unknown model — defer to the MiniMax path for the canonical error */
   }
 
-  const settings = {
-    caveman: (getSetting(db, 'caveman') as { level: string } | null) ?? undefined,
-    caching:
-      (getSetting(db, 'caching') as {
-        autoBreakpoints: boolean;
-        respectCallerMarkers: boolean;
-      } | null) ?? undefined,
-  };
-  const cavemanOn = !!settings.caveman?.level && settings.caveman.level !== 'off';
-  const cachingOn = !!settings.caching?.autoBreakpoints;
+  const caveman = allSettings.caveman as { level: string } | undefined;
+  const caching = allSettings.caching as
+    | { autoBreakpoints: boolean; respectCallerMarkers: boolean }
+    | undefined;
+  const rtkSetting = allSettings.rtk as { enabled: boolean } | undefined;
+  const minimax = allSettings.minimax as { upstreamFormat?: string } | undefined;
+  const cavemanOn = !!caveman?.level && caveman.level !== 'off';
+  const cachingOn = !!caching?.autoBreakpoints;
   if (cavemanOn || cachingOn) {
-    await augmentRequest(body, settings);
+    await augmentRequest(body, allSettings as Parameters<typeof augmentRequest>[1]);
     bodyDirty = true;
   }
 
-  const rtkSetting = getSetting(db, 'rtk') as { enabled: boolean } | null;
   if (rtkSetting?.enabled) {
     const stats = compressMessages(body, true);
     const rtkLog = formatRtkLog(stats);
@@ -172,9 +169,7 @@ async function handleProxy(
   // Determine upstream format. Default = same as client. Override via
   // settings.minimax.upstreamFormat or ROUTER_UPSTREAM_FORMAT env.
   const overrideRaw =
-    (getSetting(db, 'minimax') as { upstreamFormat?: string } | null)?.upstreamFormat ??
-    process.env.ROUTER_UPSTREAM_FORMAT ??
-    'auto';
+    minimax?.upstreamFormat ?? process.env.ROUTER_UPSTREAM_FORMAT ?? 'auto';
   const upstreamFormat = getUpstreamFormat(format, overrideRaw as 'auto' | 'openai' | 'anthropic');
 
   // OpenAI streaming: ensure include_usage so the final chunk carries usage.
