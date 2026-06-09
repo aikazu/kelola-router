@@ -69,6 +69,7 @@ import { upstreamFetch } from './providers/upstreamFetch.js';
 import { headersToJson, truncateBody } from './proxy/capture.js';
 import { compressMessages, formatRtkLog } from './rtk/index.js';
 import { startQuotaPuller, stopQuotaPuller } from './scheduler/quotaPull.js';
+import { markHotPath } from './runtime/hotPathMetrics.js';
 import { pipeWithUsage } from './streaming/pipeWithUsage.js';
 import { resolveTransportForAccount } from './transport/resolve.js';
 import { getHost, getPort } from './util/env.js';
@@ -115,6 +116,7 @@ async function handleProxy(
   format: 'openai' | 'anthropic',
   upstreamPath: string
 ): Promise<Response> {
+  markHotPath('proxy:start');
   const clientKey = c.get('clientKey');
   const text = await c.req.text();
   if (text.length > 10 * 1024 * 1024) {
@@ -129,6 +131,7 @@ async function handleProxy(
     }
   }
   let bodyDirty = false;
+  markHotPath('proxy:body-parsed');
   const db = c.get('db');
   const allSettings = getAllSettings(db);
 
@@ -209,6 +212,7 @@ async function handleProxy(
   const account = selectAccount(accountStates);
   if (!account) return c.json({ error: 'all accounts unavailable' }, 503);
   const acc = allAccounts.find((a) => a.id === account.id)!;
+  markHotPath('proxy:account-selected');
 
   let resolved;
   try {
@@ -234,6 +238,7 @@ async function handleProxy(
     return c.json({ error: e.message }, 400);
   }
   const requestedModel = resolved.requestedModel;
+  markHotPath('proxy:model-resolved');
 
   const reqId = genReqId();
   c.set('reqId', reqId);
@@ -265,6 +270,7 @@ async function handleProxy(
     upstreamFormat
   );
   const transport = resolveTransportForAccount(db, acc);
+  markHotPath('proxy:transport-resolved');
   if (transport) {
     if (transport.relay) {
       consoleBus.emit(
@@ -279,7 +285,9 @@ async function handleProxy(
 
   try {
     const upstreamBody = bodyDirty ? body : text || '{}';
+    markHotPath('proxy:upstream-fetch-start');
     const resp = await upstreamFetch(url, upstreamBody, headers, transport);
+    markHotPath('proxy:upstream-fetch-response');
     if (!resp.ok) {
       const errBody = await resp.text();
       const parsed = parseError(resp, errBody);

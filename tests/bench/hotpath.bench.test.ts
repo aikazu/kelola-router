@@ -8,6 +8,7 @@ import { createAccount } from '../../src/db/repos/accounts.js';
 import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
 import { upsertModel } from '../../src/db/repos/models.js';
 import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
+import { disableHotPathMetrics, enableHotPathMetrics, readHotPathMetrics } from '../../src/runtime/hotPathMetrics.js';
 import { app, resetDb } from '../../src/server.js';
 
 let key: string;
@@ -68,13 +69,20 @@ describe('hot-path benchmark', () => {
 
     await make(); // warm caches
     stmtRuns = 0;
+    enableHotPathMetrics();
     const t0 = performance.now();
     const res = await make();
     const overheadMs = performance.now() - t0;
+    const marks = readHotPathMetrics();
+    disableHotPathMetrics();
     expect(res.status).toBe(200);
     console.log(`[bench] sqlite statement executions (warm): ${stmtRuns}`);
     console.log(`[bench] router overhead (fake upstream): ${overheadMs.toFixed(2)}ms`);
+    console.log(`[bench] hot path marks: ${marks.map((mark) => mark.name).join(', ')}`);
     await flushDeferredLogs();
-    expect(stmtRuns).toBeGreaterThan(0);
+    expect(stmtRuns).toBeLessThanOrEqual(18);
+    expect(overheadMs).toBeLessThan(35);
+    expect(marks.some((mark) => mark.name === 'proxy:upstream-fetch-start')).toBe(true);
+    expect(marks.some((mark) => mark.name === 'proxy:upstream-fetch-response')).toBe(true);
   });
 });
