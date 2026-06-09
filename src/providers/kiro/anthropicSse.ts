@@ -15,6 +15,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { KiroUsage } from './assembler.js';
+import { ChunkAccumulator } from './chunkAccumulator.js';
 import { decodeFrames, type KiroEvent } from './eventstream.js';
 
 type BlockType = 'thinking' | 'text' | 'tool_use';
@@ -235,15 +236,14 @@ function serialize(ev: { event: string; data: Record<string, unknown> }): Uint8A
 /** Wrap a Kiro binary response body as an Anthropic Messages SSE Response. */
 export function kiroResponseToAnthropicSSE(response: Response, model: string): Response {
   const assembler = new KiroAnthropicAssembler(model);
-  let rest: Uint8Array = new Uint8Array(0);
+  const acc = new ChunkAccumulator();
 
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      const merged = new Uint8Array(rest.length + chunk.length);
-      merged.set(rest);
-      merged.set(chunk, rest.length);
+      acc.push(chunk);
+      const merged = acc.view();
       const { events, rest: leftover } = decodeFrames(merged);
-      rest = leftover;
+      acc.consume(merged.length - leftover.length);
       for (const event of events) {
         for (const ev of assembler.process(event)) controller.enqueue(serialize(ev));
       }

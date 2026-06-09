@@ -6,6 +6,7 @@
  * (for non-streaming responses). Adapted from the 9router reference (MIT).
  */
 import { decodeFrames, type KiroEvent } from './eventstream.js';
+import { ChunkAccumulator } from './chunkAccumulator.js';
 
 export interface OpenAIToolCallDelta {
   index: number;
@@ -226,15 +227,14 @@ const encoder = new TextEncoder();
 /** Wrap a Kiro binary response body as an OpenAI SSE Response. */
 export function kiroResponseToOpenAISSE(response: Response, model: string): Response {
   const assembler = new KiroAssembler(model);
-  let rest: Uint8Array = new Uint8Array(0);
+  const acc = new ChunkAccumulator();
 
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      const merged = new Uint8Array(rest.length + chunk.length);
-      merged.set(rest);
-      merged.set(chunk, rest.length);
+      acc.push(chunk);
+      const merged = acc.view();
       const { events, rest: leftover } = decodeFrames(merged);
-      rest = leftover;
+      acc.consume(merged.length - leftover.length);
       for (const event of events) {
         for (const c of assembler.process(event)) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(c)}\n\n`));
@@ -296,15 +296,14 @@ export async function kiroResponseToOpenAIJson(
   const chunks: OpenAIChunk[] = [];
   if (response.body) {
     const reader = response.body.getReader();
-    let rest: Uint8Array = new Uint8Array(0);
+    const acc = new ChunkAccumulator();
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      const merged = new Uint8Array(rest.length + value.length);
-      merged.set(rest);
-      merged.set(value, rest.length);
+      acc.push(value);
+      const merged = acc.view();
       const { events, rest: leftover } = decodeFrames(merged);
-      rest = leftover;
+      acc.consume(merged.length - leftover.length);
       for (const event of events) chunks.push(...assembler.process(event));
     }
   }
