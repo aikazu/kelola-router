@@ -48,6 +48,14 @@ export function Models() {
   } = useQuery({ queryKey: ['models'], queryFn: () => apiFetch<Model[]>('/api/admin/models') });
   const [search, setSearch] = useState('');
   const [providerFilter, setProviderFilter] = useState<'all' | 'minimax' | 'kiro'>('all');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSelect = (name: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  const clearSelection = () => setSelected(new Set());
   const toggleMut = useMutation({
     mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) =>
       apiFetch(`/api/admin/models/${encodeURIComponent(name)}/${enabled ? 'disable' : 'enable'}`, {
@@ -70,6 +78,16 @@ export function Models() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const bulkMut = useMutation({
+    mutationFn: (enabled: boolean) =>
+      apiFetch('/api/admin/models/bulk-toggle', { method: 'POST', json: { names: [...selected], enabled } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['models'] });
+      toast.success(`${selected.size} models updated`);
+      clearSelection();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const filtered = models.filter(
     (m) =>
@@ -78,6 +96,7 @@ export function Models() {
         m.name.toLowerCase().includes(search.toLowerCase()) ||
         m.displayName?.toLowerCase().includes(search.toLowerCase()))
   );
+  const selectAll = () => setSelected(new Set(filtered.map((m) => m.name)));
 
   return (
     <>
@@ -122,10 +141,26 @@ export function Models() {
         ) : filtered.length === 0 ? (
           <p class="card-sub">No models match.</p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+            {selected.size > 0 && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 12px', background: 'var(--surface-2, rgba(255,255,255,0.03))', borderRadius: 8, marginBottom: 8, border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{selected.size} selected</span>
+                <Button size="sm" onClick={() => bulkMut.mutate(true)} disabled={bulkMut.isPending}>Enable all</Button>
+                <Button size="sm" variant="danger" onClick={() => bulkMut.mutate(false)} disabled={bulkMut.isPending}>Disable all</Button>
+                <Button size="sm" variant="ghost" onClick={clearSelection}>Clear</Button>
+              </div>
+            )}
+            <div style={{ overflowX: 'auto' }}>
             <table class="tbl">
               <thead>
                 <tr>
+                  <th style={{ width: 32 }}>
+                    <input
+                      type="checkbox"
+                      checked={selected.size === filtered.length && filtered.length > 0}
+                      onChange={() => selected.size === filtered.length ? clearSelection() : selectAll()}
+                    />
+                  </th>
                   <th>Name</th>
                   <th>Provider</th>
                   <th>Context</th>
@@ -138,6 +173,13 @@ export function Models() {
               <tbody>
                 {filtered.map((m) => (
                   <tr key={m.name}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(m.name)}
+                        onChange={() => toggleSelect(m.name)}
+                      />
+                    </td>
                     <td class="mono">{m.name}</td>
                     <td>
                       <Badge variant={m.provider === 'kiro' ? 'active' : 'muted'}>{m.provider}</Badge>
@@ -177,6 +219,7 @@ export function Models() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
     </>
