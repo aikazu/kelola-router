@@ -47,12 +47,12 @@ export function getAlias(db: Database.Database, name: string): ModelAlias | null
   return row ? rowToAlias(row) : null;
 }
 
+export function isAliasShadowing(db: Database.Database, aliasName: string): boolean {
+  return getModel(db, aliasName) !== null;
+}
+
 export function upsertAlias(db: Database.Database, args: UpsertAliasArgs): ModelAlias {
   const name = args.aliasName;
-  // Reject if alias name collides with a real model name
-  if (getModel(db, name)) {
-    throw new AliasConflictError(name);
-  }
   const existing = getAlias(db, name);
   if (existing) {
     db.prepare(`

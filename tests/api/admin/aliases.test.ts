@@ -70,15 +70,17 @@ describe('POST /api/admin/aliases', () => {
     expect(body.upstreamModel).toBe('MiniMax-M3');
   });
 
-  it('rejects alias name that collides with a real model (409)', async () => {
+  it('allows alias that shadows a real model name (201 with shadowsModel)', async () => {
     const res = await app.request('/api/admin/aliases', {
       method: 'POST',
       headers: baseHeaders(),
       body: JSON.stringify({ aliasName: 'MiniMax-M3', upstreamModel: 'MiniMax-M2.7' }),
     });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.error).toBe('alias_conflicts_with_model');
+    expect(body.aliasName).toBe('MiniMax-M3');
+    expect(body.upstreamModel).toBe('MiniMax-M2.7');
+    expect(body.shadowsModel).toBe(true);
   });
 
   it('rejects unknown upstream target (400)', async () => {

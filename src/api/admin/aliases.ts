@@ -1,9 +1,9 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import {
-  AliasConflictError,
   deleteAlias,
   getAlias,
+  isAliasShadowing,
   listAliases,
   type ModelAlias,
   upsertAlias,
@@ -16,13 +16,14 @@ export const aliasRoutes = new Hono();
 const NAME_RE = /^[A-Za-z0-9._:-]{1,128}$/;
 const LABEL_MAX = 200;
 
-function rowToDto(r: ModelAlias) {
+function rowToDto(db: Database.Database, r: ModelAlias) {
   return {
     aliasName: r.aliasName,
     upstreamModel: r.upstreamModel,
     label: r.label,
     source: r.source,
     createdAt: r.createdAt,
+    shadowsModel: isAliasShadowing(db, r.aliasName),
   };
 }
 
@@ -64,7 +65,7 @@ function validateLabel(label: unknown): string | null {
 aliasRoutes.get('/', (c) => {
   try {
     const db = c.get('db') as Database.Database;
-    return c.json({ aliases: listAliases(db).map(rowToDto) });
+    return c.json({ aliases: listAliases(db).map((r) => rowToDto(db, r)) });
   } catch (e) {
     return handleApiError(e);
   }
@@ -77,17 +78,9 @@ aliasRoutes.post('/', async (c) => {
     const aliasName = validateName(body.aliasName);
     const upstreamModel = validateTarget(db, body.upstreamModel);
     const label = validateLabel(body.label);
-    let row;
-    try {
-      row = upsertAlias(db, { aliasName, upstreamModel, label, source: 'user' });
-    } catch (e) {
-      if (e instanceof AliasConflictError) {
-        throw new ApiError('alias_conflicts_with_model', e.message, 409);
-      }
-      throw e;
-    }
+    const row = upsertAlias(db, { aliasName, upstreamModel, label, source: 'user' });
     clearAliasCache();
-    return c.json(rowToDto(row), 201);
+    return c.json(rowToDto(db, row), 201);
   } catch (e) {
     return handleApiError(e);
   }
@@ -107,7 +100,7 @@ aliasRoutes.put('/:name', async (c) => {
     const label = body.label !== undefined ? validateLabel(body.label) : existing.label;
     const row = upsertAlias(db, { aliasName: name, upstreamModel, label });
     clearAliasCache();
-    return c.json(rowToDto(row));
+    return c.json(rowToDto(db, row));
   } catch (e) {
     return handleApiError(e);
   }

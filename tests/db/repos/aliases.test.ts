@@ -5,9 +5,9 @@ import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../src/db/migrations/index.js';
 import {
-  AliasConflictError,
   deleteAlias,
   getAlias,
+  isAliasShadowing,
   listAliases,
   listAliasesForTargets,
   upsertAlias,
@@ -52,10 +52,18 @@ describe('aliases repo', () => {
     expect(row.label).toBeNull();
   });
 
-  it('upsertAlias rejects alias name that collides with a real model name', () => {
-    expect(() => upsertAlias(db, { aliasName: 'MiniMax-M3', upstreamModel: 'MiniMax-M3' })).toThrow(
-      AliasConflictError
-    );
+  it('upsertAlias allows alias with same name as existing model (shadowing)', () => {
+    const row = upsertAlias(db, { aliasName: 'MiniMax-M3', upstreamModel: 'MiniMax-M2.7' });
+    expect(row.aliasName).toBe('MiniMax-M3');
+    expect(row.upstreamModel).toBe('MiniMax-M2.7');
+  });
+
+  it('isAliasShadowing returns true when model exists with same name', () => {
+    expect(isAliasShadowing(db, 'MiniMax-M3')).toBe(true);
+  });
+
+  it('isAliasShadowing returns false when no model with that name', () => {
+    expect(isAliasShadowing(db, 'nonexistent')).toBe(false);
   });
 
   it('getAlias returns null for missing', () => {

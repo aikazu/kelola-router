@@ -56,6 +56,23 @@ describe('aliasCache', () => {
     expect(resolveAlias(db, 'a1')).toBe('a1');
   });
 
+  it('resolves alias that shadows a real model name', () => {
+    upsertAlias(db, { aliasName: 'MiniMax-M3', upstreamModel: 'MiniMax-M2.7' });
+    clearAliasCache();
+    expect(resolveAlias(db, 'MiniMax-M3')).toBe('MiniMax-M2.7');
+  });
+
+  it('suffixed model not affected by shadowing alias', () => {
+    upsertModel(db, { name: 'claude-opus-4-8', upstream_model: 'claude-opus-4-8' });
+    upsertModel(db, { name: 'claude-opus-4-8-thinking', upstream_model: 'claude-opus-4-8-thinking' });
+    upsertAlias(db, { aliasName: 'claude-opus-4-8', upstreamModel: 'MiniMax-M3' });
+    clearAliasCache();
+    // Shadowed model resolves to alias target
+    expect(resolveAlias(db, 'claude-opus-4-8')).toBe('MiniMax-M3');
+    // Suffixed variant is NOT affected
+    expect(resolveAlias(db, 'claude-opus-4-8-thinking')).toBe('claude-opus-4-8-thinking');
+  });
+
   it('TTL expiry forces a reload', () => {
     upsertAlias(db, { aliasName: 'a1', upstreamModel: 'MiniMax-M3' });
     resolveAlias(db, 'a1'); // warm cache
