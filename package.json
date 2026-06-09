@@ -1,7 +1,7 @@
 {
   "name": "kelola-router",
   "version": "0.17.0",
-  "description": "Local-first API router for MiniMax — multi-account pool, client keys with per-key usage, RTK, Caveman, dashboard",
+  "description": "Local-first API router for MiniMax + Kiro (AWS CodeWhisperer) — multi-account pool, client keys, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in dashboard",
   "type": "module",
   "private": true,
   "engines": {
