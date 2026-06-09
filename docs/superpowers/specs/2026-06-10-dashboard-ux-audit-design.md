@@ -151,11 +151,27 @@ Parsing logic:
 - If refetch errors: brief red flash + toast
 - Button text: "↻ Refresh" → shows "↻" spinning during fetch
 
+### O. Aliases — Allow Shadowing Built-in Models
+
+**Problem:** Creating alias `claude-opus-4-8` is rejected with `AliasConflictError` because a built-in model with that name exists. User wants aliases to be stronger than built-in names — alias should shadow the model.
+
+**Current flow:**
+- `upsertAlias()` checks `getModel(db, name)` → if found, throws `AliasConflictError`
+- `resolveAlias()` already checks alias FIRST (exact match via `map.get(name)`) — if alias exists, returns target, model name never reached
+
+**Fix:**
+1. **Remove `AliasConflictError` guard** in `upsertAlias()` — allow alias names matching model names
+2. Resolution already correct: alias wins on exact match only
+3. **Exact match only** — alias `claude-opus-4-8` shadows ONLY `claude-opus-4-8`. Models with suffixes (`claude-opus-4-8-thinking`, `-agentic`) remain fully reachable
+4. **Models page: "shadowed" badge** — models that have an alias with their exact name show `⚡ shadowed` badge (muted, indicates alias overrides this model name)
+5. **Alias creation UI: info warning** — when alias name matches an existing model: "This alias shadows the built-in model. Requests for this name route to the alias target." (non-blocking info, not error)
+6. **Delete alias → model auto-unblocked** — no extra logic needed, `resolveAlias` returns name as-is when no alias
+
 ---
 
 ## Implementation Order
 
-1. **Backend first:** selection strategy setting + selectAccount refactor + bulk toggle endpoint + usage accountLabel + transport usageCount
+1. **Backend first:** selection strategy setting + selectAccount refactor + bulk toggle endpoint + usage accountLabel + transport usageCount + remove AliasConflictError
 2. **A:** Accounts transport column (pure frontend, data already there)
 3. **B:** Quota compact table (frontend redesign)
 4. **C:** Transports bulk import (frontend + uses existing POST endpoint in loop)
@@ -167,6 +183,7 @@ Parsing logic:
 10. **L:** Transports "Used by"
 11. **M:** Overview account column
 12. **N:** Quota refresh animation
+13. **O:** Alias shadowing (backend guard removal + UI indicators)
 
 ---
 
