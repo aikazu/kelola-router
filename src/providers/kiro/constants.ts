@@ -234,7 +234,7 @@ function containsThinkingModeTag(body: ThinkingDetectBody): boolean {
 }
 
 function containsTagInText(text: string): boolean {
-  if (!text || !text.includes('<thinking_mode>')) return false;
+  if (!text?.includes('<thinking_mode>')) return false;
   return (
     text.includes('<thinking_mode>enabled</thinking_mode>') ||
     text.includes('<thinking_mode>interleaved</thinking_mode>')

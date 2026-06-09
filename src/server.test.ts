@@ -9,6 +9,17 @@ import { flushDeferredLogs } from './db/repos/requestLogs.js';
 import { clearCache } from './db/repos/settings.js';
 import { app, resetDb } from './server.js';
 
+interface LoggedRequestRow {
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost_usd: number;
+  client_key_id: number | null;
+}
+
+interface SentAnthropicRequest {
+  system: Array<{ text?: string; cache_control?: { type: string } }>;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -251,7 +262,7 @@ describe('request logging', () => {
     });
     await app.request(req);
     await flushDeferredLogs();
-    const logs = db.prepare(`SELECT * FROM request_logs`).all() as any[];
+    const logs = db.prepare(`SELECT * FROM request_logs`).all() as LoggedRequestRow[];
     expect(logs.length).toBe(1);
     expect(logs[0].prompt_tokens).toBe(100);
     expect(logs[0].completion_tokens).toBe(50);
@@ -284,7 +295,9 @@ describe('request logging', () => {
     expect(res.status).toBe(200);
     await res.text();
     await flushDeferredLogs();
-    const logs = db.prepare(`SELECT * FROM request_logs WHERE stream = 1`).all() as any[];
+    const logs = db
+      .prepare(`SELECT * FROM request_logs WHERE stream = 1`)
+      .all() as LoggedRequestRow[];
     expect(logs.length).toBe(1);
     expect(logs[0].prompt_tokens).toBe(42);
     expect(logs[0].completion_tokens).toBe(7);
@@ -318,7 +331,8 @@ describe('augmentation in proxy', () => {
     });
     const res = await app.request(req);
     expect(res.status).toBe(200);
-    const sent = JSON.parse((spy.mock.calls as any[])[0][1].body as string) as any;
+    const [, options] = spy.mock.calls[0] as [string, { body: string }];
+    const sent = JSON.parse(options.body) as SentAnthropicRequest;
     expect(sent.system[0].text).toContain('Be concise');
   });
 
@@ -344,7 +358,8 @@ describe('augmentation in proxy', () => {
     });
     const res = await app.request(req);
     expect(res.status).toBe(200);
-    const sent = JSON.parse((spy.mock.calls as any[])[0][1].body as string) as any;
+    const [, options] = spy.mock.calls[0] as [string, { body: string }];
+    const sent = JSON.parse(options.body) as SentAnthropicRequest;
     expect(sent.system[0].cache_control).toEqual({ type: 'ephemeral' });
   });
 });

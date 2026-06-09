@@ -18,7 +18,7 @@ export function attachStdoutSink(bus: ConsoleBus, opts: SinkOptions = {}): () =>
     intervalMs,
     highWater,
     flush: (items) => {
-      const text = items.map((i) => renderStdout(i.ev)).join('\n') + '\n';
+      const text = `${items.map((i) => renderStdout(i.ev)).join('\n')}\n`;
       // Respect backpressure: if the write can't keep up, the next batch
       // will catch up. We don't drop here — the coalescer's high-water mark
       // already bounds memory.

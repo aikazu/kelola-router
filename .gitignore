@@ -12,3 +12,4 @@ client/node_modules/
 .claude
 .kiro
 .agents
+vitest-final.json

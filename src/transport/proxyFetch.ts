@@ -98,8 +98,9 @@ export async function proxyAwareFetch(
           globalThis.fetch as (url: string, opts: UndiciFetchOptions) => Promise<Response>
         )(targetUrl, { ...options, dispatcher });
       }
-    } catch (e: any) {
-      console.warn(`[transport] proxy failed, falling back to direct: ${e.message}`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.warn(`[transport] proxy failed, falling back to direct: ${message}`);
       return globalThis.fetch(targetUrl, options);
     }
   }

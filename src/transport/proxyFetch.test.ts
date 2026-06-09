@@ -20,9 +20,12 @@ describe('proxyAwareFetch', () => {
       { method: 'POST' },
       { relay: { kind: 'vercel', url: 'https://my-relay.vercel.app/api/relay' }, proxy: null }
     );
-    const [calledUrl, calledOpts] = (spy.mock.calls as any[])[0];
+    const [calledUrl, calledOpts] = spy.mock.calls[0] as [
+      string,
+      { headers: Record<string, string> },
+    ];
     expect(calledUrl).toBe('https://my-relay.vercel.app/api/relay');
-    const headers = calledOpts.headers as Record<string, string>;
+    const headers = calledOpts.headers;
     expect(headers['x-relay-target']).toBe('https://api.minimax.io');
     expect(headers['x-relay-path']).toBe('/v1/chat/completions');
   });
@@ -33,9 +36,9 @@ describe('proxyAwareFetch', () => {
     try {
       const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
       await proxyAwareFetch('https://api.minimax.io/v1/x', {}, { relay: null, proxy: null });
-      const call = (spy.mock.calls as any[])[0];
+      const call = spy.mock.calls[0] as [string, { dispatcher?: unknown }];
       expect(call[0]).toBe('https://api.minimax.io/v1/x');
-      expect((call[1] as any).dispatcher).toBeDefined();
+      expect(call[1].dispatcher).toBeDefined();
     } finally {
       if (prev === undefined) delete process.env.HTTPS_PROXY;
       else process.env.HTTPS_PROXY = prev;
@@ -48,9 +51,9 @@ describe('proxyAwareFetch', () => {
     try {
       const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
       await proxyAwareFetch('https://api.minimax.io/v1/x', {}, { relay: null, proxy: null });
-      const call = (spy.mock.calls as any[])[0];
+      const call = spy.mock.calls[0] as [string, { dispatcher?: unknown }];
       expect(call[0]).toBe('https://api.minimax.io/v1/x');
-      expect((call[1] as any).dispatcher).toBeUndefined();
+      expect(call[1].dispatcher).toBeUndefined();
     } finally {
       if (prev !== undefined) process.env.HTTPS_PROXY = prev;
     }

@@ -52,7 +52,7 @@ async function tryExtractToken(filePath: string): Promise<string | null> {
   try {
     const raw = await readFile(filePath, 'utf-8');
     const data = JSON.parse(raw) as { refreshToken?: string };
-    if (data.refreshToken && data.refreshToken.startsWith(TOKEN_PREFIX)) {
+    if (data.refreshToken?.startsWith(TOKEN_PREFIX)) {
       return data.refreshToken;
     }
   } catch {

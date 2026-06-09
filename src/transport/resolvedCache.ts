@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import type { Account } from '../db/repos/accounts.js';
-import type { ProxyKind, RelayKind, TransportConfig } from './types.js';
+import type { ProxyKind, TransportConfig } from './types.js';
 
 interface PoolMember {
   kind: ProxyKind;

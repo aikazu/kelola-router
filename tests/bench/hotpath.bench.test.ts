@@ -8,12 +8,17 @@ import { createAccount } from '../../src/db/repos/accounts.js';
 import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
 import { upsertModel } from '../../src/db/repos/models.js';
 import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
-import { disableHotPathMetrics, enableHotPathMetrics, readHotPathMetrics } from '../../src/runtime/hotPathMetrics.js';
+import {
+  disableHotPathMetrics,
+  enableHotPathMetrics,
+  readHotPathMetrics,
+} from '../../src/runtime/hotPathMetrics.js';
 import { app, resetDb } from '../../src/server.js';
 
 const statementMethods = ['run', 'get', 'all'] as const;
 type StatementMethod = (typeof statementMethods)[number];
-type SpyableStatement = Database.Statement & Record<StatementMethod, (...args: unknown[]) => unknown>;
+type SpyableStatement = Database.Statement &
+  Record<StatementMethod, (...args: unknown[]) => unknown>;
 
 const isSpyableStatement = (value: unknown): value is SpyableStatement => {
   if (!value || typeof value !== 'object') {
@@ -24,7 +29,11 @@ const isSpyableStatement = (value: unknown): value is SpyableStatement => {
   return statementMethods.every((method) => typeof candidate[method] === 'function');
 };
 
-const wrapStatementMethod = (stmt: SpyableStatement, method: StatementMethod, onCall: () => void) => {
+const wrapStatementMethod = (
+  stmt: SpyableStatement,
+  method: StatementMethod,
+  onCall: () => void
+) => {
   const original = stmt[method];
   stmt[method] = ((...args: unknown[]) => {
     onCall();

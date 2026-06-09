@@ -79,7 +79,7 @@ function parsePool(raw: string | null): string[] {
 
 function asProxyConfig(db: Database.Database, id: string): TransportConfig | null {
   const t = getTransport(db, id);
-  if (!t || t.type !== 'proxy' || !t.enabled) return null;
+  if (t?.type !== 'proxy' || !t.enabled) return null;
   return { relay: null, proxy: { kind: t.kind as ProxyKind, url: t.url } };
 }
 

@@ -3,11 +3,17 @@ import { autoDetectFilter } from './autodetect.js';
 import { MIN_COMPRESS_SIZE, RAW_CAP } from './constants.js';
 import type { CompressStats } from './types.js';
 
-export function compressMessages(body: any, enabled: boolean): CompressStats | null {
-  if (!enabled) return null;
-  if (!body) return null;
+type MutableRecord = Record<string, unknown>;
 
-  const items: any[] | null = Array.isArray(body.messages)
+function isRecord(value: unknown): value is MutableRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+export function compressMessages(body: unknown, enabled: boolean): CompressStats | null {
+  if (!enabled) return null;
+  if (!isRecord(body)) return null;
+
+  const items: unknown[] | null = Array.isArray(body.messages)
     ? body.messages
     : Array.isArray(body.input)
       ? body.input
@@ -17,13 +23,13 @@ export function compressMessages(body: any, enabled: boolean): CompressStats | n
   const stats: CompressStats = { bytesBefore: 0, bytesAfter: 0, hits: [] };
   try {
     for (const msg of items) {
-      if (!msg) continue;
+      if (!isRecord(msg)) continue;
       if (msg.type === 'function_call_output') {
         if (typeof msg.output === 'string')
           msg.output = compressText(msg.output, stats, 'openai-responses');
         else if (Array.isArray(msg.output)) {
           for (const part of msg.output) {
-            if (part?.type === 'input_text' && typeof part.text === 'string') {
+            if (isRecord(part) && part.type === 'input_text' && typeof part.text === 'string') {
               part.text = compressText(part.text, stats, 'openai-responses-array');
             }
           }
@@ -36,7 +42,7 @@ export function compressMessages(body: any, enabled: boolean): CompressStats | n
       }
       if (msg.role === 'tool' && Array.isArray(msg.content)) {
         for (const part of msg.content) {
-          if (part?.type === 'text' && typeof part.text === 'string') {
+          if (isRecord(part) && part.type === 'text' && typeof part.text === 'string') {
             part.text = compressText(part.text, stats, 'openai-tool-array');
           }
         }
@@ -44,13 +50,13 @@ export function compressMessages(body: any, enabled: boolean): CompressStats | n
       }
       if (Array.isArray(msg.content)) {
         for (const block of msg.content) {
-          if (block?.type !== 'tool_result') continue;
+          if (!isRecord(block) || block.type !== 'tool_result') continue;
           if (block.is_error === true) continue;
           if (typeof block.content === 'string') {
             block.content = compressText(block.content, stats, 'claude-string');
           } else if (Array.isArray(block.content)) {
             for (const part of block.content) {
-              if (part?.type === 'text' && typeof part.text === 'string') {
+              if (isRecord(part) && part.type === 'text' && typeof part.text === 'string') {
                 part.text = compressText(part.text, stats, 'claude-array');
               }
             }
@@ -58,8 +64,9 @@ export function compressMessages(body: any, enabled: boolean): CompressStats | n
         }
       }
     }
-  } catch (e: any) {
-    console.warn('[RTK] compressMessages error:', e.message);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.warn('[RTK] compressMessages error:', message);
     return null;
   }
   return stats.hits.length > 0 ? stats : null;

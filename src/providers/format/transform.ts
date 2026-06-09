@@ -12,8 +12,10 @@
 import type {
   AnthropicBody,
   AnthropicResponse,
+  ContentBlock,
   OpenAIBody,
   OpenAIResponse,
+  OpenAIToolCall,
 } from './messageTypes.js';
 
 const OPENAI_ONLY_PARAMS = [
@@ -159,24 +161,39 @@ const FINISH_REASON_TO_STOP: Record<string, string> = {
   function_call: 'tool_use', // legacy
 };
 
+interface AnthropicUsageFromOpenAI {
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens: number;
+  cache_read_input_tokens: number;
+}
+
+interface OpenAIUsageFromAnthropic {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cache_creation_tokens: number;
+  prompt_tokens_details?: { cached_tokens: number };
+}
+
 export function responseOpenAIToAnthropic(resp: OpenAIResponse): AnthropicResponse {
   const choice = resp?.choices?.[0];
   if (!choice) return resp;
   const msg = choice.message ?? {};
-  const blocks: any[] = [];
+  const blocks: ContentBlock[] = [];
 
   if (msg.reasoning_content) {
     blocks.push({ type: 'thinking', thinking: msg.reasoning_content });
   }
-  if (msg.content) {
+  if (typeof msg.content === 'string') {
     blocks.push({ type: 'text', text: msg.content });
   }
   if (Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
     for (const tc of msg.tool_calls) {
       const fn = tc.function ?? {};
-      let input: any = {};
+      let input: unknown = {};
       try {
-        input = JSON.parse(fn.arguments ?? '{}');
+        input = JSON.parse(fn.arguments ?? '{}') as unknown;
       } catch {
         input = { _raw: fn.arguments };
       }
@@ -198,7 +215,7 @@ export function responseOpenAIToAnthropic(resp: OpenAIResponse): AnthropicRespon
   };
 }
 
-function openAIToAnthropicUsage(u: any): any {
+function openAIToAnthropicUsage(u: NonNullable<OpenAIResponse['usage']>): AnthropicUsageFromOpenAI {
   return {
     input_tokens: u.prompt_tokens ?? 0,
     output_tokens: u.completion_tokens ?? 0,
@@ -220,12 +237,12 @@ export function responseAnthropicToOpenAI(resp: AnthropicResponse): OpenAIRespon
   const content = Array.isArray(resp?.content) ? resp.content : [];
   const textParts: string[] = [];
   const reasoningParts: string[] = [];
-  const toolCalls: any[] = [];
+  const toolCalls: OpenAIToolCall[] = [];
   for (const block of content) {
     if (!block) continue;
     if (block.type === 'text') textParts.push(block.text ?? '');
     else if (block.type === 'thinking') reasoningParts.push(block.thinking ?? '');
-    else if (block.type === 'tool_use') {
+    else if (block.type === 'tool_use' && block.id && block.name) {
       toolCalls.push({
         id: block.id,
         type: 'function',
@@ -256,7 +273,9 @@ export function responseAnthropicToOpenAI(resp: AnthropicResponse): OpenAIRespon
   };
 }
 
-function anthropicToOpenAIUsage(u: any): any {
+function anthropicToOpenAIUsage(
+  u: NonNullable<AnthropicResponse['usage']>
+): OpenAIUsageFromAnthropic {
   return {
     prompt_tokens: u.input_tokens ?? 0,
     completion_tokens: u.output_tokens ?? 0,

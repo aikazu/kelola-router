@@ -60,7 +60,7 @@ function parseFrame(data: Uint8Array): KiroEvent | null {
     let payload: Record<string, unknown> | null = null;
     if (payloadEnd > payloadStart) {
       const payloadStr = SHARED_DECODER.decode(data.subarray(payloadStart, payloadEnd));
-      if (payloadStr && payloadStr.trim()) {
+      if (payloadStr?.trim()) {
         try {
           payload = JSON.parse(payloadStr) as Record<string, unknown>;
         } catch {

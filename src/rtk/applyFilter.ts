@@ -6,11 +6,10 @@ export function safeApply(fn: FilterFn | undefined, text: string): string {
     const out = fn(text);
     if (typeof out !== 'string') return text;
     return out;
-  } catch (err: any) {
+  } catch (err: unknown) {
     const name = fn.filterName || 'anonymous';
-    console.warn(
-      `[rtk] warning: filter '${name}' panicked — passing through: ${err?.message || err}`
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[rtk] warning: filter '${name}' panicked — passing through: ${message}`);
     return text;
   }
 }

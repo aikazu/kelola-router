@@ -10,8 +10,8 @@ import {
   flushDeferredLogs,
   getDeferredLogQueueStats,
   insertRequestLogDeferred,
-  resetDeferredLogQueueConfigForTests,
   type RequestLogInsert,
+  resetDeferredLogQueueConfigForTests,
 } from './requestLogs.js';
 
 function entry(clientKeyId: number): RequestLogInsert {

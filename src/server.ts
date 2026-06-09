@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
 import { serve } from '@hono/node-server';
 import type Database from 'better-sqlite3';
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { ulid } from 'ulid';
 import { checkFallbackError } from './accounts/errorRules.js';
 import { clearExpiredModelLocks, getModelLock, setModelLock } from './accounts/locks.js';
@@ -68,8 +69,8 @@ import { calculateCost } from './providers/pricing.js';
 import { upstreamFetch } from './providers/upstreamFetch.js';
 import { headersToJson, truncateBody } from './proxy/capture.js';
 import { compressMessages, formatRtkLog } from './rtk/index.js';
-import { startQuotaPuller, stopQuotaPuller } from './scheduler/quotaPull.js';
 import { markHotPath } from './runtime/hotPathMetrics.js';
+import { startQuotaPuller, stopQuotaPuller } from './scheduler/quotaPull.js';
 import { pipeWithUsage } from './streaming/pipeWithUsage.js';
 import { resolveTransportForAccount } from './transport/resolve.js';
 import { getHost, getPort } from './util/env.js';
@@ -81,6 +82,18 @@ function safeJsonParse(s: string): unknown {
   } catch {
     return null;
   }
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function statusCode(value: number): ContentfulStatusCode {
+  return value as ContentfulStatusCode;
 }
 
 let _db: Database.Database | null = null;
@@ -112,7 +125,7 @@ app.post('/login', handleLogin);
 app.post('/logout', handleLogout);
 
 async function handleProxy(
-  c: any,
+  c: Context,
   format: 'openai' | 'anthropic',
   upstreamPath: string
 ): Promise<Response> {
@@ -122,12 +135,12 @@ async function handleProxy(
   if (text.length > 10 * 1024 * 1024) {
     return c.json({ error: 'request body exceeds 10MB limit' }, 413);
   }
-  let body: any = {};
+  let body: Record<string, unknown> = {};
   if (text) {
     try {
-      body = JSON.parse(text);
-    } catch (e: any) {
-      return c.json({ error: `invalid JSON: ${e.message}` }, 400);
+      body = JSON.parse(text) as Record<string, unknown>;
+    } catch (e: unknown) {
+      return c.json({ error: `invalid JSON: ${errorMessage(e)}` }, 400);
     }
   }
   let bodyDirty = false;
@@ -139,7 +152,7 @@ async function handleProxy(
   // branch to that provider's path. Unknown models fall through to the MiniMax
   // path, which surfaces the canonical 400 from resolveModel below.
   try {
-    const peek = resolveModel(db, body.model ?? '', body);
+    const peek = resolveModel(db, stringValue(body.model), body);
     if (peek.provider === 'kiro') {
       return await handleKiroProxy(c, format, upstreamPath, body, db);
     }
@@ -216,7 +229,7 @@ async function handleProxy(
 
   let resolved;
   try {
-    resolved = resolveModel(db, body.model ?? '', body);
+    resolved = resolveModel(db, stringValue(body.model), body);
     const origModel = body.model;
     // NOTE: this snapshot must list EVERY field resolved.bodyTransform may write.
     // bodyTransform currently writes: thinking, max_completion_tokens, reasoning_split.
@@ -234,8 +247,8 @@ async function handleProxy(
     ) {
       bodyDirty = true;
     }
-  } catch (e: any) {
-    return c.json({ error: e.message }, 400);
+  } catch (e: unknown) {
+    return c.json({ error: errorMessage(e) }, 400);
   }
   const requestedModel = resolved.requestedModel;
   markHotPath('proxy:model-resolved');
@@ -321,7 +334,7 @@ async function handleProxy(
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), resp.status, errBody.slice(0, 200))
       );
-      return c.body(errBody, resp.status as any, {
+      return c.body(errBody, statusCode(resp.status), {
         'content-type': resp.headers.get('content-type') ?? 'application/json',
       });
     }
@@ -343,7 +356,7 @@ async function handleProxy(
       const startMs = c.get('startTime');
       const clientKeyId = clientKey.id;
       const accountId = account.id;
-      const modelName = body.model;
+      const modelName = stringValue(body.model);
       const piped = await pipeWithUsage(resp, format, (usage, raw) => {
         const prompt = usage?.prompt_tokens ?? 0;
         const completion = usage?.completion_tokens ?? 0;
@@ -423,7 +436,7 @@ async function handleProxy(
     } catch {
       /* non-JSON or malformed; pass through */
     }
-    const cost = calculateCost(db, body.model, {
+    const cost = calculateCost(db, stringValue(body.model), {
       prompt_tokens: usage.prompt_tokens ?? 0,
       completion_tokens: usage.completion_tokens ?? 0,
       cache_creation_tokens: usage.cache_creation_tokens ?? 0,
@@ -432,7 +445,7 @@ async function handleProxy(
     insertRequestLogDeferred(db, {
       client_key_id: clientKey.id,
       account_id: account.id,
-      model: body.model,
+      model: stringValue(body.model),
       requested_model: requestedModel,
       endpoint: upstreamPath,
       format: upstreamFormat,
@@ -466,22 +479,23 @@ async function handleProxy(
         Date.now() - c.get('startTime')
       )
     );
-    return c.body(respBody, resp.status as any, {
+    return c.body(respBody, statusCode(resp.status), {
       'content-type': resp.headers.get('content-type') ?? 'application/json',
     });
-  } catch (e: any) {
-    log.error({ err: e.message }, 'upstream unreachable');
+  } catch (e: unknown) {
+    const message = errorMessage(e);
+    log.error({ err: message }, 'upstream unreachable');
     const rid = c.get('reqId') ?? '----';
-    consoleBus.emit(buildError(rid, new Date().toISOString(), 502, e.message));
-    return c.json({ error: `upstream unreachable: ${e.message}` }, 502);
+    consoleBus.emit(buildError(rid, new Date().toISOString(), 502, message));
+    return c.json({ error: `upstream unreachable: ${message}` }, 502);
   }
 }
 
 async function handleKiroProxy(
-  c: any,
+  c: Context,
   format: 'openai' | 'anthropic',
   upstreamPath: string,
-  body: any,
+  body: Record<string, unknown>,
   db: Database.Database
 ): Promise<Response> {
   const clientKey = c.get('clientKey');
@@ -499,9 +513,9 @@ async function handleKiroProxy(
 
   let resolved: ReturnType<typeof resolveModel>;
   try {
-    resolved = resolveModel(db, body.model ?? '', body);
-  } catch (e: any) {
-    return c.json({ error: e.message }, 400);
+    resolved = resolveModel(db, stringValue(body.model), body);
+  } catch (e: unknown) {
+    return c.json({ error: errorMessage(e) }, 400);
   }
   const requestedModel = resolved.requestedModel;
   const modelName = resolved.upstreamModel;
@@ -634,9 +648,13 @@ async function handleKiroProxy(
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), result.status, errBody.slice(0, 200))
       );
-      return c.body(errBody || JSON.stringify({ error: 'kiro upstream error' }), result.status, {
-        'content-type': 'application/json',
-      });
+      return c.body(
+        errBody || JSON.stringify({ error: 'kiro upstream error' }),
+        statusCode(result.status),
+        {
+          'content-type': 'application/json',
+        }
+      );
     }
 
     if (
@@ -673,12 +691,13 @@ async function handleKiroProxy(
           )
         : JSON.stringify(completion);
     logUsage(completion.usage, false, result.status, respBody);
-    return c.body(respBody, result.status as any, { 'content-type': 'application/json' });
-  } catch (e: any) {
-    log.error({ err: e.message }, 'kiro upstream error');
+    return c.body(respBody, statusCode(result.status), { 'content-type': 'application/json' });
+  } catch (e: unknown) {
+    const message = errorMessage(e);
+    log.error({ err: message }, 'kiro upstream error');
     const rid = c.get('reqId') ?? '----';
-    consoleBus.emit(buildError(rid, new Date().toISOString(), 502, e.message));
-    return c.json({ error: `kiro upstream error: ${e.message}` }, 502);
+    consoleBus.emit(buildError(rid, new Date().toISOString(), 502, message));
+    return c.json({ error: `kiro upstream error: ${message}` }, 502);
   }
 }
 
@@ -737,7 +756,7 @@ app.get('/v1/models', requireApiKey, async (c) => {
   const transport = resolveTransportForAccount(db, acc);
   const resp = await upstreamFetch(url, {}, headers, transport);
   const text = await resp.text();
-  return c.body(text, resp.status as any, {
+  return c.body(text, statusCode(resp.status), {
     'content-type': resp.headers.get('content-type') ?? 'application/json',
   });
 });
