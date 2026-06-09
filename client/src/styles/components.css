@@ -1175,3 +1175,64 @@ textarea::placeholder {
     font-size: 24px;
   }
 }
+
+/* ── Live Console ─────────────────────────────────────────────── */
+.console-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.console-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.console-dot.live {
+  background: var(--signal);
+}
+.console-dot.down {
+  background: var(--alert);
+}
+.console-status {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.console-scroll {
+  margin-top: 16px;
+  height: calc(100vh - 180px);
+  overflow-y: auto;
+  background: #0d0d0d;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 14px;
+}
+.console-box {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.console-block {
+  margin-bottom: 10px;
+}
+.console-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.console-sub {
+  color: var(--text-3);
+  padding-left: 6px;
+}
+.console-reqid {
+  color: var(--gold);
+}
+.console-ok {
+  color: var(--signal);
+}
+.console-err {
+  color: var(--alert);
+}
+.console-empty {
+  color: var(--text-3);
+  font-style: italic;
+}
