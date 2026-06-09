@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { invalidateDispatcher } from '../../transport/dispatcherCache.js';
 
 export type TransportType = 'proxy' | 'relay';
 export type TransportKind = 'http' | 'socks5' | 'vercel' | 'cloudflare';
@@ -69,8 +70,20 @@ export function updateTransport(
     return k === 'enabled' ? (v ? 1 : 0) : v;
   });
   db.prepare(`UPDATE transports SET ${set} WHERE id = ?`).run(...values, id);
+  // Invalidate the cached dispatcher when URL/kind changes or proxy gets
+  // disabled, so the next request rebuilds the agent with the new config.
+  if (patch.url || patch.kind || patch.enabled === false) {
+    if (patch.url) {
+      if (patch.kind === 'socks5') invalidateSocks(patch.url);
+      else if (patch.kind) invalidateDispatcher(patch.url);
+    }
+  }
 }
 
 export function deleteTransport(db: Database.Database, id: string): void {
+  const existing = getTransport(db, id);
   db.prepare(`DELETE FROM transports WHERE id = ?`).run(id);
+  if (existing && existing.type === 'proxy' && existing.kind !== 'socks5') {
+    invalidateDispatcher(existing.url);
+  }
 }
