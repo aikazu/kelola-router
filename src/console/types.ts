@@ -1,5 +1,5 @@
 // src/console/types.ts
-export type FlowReason = 'sticky' | 'round-robin' | 'fallback';
+export type FlowReason = 'lowest-backoff' | 'round-robin' | 'sticky' | 'fallback';
 export type TransportKind = 'proxy' | 'relay' | 'direct';
 
 export type FlowEvent =

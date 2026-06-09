@@ -1,5 +1,20 @@
 export type CreditType = 'payg' | 'token-plan';
 export type AccountStatus = 'active' | 'error' | 'disabled';
+export type SelectionMode = 'lowest-backoff' | 'round-robin' | 'sticky';
+export type SelectionReason = 'lowest-backoff' | 'round-robin' | 'sticky' | 'fallback';
+
+export interface SelectionOpts {
+  mode: SelectionMode;
+  cursor?: number;
+  clientKeyId?: number;
+  stickyMap?: Map<number, string>;
+}
+
+export interface SelectionResult {
+  account: AccountState | null;
+  reason: SelectionReason;
+  nextCursor?: number;
+}
 
 export interface AccountState {
   id: string;

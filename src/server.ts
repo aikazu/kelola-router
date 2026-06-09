@@ -9,7 +9,7 @@ import { checkFallbackError } from './accounts/errorRules.js';
 import { clearExpiredModelLocks, getModelLock, setModelLock } from './accounts/locks.js';
 import { selectAccount } from './accounts/selection.js';
 import { isModelLockActive } from './accounts/state.js';
-import type { AccountState } from './accounts/types.js';
+import type { AccountState, SelectionMode } from './accounts/types.js';
 import { adminApi } from './api/admin/index.js';
 import { setPassword } from './auth/password.js';
 import {
@@ -101,6 +101,9 @@ function getDb(): Database.Database {
   if (!_db) _db = openDb();
   return _db;
 }
+
+let rrCursor = 0;
+const stickyMap = new Map<number, string>();
 
 const app = new Hono();
 app.use('*', async (c, next) => {
@@ -222,7 +225,9 @@ async function handleProxy(
     status: a.status as AccountState['status'],
     enabled: !!a.enabled,
   }));
-  const account = selectAccount(accountStates);
+  const selMode = (getSetting(db, 'selection.mode') as SelectionMode | null) ?? 'lowest-backoff';
+  const { account, reason, nextCursor } = selectAccount(accountStates, { mode: selMode, cursor: rrCursor, clientKeyId: clientKey?.id, stickyMap });
+  if (nextCursor != null) rrCursor = nextCursor;
   if (!account) return c.json({ error: 'all accounts unavailable' }, 503);
   const acc = allAccounts.find((a) => a.id === account.id)!;
   markHotPath('proxy:account-selected');
@@ -265,7 +270,7 @@ async function handleProxy(
       requestedModel ?? null
     )
   );
-  consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, 'round-robin'));
+  consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, reason));
 
   clearExpiredModelLocks(db);
   if (isModelLockActive(getModelLock(db, account.id, resolved.upstreamModel))) {
@@ -543,10 +548,12 @@ async function handleKiroProxy(
     status: a.status as AccountState['status'],
     enabled: !!a.enabled,
   }));
-  const picked = selectAccount(states);
+  const kiroSelMode = (getSetting(db, 'selection.mode') as SelectionMode | null) ?? 'lowest-backoff';
+  const { account: picked, reason: kiroReason, nextCursor: kiroNext } = selectAccount(states, { mode: kiroSelMode, cursor: rrCursor, clientKeyId: clientKey?.id, stickyMap });
+  if (kiroNext != null) rrCursor = kiroNext;
   if (!picked) return c.json({ error: 'all Kiro accounts unavailable' }, 503);
   const acc = accounts.find((a) => a.id === picked.id)!;
-  consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, 'round-robin'));
+  consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, kiroReason));
 
   const transport = resolveTransportForAccount(db, acc);
   if (transport) {
