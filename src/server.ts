@@ -387,21 +387,6 @@ async function handleProxy(
     }
 
     let respBody = await resp.text();
-    // Cross-format response conversion (non-stream only). Stream responses
-    // pass through with upstream shape — stream-shape re-emit is deferred.
-    if (format !== upstreamFormat) {
-      try {
-        const parsed = JSON.parse(respBody);
-        // The response is in upstreamFormat. Convert to client format.
-        const converted =
-          upstreamFormat === 'anthropic'
-            ? responseAnthropicToOpenAI(parsed)
-            : responseOpenAIToAnthropic(parsed);
-        respBody = JSON.stringify(converted);
-      } catch {
-        /* non-JSON or malformed; pass through */
-      }
-    }
     let usage: {
       prompt_tokens?: number;
       completion_tokens?: number;
@@ -410,8 +395,27 @@ async function handleProxy(
       prompt_tokens_details?: { cached_tokens?: number };
     } = {};
     try {
-      usage = JSON.parse(respBody).usage ?? {};
-    } catch {}
+      // Parse once, reuse for both cross-format conversion (if needed) and
+      // usage extraction. Avoids a second JSON.parse on the same body.
+      const parsed = JSON.parse(respBody) as { usage?: typeof usage } & Record<string, unknown>;
+      if (format !== upstreamFormat) {
+        const converted =
+          upstreamFormat === 'anthropic'
+            ? responseAnthropicToOpenAI(
+                parsed as Parameters<typeof responseAnthropicToOpenAI>[0]
+              )
+            : responseOpenAIToAnthropic(
+                parsed as Parameters<typeof responseOpenAIToAnthropic>[0]
+              );
+        respBody = JSON.stringify(converted);
+        const convUsage = (converted as { usage?: typeof usage }).usage;
+        usage = convUsage ?? parsed.usage ?? {};
+      } else {
+        usage = parsed.usage ?? {};
+      }
+    } catch {
+      /* non-JSON or malformed; pass through */
+    }
     const cost = calculateCost(db, body.model, {
       prompt_tokens: usage.prompt_tokens ?? 0,
       completion_tokens: usage.completion_tokens ?? 0,
