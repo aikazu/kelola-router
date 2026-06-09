@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon, type IconName } from '../components/Icon';
 import { apiFetch } from '../lib/api';
 
@@ -7,10 +7,6 @@ interface NavItem {
   label: string;
   href: string;
   icon: IconName;
-}
-
-interface SettingsData {
-  version: string | null;
 }
 
 const NAV: NavItem[] = [
@@ -28,16 +24,11 @@ const NAV: NavItem[] = [
 
 export function Sidebar({ current, mobileOpen, onMobileClose }: { current: string; mobileOpen?: boolean; onMobileClose?: () => void }) {
   const qc = useQueryClient();
-  const { data: me } = useQuery({
-    queryKey: ['me'],
-    queryFn: () => apiFetch<{ authed: boolean; passwordSet: boolean }>('/api/me'),
-    retry: false,
-  });
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => apiFetch<SettingsData>('/api/admin/settings'),
-    retry: false,
-  });
+  // Read from cache only — App.PrimeCache() populates this on mount. Reading
+  // via getQueryData (synchronous) avoids re-running the query on every
+  // Sidebar re-render.
+  const me = qc.getQueryData<{ authed: boolean; passwordSet: boolean }>(['me']);
+  const settings = qc.getQueryData<{ version: string | null }>(['settings']);
   return (
     <>
       {mobileOpen && <div class="sidebar-overlay" onClick={onMobileClose} />}

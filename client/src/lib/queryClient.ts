@@ -1,9 +1,23 @@
 import { QueryClient } from '@tanstack/react-query';
 
+/**
+ * Default staleTime is 30s — most admin pages don't change every 5s. Pages
+ * that need fresher data (overview live counters) override per-query.
+ *
+ * `gcTime` 5 min: keep cached data on route changes so back-nav is instant.
+ */
+const DEFAULT_STALE_MS = 30_000;
+const DEFAULT_GC_MS = 5 * 60_000;
+
+/** Use for slowly-changing reference data: models, accounts, aliases, transports. */
+export const CATALOG_STALE_MS = 5 * 60_000;
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5_000,
+      staleTime: DEFAULT_STALE_MS,
+      gcTime: DEFAULT_GC_MS,
+      refetchOnWindowFocus: false,
       retry: (failureCount, error: unknown) => {
         if (
           error instanceof Error &&
