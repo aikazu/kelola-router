@@ -24,6 +24,7 @@ interface OverviewData {
     id: number;
     createdAt: string;
     model: string;
+    accountLabel: string | null;
     statusCode: number;
     cost: number;
     latencyMs: number;
@@ -167,6 +168,7 @@ export function Overview() {
                 <tr>
                   <th>Time</th>
                   <th>Model</th>
+                  <th>Account</th>
                   <th>Status</th>
                   <th class="num">Latency</th>
                   <th class="num">Cost</th>
@@ -192,6 +194,7 @@ export function Overview() {
                       {relativeTime(r.createdAt)}
                     </td>
                     <td>{r.model}</td>
+                    <td>{r.accountLabel ?? '—'}</td>
                     <td>
                       <Badge
                         variant={
