@@ -28,18 +28,6 @@ interface TestResult {
   error?: string;
 }
 
-const inputStyle: any = {
-  width: '100%',
-  marginTop: 6,
-  padding: '8px 10px',
-  background: 'var(--ink-1)',
-  border: '1px solid var(--ink-3)',
-  color: 'var(--text-1)',
-  borderRadius: 4,
-  fontFamily: 'inherit',
-  fontSize: 13,
-};
-
 const PROXY_KINDS = ['http', 'socks5'] as const;
 const RELAY_KINDS = ['vercel', 'cloudflare'] as const;
 
@@ -237,7 +225,7 @@ export function Transports() {
             <select
               value={form.type}
               onChange={(e) => onTypeChange((e.target as HTMLSelectElement).value as 'proxy' | 'relay')}
-              style={inputStyle}
+              class="input"
             >
               <option value="proxy">Proxy (HTTP / SOCKS5)</option>
               <option value="relay">Relay (Vercel / Cloudflare)</option>
@@ -248,7 +236,7 @@ export function Transports() {
             <select
               value={form.kind}
               onChange={(e) => setForm({ ...form, kind: (e.target as HTMLSelectElement).value })}
-              style={inputStyle}
+              class="input"
             >
               {kindOptions.map((k) => (
                 <option key={k} value={k}>{k}</option>
@@ -261,7 +249,7 @@ export function Transports() {
               value={form.label}
               onInput={(e) => setForm({ ...form, label: (e.target as HTMLInputElement).value })}
               placeholder={form.type === 'proxy' ? 'home socks' : 'vercel edge'}
-              style={inputStyle}
+              class="input"
             />
           </label>
           <label>
@@ -276,7 +264,7 @@ export function Transports() {
                     : 'http://user:pass@host:8080'
                   : 'https://your-relay.vercel.app/api'
               }
-              style={{ ...inputStyle, fontFamily: 'var(--font-mono, monospace)' }}
+              class="input" style={{ fontFamily: 'var(--font-mono, monospace)' }}
             />
             <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
               {form.type === 'relay'

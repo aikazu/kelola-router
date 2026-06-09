@@ -104,30 +104,11 @@ export function Models() {
             placeholder="Filter by name…"
             value={search}
             onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-            style={{
-              flex: 1,
-              minWidth: 180,
-              padding: '8px 10px',
-              background: 'var(--ink-1)',
-              border: '1px solid var(--ink-3)',
-              color: 'var(--text-1)',
-              borderRadius: 4,
-              fontFamily: 'inherit',
-              fontSize: 13,
-            }}
+            style={{ flex: 1, minWidth: 180 }}
           />
           <select
             value={providerFilter}
             onChange={(e) => setProviderFilter((e.target as HTMLSelectElement).value as any)}
-            style={{
-              background: 'var(--ink-1)',
-              border: '1px solid var(--ink-3)',
-              color: 'var(--text-1)',
-              padding: '8px 10px',
-              borderRadius: 4,
-              fontSize: 12,
-              fontFamily: 'inherit',
-            }}
           >
             <option value="all">All providers</option>
             <option value="minimax">MiniMax</option>

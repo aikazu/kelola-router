@@ -53,18 +53,6 @@ interface DeviceCodeData {
   startUrl: string;
 }
 
-const inputStyle: any = {
-  width: '100%',
-  marginTop: 6,
-  padding: '8px 10px',
-  background: 'var(--ink-1)',
-  border: '1px solid var(--ink-3)',
-  color: 'var(--text-1)',
-  borderRadius: 4,
-  fontFamily: 'inherit',
-  fontSize: 13,
-};
-
 export function Accounts() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -395,7 +383,7 @@ export function Accounts() {
             value={kiroForm.label}
             onInput={(e) => setKiroForm({ ...kiroForm, label: (e.target as HTMLInputElement).value })}
             placeholder="kiro1"
-            style={inputStyle}
+            class="input"
           />
         </label>
         {kiroMethod === 'idc' && (
@@ -406,7 +394,7 @@ export function Accounts() {
                 value={kiroForm.startUrl}
                 onInput={(e) => setKiroForm({ ...kiroForm, startUrl: (e.target as HTMLInputElement).value })}
                 placeholder="https://your-org.awsapps.com/start"
-                style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+                class="input" style={{ fontFamily: 'var(--font-mono)' }}
               />
             </label>
             <label>
@@ -415,7 +403,7 @@ export function Accounts() {
                 value={kiroForm.region}
                 onInput={(e) => setKiroForm({ ...kiroForm, region: (e.target as HTMLInputElement).value })}
                 placeholder="us-east-1"
-                style={inputStyle}
+                class="input"
               />
             </label>
           </>
@@ -447,7 +435,7 @@ export function Accounts() {
               value={kiroForm.label}
               onInput={(e) => setKiroForm({ ...kiroForm, label: (e.target as HTMLInputElement).value })}
               placeholder="kiro-auto"
-              style={inputStyle}
+              class="input"
             />
           </label>
           <Button onClick={() => saveAutoImport.mutate()} disabled={saveAutoImport.isPending}>
@@ -484,7 +472,7 @@ export function Accounts() {
             value={kiroForm.label}
             onInput={(e) => setKiroForm({ ...kiroForm, label: (e.target as HTMLInputElement).value })}
             placeholder="kiro1"
-            style={inputStyle}
+            class="input"
           />
         </label>
         <label>
@@ -500,7 +488,7 @@ export function Accounts() {
               }
             }}
             placeholder='Paste token JSON or raw refresh token (aorAAAAAG…)'
-            style={{ ...inputStyle, minHeight: 100, fontFamily: 'var(--font-mono, monospace)' }}
+            class="input" style={{ minHeight: 100, fontFamily: 'var(--font-mono, monospace)' }}
           />
           <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
             From ~/.aws/sso/cache/kiro-auth-token.json or paste the refresh token directly.
@@ -630,7 +618,7 @@ export function Accounts() {
             <select
               value={provider}
               onChange={(e) => { setProvider((e.target as HTMLSelectElement).value as 'minimax' | 'kiro'); resetForms(); setProvider((e.target as HTMLSelectElement).value as any); }}
-              style={inputStyle}
+              class="input"
             >
               <option value="minimax">MiniMax (API key)</option>
               <option value="kiro">Kiro (AWS CodeWhisperer)</option>
@@ -641,18 +629,18 @@ export function Accounts() {
             <>
               <label>
                 Label{' '}
-                <input value={form.label} onInput={(e) => setForm({ ...form, label: (e.target as HTMLInputElement).value })} style={inputStyle} aria-required="true" />
+                <input value={form.label} onInput={(e) => setForm({ ...form, label: (e.target as HTMLInputElement).value })} class="input" aria-required="true" />
               </label>
               <label>
                 Credit type
-                <select value={form.credit_type} onChange={(e) => setForm({ ...form, credit_type: (e.target as HTMLSelectElement).value })} style={inputStyle}>
+                <select value={form.credit_type} onChange={(e) => setForm({ ...form, credit_type: (e.target as HTMLSelectElement).value })} class="input">
                   <option value="payg">PAYG</option>
                   <option value="token-plan">Token Plan</option>
                 </select>
               </label>
               <label>
                 MiniMax API key{' '}
-                <input value={form.api_key} onInput={(e) => setForm({ ...form, api_key: (e.target as HTMLInputElement).value })} placeholder="mm_xxxxxxxx" style={inputStyle} aria-required="true" />
+                <input value={form.api_key} onInput={(e) => setForm({ ...form, api_key: (e.target as HTMLInputElement).value })} placeholder="mm_xxxxxxxx" class="input" aria-required="true" />
               </label>
             </>
           ) : (
@@ -663,7 +651,7 @@ export function Accounts() {
                 <select
                   value={kiroMethod}
                   onChange={(e) => { setKiroMethod((e.target as HTMLSelectElement).value as any); setDeviceStep('idle'); setAutoImportStatus('idle'); }}
-                  style={inputStyle}
+                  class="input"
                 >
                   <option value="builder-id">AWS Builder ID (OAuth)</option>
                   <option value="idc">AWS IAM Identity Center (OAuth)</option>
@@ -731,11 +719,11 @@ export function Accounts() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <label>
             Label
-            <input value={editForm.label} onInput={(e) => setEditForm({ ...editForm, label: (e.target as HTMLInputElement).value })} style={inputStyle} />
+            <input value={editForm.label} onInput={(e) => setEditForm({ ...editForm, label: (e.target as HTMLInputElement).value })} class="input" />
           </label>
           <label>
             New API key (leave empty to keep current)
-            <input value={editForm.api_key} onInput={(e) => setEditForm({ ...editForm, api_key: (e.target as HTMLInputElement).value })} placeholder="mm_xxxxxxxx" style={inputStyle} />
+            <input value={editForm.api_key} onInput={(e) => setEditForm({ ...editForm, api_key: (e.target as HTMLInputElement).value })} placeholder="mm_xxxxxxxx" class="input" />
           </label>
           {editing?.provider === 'kiro' && (
             <label>
@@ -743,7 +731,7 @@ export function Accounts() {
               <select
                 value={editForm.persona}
                 onChange={(e) => setEditForm({ ...editForm, persona: (e.target as HTMLSelectElement).value })}
-                style={inputStyle}
+                class="input"
               >
                 <option value="ide">IDE (legacy · stable · codewhisperer.amazonaws.com)</option>
                 <option value="cli">CLI (experimental · runtime.kiro.dev)</option>
@@ -762,7 +750,7 @@ export function Accounts() {
               <select
                 value={tpMode}
                 onChange={(e) => setTpMode((e.target as HTMLSelectElement).value as 'none' | 'proxy' | 'pool' | 'relay')}
-                style={inputStyle}
+                class="input"
               >
                 <option value="none">Direct / global default</option>
                 <option value="proxy">Single proxy</option>
@@ -774,7 +762,7 @@ export function Accounts() {
             {tpMode === 'proxy' && (
               <label style={{ marginTop: 10, display: 'block' }}>
                 Proxy
-                <select value={tpProxyId} onChange={(e) => setTpProxyId((e.target as HTMLSelectElement).value)} style={inputStyle}>
+                <select value={tpProxyId} onChange={(e) => setTpProxyId((e.target as HTMLSelectElement).value)} class="input">
                   <option value="">— select proxy —</option>
                   {proxies.map((p) => (
                     <option key={p.id} value={p.id}>{p.label} ({p.kind}){p.enabled ? '' : ' · disabled'}</option>
@@ -786,7 +774,7 @@ export function Accounts() {
             {tpMode === 'relay' && (
               <label style={{ marginTop: 10, display: 'block' }}>
                 Relay
-                <select value={tpRelayId} onChange={(e) => setTpRelayId((e.target as HTMLSelectElement).value)} style={inputStyle}>
+                <select value={tpRelayId} onChange={(e) => setTpRelayId((e.target as HTMLSelectElement).value)} class="input">
                   <option value="">— select relay —</option>
                   {relays.map((r) => (
                     <option key={r.id} value={r.id}>{r.label} ({r.kind}){r.enabled ? '' : ' · disabled'}</option>
@@ -823,7 +811,7 @@ export function Accounts() {
                     min={1}
                     value={tpRotate}
                     onInput={(e) => setTpRotate(Math.max(1, Number((e.target as HTMLInputElement).value) || 1))}
-                    style={inputStyle}
+                    class="input"
                   />
                   <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
                     The router uses one proxy for N requests, then advances to the next pool member.

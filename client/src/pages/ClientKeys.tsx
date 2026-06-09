@@ -20,18 +20,6 @@ interface ClientKey {
   keyPreview: string;
 }
 
-const inputStyle: any = {
-  width: '100%',
-  marginTop: 6,
-  padding: '8px 10px',
-  background: 'var(--ink-1)',
-  border: '1px solid var(--ink-3)',
-  color: 'var(--text-1)',
-  borderRadius: 4,
-  fontFamily: 'inherit',
-  fontSize: 13,
-};
-
 export function ClientKeys() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -228,7 +216,7 @@ export function ClientKeys() {
               value={label}
               onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
               placeholder="my-app"
-              style={inputStyle}
+              class="input"
               aria-required="true"
               aria-invalid={label.length === 0 ? undefined : undefined}
             />

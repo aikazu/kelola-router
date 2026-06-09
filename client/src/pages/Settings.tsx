@@ -17,18 +17,6 @@ interface SettingsData {
   version: string | null;
 }
 
-const inputStyle: any = {
-  width: '100%',
-  marginTop: 6,
-  padding: '8px 10px',
-  background: 'var(--ink-1)',
-  border: '1px solid var(--ink-3)',
-  color: 'var(--text-1)',
-  borderRadius: 4,
-  fontFamily: 'inherit',
-  fontSize: 13,
-};
-
 function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -57,7 +45,7 @@ function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
         minLength={4}
         required
         aria-label="New password"
-        style={inputStyle}
+        class="input"
       />
       <input
         type="password"
@@ -67,7 +55,8 @@ function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
         required
         aria-label="Confirm password"
         aria-invalid={!!err}
-        style={{ ...inputStyle, marginTop: 8 }}
+        class="input"
+        style={{ marginTop: 8 }}
       />
       {err && (
         <p
@@ -186,7 +175,7 @@ export function Settings() {
         <select
           value={data.caveman.level}
           onChange={(e) => cavemanMut.mutate((e.target as HTMLSelectElement).value)}
-          style={inputStyle}
+          class="input"
           disabled={cavemanMut.isPending}
         >
           <option value="off">Off</option>
@@ -219,7 +208,7 @@ export function Settings() {
             onChange={(e) =>
               minimaxMut.mutate({ upstreamFormat: (e.target as HTMLSelectElement).value })
             }
-            style={inputStyle}
+            class="input"
           >
             <option value="auto">Auto</option>
             <option value="openai">Always OpenAI</option>

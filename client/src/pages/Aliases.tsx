@@ -125,17 +125,7 @@ export function Aliases() {
           placeholder="Filter by alias, target, or label…"
           value={search}
           onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-          style={{
-            width: '100%',
-            marginBottom: 12,
-            padding: '8px 10px',
-            background: 'var(--ink-1)',
-            border: '1px solid var(--ink-3)',
-            color: 'var(--text-1)',
-            borderRadius: 4,
-            fontFamily: 'inherit',
-            fontSize: 13,
-          }}
+          style={{ width: '100%', marginBottom: 12 }}
         />
         {isError ? (
           <ErrorState error={error as Error} onRetry={() => refetch()} />
@@ -294,15 +284,7 @@ function AliasModal({
             disabled={!!alias}
             onInput={(e) => setName((e.target as HTMLInputElement).value)}
             placeholder="claude-opus-4-8"
-            style={{
-              padding: '8px 10px',
-              background: 'var(--ink-1)',
-              border: '1px solid var(--ink-3)',
-              color: 'var(--text-1)',
-              borderRadius: 4,
-              fontFamily: 'inherit',
-              fontSize: 13,
-            }}
+            class="input"
           />
           {name && !nameValid && (
             <span style={{ color: 'var(--alert)', fontSize: 12 }}>
@@ -317,15 +299,7 @@ function AliasModal({
           <select
             value={target}
             onChange={(e) => setTarget((e.target as HTMLSelectElement).value)}
-            style={{
-              padding: '8px 10px',
-              background: 'var(--ink-1)',
-              border: '1px solid var(--ink-3)',
-              color: 'var(--text-1)',
-              borderRadius: 4,
-              fontFamily: 'inherit',
-              fontSize: 13,
-            }}
+            class="input"
           >
             {enabledModels.map((m) => (
               <option key={m.name} value={m.name}>
@@ -342,15 +316,7 @@ function AliasModal({
             value={label}
             onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
             placeholder="Claude Code → M3"
-            style={{
-              padding: '8px 10px',
-              background: 'var(--ink-1)',
-              border: '1px solid var(--ink-3)',
-              color: 'var(--text-1)',
-              borderRadius: 4,
-              fontFamily: 'inherit',
-              fontSize: 13,
-            }}
+            class="input"
           />
         </label>
       </div>
