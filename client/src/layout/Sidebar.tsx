@@ -21,6 +21,7 @@ const NAV: NavItem[] = [
   { key: 'models', label: 'Models', href: '/admin/models', icon: 'models' },
   { key: 'aliases', label: 'Aliases', href: '/admin/aliases', icon: 'aliases' },
   { key: 'quota', label: 'Quota', href: '/admin/quota', icon: 'quota' },
+  { key: 'transports', label: 'Proxies', href: '/admin/transports', icon: 'transports' },
   { key: 'settings', label: 'Settings', href: '/admin/settings', icon: 'settings' },
 ];
 

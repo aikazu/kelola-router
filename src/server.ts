@@ -55,6 +55,7 @@ import { PROVIDER, upstreamHeaders, upstreamUrl } from './providers/minimax.js';
 import { parseError } from './providers/parseError.js';
 import { calculateCost } from './providers/pricing.js';
 import { upstreamFetch } from './providers/upstreamFetch.js';
+import { resolveTransportForAccount } from './transport/resolve.js';
 import { headersToJson, truncateBody } from './proxy/capture.js';
 import { compressMessages, formatRtkLog } from './rtk/index.js';
 import { startQuotaPuller, stopQuotaPuller } from './scheduler/quotaPull.js';
@@ -244,10 +245,7 @@ async function handleProxy(
     body.stream === true,
     upstreamFormat
   );
-  const transport = getSetting<{
-    relay: { kind: 'vercel' | 'cloudflare'; url: string } | null;
-    proxy: { kind: 'http' | 'socks5'; url: string } | null;
-  } | null>(db, 'transport');
+  const transport = resolveTransportForAccount(db, acc);
 
   try {
     const upstreamBody = bodyDirty ? body : text || '{}';
@@ -451,10 +449,7 @@ async function handleKiroProxy(
   if (!picked) return c.json({ error: 'all Kiro accounts unavailable' }, 503);
   const acc = accounts.find((a) => a.id === picked.id)!;
 
-  const transport = getSetting<{
-    relay: { kind: 'vercel' | 'cloudflare'; url: string } | null;
-    proxy: { kind: 'http' | 'socks5'; url: string } | null;
-  } | null>(db, 'transport');
+  const transport = resolveTransportForAccount(db, acc);
 
   const logUsage = (
     usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null,
@@ -602,10 +597,7 @@ app.get('/v1/models', requireApiKey, async (c) => {
     false,
     upstreamFormat
   );
-  const transport = getSetting<{
-    relay: { kind: 'vercel' | 'cloudflare'; url: string } | null;
-    proxy: { kind: 'http' | 'socks5'; url: string } | null;
-  } | null>(db, 'transport');
+  const transport = resolveTransportForAccount(db, acc);
   const resp = await upstreamFetch(url, {}, headers, transport);
   const text = await resp.text();
   return c.body(text, resp.status as any, {

@@ -22,6 +22,14 @@ export interface Account {
   token_expires_at: string | null;
   /** Kiro: JSON blob {clientId, clientSecret, region, profileArn, authMethod}. */
   provider_data: string | null;
+  /** Single relay transport id (vercel/cloudflare). Mutually exclusive with proxy. */
+  relay_id: string | null;
+  /** Single proxy transport id (http/socks5). */
+  proxy_id: string | null;
+  /** JSON array of proxy transport ids for round-robin pool. */
+  proxy_pool: string | null;
+  /** Advance to the next pool member every N requests (>=1). */
+  proxy_rotate_every: number;
 }
 
 export type AccountCreate = Pick<Account, 'id' | 'label' | 'credit_type' | 'api_key'> & {

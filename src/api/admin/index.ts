@@ -10,6 +10,7 @@ import { overviewRoutes } from './overview.js';
 import { quotaRoutes } from './quota.js';
 import { requestLogRoutes } from './requestLogs.js';
 import { settingsRoutes } from './settings.js';
+import { transportRoutes } from './transports.js';
 import { usageRoutes } from './usage.js';
 
 export function adminApi(): Hono {
@@ -26,5 +27,6 @@ export function adminApi(): Hono {
   app.route('/admin/aliases', aliasRoutes);
   app.route('/admin', quotaRoutes);
   app.route('/admin/settings', settingsRoutes);
+  app.route('/admin/transports', transportRoutes);
   return app;
 }

@@ -49,6 +49,10 @@ accountRoutes.get('/', (c) => {
           lastError: a.last_error,
           backoffLevel: a.backoff_level,
           rateLimitedUntil: a.rate_limited_until,
+          relayId: a.relay_id,
+          proxyId: a.proxy_id,
+          proxyPool: a.proxy_pool ? (JSON.parse(a.proxy_pool) as string[]) : [],
+          proxyRotateEvery: a.proxy_rotate_every,
         };
       })
     );
@@ -233,11 +237,58 @@ accountRoutes.patch('/:id', (c) => {
   try {
     return c.req
       .json()
-      .then((body: { label?: string; api_key?: string; persona?: string; profileArn?: string }) => {
+      .then((body: {
+        label?: string;
+        api_key?: string;
+        persona?: string;
+        profileArn?: string;
+        relayId?: string | null;
+        proxyId?: string | null;
+        proxyPool?: string[] | null;
+        proxyRotateEvery?: number;
+      }) => {
         const db = c.get('db') as Database.Database;
-        const patch: Record<string, string> = {};
+        const patch: Record<string, string | number | null> = {};
         if (body.label) patch.label = body.label;
         if (body.api_key) patch.api_key = body.api_key;
+        // --- Transport assignment ---
+        // Empty string clears the assignment (set NULL).
+        if (body.relayId !== undefined) {
+          patch.relay_id = body.relayId ? body.relayId : null;
+        }
+        if (body.proxyId !== undefined) {
+          patch.proxy_id = body.proxyId ? body.proxyId : null;
+        }
+        if (body.proxyPool !== undefined) {
+          if (body.proxyPool === null || body.proxyPool.length === 0) {
+            patch.proxy_pool = null;
+          } else {
+            if (!Array.isArray(body.proxyPool) || body.proxyPool.some((x) => typeof x !== 'string')) {
+              throw new ApiError('invalid_input', 'proxyPool must be an array of ids', 400);
+            }
+            patch.proxy_pool = JSON.stringify(body.proxyPool);
+          }
+        }
+        if (body.proxyRotateEvery !== undefined) {
+          const n = Math.floor(Number(body.proxyRotateEvery));
+          if (!Number.isFinite(n) || n < 1) {
+            throw new ApiError('invalid_input', 'proxyRotateEvery must be >= 1', 400);
+          }
+          patch.proxy_rotate_every = n;
+        }
+        // Relay and proxy are mutually exclusive at resolve time; reject configs
+        // that try to set both a relay and a proxy/pool in the same request.
+        const settingRelay = patch.relay_id != null && patch.relay_id !== '';
+        const settingProxy =
+          (patch.proxy_id != null && patch.proxy_id !== '') ||
+          (patch.proxy_pool != null && patch.proxy_pool !== '');
+        if (settingRelay && settingProxy) {
+          throw new ApiError(
+            'invalid_input',
+            'relay and proxy are mutually exclusive; set only one',
+            400
+          );
+        }
         // persona + profileArn live inside the Kiro provider_data JSON blob.
         if (body.persona !== undefined || body.profileArn !== undefined) {
           const acc = getAccount(db, c.req.param('id'));

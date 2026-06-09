@@ -9,6 +9,7 @@ export type IconName =
   | 'aliases'
   | 'quota'
   | 'settings'
+  | 'transports'
   | 'search';
 
 const paths: Record<IconName, JSX.Element> = {
@@ -70,6 +71,16 @@ const paths: Record<IconName, JSX.Element> = {
     <>
       <circle cx="11" cy="11" r="8" />
       <path d="m21 21-4.35-4.35" />
+    </>
+  ),
+  transports: (
+    <>
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="19" cy="6" r="2" />
+      <circle cx="19" cy="18" r="2" />
+      <path d="M7 12h6" />
+      <path d="M13 12l4-5" />
+      <path d="M13 12l4 5" />
     </>
   ),
 };

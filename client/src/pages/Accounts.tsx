@@ -24,6 +24,19 @@ interface Account {
   lastError: string | null;
   backoffLevel: number;
   rateLimitedUntil: string | null;
+  relayId?: string | null;
+  proxyId?: string | null;
+  proxyPool?: string[];
+  proxyRotateEvery?: number;
+}
+
+interface Transport {
+  id: string;
+  label: string;
+  type: 'proxy' | 'relay';
+  kind: string;
+  url: string;
+  enabled: boolean;
 }
 
 interface DeviceCodeData {
@@ -92,6 +105,38 @@ export function Accounts() {
 
   const [editing, setEditing] = useState<Account | null>(null);
   const [editForm, setEditForm] = useState({ label: '', api_key: '', persona: 'ide' });
+
+  // Transport assignment state for the edit modal.
+  const { data: transports = [] } = useQuery({
+    queryKey: ['transports'],
+    queryFn: () => apiFetch<Transport[]>('/api/admin/transports'),
+  });
+  const proxies = transports.filter((t) => t.type === 'proxy');
+  const relays = transports.filter((t) => t.type === 'relay');
+  const [tpMode, setTpMode] = useState<'none' | 'proxy' | 'pool' | 'relay'>('none');
+  const [tpProxyId, setTpProxyId] = useState('');
+  const [tpRelayId, setTpRelayId] = useState('');
+  const [tpPool, setTpPool] = useState<string[]>([]);
+  const [tpRotate, setTpRotate] = useState(1);
+
+  function loadTransportState(a: Account) {
+    if (a.relayId) {
+      setTpMode('relay');
+      setTpRelayId(a.relayId);
+    } else if (a.proxyPool && a.proxyPool.length > 0) {
+      setTpMode('pool');
+      setTpPool(a.proxyPool);
+    } else if (a.proxyId) {
+      setTpMode('proxy');
+      setTpProxyId(a.proxyId);
+    } else {
+      setTpMode('none');
+    }
+    setTpProxyId(a.proxyId ?? '');
+    setTpRelayId(a.relayId ?? '');
+    setTpPool(a.proxyPool ?? []);
+    setTpRotate(a.proxyRotateEvery ?? 1);
+  }
 
   function resetForms() {
     setProvider('minimax');
@@ -248,18 +293,19 @@ export function Accounts() {
     onError: (e: Error) => toast.error(e.message),
   });
   const editMut = useMutation({
-    mutationFn: ({
-      id,
-      label,
-      api_key,
-      persona,
-    }: {
+    mutationFn: (vars: {
       id: string;
       label?: string;
       api_key?: string;
       persona?: string;
-    }) =>
-      apiFetch(`/api/admin/accounts/${id}`, { method: 'PATCH', json: { label, api_key, persona } }),
+      relayId?: string | null;
+      proxyId?: string | null;
+      proxyPool?: string[] | null;
+      proxyRotateEvery?: number;
+    }) => {
+      const { id, ...rest } = vars;
+      return apiFetch(`/api/admin/accounts/${id}`, { method: 'PATCH', json: rest });
+    },
     onSuccess: () => {
       setEditing(null);
       qc.invalidateQueries({ queryKey: ['accounts'] });
@@ -533,7 +579,7 @@ export function Accounts() {
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setEditForm({ label: a.label, api_key: '', persona: a.persona === 'cli' ? 'cli' : 'ide' }); }}>
+                        <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setEditForm({ label: a.label, api_key: '', persona: a.persona === 'cli' ? 'cli' : 'ide' }); loadTransportState(a); }}>
                           Edit
                         </Button>
                         <Button size="sm" variant="ghost" onClick={async () => {
@@ -642,23 +688,40 @@ export function Accounts() {
         title={`Edit "${editing?.label ?? ''}"`}
         footer={
           <Button
-            onClick={() =>
-              editing &&
-              editMut.mutate({
-                id: editing.id,
-                label: editForm.label || undefined,
-                api_key: editForm.api_key || undefined,
-                persona:
-                  editing.provider === 'kiro' && editForm.persona !== editing.persona
-                    ? editForm.persona
-                    : undefined,
-              })
-            }
+            onClick={() => {
+              if (!editing) return;
+              const payload: Parameters<typeof editMut.mutate>[0] = { id: editing.id };
+              if (editForm.label) payload.label = editForm.label;
+              if (editForm.api_key) payload.api_key = editForm.api_key;
+              if (editing.provider === 'kiro' && editForm.persona !== editing.persona) {
+                payload.persona = editForm.persona;
+              }
+              // Transport assignment — send the active mode's fields, clearing others.
+              if (tpMode === 'none') {
+                payload.relayId = '';
+                payload.proxyId = '';
+                payload.proxyPool = [];
+              } else if (tpMode === 'relay') {
+                payload.relayId = tpRelayId;
+                payload.proxyId = '';
+                payload.proxyPool = [];
+              } else if (tpMode === 'proxy') {
+                payload.relayId = '';
+                payload.proxyId = tpProxyId;
+                payload.proxyPool = [];
+              } else if (tpMode === 'pool') {
+                payload.relayId = '';
+                payload.proxyId = '';
+                payload.proxyPool = tpPool;
+                payload.proxyRotateEvery = tpRotate;
+              }
+              editMut.mutate(payload);
+            }}
             disabled={
-              (!editForm.label &&
-                !editForm.api_key &&
-                !(editing?.provider === 'kiro' && editForm.persona !== editing?.persona)) ||
-              editMut.isPending
+              editMut.isPending ||
+              (tpMode === 'relay' && !tpRelayId) ||
+              (tpMode === 'proxy' && !tpProxyId) ||
+              (tpMode === 'pool' && tpPool.length === 0)
             }
           >
             {editMut.isPending ? 'Saving…' : 'Save'}
@@ -691,6 +754,84 @@ export function Accounts() {
               </span>
             </label>
           )}
+
+          {/* --- Transport (proxy / relay) assignment --- */}
+          <div style={{ borderTop: '1px solid var(--ink-3)', paddingTop: 12, marginTop: 4 }}>
+            <label>
+              Network transport
+              <select
+                value={tpMode}
+                onChange={(e) => setTpMode((e.target as HTMLSelectElement).value as 'none' | 'proxy' | 'pool' | 'relay')}
+                style={inputStyle}
+              >
+                <option value="none">Direct / global default</option>
+                <option value="proxy">Single proxy</option>
+                <option value="pool">Proxy pool (rotate)</option>
+                <option value="relay">Relay</option>
+              </select>
+            </label>
+
+            {tpMode === 'proxy' && (
+              <label style={{ marginTop: 10, display: 'block' }}>
+                Proxy
+                <select value={tpProxyId} onChange={(e) => setTpProxyId((e.target as HTMLSelectElement).value)} style={inputStyle}>
+                  <option value="">— select proxy —</option>
+                  {proxies.map((p) => (
+                    <option key={p.id} value={p.id}>{p.label} ({p.kind}){p.enabled ? '' : ' · disabled'}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {tpMode === 'relay' && (
+              <label style={{ marginTop: 10, display: 'block' }}>
+                Relay
+                <select value={tpRelayId} onChange={(e) => setTpRelayId((e.target as HTMLSelectElement).value)} style={inputStyle}>
+                  <option value="">— select relay —</option>
+                  {relays.map((r) => (
+                    <option key={r.id} value={r.id}>{r.label} ({r.kind}){r.enabled ? '' : ' · disabled'}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {tpMode === 'pool' && (
+              <div style={{ marginTop: 10 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Pool members (proxies)</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: 160, overflowY: 'auto' }}>
+                  {proxies.length === 0 && (
+                    <span style={{ fontSize: 12, color: 'var(--text-3)' }}>No proxies yet — add some on the Proxies page.</span>
+                  )}
+                  {proxies.map((p) => (
+                    <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={tpPool.includes(p.id)}
+                        onChange={(e) => {
+                          const on = (e.target as HTMLInputElement).checked;
+                          setTpPool((cur) => (on ? [...cur, p.id] : cur.filter((x) => x !== p.id)));
+                        }}
+                      />
+                      {p.label} <span style={{ color: 'var(--text-3)', fontSize: 11 }}>({p.kind}){p.enabled ? '' : ' · disabled'}</span>
+                    </label>
+                  ))}
+                </div>
+                <label style={{ marginTop: 10, display: 'block' }}>
+                  Rotate every N requests
+                  <input
+                    type="number"
+                    min={1}
+                    value={tpRotate}
+                    onInput={(e) => setTpRotate(Math.max(1, Number((e.target as HTMLInputElement).value) || 1))}
+                    style={inputStyle}
+                  />
+                  <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
+                    The router uses one proxy for N requests, then advances to the next pool member.
+                  </span>
+                </label>
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
     </>

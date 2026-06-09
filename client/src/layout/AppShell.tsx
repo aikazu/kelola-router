@@ -15,6 +15,7 @@ const NotFound = lazy(() => import('../pages/NotFound').then((m) => ({ default: 
 const Overview = lazy(() => import('../pages/Overview').then((m) => ({ default: m.Overview })));
 const Quota = lazy(() => import('../pages/Quota').then((m) => ({ default: m.Quota })));
 const Settings = lazy(() => import('../pages/Settings').then((m) => ({ default: m.Settings })));
+const Transports = lazy(() => import('../pages/Transports').then((m) => ({ default: m.Transports })));
 const Usage = lazy(() => import('../pages/Usage').then((m) => ({ default: m.Usage })));
 
 const KNOWN_ROUTES = [
@@ -25,6 +26,7 @@ const KNOWN_ROUTES = [
   'models',
   'aliases',
   'quota',
+  'transports',
   'settings',
 ];
 
@@ -56,6 +58,8 @@ function Page({ current }: { current: string }) {
       return <Aliases />;
     case 'quota':
       return <Quota />;
+    case 'transports':
+      return <Transports />;
     case 'settings':
       return <Settings />;
     case 'overview':
@@ -89,6 +93,7 @@ export function AppShell() {
       m: '/admin/models',
       l: '/admin/aliases',
       q: '/admin/quota',
+      t: '/admin/transports',
       s: '/admin/settings',
     };
     const onKey = (e: KeyboardEvent) => {
