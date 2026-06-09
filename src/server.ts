@@ -218,19 +218,19 @@ async function handleProxy(
     // NOTE: this snapshot must list EVERY field resolved.bodyTransform may write.
     // bodyTransform currently writes: thinking, max_completion_tokens, reasoning_split.
     // If you add a field there, add it here too or the fast path will skip re-serialization.
-    const beforeKeys = JSON.stringify([
-      body.thinking,
-      body.max_completion_tokens,
-      body.reasoning_split,
-    ]);
+    const beforeThinking = body.thinking;
+    const beforeMaxCT = body.max_completion_tokens;
+    const beforeReasoning = body.reasoning_split;
     body.model = resolved.upstreamModel;
     resolved.bodyTransform(body);
-    const afterKeys = JSON.stringify([
-      body.thinking,
-      body.max_completion_tokens,
-      body.reasoning_split,
-    ]);
-    if (body.model !== origModel || beforeKeys !== afterKeys) bodyDirty = true;
+    if (
+      body.model !== origModel ||
+      body.thinking !== beforeThinking ||
+      body.max_completion_tokens !== beforeMaxCT ||
+      body.reasoning_split !== beforeReasoning
+    ) {
+      bodyDirty = true;
+    }
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
   }
