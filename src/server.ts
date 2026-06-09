@@ -28,6 +28,7 @@ import {
   buildTransport,
   genReqId,
 } from './console/flow.js';
+import { attachStdoutSink } from './console/sink.js';
 import { openDb } from './db/index.js';
 import {
   createAccount,
@@ -872,6 +873,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   serve({ fetch: app.fetch, port, hostname }, (info) => {
     log.info({ address: info.address, port: info.port }, 'router listening');
     startQuotaPuller(getDb(), 5 * 60_000);
+    attachStdoutSink();
   });
 
   async function gracefulShutdown(signal: string): Promise<void> {
