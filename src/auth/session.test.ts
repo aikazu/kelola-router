@@ -48,8 +48,11 @@ describe('session lifecycle', () => {
     expect(validateSession(db, s.id)).toBeUndefined();
   });
 
-  it('validate bumps last_seen', async () => {
+  it('validate bumps last_seen when previous was > 60s ago', async () => {
     const s = createSession(db);
+    // Backdate last_seen past the 60s throttle window.
+    const ancient = new Date(Date.now() - 120_000).toISOString();
+    db.prepare(`UPDATE sessions SET last_seen = ? WHERE id = ?`).run(ancient, s.id);
     const first = db.prepare(`SELECT last_seen FROM sessions WHERE id = ?`).get(s.id) as {
       last_seen: string;
     };
@@ -58,7 +61,18 @@ describe('session lifecycle', () => {
     const second = db.prepare(`SELECT last_seen FROM sessions WHERE id = ?`).get(s.id) as {
       last_seen: string;
     };
-    expect(second.last_seen >= first.last_seen).toBe(true);
+    expect(second.last_seen > first.last_seen).toBe(true);
+  });
+
+  it('validate does NOT bump last_seen within the 60s throttle window', () => {
+    const s = createSession(db);
+    const recent = new Date(Date.now() - 1000).toISOString(); // 1s ago
+    db.prepare(`UPDATE sessions SET last_seen = ? WHERE id = ?`).run(recent, s.id);
+    validateSession(db, s.id);
+    const after = db.prepare(`SELECT last_seen FROM sessions WHERE id = ?`).get(s.id) as {
+      last_seen: string;
+    };
+    expect(after.last_seen).toBe(recent);
   });
 });
 

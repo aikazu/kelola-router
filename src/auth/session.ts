@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type Database from 'better-sqlite3';
 
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const LAST_SEEN_THROTTLE_MS = 60_000;
 
 export interface Session {
   id: string;
@@ -46,7 +47,12 @@ export function validateSession(db: Database.Database, id: string): Session | un
     .get(id) as Session | undefined;
   if (!row) return undefined;
   if (new Date(row.expires_at).getTime() <= Date.now()) return undefined;
-  db.prepare(`UPDATE sessions SET last_seen = ${SQL_ISO} WHERE id = ?`).run(id);
+  // Throttle last_seen writes: skip if the previous value is within 60s.
+  // This avoids per-request write amplification on the sessions table.
+  const lastSeenMs = new Date(row.last_seen).getTime();
+  if (Date.now() - lastSeenMs >= LAST_SEEN_THROTTLE_MS) {
+    db.prepare(`UPDATE sessions SET last_seen = ${SQL_ISO} WHERE id = ?`).run(id);
+  }
   return row;
 }
 
