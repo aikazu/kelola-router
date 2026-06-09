@@ -97,6 +97,14 @@ export function Accounts() {
   const [autoImportSource, setAutoImportSource] = useState('');
   const [autoImportError, setAutoImportError] = useState('');
 
+  // Kiro usage modal
+  const [usageAccount, setUsageAccount] = useState<string | null>(null);
+  const { data: usageData, isLoading: usageLoading, isError: usageError, error: usageErr } = useQuery({
+    queryKey: ['account-usage', usageAccount],
+    queryFn: () => apiFetch<Record<string, unknown>>(`/api/admin/accounts/${usageAccount}/usage`),
+    enabled: !!usageAccount,
+  });
+
   const [editing, setEditing] = useState<Account | null>(null);
   const [editForm, setEditForm] = useState({ label: '', api_key: '', persona: 'ide' });
 
@@ -610,6 +618,11 @@ export function Accounts() {
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', gap: 4 }}>
+                        {a.provider === 'kiro' && (
+                          <Button size="sm" variant="ghost" onClick={() => setUsageAccount(a.id)}>
+                            Usage
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setEditForm({ label: a.label, api_key: '', persona: a.persona === 'cli' ? 'cli' : 'ide' }); loadTransportState(a); }}>
                           Edit
                         </Button>
@@ -891,6 +904,24 @@ export function Accounts() {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* Kiro Usage Modal */}
+      <Modal
+        open={!!usageAccount}
+        onClose={() => setUsageAccount(null)}
+        title="Kiro Account Usage"
+        width={480}
+      >
+        {usageLoading ? (
+          <p style={{ color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>Fetching usage from AWS…</p>
+        ) : usageError ? (
+          <p style={{ color: 'var(--alert)', padding: 16 }}>{(usageErr as Error)?.message ?? 'Failed to fetch usage'}</p>
+        ) : usageData ? (
+          <pre style={{ fontSize: 11, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 400, overflow: 'auto', padding: 12, background: 'var(--surface-2, rgba(255,255,255,0.02))', borderRadius: 6 }}>
+            {JSON.stringify(usageData, null, 2)}
+          </pre>
+        ) : null}
       </Modal>
     </>
   );
