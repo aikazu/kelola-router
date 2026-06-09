@@ -873,7 +873,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   serve({ fetch: app.fetch, port, hostname }, (info) => {
     log.info({ address: info.address, port: info.port }, 'router listening');
     startQuotaPuller(getDb(), 5 * 60_000);
-    attachStdoutSink();
+    attachStdoutSink(consoleBus);
   });
 
   async function gracefulShutdown(signal: string): Promise<void> {
