@@ -14,7 +14,6 @@ interface SettingsData {
   caching: { autoBreakpoints: boolean };
   rtk: { enabled: boolean };
   minimax: { upstreamFormat?: string };
-  selection?: { mode: string };
   version: string | null;
 }
 
@@ -111,15 +110,6 @@ export function Settings() {
   });
   const minimaxMut = useMutation({
     mutationFn: (b: object) => apiFetch('/api/admin/settings/minimax', { method: 'POST', json: b }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['settings'] });
-      toast.success('Saved');
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const selectionMut = useMutation({
-    mutationFn: (mode: string) =>
-      apiFetch('/api/admin/settings/selection', { method: 'POST', json: { mode } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['settings'] });
       toast.success('Saved');
@@ -225,21 +215,6 @@ export function Settings() {
             <option value="anthropic">Always Anthropic</option>
           </select>
         </label>
-      </Card>
-      <Card title="Account selection" sub="How the router picks upstream accounts per request.">
-        <select
-          value={data?.selection?.mode ?? 'lowest-backoff'}
-          onChange={(e) => selectionMut.mutate((e.target as HTMLSelectElement).value)}
-          class="input"
-          disabled={selectionMut.isPending}
-        >
-          <option value="lowest-backoff">Lowest backoff (healthiest account wins)</option>
-          <option value="round-robin">Round-robin (cycle through available)</option>
-          <option value="sticky">Sticky (pin per client key, fallback if unavailable)</option>
-        </select>
-        <span style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, display: 'block' }}>
-          Lowest-backoff: picks the account with fewest recent errors. Round-robin: distributes evenly. Sticky: each client key stays on one account until it fails.
-        </span>
       </Card>
     </>
   );
