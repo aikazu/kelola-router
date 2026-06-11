@@ -42,7 +42,7 @@ export function clearExpiredModelLocks(db: Database.Database): void {
   lastCleanupAt = now;
 }
 
-/** Test-only: reset the throttle so each test starts fresh. */
+// @internal — test-only; resets the 30-second throttle gate so each test starts clean
 export function _resetLockCleanupThrottle(): void {
   lastCleanupAt = 0;
 }
