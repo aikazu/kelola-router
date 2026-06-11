@@ -52,7 +52,11 @@ export async function testModelUpstream(
       return { ok: true, latencyMs };
     }
 
-    const acct = { provider: 'minimax' as const, apiKey: account.api_key, baseUrl: account.base_url };
+    const acct = {
+      provider: 'minimax' as const,
+      apiKey: account.api_key,
+      baseUrl: account.base_url,
+    };
     const url = upstreamUrl(acct, 'openai', '/v1/chat/completions');
     const headers = upstreamHeaders(acct, false, 'openai');
     const resp = await upstreamFetch(
@@ -79,7 +83,9 @@ export async function testModelUpstream(
       return {
         ok: false,
         latencyMs,
-        error: `base_resp ${json.base_resp.status_code}: ${json.base_resp.status_msg ?? ''}`.trim().slice(0, 200),
+        error: `base_resp ${json.base_resp.status_code}: ${json.base_resp.status_msg ?? ''}`
+          .trim()
+          .slice(0, 200),
       };
     }
     return { ok: true, latencyMs };

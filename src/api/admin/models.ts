@@ -1,9 +1,16 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { listAliasesForTargets } from '../../db/repos/aliases.js';
-import { bulkToggleModels, disableModel, enableModel, getModel, listModels, upsertModel } from '../../db/repos/models.js';
-import { testModelUpstream } from './modelHealth.js';
+import {
+  bulkToggleModels,
+  disableModel,
+  enableModel,
+  getModel,
+  listModels,
+  upsertModel,
+} from '../../db/repos/models.js';
 import { handleApiError } from './middleware.js';
+import { testModelUpstream } from './modelHealth.js';
 
 export const modelRoutes = new Hono();
 

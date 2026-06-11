@@ -5,9 +5,9 @@ import Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { adminApi } from '../../../src/api/admin/index.js';
-import { SESSION_COOKIE } from '../../../src/auth.js';
 import { setPassword } from '../../../src/auth/password.js';
 import { createSession } from '../../../src/auth/session.js';
+import { SESSION_COOKIE } from '../../../src/auth.js';
 import { migrate } from '../../../src/db/migrations/index.js';
 import { createAccount, updateAccount } from '../../../src/db/repos/accounts.js';
 import { upsertModel } from '../../../src/db/repos/models.js';
@@ -61,7 +61,11 @@ beforeEach(() => {
   db.pragma('foreign_keys = ON');
   migrate(db);
   upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3', provider: 'minimax' });
-  upsertModel(db, { name: 'claude-sonnet-4-5', upstream_model: 'claude-sonnet-4-5', provider: 'kiro' });
+  upsertModel(db, {
+    name: 'claude-sonnet-4-5',
+    upstream_model: 'claude-sonnet-4-5',
+    provider: 'kiro',
+  });
   setPassword(db, 'testpass');
   const sess = createSession(db);
   cookie = `${SESSION_COOKIE}=${sess.id}`;
@@ -131,9 +135,12 @@ describe('POST /api/admin/models/:name/test', () => {
     addMinimaxAccount();
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       async () =>
-        new Response(JSON.stringify({ base_resp: { status_code: 1008, status_msg: 'insufficient balance' } }), {
-          headers: { 'content-type': 'application/json' },
-        })
+        new Response(
+          JSON.stringify({ base_resp: { status_code: 1008, status_msg: 'insufficient balance' } }),
+          {
+            headers: { 'content-type': 'application/json' },
+          }
+        )
     );
     const res = await testModel('MiniMax-M3');
     expect(res.status).toBe(200);

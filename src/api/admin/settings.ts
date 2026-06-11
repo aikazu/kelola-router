@@ -50,7 +50,10 @@ settingsRoutes.get('/selection/:provider', (c) => {
   try {
     const provider = c.req.param('provider');
     if (!isSelectionProvider(provider)) {
-      return c.json({ error: 'invalid_provider', message: 'Provider harus minimax atau kiro' }, 400);
+      return c.json(
+        { error: 'invalid_provider', message: 'Provider harus minimax atau kiro' },
+        400
+      );
     }
     const db = c.get('db') as Database.Database;
     const sel = getSetting<{ mode?: string; step?: number }>(db, `selection.${provider}`);
@@ -64,7 +67,10 @@ settingsRoutes.post('/selection/:provider', async (c) => {
   try {
     const provider = c.req.param('provider');
     if (!isSelectionProvider(provider)) {
-      return c.json({ error: 'invalid_provider', message: 'Provider harus minimax atau kiro' }, 400);
+      return c.json(
+        { error: 'invalid_provider', message: 'Provider harus minimax atau kiro' },
+        400
+      );
     }
     const db = c.get('db') as Database.Database;
     const body = await c.req.json<{ mode?: string; step?: number }>();
@@ -74,7 +80,8 @@ settingsRoutes.post('/selection/:provider', async (c) => {
         400
       );
     }
-    const step = Number.isInteger(body.step) && (body.step as number) >= 1 ? (body.step as number) : 1;
+    const step =
+      Number.isInteger(body.step) && (body.step as number) >= 1 ? (body.step as number) : 1;
     setSetting(db, `selection.${provider}`, { mode: body.mode, step });
     return new Response(null, { status: 204 });
   } catch (e) {
