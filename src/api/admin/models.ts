@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { listAliasesForTargets } from '../../db/repos/aliases.js';
-import { bulkToggleModels, disableModel, enableModel, listModels } from '../../db/repos/models.js';
+import { bulkToggleModels, disableModel, enableModel, getModel, listModels, upsertModel } from '../../db/repos/models.js';
 import { handleApiError } from './middleware.js';
 
 export const modelRoutes = new Hono();
@@ -26,6 +26,43 @@ modelRoutes.get('/', (c) => {
         aliasCount: (aliasesByTarget[m.upstream_model] ?? []).length,
       }))
     );
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+modelRoutes.post('/', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const body = await c.req.json<{
+      name?: string;
+      provider?: string;
+      displayName?: string;
+      contextWindow?: number;
+      pricingInput?: number;
+      pricingOutput?: number;
+    }>();
+    if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
+      return c.json({ error: 'invalid_body', message: 'Nama model wajib diisi' }, 400);
+    }
+    if (body.provider !== 'minimax' && body.provider !== 'kiro') {
+      return c.json({ error: 'invalid_body', message: 'Provider harus minimax atau kiro' }, 400);
+    }
+    const name = body.name.trim();
+    if (getModel(db, name)) {
+      return c.json({ error: 'conflict', message: 'Model dengan nama itu sudah ada' }, 409);
+    }
+    upsertModel(db, {
+      name,
+      upstream_model: name,
+      display_name: body.displayName?.trim() || null,
+      context_window: typeof body.contextWindow === 'number' ? body.contextWindow : null,
+      pricing_input: typeof body.pricingInput === 'number' ? body.pricingInput : null,
+      pricing_output: typeof body.pricingOutput === 'number' ? body.pricingOutput : null,
+      provider: body.provider,
+      source: 'manual',
+    });
+    return c.json({ ok: true }, 201);
   } catch (e) {
     return handleApiError(e);
   }

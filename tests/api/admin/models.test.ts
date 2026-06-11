@@ -84,3 +84,83 @@ describe('GET /api/admin/models — aliasCount', () => {
     expect(rows.find((r) => r.name === 'MiniMax-M3')?.aliasCount).toBe(0);
   });
 });
+
+const jsonHeaders = () => ({
+  ...authed(),
+  origin: 'http://localhost:20137',
+  'content-type': 'application/json',
+});
+
+describe('POST /api/admin/models — manual add', () => {
+  it('creates a model with source=manual', async () => {
+    const res = await app.request('/api/admin/models', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        name: 'custom-model-1',
+        provider: 'kiro',
+        displayName: 'Custom One',
+        contextWindow: 128000,
+        pricingInput: 1.5,
+        pricingOutput: 6,
+      }),
+    });
+    expect(res.status).toBe(201);
+
+    const list = await app.request('/api/admin/models', { headers: authed() });
+    const rows = (await list.json()) as Array<{
+      name: string;
+      provider: string;
+      displayName: string | null;
+      contextWindow: number | null;
+      pricingInput: number | null;
+      pricingOutput: number | null;
+      source: string;
+    }>;
+    const row = rows.find((r) => r.name === 'custom-model-1');
+    expect(row).toMatchObject({
+      provider: 'kiro',
+      displayName: 'Custom One',
+      contextWindow: 128000,
+      pricingInput: 1.5,
+      pricingOutput: 6,
+      source: 'manual',
+    });
+  });
+
+  it('optional fields may be omitted', async () => {
+    const res = await app.request('/api/admin/models', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ name: 'bare-model', provider: 'minimax' }),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects missing name', async () => {
+    const res = await app.request('/api/admin/models', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ provider: 'minimax' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects unknown provider', async () => {
+    const res = await app.request('/api/admin/models', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ name: 'x-model', provider: 'openai' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects duplicate name with 409', async () => {
+    const res = await app.request('/api/admin/models', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ name: 'MiniMax-M3', provider: 'minimax' }),
+    });
+    expect(res.status).toBe(409);
+  });
+});
