@@ -6,8 +6,7 @@
  * (for non-streaming responses). Adapted from the 9router reference (MIT).
  */
 
-import { ChunkAccumulator } from './chunkAccumulator.js';
-import { decodeFrames, type KiroEvent } from './eventstream.js';
+import { type KiroEvent } from './eventstream.js';
 import { consumeKiroFrames } from './streamConsumer.js';
 
 export interface OpenAIToolCallDelta {
@@ -229,27 +228,6 @@ const encoder = new TextEncoder();
 /** Wrap a Kiro binary response body as an OpenAI SSE Response. */
 export function kiroResponseToOpenAISSE(response: Response, model: string): Response {
   const assembler = new KiroAssembler(model);
-  const acc = new ChunkAccumulator();
-
-  const transform = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      acc.push(chunk);
-      const merged = acc.view();
-      const { events, rest: leftover } = decodeFrames(merged);
-      acc.consume(merged.length - leftover.length);
-      for (const event of events) {
-        for (const c of assembler.process(event)) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(c)}\n\n`));
-        }
-      }
-    },
-    flush(controller) {
-      for (const c of assembler.flush()) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(c)}\n\n`));
-      }
-      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-    },
-  });
 
   if (!response.body) {
     return new Response('data: [DONE]\n\n', {
@@ -257,7 +235,23 @@ export function kiroResponseToOpenAISSE(response: Response, model: string): Resp
       headers: { 'Content-Type': 'text/event-stream' },
     });
   }
-  return new Response(response.body.pipeThrough(transform), {
+
+  const outputStream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      for await (const event of consumeKiroFrames(response.body!)) {
+        for (const c of assembler.process(event)) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(c)}\n\n`));
+        }
+      }
+      for (const c of assembler.flush()) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(c)}\n\n`));
+      }
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    },
+  });
+
+  return new Response(outputStream, {
     status: response.status,
     headers: {
       'Content-Type': 'text/event-stream',
