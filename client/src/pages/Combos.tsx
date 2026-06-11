@@ -23,7 +23,7 @@ interface Model {
   enabled: boolean;
 }
 
-const NAME_RE = /^[a-zA-Z0-9._-]+$/;
+const NAME_RE = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export function Combos() {
   const qc = useQueryClient();
@@ -194,6 +194,7 @@ function ComboModal({
   const availableModels = enabledModels.filter((m) => !comboModels.includes(m.name));
 
   const nameValid = NAME_RE.test(name);
+  const nameTooLong = name.length > 128;
   const hasModels = comboModels.length > 0;
 
   const moveUp = (idx: number) => {
@@ -238,7 +239,7 @@ function ComboModal({
                 models: comboModels,
               })
             }
-            disabled={saving || !nameValid || !hasModels}
+            disabled={saving || !nameValid || nameTooLong || !hasModels}
           >
             {saving ? 'Saving…' : combo ? 'Save' : 'Create'}
           </Button>
@@ -258,7 +259,12 @@ function ComboModal({
           />
           {name && !nameValid && (
             <span style={{ color: 'var(--alert)', fontSize: 12 }}>
-              Letters, digits, . _ - only
+              Letters, digits, . _ - : only (max 128 chars)
+            </span>
+          )}
+          {nameTooLong && (
+            <span style={{ color: 'var(--alert)', fontSize: 12 }}>
+              Name too long — max 128 characters
             </span>
           )}
         </label>
