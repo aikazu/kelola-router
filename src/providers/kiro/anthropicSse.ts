@@ -15,8 +15,8 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { KiroUsage } from './assembler.js';
-import { ChunkAccumulator } from './chunkAccumulator.js';
-import { decodeFrames, type KiroEvent } from './eventstream.js';
+import { type KiroEvent } from './eventstream.js';
+import { consumeKiroFrames } from './streamConsumer.js';
 
 type BlockType = 'thinking' | 'text' | 'tool_use';
 
@@ -236,22 +236,6 @@ function serialize(ev: { event: string; data: Record<string, unknown> }): Uint8A
 /** Wrap a Kiro binary response body as an Anthropic Messages SSE Response. */
 export function kiroResponseToAnthropicSSE(response: Response, model: string): Response {
   const assembler = new KiroAnthropicAssembler(model);
-  const acc = new ChunkAccumulator();
-
-  const transform = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      acc.push(chunk);
-      const merged = acc.view();
-      const { events, rest: leftover } = decodeFrames(merged);
-      acc.consume(merged.length - leftover.length);
-      for (const event of events) {
-        for (const ev of assembler.process(event)) controller.enqueue(serialize(ev));
-      }
-    },
-    flush(controller) {
-      for (const ev of assembler.finalize()) controller.enqueue(serialize(ev));
-    },
-  });
 
   if (!response.body) {
     const out: Uint8Array[] = [];
@@ -267,7 +251,18 @@ export function kiroResponseToAnthropicSSE(response: Response, model: string): R
       headers: { 'Content-Type': 'text/event-stream' },
     });
   }
-  return new Response(response.body.pipeThrough(transform), {
+
+  const outputStream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      for await (const event of consumeKiroFrames(response.body!)) {
+        for (const ev of assembler.process(event)) controller.enqueue(serialize(ev));
+      }
+      for (const ev of assembler.finalize()) controller.enqueue(serialize(ev));
+      controller.close();
+    },
+  });
+
+  return new Response(outputStream, {
     status: response.status,
     headers: {
       'Content-Type': 'text/event-stream',
