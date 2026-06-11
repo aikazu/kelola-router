@@ -81,6 +81,9 @@ comboRoutes.put('/:id', async (c) => {
         new ApiError('combo_name_exists', 'a combo with that name already exists', 409)
       );
     }
+    if (e instanceof Error && e.message.startsWith('combo not found:')) {
+      return handleApiError(new ApiError('combo_not_found', e.message, 404));
+    }
     return handleApiError(e);
   }
 });
