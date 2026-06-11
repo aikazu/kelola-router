@@ -6,6 +6,8 @@ export type SelectionReason = 'lowest-backoff' | 'round-robin' | 'sticky' | 'fal
 export interface SelectionOpts {
   mode: SelectionMode;
   cursor?: number;
+  /** Round-robin only: stay on the same account for `step` consecutive requests. Default 1. */
+  step?: number;
   clientKeyId?: number;
   stickyMap?: Map<number, string>;
 }

@@ -66,6 +66,27 @@ describe('selectAccount', () => {
       const r = selectAccount(accounts, { mode: 'round-robin', cursor: 0 });
       expect(r.reason).toBe('round-robin');
     });
+
+    it('step=3 keeps the same account for 3 consecutive cursors', () => {
+      const ids = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(
+        (cursor) => selectAccount(accounts, { mode: 'round-robin', cursor, step: 3 }).account?.id
+      );
+      expect(ids).toEqual(['a', 'a', 'a', 'b', 'b', 'b', 'c', 'c', 'c']);
+    });
+
+    it('step=2 wraps around the pool', () => {
+      // floor(6/2) % 3 = 0 -> back to 'a'
+      const r = selectAccount(accounts, { mode: 'round-robin', cursor: 6, step: 2 });
+      expect(r.account?.id).toBe('a');
+      expect(r.nextCursor).toBe(7);
+    });
+
+    it('omitted step behaves as step=1 (back-compat)', () => {
+      const r0 = selectAccount(accounts, { mode: 'round-robin', cursor: 0 });
+      const r1 = selectAccount(accounts, { mode: 'round-robin', cursor: 1 });
+      expect(r0.account?.id).toBe('a');
+      expect(r1.account?.id).toBe('b');
+    });
   });
 
   describe('sticky', () => {

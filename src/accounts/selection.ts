@@ -15,7 +15,8 @@ export function selectAccount(
 
   if (opts.mode === 'round-robin') {
     const cursor = opts.cursor ?? 0;
-    const idx = cursor % available.length;
+    const step = opts.step ?? 1;
+    const idx = Math.floor(cursor / step) % available.length;
     return { account: available[idx]!, reason: 'round-robin', nextCursor: cursor + 1 };
   }
 
