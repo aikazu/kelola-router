@@ -167,7 +167,6 @@ async function handleComboProxy(
   );
 
   // Augment body (caveman, caching, rtk) just like handleProxy does.
-  let bodyDirty = false;
   const caveman = allSettings.caveman as { level: string } | undefined;
   const caching = allSettings.caching as
     | { autoBreakpoints: boolean; respectCallerMarkers: boolean }
@@ -177,11 +176,9 @@ async function handleComboProxy(
   const cachingOn = !!caching?.autoBreakpoints;
   if (cavemanOn || cachingOn) {
     await augmentRequest(body, allSettings as Parameters<typeof augmentRequest>[1]);
-    bodyDirty = true;
   }
   if (rtkSetting?.enabled) {
     compressMessages(body, true);
-    bodyDirty = true;
   }
 
   // OpenAI streaming: ensure include_usage
@@ -189,7 +186,6 @@ async function handleComboProxy(
     const withUsage = bodyAddsOpenAIStreamUsage(body);
     if (withUsage !== body) {
       Object.assign(body, withUsage);
-      bodyDirty = true;
     }
   }
 
@@ -200,7 +196,6 @@ async function handleComboProxy(
     } else if (format === 'anthropic' && upstreamFormat === 'openai') {
       Object.assign(body, bodyAnthropicToOpenAI(body));
     }
-    bodyDirty = true;
   }
 
   // Pre-check: ada akun tersedia

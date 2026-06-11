@@ -66,9 +66,6 @@ function shouldBypassByNoProxy(targetUrl: string, noProxyValue: string): boolean
     });
 }
 
-// undici's fetch accepts dispatcher via its own RequestInit extension
-type UndiciFetchOptions = RequestInit & { dispatcher?: Dispatcher };
-
 export async function proxyAwareFetch(
   targetUrl: string,
   options: RequestInit,
