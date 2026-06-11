@@ -203,35 +203,44 @@ async function handleComboProxy(
     bodyDirty = true;
   }
 
-  // Account pool
-  const allAccounts = listEnabledAccounts(db);
-  if (allAccounts.length === 0) {
+  // Pre-check: ada akun tersedia
+  if (listEnabledAccounts(db).length === 0) {
     return c.json({ error: 'no upstream accounts configured' }, 503);
   }
-  const accountStates: AccountState[] = allAccounts.map((a) => ({
-    id: a.id,
-    backoffLevel: a.backoff_level,
-    rateLimitedUntil: a.rate_limited_until,
-    lastError: a.last_error ? (safeJsonParse(a.last_error) as AccountState['lastError']) : null,
-    status: a.status as AccountState['status'],
-    enabled: !!a.enabled,
-  }));
+
+  // Selection mode dibaca sekali — tidak berubah per iterasi
   const selMode = (getSetting<{ mode: SelectionMode }>(db, 'selection'))?.mode ?? 'lowest-backoff';
-  const { account, reason, nextCursor } = selectAccount(accountStates, {
-    mode: selMode,
-    cursor: rrCursor,
-    clientKeyId: clientKey?.id,
-    stickyMap,
-  });
-  if (nextCursor != null) rrCursor = nextCursor;
-  if (!account) return c.json({ error: 'all accounts unavailable' }, 503);
-  const acc = allAccounts.find((a) => a.id === account.id)!;
-  consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, reason));
 
   let lastErrorResponse: Response | null = null;
 
   for (let i = 0; i < combo.models.length; i++) {
     const modelName = combo.models[i]!;
+
+    // Re-select account each iteration so recently-backoffed accounts are skipped
+    const allAccounts = listEnabledAccounts(db);
+    const accountStates: AccountState[] = allAccounts.map((a) => ({
+      id: a.id,
+      backoffLevel: a.backoff_level,
+      rateLimitedUntil: a.rate_limited_until,
+      lastError: a.last_error ? (safeJsonParse(a.last_error) as AccountState['lastError']) : null,
+      status: a.status as AccountState['status'],
+      enabled: !!a.enabled,
+    }));
+    const { account, reason, nextCursor } = selectAccount(accountStates, {
+      mode: selMode,
+      cursor: rrCursor,
+      clientKeyId: clientKey?.id,
+      stickyMap,
+    });
+    if (nextCursor != null) rrCursor = nextCursor;
+    if (!account) {
+      log.warn({ combo: combo.name, model: modelName }, 'combo: no accounts available for this model, trying next');
+      continue;
+    }
+    const acc = allAccounts.find((a) => a.id === account.id)!;
+    if (i === 0) {
+      consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, reason));
+    };
     let resolved;
     try {
       resolved = resolveModel(db, modelName, body);
@@ -326,11 +335,12 @@ async function handleComboProxy(
           disableAccount(db, account.id);
         }
 
-        // Only retry on 429 (rate limit). Other errors are non-retryable.
-        if (resp.status === 429) {
+        // Retry on 429 (rate limit) and retryable 5xx (502, 503, 504).
+        const isRetryable = resp.status === 429 || resp.status === 502 || resp.status === 503 || resp.status === 504;
+        if (isRetryable) {
           log.info(
             { combo: combo.name, model: modelName, status: resp.status },
-            'combo: rate limited, trying next model'
+            'combo: retryable error, trying next model'
           );
           lastErrorResponse = c.body(errBody, statusCode(resp.status), {
             'content-type': resp.headers.get('content-type') ?? 'application/json',
