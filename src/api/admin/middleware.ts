@@ -7,10 +7,22 @@ import { SESSION_COOKIE } from '../../auth.js';
 
 export async function requireAdminJson(c: Context, next: Next): Promise<Response | undefined> {
   const db = c.get('db') as Database.Database;
-  if (!isPasswordSet(db)) {
+  const passwordSet = isPasswordSet(db);
+
+  if (!passwordSet) {
     await next();
     return;
   }
+
+  // x-admin-key / ROUTER_ADMIN_KEY (for scripts)
+  const envKey = process.env.ROUTER_ADMIN_KEY;
+  const headerKey = c.req.header('x-admin-key');
+  if (envKey && headerKey && headerKey === envKey) {
+    await next();
+    return;
+  }
+
+  // Session cookie (for dashboard)
   const sessionId = getCookie(c, SESSION_COOKIE);
   if (!sessionId) {
     return c.json({ error: 'unauthorized', message: 'login required' }, 401);
