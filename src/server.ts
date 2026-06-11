@@ -268,7 +268,8 @@ async function handleComboProxy(
         const kiroBody = { ...body, model: modelName };
         const kiroResp = await handleKiroProxy(c, format, upstreamPath, kiroBody, db);
         // If we get here without throw, check status
-        if (kiroResp.status === 429 || kiroResp.status === 502 || kiroResp.status === 503 || kiroResp.status === 504) {
+        if (kiroResp.status === 429 || kiroResp.status === 502 || kiroResp.status === 503 || kiroResp.status === 504
+          || kiroResp.status === 401 || kiroResp.status === 402 || kiroResp.status === 403) {
           log.info({ combo: combo.name, model: modelName, status: kiroResp.status }, 'combo: kiro retryable error, trying next model');
           lastErrorResponse = kiroResp;
           continue;
@@ -335,8 +336,10 @@ async function handleComboProxy(
           disableAccount(db, account.id);
         }
 
-        // Retry on 429 (rate limit) and retryable 5xx (502, 503, 504).
-        const isRetryable = resp.status === 429 || resp.status === 502 || resp.status === 503 || resp.status === 504;
+        // Retry on 429 (rate limit), retryable 5xx (502, 503, 504), and auth/payment errors (401, 402, 403).
+        const isRetryable = resp.status === 429
+          || resp.status === 502 || resp.status === 503 || resp.status === 504
+          || resp.status === 401 || resp.status === 402 || resp.status === 403;
         if (isRetryable) {
           log.info(
             { combo: combo.name, model: modelName, status: resp.status },
