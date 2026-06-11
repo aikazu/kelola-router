@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { consumeKiroFrames } from './streamConsumer.js';
+import { describe, expect, it, vi } from 'vitest';
 import type { KiroEvent } from './eventstream.js';
 import * as eventstreamModule from './eventstream.js';
+import { consumeKiroFrames } from './streamConsumer.js';
 
 function makeStream(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
   return new ReadableStream({

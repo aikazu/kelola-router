@@ -6,7 +6,7 @@
  * (for non-streaming responses). Adapted from the 9router reference (MIT).
  */
 
-import { type KiroEvent } from './eventstream.js';
+import type { KiroEvent } from './eventstream.js';
 import { consumeKiroFrames } from './streamConsumer.js';
 
 export interface OpenAIToolCallDelta {

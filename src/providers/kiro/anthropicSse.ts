@@ -15,7 +15,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { KiroUsage } from './assembler.js';
-import { type KiroEvent } from './eventstream.js';
+import type { KiroEvent } from './eventstream.js';
 import { consumeKiroFrames } from './streamConsumer.js';
 
 type BlockType = 'thinking' | 'text' | 'tool_use';
