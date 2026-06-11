@@ -18,10 +18,16 @@ interface ComboRow {
 }
 
 function rowToCombo(row: ComboRow): Combo {
+  let models: string[] = [];
+  try {
+    models = JSON.parse(row.models) as string[];
+  } catch {
+    // corrupted row — return empty models rather than crashing
+  }
   return {
     id: row.id,
     name: row.name,
-    models: JSON.parse(row.models) as string[],
+    models,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -65,17 +71,20 @@ export function updateCombo(
   id: string,
   updates: { name?: string; models?: string[] }
 ): Combo {
-  const existing = getComboById(db, id);
-  if (!existing) throw new Error(`combo not found: ${id}`);
-  const newName = updates.name ?? existing.name;
-  const newModels = updates.models ?? existing.models;
-  const now = new Date().toISOString().replace('T', ' ').replace('Z', '');
-  db.prepare(`
-    UPDATE combos SET name = ?, models = ?, updated_at = ? WHERE id = ?
-  `).run(newName, JSON.stringify(newModels), now, id);
-  const row = getComboById(db, id);
-  if (!row) throw new Error('updateCombo: row missing post-update');
-  return row;
+  const run = db.transaction(() => {
+    const existing = getComboById(db, id);
+    if (!existing) throw new Error(`combo not found: ${id}`);
+    const newName = updates.name ?? existing.name;
+    const newModels = updates.models ?? existing.models;
+    const now = new Date().toISOString().replace('T', ' ').replace('Z', '');
+    db.prepare(`
+      UPDATE combos SET name = ?, models = ?, updated_at = ? WHERE id = ?
+    `).run(newName, JSON.stringify(newModels), now, id);
+    const row = getComboById(db, id);
+    if (!row) throw new Error('updateCombo: row missing post-update');
+    return row;
+  });
+  return run();
 }
 
 export function deleteCombo(db: Database.Database, id: string): boolean {

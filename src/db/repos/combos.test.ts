@@ -89,4 +89,35 @@ describe('combos repo', () => {
     createCombo(db, 'unique-name', ['a']);
     expect(() => createCombo(db, 'unique-name', ['b'])).toThrow();
   });
+
+  it('listCombos returns empty models array for corrupt JSON in models column', () => {
+    db.prepare(
+      `INSERT INTO combos (id, name, models, created_at, updated_at)
+       VALUES ('combo_corrupt', 'bad-combo', 'NOT_VALID_JSON', datetime('now'), datetime('now'))`
+    ).run();
+    const all = listCombos(db);
+    const bad = all.find((c) => c.name === 'bad-combo');
+    expect(bad).toBeDefined();
+    expect(bad!.models).toEqual([]);
+  });
+
+  it('getCombo returns combo with empty models for corrupt JSON', () => {
+    db.prepare(
+      `INSERT INTO combos (id, name, models, created_at, updated_at)
+       VALUES ('combo_corrupt2', 'bad-combo2', '{broken', datetime('now'), datetime('now'))`
+    ).run();
+    const found = getCombo(db, 'bad-combo2');
+    expect(found).not.toBeNull();
+    expect(found!.models).toEqual([]);
+  });
+
+  it('updateCombo is atomic — partial updates do not leave inconsistent state', () => {
+    const created = createCombo(db, 'atomic-combo', ['a', 'b']);
+    const updated = updateCombo(db, created.id, { name: 'new-name', models: ['x', 'y', 'z'] });
+    expect(updated.name).toBe('new-name');
+    expect(updated.models).toEqual(['x', 'y', 'z']);
+    const fromDb = getComboById(db, created.id);
+    expect(fromDb!.name).toBe('new-name');
+    expect(fromDb!.models).toEqual(['x', 'y', 'z']);
+  });
 });
