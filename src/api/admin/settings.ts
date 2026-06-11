@@ -15,7 +15,6 @@ settingsRoutes.get('/', (c) => {
       caching: getSetting(db, 'caching') ?? { autoBreakpoints: true },
       rtk: getSetting(db, 'rtk') ?? { enabled: true },
       minimax: getSetting(db, 'minimax') ?? {},
-      selection: getSetting(db, 'selection') ?? { mode: 'lowest-backoff' },
       version: build?.version ?? null,
     });
   } catch (e) {
@@ -38,7 +37,50 @@ settingsRoutes.post('/caveman', post('caveman'));
 settingsRoutes.post('/rtk', post('rtk'));
 settingsRoutes.post('/caching', post('caching'));
 settingsRoutes.post('/minimax', post('minimax'));
-settingsRoutes.post('/selection', post('selection'));
+
+const SELECTION_PROVIDERS = ['minimax', 'kiro'] as const;
+type SelectionProvider = (typeof SELECTION_PROVIDERS)[number];
+const SELECTION_MODES = ['lowest-backoff', 'round-robin', 'sticky'] as const;
+
+function isSelectionProvider(p: string): p is SelectionProvider {
+  return (SELECTION_PROVIDERS as readonly string[]).includes(p);
+}
+
+settingsRoutes.get('/selection/:provider', (c) => {
+  try {
+    const provider = c.req.param('provider');
+    if (!isSelectionProvider(provider)) {
+      return c.json({ error: 'invalid_provider', message: 'Provider harus minimax atau kiro' }, 400);
+    }
+    const db = c.get('db') as Database.Database;
+    const sel = getSetting<{ mode?: string; step?: number }>(db, `selection.${provider}`);
+    return c.json({ mode: sel?.mode ?? 'lowest-backoff', step: sel?.step ?? 1 });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+settingsRoutes.post('/selection/:provider', async (c) => {
+  try {
+    const provider = c.req.param('provider');
+    if (!isSelectionProvider(provider)) {
+      return c.json({ error: 'invalid_provider', message: 'Provider harus minimax atau kiro' }, 400);
+    }
+    const db = c.get('db') as Database.Database;
+    const body = await c.req.json<{ mode?: string; step?: number }>();
+    if (!body.mode || !(SELECTION_MODES as readonly string[]).includes(body.mode)) {
+      return c.json(
+        { error: 'invalid_mode', message: `Mode harus salah satu: ${SELECTION_MODES.join(', ')}` },
+        400
+      );
+    }
+    const step = Number.isInteger(body.step) && (body.step as number) >= 1 ? (body.step as number) : 1;
+    setSetting(db, `selection.${provider}`, { mode: body.mode, step });
+    return new Response(null, { status: 204 });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
 
 settingsRoutes.post('/password', async (c) => {
   try {
