@@ -1,6 +1,5 @@
 import type Database from 'better-sqlite3';
 import { ulid } from 'ulid';
-import { listAliases } from './aliases.js';
 
 export interface Combo {
   id: string;
@@ -35,9 +34,8 @@ function rowToCombo(row: ComboRow): Combo {
 }
 
 function checkAliasConflict(db: Database.Database, name: string): void {
-  const aliases = listAliases(db);
-  const aliasNames = new Set(aliases.map((a) => a.aliasName));
-  if (aliasNames.has(name)) {
+  const row = db.prepare('SELECT 1 FROM model_aliases WHERE alias_name = ? LIMIT 1').get(name);
+  if (row) {
     throw new Error(`alias_conflict: combo name '${name}' is already used as a model alias`);
   }
 }
