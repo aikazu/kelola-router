@@ -130,12 +130,12 @@ export function Models() {
   };
 
   const addMut = useMutation({
-    mutationFn: () =>
+    mutationFn: (provider: 'minimax' | 'kiro') =>
       apiFetch('/api/admin/models', {
         method: 'POST',
         json: {
           name: addForm.name.trim(),
-          provider: addOpen,
+          provider,
           displayName: addForm.displayName.trim() || undefined,
           contextWindow: addForm.contextWindow ? Number(addForm.contextWindow) : undefined,
           pricingInput: addForm.pricingInput ? Number(addForm.pricingInput) : undefined,
@@ -344,7 +344,7 @@ export function Models() {
           <>
             <Button variant="ghost" onClick={() => setAddOpen(null)}>Cancel</Button>
             <Button
-              onClick={() => addMut.mutate()}
+              onClick={() => addOpen && addMut.mutate(addOpen)}
               disabled={addMut.isPending || !addForm.name.trim()}
             >
               {addMut.isPending ? 'Adding…' : 'Add model'}
