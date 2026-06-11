@@ -1359,8 +1359,8 @@ if (existsSync('./client/dist/index.html')) {
   }
 }
 
-if (true) {
-  // patched for Windows: import.meta.url guard doesn't work with backslash paths
+// patched for Windows: import.meta.url guard doesn't work with backslash paths
+{
   const port = getPort();
   const hostname = getHost();
   serve({ fetch: app.fetch, port, hostname }, (info) => {
