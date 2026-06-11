@@ -28,12 +28,12 @@ export function resolveKiroPersona(value: string | null | undefined): KiroPerson
 }
 
 /** IDE (legacy) generateAssistantResponse endpoint for a region. */
-export function kiroEndpoint(region: string = KIRO_DEFAULT_REGION): string {
+function kiroEndpoint(region: string = KIRO_DEFAULT_REGION): string {
   return `https://codewhisperer.${region}.amazonaws.com/generateAssistantResponse`;
 }
 
 /** CLI (experimental) Kiro runtime endpoint for a region (root POST, x-amz-target). */
-export function kiroCliEndpoint(region: string = KIRO_DEFAULT_REGION): string {
+function kiroCliEndpoint(region: string = KIRO_DEFAULT_REGION): string {
   return `https://runtime.${region}.kiro.dev/`;
 }
 
@@ -108,9 +108,9 @@ export function kiroOidcTokenUrl(region: string = KIRO_DEFAULT_REGION): string {
   return `https://oidc.${region}.amazonaws.com/token`;
 }
 
-export const KIRO_AGENTIC_SUFFIX = '-agentic';
-export const KIRO_THINKING_SUFFIX = '-thinking';
-export const KIRO_THINKING_BUDGET_DEFAULT = 16000;
+const KIRO_AGENTIC_SUFFIX = '-agentic';
+const KIRO_THINKING_SUFFIX = '-thinking';
+const KIRO_THINKING_BUDGET_DEFAULT = 16000;
 
 export const KIRO_AGENTIC_SYSTEM_PROMPT = `
 # CRITICAL: CHUNKED WRITE PROTOCOL (MANDATORY)
@@ -137,17 +137,17 @@ You MUST follow these rules for ALL file operations. Violation causes server tim
 REMEMBER: When in doubt, write LESS per operation. Multiple small operations > one large operation.
 `.trim();
 
-export interface KiroModelResolution {
+interface KiroModelResolution {
   upstream: string;
   agentic: boolean;
   thinking: boolean;
 }
 
-export function isAgenticModel(model: string): boolean {
+function isAgenticModel(model: string): boolean {
   return typeof model === 'string' && model.endsWith(KIRO_AGENTIC_SUFFIX);
 }
 
-export function isThinkingModel(model: string): boolean {
+function isThinkingModel(model: string): boolean {
   return typeof model === 'string' && model.endsWith(KIRO_THINKING_SUFFIX);
 }
 
