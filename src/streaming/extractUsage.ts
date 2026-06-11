@@ -13,7 +13,7 @@ export interface SSEParseResult {
   raw: string;
 }
 
-export function extractUsageFromSSE(raw: string, format: 'openai' | 'anthropic'): SSEParseResult {
+function extractUsageFromSSE(raw: string, format: 'openai' | 'anthropic'): SSEParseResult {
   if (format === 'openai') return extractOpenAI(raw);
   return extractAnthropic(raw);
 }
@@ -102,3 +102,6 @@ export function extractUsageFromSSEStream(
   }
   return last;
 }
+
+// @internal — exported for unit tests only; production code uses extractUsageFromSSEStream
+export { extractUsageFromSSE };
