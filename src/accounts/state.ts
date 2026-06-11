@@ -1,12 +1,12 @@
 import { checkFallbackError, type FallbackDecision } from './errorRules.js';
 import type { AccountState, ModelLock } from './types.js';
 
-export interface ApplyErrorResult {
+interface ApplyErrorResult {
   account: AccountState;
   decision: FallbackDecision;
 }
 
-export function applyErrorState(
+function applyErrorState(
   account: AccountState,
   status: number,
   errorText: string,
@@ -38,7 +38,7 @@ export function applyErrorState(
   return { account: newAccount, decision };
 }
 
-export function resetAccountState(account: AccountState): AccountState {
+function resetAccountState(account: AccountState): AccountState {
   return { ...account, rateLimitedUntil: null, backoffLevel: 0, lastError: null, status: 'active' };
 }
 
@@ -64,3 +64,7 @@ export function filterAvailableAccounts(
     return true;
   });
 }
+
+// @internal — exported for unit tests only; do not import in production code
+export { applyErrorState, resetAccountState };
+export type { ApplyErrorResult };
