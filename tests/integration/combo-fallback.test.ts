@@ -68,7 +68,9 @@ describe('combo fallback — retry on 5xx', () => {
         JSON.stringify({
           id: 'chatcmpl-x',
           object: 'chat.completion',
-          choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+          choices: [
+            { index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' },
+          ],
           usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } }
@@ -104,7 +106,9 @@ describe('combo fallback — retry on 5xx', () => {
         JSON.stringify({
           id: 'chatcmpl-y',
           object: 'chat.completion',
-          choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+          choices: [
+            { index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' },
+          ],
           usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } }
@@ -127,11 +131,12 @@ describe('combo fallback — retry on 5xx', () => {
   });
 
   it('returns last error when all models return 503', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-      new Response(JSON.stringify({ error: 'overloaded' }), {
-        status: 503,
-        headers: { 'content-type': 'application/json' },
-      })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ error: 'overloaded' }), {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        })
     );
 
     const res = await app.request(
@@ -194,7 +199,10 @@ describe('combo fallback — account re-select per model', () => {
       calledApiKeys.push(authHeader);
 
       // acc_a's first call → 429 (triggers backoff)
-      if (authHeader.includes('mm_a') && calledApiKeys.filter((k) => k.includes('mm_a')).length === 1) {
+      if (
+        authHeader.includes('mm_a') &&
+        calledApiKeys.filter((k) => k.includes('mm_a')).length === 1
+      ) {
         return new Response(JSON.stringify({ error: 'rate limited' }), {
           status: 429,
           headers: { 'content-type': 'application/json' },
@@ -207,7 +215,9 @@ describe('combo fallback — account re-select per model', () => {
           JSON.stringify({
             id: 'chatcmpl-z',
             object: 'chat.completion',
-            choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+            choices: [
+              { index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' },
+            ],
             usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
           }),
           { status: 200, headers: { 'content-type': 'application/json' } }
@@ -219,7 +229,9 @@ describe('combo fallback — account re-select per model', () => {
         JSON.stringify({
           id: 'chatcmpl-z2',
           object: 'chat.completion',
-          choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+          choices: [
+            { index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' },
+          ],
           usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } }

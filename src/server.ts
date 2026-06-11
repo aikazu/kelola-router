@@ -47,10 +47,10 @@ import {
   enableClientKey,
   genClientKey,
 } from './db/repos/client_keys.js';
+import { type Combo, getCombo } from './db/repos/combos.js';
 import { disableModel, enableModel } from './db/repos/models.js';
 import { flushDeferredLogs, insertRequestLogDeferred } from './db/repos/requestLogs.js';
 import { getAllSettings, getSetting, setSetting } from './db/repos/settings.js';
-import { getCombo, type Combo } from './db/repos/combos.js';
 import { resolveModel } from './providers/alias.js';
 import { getUpstreamFormat } from './providers/format/negotiate.js';
 import {
@@ -204,7 +204,7 @@ async function handleComboProxy(
   }
 
   // Selection mode dibaca sekali — tidak berubah per iterasi
-  const selMode = (getSetting<{ mode: SelectionMode }>(db, 'selection'))?.mode ?? 'lowest-backoff';
+  const selMode = getSetting<{ mode: SelectionMode }>(db, 'selection')?.mode ?? 'lowest-backoff';
 
   let lastErrorResponse: Response | null = null;
 
@@ -229,7 +229,10 @@ async function handleComboProxy(
     });
     if (nextCursor != null) rrCursor = nextCursor;
     if (!account) {
-      log.warn({ combo: combo.name, model: modelName }, 'combo: no accounts available for this model, trying next');
+      log.warn(
+        { combo: combo.name, model: modelName },
+        'combo: no accounts available for this model, trying next'
+      );
       continue;
     }
     const acc = allAccounts.find((a) => a.id === account.id)!;
@@ -263,9 +266,19 @@ async function handleComboProxy(
         const kiroBody = { ...body, model: modelName };
         const kiroResp = await handleKiroProxy(c, format, upstreamPath, kiroBody, db);
         // If we get here without throw, check status
-        if (kiroResp.status === 429 || kiroResp.status === 502 || kiroResp.status === 503 || kiroResp.status === 504
-          || kiroResp.status === 401 || kiroResp.status === 402 || kiroResp.status === 403) {
-          log.info({ combo: combo.name, model: modelName, status: kiroResp.status }, 'combo: kiro retryable error, trying next model');
+        if (
+          kiroResp.status === 429 ||
+          kiroResp.status === 502 ||
+          kiroResp.status === 503 ||
+          kiroResp.status === 504 ||
+          kiroResp.status === 401 ||
+          kiroResp.status === 402 ||
+          kiroResp.status === 403
+        ) {
+          log.info(
+            { combo: combo.name, model: modelName, status: kiroResp.status },
+            'combo: kiro retryable error, trying next model'
+          );
           lastErrorResponse = kiroResp;
           continue;
         }
@@ -274,7 +287,10 @@ async function handleComboProxy(
         return kiroResp;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        log.warn({ combo: combo.name, model: modelName, error: msg }, 'combo: kiro model failed, trying next');
+        log.warn(
+          { combo: combo.name, model: modelName, error: msg },
+          'combo: kiro model failed, trying next'
+        );
         lastErrorResponse = c.json({ error: msg }, 502);
         continue;
       }
@@ -310,9 +326,7 @@ async function handleComboProxy(
 
         // Apply account error state
         const rateLimitedUntil =
-          decision.cooldownMs > 0
-            ? new Date(Date.now() + decision.cooldownMs).toISOString()
-            : null;
+          decision.cooldownMs > 0 ? new Date(Date.now() + decision.cooldownMs).toISOString() : null;
         updateAccount(db, account.id, {
           rate_limited_until: rateLimitedUntil,
           backoff_level: decision.newBackoffLevel ?? 0,
@@ -332,9 +346,14 @@ async function handleComboProxy(
         }
 
         // Retry on 429 (rate limit), retryable 5xx (502, 503, 504), and auth/payment errors (401, 402, 403).
-        const isRetryable = resp.status === 429
-          || resp.status === 502 || resp.status === 503 || resp.status === 504
-          || resp.status === 401 || resp.status === 402 || resp.status === 403;
+        const isRetryable =
+          resp.status === 429 ||
+          resp.status === 502 ||
+          resp.status === 503 ||
+          resp.status === 504 ||
+          resp.status === 401 ||
+          resp.status === 402 ||
+          resp.status === 403;
         if (isRetryable) {
           log.info(
             { combo: combo.name, model: modelName, status: resp.status },
@@ -370,10 +389,7 @@ async function handleComboProxy(
         });
       }
 
-      log.info(
-        { combo: combo.name, model: modelName, index: i },
-        'combo: success on model'
-      );
+      log.info({ combo: combo.name, model: modelName, index: i }, 'combo: success on model');
 
       // Handle streaming response
       if (attemptBody.stream === true) {
@@ -440,12 +456,19 @@ async function handleComboProxy(
         prompt_tokens_details?: { cached_tokens?: number };
       } = {};
       try {
-        const parsedResp = JSON.parse(respBody) as { usage?: typeof usage } & Record<string, unknown>;
+        const parsedResp = JSON.parse(respBody) as { usage?: typeof usage } & Record<
+          string,
+          unknown
+        >;
         if (format !== upstreamFormat) {
           const converted =
             upstreamFormat === 'anthropic'
-              ? responseAnthropicToOpenAI(parsedResp as Parameters<typeof responseAnthropicToOpenAI>[0])
-              : responseOpenAIToAnthropic(parsedResp as Parameters<typeof responseOpenAIToAnthropic>[0]);
+              ? responseAnthropicToOpenAI(
+                  parsedResp as Parameters<typeof responseAnthropicToOpenAI>[0]
+                )
+              : responseOpenAIToAnthropic(
+                  parsedResp as Parameters<typeof responseOpenAIToAnthropic>[0]
+                );
           respBody = JSON.stringify(converted);
           const convUsage = (converted as { usage?: typeof usage }).usage;
           usage = convUsage ?? parsedResp.usage ?? {};
@@ -505,8 +528,6 @@ async function handleComboProxy(
       const message = errorMessage(e);
       log.warn({ combo: combo.name, model: modelName, err: message }, 'combo: upstream error');
       lastErrorResponse = c.json({ error: `upstream unreachable: ${message}` }, 502);
-      // Network errors are retryable within the combo chain
-      continue;
     }
   }
 
@@ -622,7 +643,7 @@ async function handleProxy(
     status: a.status as AccountState['status'],
     enabled: !!a.enabled,
   }));
-  const selMode = (getSetting<{ mode: SelectionMode }>(db, 'selection'))?.mode ?? 'lowest-backoff';
+  const selMode = getSetting<{ mode: SelectionMode }>(db, 'selection')?.mode ?? 'lowest-backoff';
   const { account, reason, nextCursor } = selectAccount(accountStates, {
     mode: selMode,
     cursor: rrCursor,
@@ -1322,7 +1343,8 @@ if (existsSync('./client/dist/index.html')) {
   }
 }
 
-if (true) { // patched for Windows: import.meta.url guard doesn't work with backslash paths
+if (true) {
+  // patched for Windows: import.meta.url guard doesn't work with backslash paths
   const port = getPort();
   const hostname = getHost();
   serve({ fetch: app.fetch, port, hostname }, (info) => {

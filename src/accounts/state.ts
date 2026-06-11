@@ -65,6 +65,6 @@ export function filterAvailableAccounts(
   });
 }
 
+export type { ApplyErrorResult };
 // @internal — exported for unit tests only; do not import in production code
 export { applyErrorState, resetAccountState };
-export type { ApplyErrorResult };

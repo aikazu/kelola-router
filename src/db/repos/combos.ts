@@ -41,23 +41,17 @@ function checkAliasConflict(db: Database.Database, name: string): void {
 }
 
 export function listCombos(db: Database.Database): Combo[] {
-  const rows = db
-    .prepare(`SELECT * FROM combos ORDER BY created_at`)
-    .all() as ComboRow[];
+  const rows = db.prepare(`SELECT * FROM combos ORDER BY created_at`).all() as ComboRow[];
   return rows.map(rowToCombo);
 }
 
 export function getCombo(db: Database.Database, name: string): Combo | null {
-  const row = db
-    .prepare(`SELECT * FROM combos WHERE name = ?`)
-    .get(name) as ComboRow | undefined;
+  const row = db.prepare(`SELECT * FROM combos WHERE name = ?`).get(name) as ComboRow | undefined;
   return row ? rowToCombo(row) : null;
 }
 
 export function getComboById(db: Database.Database, id: string): Combo | null {
-  const row = db
-    .prepare(`SELECT * FROM combos WHERE id = ?`)
-    .get(id) as ComboRow | undefined;
+  const row = db.prepare(`SELECT * FROM combos WHERE id = ?`).get(id) as ComboRow | undefined;
   return row ? rowToCombo(row) : null;
 }
 

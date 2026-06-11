@@ -92,7 +92,9 @@ export async function proxyAwareFetch(
           ? await getSocksDispatcher(proxyUrl)
           : await getDispatcher(proxyUrl);
       if (dispatcher) {
-        return await undiciFetch(targetUrl, { ...options, dispatcher } as Parameters<typeof undiciFetch>[1]) as unknown as Response;
+        return (await undiciFetch(targetUrl, { ...options, dispatcher } as Parameters<
+          typeof undiciFetch
+        >[1])) as unknown as Response;
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);

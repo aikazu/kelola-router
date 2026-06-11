@@ -97,4 +97,3 @@ export async function ensureProfileArn(
 
 // @internal — exported for unit tests only; callers should use ensureProfileArn
 export { discoverProfileArn };
-
