@@ -36,7 +36,7 @@ interface ListAvailableProfilesResponse {
  * Discover the first available profile ARN for a Kiro access token in a region.
  * Returns null when the call fails or the account has no profiles in `region`.
  */
-export async function discoverProfileArn(
+async function discoverProfileArn(
   accessToken: string,
   region: string,
   transport: TransportConfig | null = null,
@@ -94,3 +94,7 @@ export async function ensureProfileArn(
   updateAccount(db, account.id, { provider_data: JSON.stringify(pd) });
   return arn;
 }
+
+// @internal — exported for unit tests only; callers should use ensureProfileArn
+export { discoverProfileArn };
+
