@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { listAliasesForTargets } from '../../db/repos/aliases.js';
 import { bulkToggleModels, disableModel, enableModel, getModel, listModels, upsertModel } from '../../db/repos/models.js';
+import { testModelUpstream } from './modelHealth.js';
 import { handleApiError } from './middleware.js';
 
 export const modelRoutes = new Hono();
@@ -81,6 +82,18 @@ modelRoutes.post('/:name/enable', (c) => {
   try {
     enableModel(c.get('db') as Database.Database, decodeURIComponent(c.req.param('name')));
     return new Response(null, { status: 204 });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+modelRoutes.post('/:name/test', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const model = getModel(db, decodeURIComponent(c.req.param('name')));
+    if (!model) return c.json({ error: 'not_found', message: 'Model tidak ditemukan' }, 404);
+    const result = await testModelUpstream(db, model);
+    return c.json(result);
   } catch (e) {
     return handleApiError(e);
   }
