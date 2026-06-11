@@ -8,6 +8,7 @@
 
 import { ChunkAccumulator } from './chunkAccumulator.js';
 import { decodeFrames, type KiroEvent } from './eventstream.js';
+import { consumeKiroFrames } from './streamConsumer.js';
 
 export interface OpenAIToolCallDelta {
   index: number;
@@ -296,16 +297,8 @@ export async function kiroResponseToOpenAIJson(
   const assembler = new KiroAssembler(model);
   const chunks: OpenAIChunk[] = [];
   if (response.body) {
-    const reader = response.body.getReader();
-    const acc = new ChunkAccumulator();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      acc.push(value);
-      const merged = acc.view();
-      const { events, rest: leftover } = decodeFrames(merged);
-      acc.consume(merged.length - leftover.length);
-      for (const event of events) chunks.push(...assembler.process(event));
+    for await (const event of consumeKiroFrames(response.body)) {
+      chunks.push(...assembler.process(event));
     }
   }
   chunks.push(...assembler.flush());
