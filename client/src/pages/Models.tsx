@@ -157,7 +157,6 @@ export function Models() {
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       m.displayName?.toLowerCase().includes(search.toLowerCase())
   );
-  const selectAll = () => setSelected(new Set(filtered.map((m) => m.name)));
 
   const providerCard = (provider: 'minimax' | 'kiro', title: string) => {
     const list = filtered.filter((m) => m.provider === provider);
@@ -183,7 +182,7 @@ export function Models() {
                   <th style={{ width: 32 }}>
                     <input
                       type="checkbox"
-                      checked={selected.size === list.length && list.length > 0 && list.every((m) => selected.has(m.name))}
+                      checked={list.length > 0 && list.every((m) => selected.has(m.name))}
                       onChange={() => {
                         if (list.every((m) => selected.has(m.name))) {
                           const next = new Set(selected);

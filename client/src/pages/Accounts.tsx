@@ -645,11 +645,6 @@ export function Accounts() {
           <ErrorState error={error as Error} onRetry={() => refetch()} />
         ) : isLoading ? (
           <TableSkeleton rows={3} cols={6} />
-        ) : accounts.length === 0 ? (
-          <div class="empty">
-            <h3>No upstream accounts</h3>
-            <p>Add a MiniMax API key or connect a Kiro (AWS) account to start proxying.</p>
-          </div>
         ) : (
           <>
             <Card
