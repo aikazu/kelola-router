@@ -87,6 +87,15 @@ describe('selectAccount', () => {
       expect(r0.account?.id).toBe('a');
       expect(r1.account?.id).toBe('b');
     });
+
+    it('clamps invalid step (0, negative, fractional) to safe values', () => {
+      const zero = selectAccount(accounts, { mode: 'round-robin', cursor: 1, step: 0 });
+      expect(zero.account?.id).toBe('b'); // behaves as step=1
+      const neg = selectAccount(accounts, { mode: 'round-robin', cursor: 1, step: -5 });
+      expect(neg.account?.id).toBe('b');
+      const frac = selectAccount(accounts, { mode: 'round-robin', cursor: 3, step: 2.7 });
+      expect(frac.account?.id).toBe('b'); // floor(2.7)=2 -> floor(3/2)%3=1
+    });
   });
 
   describe('sticky', () => {
