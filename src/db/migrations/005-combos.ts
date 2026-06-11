@@ -16,6 +16,5 @@ export const migration_005 = {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_combos_name ON combos(name);
   `,
 };
