@@ -54,6 +54,11 @@ comboRoutes.post('/', async (c) => {
     const combo = createCombo(db, name, models);
     return c.json(combo, 201);
   } catch (e) {
+    if (e instanceof Error && e.message.startsWith('alias_conflict:')) {
+      return handleApiError(
+        new ApiError('alias_conflict', e.message.replace('alias_conflict: ', ''), 409)
+      );
+    }
     if (e instanceof Error && e.message.includes('UNIQUE constraint')) {
       return handleApiError(
         new ApiError('combo_name_exists', 'a combo with that name already exists', 409)
@@ -76,6 +81,11 @@ comboRoutes.put('/:id', async (c) => {
     const combo = updateCombo(db, id, updates);
     return c.json(combo);
   } catch (e) {
+    if (e instanceof Error && e.message.startsWith('alias_conflict:')) {
+      return handleApiError(
+        new ApiError('alias_conflict', e.message.replace('alias_conflict: ', ''), 409)
+      );
+    }
     if (e instanceof Error && e.message.includes('UNIQUE constraint')) {
       return handleApiError(
         new ApiError('combo_name_exists', 'a combo with that name already exists', 409)

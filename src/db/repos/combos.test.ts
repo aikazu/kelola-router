@@ -90,6 +90,23 @@ describe('combos repo', () => {
     expect(() => createCombo(db, 'unique-name', ['b'])).toThrow();
   });
 
+  it('createCombo throws conflict error when name matches existing alias', () => {
+    db.prepare(
+      `INSERT INTO model_aliases (alias_name, upstream_model, created_at)
+       VALUES ('fast', 'MiniMax-M3', datetime('now'))`
+    ).run();
+    expect(() => createCombo(db, 'fast', ['MiniMax-M3'])).toThrow('alias_conflict');
+  });
+
+  it('updateCombo throws conflict error when new name matches existing alias', () => {
+    db.prepare(
+      `INSERT INTO model_aliases (alias_name, upstream_model, created_at)
+       VALUES ('smart', 'MiniMax-M3', datetime('now'))`
+    ).run();
+    const combo = createCombo(db, 'my-combo', ['MiniMax-M3']);
+    expect(() => updateCombo(db, combo.id, { name: 'smart' })).toThrow('alias_conflict');
+  });
+
   it('listCombos returns empty models array for corrupt JSON in models column', () => {
     db.prepare(
       `INSERT INTO combos (id, name, models, created_at, updated_at)

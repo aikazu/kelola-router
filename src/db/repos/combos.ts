@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { ulid } from 'ulid';
+import { listAliases } from './aliases.js';
 
 export interface Combo {
   id: string;
@@ -33,6 +34,14 @@ function rowToCombo(row: ComboRow): Combo {
   };
 }
 
+function checkAliasConflict(db: Database.Database, name: string): void {
+  const aliases = listAliases(db);
+  const aliasNames = new Set(aliases.map((a) => a.aliasName));
+  if (aliasNames.has(name)) {
+    throw new Error(`alias_conflict: combo name '${name}' is already used as a model alias`);
+  }
+}
+
 export function listCombos(db: Database.Database): Combo[] {
   const rows = db
     .prepare(`SELECT * FROM combos ORDER BY created_at`)
@@ -55,6 +64,7 @@ export function getComboById(db: Database.Database, id: string): Combo | null {
 }
 
 export function createCombo(db: Database.Database, name: string, models: string[]): Combo {
+  checkAliasConflict(db, name);
   const id = `combo_${ulid()}`;
   const now = new Date().toISOString().replace('T', ' ').replace('Z', '');
   db.prepare(`
@@ -74,6 +84,9 @@ export function updateCombo(
   const run = db.transaction(() => {
     const existing = getComboById(db, id);
     if (!existing) throw new Error(`combo not found: ${id}`);
+    if (updates.name !== undefined && updates.name !== existing.name) {
+      checkAliasConflict(db, updates.name);
+    }
     const newName = updates.name ?? existing.name;
     const newModels = updates.models ?? existing.models;
     const now = new Date().toISOString().replace('T', ' ').replace('Z', '');

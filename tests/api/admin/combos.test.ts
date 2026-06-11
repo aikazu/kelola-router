@@ -68,6 +68,19 @@ describe('POST /api/admin/combos', () => {
     expect(res.status).toBe(409);
   });
 
+  it('returns 409 when name conflicts with existing alias', async () => {
+    db.prepare(
+      `INSERT INTO model_aliases (alias_name, upstream_model, created_at)
+       VALUES ('fast', 'MiniMax-M3', datetime('now'))`
+    ).run();
+    const res = await app.request('/api/admin/combos', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ name: 'fast', models: ['model-a'] }),
+    });
+    expect(res.status).toBe(409);
+  });
+
   it('returns 400 for invalid name', async () => {
     const res = await app.request('/api/admin/combos', {
       method: 'POST',
@@ -89,6 +102,20 @@ describe('PUT /api/admin/combos/:id', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.models).toEqual(['x', 'y']);
+  });
+
+  it('returns 409 when new name conflicts with existing alias', async () => {
+    const combo = createCombo(db, 'my-combo', ['a']);
+    db.prepare(
+      `INSERT INTO model_aliases (alias_name, upstream_model, created_at)
+       VALUES ('alias-x', 'MiniMax-M3', datetime('now'))`
+    ).run();
+    const res = await app.request(`/api/admin/combos/${combo.id}`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ name: 'alias-x' }),
+    });
+    expect(res.status).toBe(409);
   });
 
   it('returns 404 for unknown id', async () => {
