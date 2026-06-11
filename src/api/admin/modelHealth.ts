@@ -79,7 +79,7 @@ export async function testModelUpstream(
       return {
         ok: false,
         latencyMs,
-        error: `base_resp ${json.base_resp.status_code}: ${json.base_resp.status_msg ?? ''}`.trim(),
+        error: `base_resp ${json.base_resp.status_code}: ${json.base_resp.status_msg ?? ''}`.trim().slice(0, 200),
       };
     }
     return { ok: true, latencyMs };
