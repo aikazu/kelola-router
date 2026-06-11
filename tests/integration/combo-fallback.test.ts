@@ -127,7 +127,7 @@ describe('combo fallback — retry on 5xx', () => {
   });
 
   it('returns last error when all models return 503', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify({ error: 'overloaded' }), {
         status: 503,
         headers: { 'content-type': 'application/json' },
@@ -145,8 +145,8 @@ describe('combo fallback — retry on 5xx', () => {
       })
     );
 
-    // Should return last error (503 or 502 when all exhausted — body reuse can cause network-error path)
-    expect([429, 502, 503]).toContain(res.status);
+    // Should return last error (503 when all exhausted)
+    expect(res.status).toBe(503);
   });
 });
 

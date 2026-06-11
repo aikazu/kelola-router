@@ -240,7 +240,7 @@ async function handleComboProxy(
     const acc = allAccounts.find((a) => a.id === account.id)!;
     if (i === 0) {
       consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, reason));
-    };
+    }
     let resolved;
     try {
       resolved = resolveModel(db, modelName, body);
@@ -268,8 +268,8 @@ async function handleComboProxy(
         const kiroBody = { ...body, model: modelName };
         const kiroResp = await handleKiroProxy(c, format, upstreamPath, kiroBody, db);
         // If we get here without throw, check status
-        if (kiroResp.status === 429) {
-          log.info({ combo: combo.name, model: modelName, status: 429 }, 'combo: kiro rate limited, trying next model');
+        if (kiroResp.status === 429 || kiroResp.status === 502 || kiroResp.status === 503 || kiroResp.status === 504) {
+          log.info({ combo: combo.name, model: modelName, status: kiroResp.status }, 'combo: kiro retryable error, trying next model');
           lastErrorResponse = kiroResp;
           continue;
         }
