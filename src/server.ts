@@ -106,6 +106,11 @@ function getDb(): Database.Database {
 let rrCursor = 0;
 const stickyMap = new Map<number, string>();
 
+/** Test-only: reset the shared round-robin cursor so step assertions are deterministic. */
+export function _resetSelectionCursorForTests(): void {
+  rrCursor = 0;
+}
+
 const app = new Hono();
 app.use('*', async (c, next) => {
   c.set('db', getDb());
@@ -204,7 +209,10 @@ async function handleComboProxy(
   }
 
   // Selection mode dibaca sekali — tidak berubah per iterasi
-  const selMode = getSetting<{ mode: SelectionMode }>(db, 'selection')?.mode ?? 'lowest-backoff';
+  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ?? {
+    mode: 'lowest-backoff' as SelectionMode,
+    step: 1,
+  };
 
   let lastErrorResponse: Response | null = null;
 
@@ -222,7 +230,8 @@ async function handleComboProxy(
       enabled: !!a.enabled,
     }));
     const { account, reason, nextCursor } = selectAccount(accountStates, {
-      mode: selMode,
+      mode: sel.mode,
+      step: sel.step ?? 1,
       cursor: rrCursor,
       clientKeyId: clientKey?.id,
       stickyMap,
@@ -643,9 +652,13 @@ async function handleProxy(
     status: a.status as AccountState['status'],
     enabled: !!a.enabled,
   }));
-  const selMode = getSetting<{ mode: SelectionMode }>(db, 'selection')?.mode ?? 'lowest-backoff';
+  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ?? {
+    mode: 'lowest-backoff' as SelectionMode,
+    step: 1,
+  };
   const { account, reason, nextCursor } = selectAccount(accountStates, {
-    mode: selMode,
+    mode: sel.mode,
+    step: sel.step ?? 1,
     cursor: rrCursor,
     clientKeyId: clientKey?.id,
     stickyMap,
@@ -971,14 +984,17 @@ async function handleKiroProxy(
     status: a.status as AccountState['status'],
     enabled: !!a.enabled,
   }));
-  const kiroSelMode =
-    (getSetting(db, 'selection.mode') as SelectionMode | null) ?? 'lowest-backoff';
+  const kiroSel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.kiro') ?? {
+    mode: 'lowest-backoff' as SelectionMode,
+    step: 1,
+  };
   const {
     account: picked,
     reason: kiroReason,
     nextCursor: kiroNext,
   } = selectAccount(states, {
-    mode: kiroSelMode,
+    mode: kiroSel.mode,
+    step: kiroSel.step ?? 1,
     cursor: rrCursor,
     clientKeyId: clientKey?.id,
     stickyMap,
