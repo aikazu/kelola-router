@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Button } from '../components/Button';
 import { TopBar } from '../layout/TopBar';
+import { relativeTime } from '../lib/relativeTime';
 
 export type FlowEvent =
   | { phase: 'start'; reqId: string; ts: string; method: string; path: string; model: string; alias: string | null }
@@ -47,11 +48,39 @@ function groupBlocks(events: FlowEvent[]): Block[] {
   return order.map((id) => map.get(id)!);
 }
 
+/** Signature for collapsing visually-identical consecutive blocks. */
+function blockSignature(b: Block): string {
+  const status = b.error?.status ?? b.done?.status ?? '…';
+  const tf = b.transportFail ? (b.transportFail.fellBack ? 'tf-direct' : 'tf-block') : '';
+  return `${b.start?.method}|${b.start?.path}|${b.start?.model}|${b.account?.accountLabel}|${tf}|${status}`;
+}
+
+interface CollapsedBlock {
+  block: Block;
+  count: number;
+}
+
+/** Collapse consecutive identical blocks into one with a count. The latest
+ *  block of a run is kept (freshest timestamp); count shows how many repeats. */
+function collapseBlocks(blocks: Block[]): CollapsedBlock[] {
+  const out: CollapsedBlock[] = [];
+  for (const b of blocks) {
+    const last = out[out.length - 1];
+    if (last && blockSignature(last.block) === blockSignature(b)) {
+      last.count++;
+      last.block = b;
+    } else {
+      out.push({ block: b, count: 1 });
+    }
+  }
+  return out;
+}
+
 export function ConsoleBlocks({ events }: { events: FlowEvent[] }) {
-  const blocks = useMemo(() => groupBlocks(events), [events]);
+  const collapsed = useMemo(() => collapseBlocks(groupBlocks(events)), [events]);
   return (
     <div class="console-box">
-      {blocks.map((b) => {
+      {collapsed.map(({ block: b, count }) => {
         const failed = b.error || (b.done && b.done.status >= 400);
         return (
           <div class="console-block" key={b.reqId}>
@@ -59,6 +88,8 @@ export function ConsoleBlocks({ events }: { events: FlowEvent[] }) {
               <div class="console-line">
                 <span class="console-reqid">#{b.reqId}</span> → {b.start.method} {b.start.path}{' '}
                 {b.start.alias ? `${b.start.alias}→${b.start.model}` : b.start.model}
+                {count > 1 && <span class="console-count">×{count}</span>}
+                <span class="console-time">{relativeTime(b.start.ts)}</span>
               </div>
             )}
             {b.account && (

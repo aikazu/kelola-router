@@ -1235,6 +1235,19 @@ textarea::placeholder {
 .console-reqid {
   color: var(--gold);
 }
+.console-count {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  background: rgba(201, 163, 82, 0.16);
+  color: var(--gold);
+}
+.console-time {
+  float: right;
+  color: var(--text-3);
+  font-size: 0.8em;
+}
 .console-ok {
   color: var(--signal);
 }
