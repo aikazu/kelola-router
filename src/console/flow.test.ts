@@ -35,7 +35,7 @@ describe('build* helpers', () => {
     });
   });
   it('buildDone', () => {
-    expect(buildDone('a', ts, 200, 100, 1, 2, 3, 0.5, 999)).toEqual({
+    expect(buildDone('a', ts, 200, 100, 1, 2, 3, 0.5, 999, 42)).toEqual({
       phase: 'done',
       reqId: 'a',
       ts,
@@ -46,7 +46,14 @@ describe('build* helpers', () => {
       cacheTok: 3,
       costUsd: 0.5,
       latencyMs: 999,
+      rtkSaved: 42,
     });
+  });
+
+  it('buildDone defaults rtkSaved to 0', () => {
+    const ev = buildDone('a', ts, 200, 100, 1, 2, 3, 0.5, 999);
+    if (ev.phase !== 'done') throw new Error('wrong phase');
+    expect(ev.rtkSaved).toBe(0);
   });
   it('buildTransportFail', () => {
     expect(buildTransportFail('a', ts, true, 'ECONNREFUSED')).toEqual({

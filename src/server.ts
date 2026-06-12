@@ -455,7 +455,8 @@ async function handleComboProxy(
               completion,
               cacheRead,
               cost,
-              Date.now() - startMs
+              Date.now() - startMs,
+              rtkSaved
             )
           );
         });
@@ -534,7 +535,8 @@ async function handleComboProxy(
           usage.completion_tokens ?? 0,
           usage.prompt_tokens_details?.cached_tokens ?? 0,
           cost,
-          Date.now() - startMs
+          Date.now() - startMs,
+          rtkSaved
         )
       );
       return c.body(respBody, statusCode(resp.status), {
@@ -859,7 +861,8 @@ async function handleProxy(
             completion,
             cacheRead,
             cost,
-            Date.now() - startMs
+            Date.now() - startMs,
+            rtkSaved
           )
         );
       });
@@ -932,7 +935,8 @@ async function handleProxy(
         usage.completion_tokens ?? 0,
         usage.prompt_tokens_details?.cached_tokens ?? 0,
         cost,
-        Date.now() - c.get('startTime')
+        Date.now() - c.get('startTime'),
+        rtkSaved
       )
     );
     return c.body(respBody, statusCode(resp.status), {
@@ -1086,7 +1090,8 @@ async function handleKiroProxy(
         completion,
         0,
         cost,
-        Date.now() - startMs
+        Date.now() - startMs,
+        0
       )
     );
   };

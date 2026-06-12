@@ -74,8 +74,28 @@ describe('renderStdout', () => {
       cacheTok: 800,
       costUsd: 0.004,
       latencyMs: 1400,
+      rtkSaved: 0,
     };
     expect(stripAnsi(renderStdout(ev))).toBe('  ✓ in 1.2k out 340 cache 800 $0.0040 1.4s · 200');
+  });
+
+  it('renders done line with saved when rtkSaved > 0', () => {
+    const ev: FlowEvent = {
+      phase: 'done',
+      reqId: 'a3f2',
+      ts: TS,
+      status: 200,
+      ttftMs: 480,
+      inTok: 1200,
+      outTok: 340,
+      cacheTok: 800,
+      costUsd: 0.004,
+      latencyMs: 1400,
+      rtkSaved: 2400,
+    };
+    expect(stripAnsi(renderStdout(ev))).toBe(
+      '  ✓ in 1.2k out 340 cache 800 $0.0040 1.4s saved 2.4k · 200'
+    );
   });
 
   it('renders error line', () => {

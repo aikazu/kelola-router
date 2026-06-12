@@ -41,7 +41,8 @@ export function renderStdout(ev: FlowEvent): string {
     case 'done': {
       const col = ev.status >= 400 ? C.red : C.green;
       const mark = ev.status >= 400 ? '✗' : '✓';
-      return `  ${col}${mark}${C.reset} in ${fmtTokens(ev.inTok)} out ${fmtTokens(ev.outTok)} cache ${fmtTokens(ev.cacheTok)} $${ev.costUsd.toFixed(4)} ${fmtLatency(ev.latencyMs)} · ${ev.status}`;
+      const saved = ev.rtkSaved > 0 ? ` saved ${fmtTokens(ev.rtkSaved)}` : '';
+      return `  ${col}${mark}${C.reset} in ${fmtTokens(ev.inTok)} out ${fmtTokens(ev.outTok)} cache ${fmtTokens(ev.cacheTok)} $${ev.costUsd.toFixed(4)} ${fmtLatency(ev.latencyMs)}${saved} · ${ev.status}`;
     }
     case 'error':
       return `  ${C.red}✗${C.reset} ${ev.status} ${ev.message}`;

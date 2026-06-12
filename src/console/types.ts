@@ -26,5 +26,6 @@ export type FlowEvent =
       cacheTok: number;
       costUsd: number;
       latencyMs: number;
+      rtkSaved: number;
     }
   | { phase: 'error'; reqId: string; ts: string; status: number; message: string };

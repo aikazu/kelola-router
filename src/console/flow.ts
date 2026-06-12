@@ -44,9 +44,22 @@ export function buildDone(
   outTok: number,
   cacheTok: number,
   costUsd: number,
-  latencyMs: number
+  latencyMs: number,
+  rtkSaved = 0
 ): FlowEvent {
-  return { phase: 'done', reqId, ts, status, ttftMs, inTok, outTok, cacheTok, costUsd, latencyMs };
+  return {
+    phase: 'done',
+    reqId,
+    ts,
+    status,
+    ttftMs,
+    inTok,
+    outTok,
+    cacheTok,
+    costUsd,
+    latencyMs,
+    rtkSaved,
+  };
 }
 
 export function buildTransportFail(

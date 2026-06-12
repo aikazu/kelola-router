@@ -6,7 +6,8 @@ export type FlowEvent =
   | { phase: 'start'; reqId: string; ts: string; method: string; path: string; model: string; alias: string | null }
   | { phase: 'account'; reqId: string; ts: string; accountLabel: string; reason: string }
   | { phase: 'transport'; reqId: string; ts: string; kind: string; label: string }
-  | { phase: 'done'; reqId: string; ts: string; status: number; ttftMs: number | null; inTok: number; outTok: number; cacheTok: number; costUsd: number; latencyMs: number }
+  | { phase: 'transport-fail'; reqId: string; ts: string; fellBack: boolean; message: string }
+  | { phase: 'done'; reqId: string; ts: string; status: number; ttftMs: number | null; inTok: number; outTok: number; cacheTok: number; costUsd: number; latencyMs: number; rtkSaved: number }
   | { phase: 'error'; reqId: string; ts: string; status: number; message: string };
 
 function fmtTokens(n: number): string {
@@ -21,6 +22,7 @@ interface Block {
   start?: Extract<FlowEvent, { phase: 'start' }>;
   account?: Extract<FlowEvent, { phase: 'account' }>;
   transport?: Extract<FlowEvent, { phase: 'transport' }>;
+  transportFail?: Extract<FlowEvent, { phase: 'transport-fail' }>;
   done?: Extract<FlowEvent, { phase: 'done' }>;
   error?: Extract<FlowEvent, { phase: 'error' }>;
 }
@@ -38,6 +40,7 @@ function groupBlocks(events: FlowEvent[]): Block[] {
     if (e.phase === 'start') b.start = e;
     else if (e.phase === 'account') b.account = e;
     else if (e.phase === 'transport') b.transport = e;
+    else if (e.phase === 'transport-fail') b.transportFail = e;
     else if (e.phase === 'done') b.done = e;
     else if (e.phase === 'error') b.error = e;
   }
@@ -68,10 +71,17 @@ export function ConsoleBlocks({ events }: { events: FlowEvent[] }) {
                 ⤷ {b.transport.kind}: {b.transport.label}
               </div>
             )}
+            {b.transportFail && (
+              <div class="console-line console-err">
+                ⤷ {b.transportFail.fellBack ? 'proxy failed → direct' : 'proxy blocked'}:{' '}
+                {b.transportFail.message}
+              </div>
+            )}
             {b.done && (
               <div class={`console-line ${failed ? 'console-err' : 'console-ok'}`}>
                 {failed ? '✗' : '✓'} in {fmtTokens(b.done.inTok)} out {fmtTokens(b.done.outTok)} cache{' '}
-                {fmtTokens(b.done.cacheTok)} ${b.done.costUsd.toFixed(4)} {fmtLatency(b.done.latencyMs)} · {b.done.status}
+                {fmtTokens(b.done.cacheTok)} ${b.done.costUsd.toFixed(4)} {fmtLatency(b.done.latencyMs)}
+                {b.done.rtkSaved > 0 ? ` saved ${fmtTokens(b.done.rtkSaved)}` : ''} · {b.done.status}
               </div>
             )}
             {b.error && (
