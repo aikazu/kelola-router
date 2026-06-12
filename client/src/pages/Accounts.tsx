@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { confirmDialog } from '../components/Confirm';
@@ -9,42 +8,11 @@ import { Modal } from '../components/Modal';
 import { SelectionControls } from '../components/SelectionControls';
 import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
+import { AccountsTable } from '../components/AccountsTable';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
 import { relativeTime } from '../lib/relativeTime';
-
-interface Account {
-  id: string;
-  label: string;
-  provider?: string;
-  authMethod?: string | null;
-  persona?: string | null;
-  creditType: string;
-  status: string;
-  enabled: boolean;
-  lastError: string | null;
-  backoffLevel: number;
-  rateLimitedUntil: string | null;
-  relayId?: string | null;
-  proxyId?: string | null;
-  proxyPool?: string[];
-  proxyRotateEvery?: number;
-  lockedModels?: number;
-}
-
-interface ModelLock {
-  model: string;
-  locked_until: string;
-}
-
-interface Transport {
-  id: string;
-  label: string;
-  type: 'proxy' | 'relay';
-  kind: string;
-  url: string;
-  enabled: boolean;
-}
+import type { Account, ModelLock, Transport } from '../lib/types';
 
 interface DeviceCodeData {
   deviceCode: string;
@@ -343,14 +311,6 @@ export function Accounts() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const statusVariant = (s: string, e: boolean) => {
-    if (!e) return 'muted';
-    if (s === 'active') return 'active';
-    if (s === 'error') return 'error';
-    if (s === 'rate_limited') return 'warn';
-    return 'muted';
-  };
-
   async function handleDelete(id: string, label: string) {
     const ok = await confirmDialog({
       title: 'Delete account',
@@ -532,104 +492,6 @@ export function Accounts() {
     );
   }
 
-  const accountsTable = (list: Account[]) =>
-    list.length === 0 ? (
-      <p class="card-sub">No accounts for this provider yet.</p>
-    ) : (
-      <div style={{ overflowX: 'auto' }}>
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Label</th>
-              <th>Provider</th>
-              <th>Status</th>
-              <th>Backoff</th>
-              <th>Transport</th>
-              <th>Last error</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((a) => (
-              <tr key={a.id}>
-                <td>
-                  <span style={{ fontWeight: 500 }}>{a.label}</span>
-                  <span class="mono" style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}>{a.id}</span>
-                </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <Badge variant={a.provider === 'kiro' ? 'active' : 'muted'}>
-                    {a.provider === 'kiro' ? `kiro · ${a.authMethod || 'token'}` : 'minimax'}
-                  </Badge>
-                  {a.provider === 'kiro' && (
-                    <Badge variant={a.persona === 'cli' ? 'warn' : 'muted'} style={{ marginLeft: 6 }}>
-                      {a.persona === 'cli' ? 'CLI' : 'IDE'}
-                    </Badge>
-                  )}
-                </td>
-                <td>
-                  <Badge variant={statusVariant(a.status, a.enabled)} pulse={a.status === 'rate_limited'}>
-                    {a.enabled ? a.status : 'disabled'}
-                  </Badge>
-                  {a.rateLimitedUntil && (
-                    <span style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }} title={a.rateLimitedUntil}>
-                      until {relativeTime(a.rateLimitedUntil)}
-                    </span>
-                  )}
-                  {(a.lockedModels ?? 0) > 0 && (
-                    <Badge variant="warn" style={{ marginLeft: 4 }}>🔒 {a.lockedModels}</Badge>
-                  )}
-                </td>
-                <td class="mono">{a.backoffLevel || '—'}</td>
-                <td>
-                  {(() => {
-                    if (a.relayId) {
-                      const relay = transports.find((t) => t.id === a.relayId);
-                      return <Badge variant="active">☁ {relay?.label ?? 'relay'}</Badge>;
-                    }
-                    if (a.proxyPool && a.proxyPool.length > 0) {
-                      return <Badge variant="warn">🔀 Pool({a.proxyPool.length})</Badge>;
-                    }
-                    if (a.proxyId) {
-                      const proxy = transports.find((t) => t.id === a.proxyId);
-                      return <Badge variant="warn">🔀 {proxy?.label ?? 'proxy'}</Badge>;
-                    }
-                    return <Badge variant="muted">Direct</Badge>;
-                  })()}
-                </td>
-                <td style={{ maxWidth: 220, fontSize: 11, color: 'var(--text-3)' }}>
-                  <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.lastError ?? ''}>
-                    {a.lastError ?? '—'}
-                  </span>
-                </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {a.provider === 'kiro' && (
-                      <Button size="sm" variant="ghost" onClick={() => setUsageAccount(a.id)}>
-                        Usage
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setEditForm({ label: a.label, api_key: '', persona: a.persona === 'cli' ? 'cli' : 'ide' }); loadTransportState(a); }}>
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={async () => {
-                      if (a.enabled) {
-                        const ok = await confirmDialog({ title: 'Disable account', message: `Disable "${a.label}"?`, confirmLabel: 'Disable', danger: true });
-                        if (!ok) return;
-                      }
-                      toggleMut.mutate({ id: a.id, enabled: a.enabled });
-                    }}>
-                      {a.enabled ? 'Disable' : 'Enable'}
-                    </Button>
-                    <Button size="sm" variant="danger" onClick={() => handleDelete(a.id, a.label)}>Del</Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-
   return (
     <>
       <TopBar
@@ -658,7 +520,15 @@ export function Accounts() {
               <div style={{ marginBottom: 12 }}>
                 <SelectionControls provider="minimax" />
               </div>
-              {accountsTable(minimaxAccounts)}
+              <AccountsTable
+                accounts={minimaxAccounts}
+                transports={transports}
+                onUsage={setUsageAccount}
+                onEdit={(a, editForm) => { setEditing(a); setEditForm(editForm); }}
+                onLoadTransportState={loadTransportState}
+                onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+                onDelete={handleDelete}
+              />
             </Card>
             <Card
               title="Kiro"
@@ -671,7 +541,15 @@ export function Accounts() {
               <div style={{ marginBottom: 12 }}>
                 <SelectionControls provider="kiro" />
               </div>
-              {accountsTable(kiroAccounts)}
+              <AccountsTable
+                accounts={kiroAccounts}
+                transports={transports}
+                onUsage={setUsageAccount}
+                onEdit={(a, editForm) => { setEditing(a); setEditForm(editForm); }}
+                onLoadTransportState={loadTransportState}
+                onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+                onDelete={handleDelete}
+              />
             </Card>
           </>
         )}
