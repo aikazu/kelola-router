@@ -19,16 +19,16 @@ Pointers to every knowledge resource in this repository. New contributor (human 
 | Changelog | [`CHANGELOG.md`](CHANGELOG.md) | Release history (Keep-a-Changelog) |
 | Roadmap | [`docs/roadmap.md`](docs/roadmap.md) | Long-term direction |
 
-## Playbooks (when written)
+## Playbooks
 
-Step-by-step guides for common tasks. Missing one? Write it as a follow-up commit.
+Step-by-step guides for common contributor tasks. When a playbook is missing, write the work + the playbook in the same PR.
 
-- `docs/guides/add-a-provider.md` — wire a new upstream provider (Anthropic, Azure, …)
-- `docs/guides/add-an-admin-endpoint.md` — add a `/api/admin/*` route
-- `docs/guides/add-a-dashboard-page.md` — add a Preact page
-- `docs/guides/add-a-migration.md` — write a new `src/db/migrations/00X-*.ts`
-- `docs/guides/debug-a-failed-request.md` — trace a request through the proxy
-- `docs/guides/ship-a-release.md` — version bump + changelog + tag
+- [`docs/guides/add-a-provider.md`](docs/guides/add-a-provider.md) — wire a new upstream provider alongside MiniMax / Kiro
+- [`docs/guides/add-an-admin-endpoint.md`](docs/guides/add-an-admin-endpoint.md) — add a `/api/admin/*` route
+- [`docs/guides/add-a-dashboard-page.md`](docs/guides/add-a-dashboard-page.md) — add a Preact page
+- [`docs/guides/add-a-migration.md`](docs/guides/add-a-migration.md) — write a new `src/db/migrations/00X-*.ts`
+- [`docs/guides/debug-a-failed-request.md`](docs/guides/debug-a-failed-request.md) — trace a request through the proxy
+- [`docs/guides/ship-a-release.md`](docs/guides/ship-a-release.md) — version bump + changelog + tag
 
 ## Reference (when written)
 
