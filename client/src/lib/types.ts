@@ -32,3 +32,11 @@ export interface ModelLock {
   model: string;
   locked_until: string;
 }
+
+export interface TransportState {
+  mode: 'none' | 'proxy' | 'pool' | 'relay';
+  proxyId: string;
+  relayId: string;
+  pool: string[];
+  rotate: number;
+}

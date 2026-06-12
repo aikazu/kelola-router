@@ -9,10 +9,11 @@ import { SelectionControls } from '../components/SelectionControls';
 import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { AccountsTable } from '../components/AccountsTable';
+import { TransportAssignment } from '../components/TransportAssignment';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
 import { relativeTime } from '../lib/relativeTime';
-import type { Account, ModelLock, Transport } from '../lib/types';
+import type { Account, ModelLock, Transport, TransportState } from '../lib/types';
 
 interface DeviceCodeData {
   deviceCode: string;
@@ -93,29 +94,24 @@ export function Accounts() {
   const locks = locksData?.locks ?? [];
   const proxies = transports.filter((t) => t.type === 'proxy');
   const relays = transports.filter((t) => t.type === 'relay');
-  const [tpMode, setTpMode] = useState<'none' | 'proxy' | 'pool' | 'relay'>('none');
-  const [tpProxyId, setTpProxyId] = useState('');
-  const [tpRelayId, setTpRelayId] = useState('');
-  const [tpPool, setTpPool] = useState<string[]>([]);
-  const [tpRotate, setTpRotate] = useState(1);
+  const [tpState, setTpState] = useState<TransportState>({
+    mode: 'none',
+    proxyId: '',
+    relayId: '',
+    pool: [],
+    rotate: 1,
+  });
 
   function loadTransportState(a: Account) {
     if (a.relayId) {
-      setTpMode('relay');
-      setTpRelayId(a.relayId);
+      setTpState({ mode: 'relay', proxyId: '', relayId: a.relayId, pool: [], rotate: 1 });
     } else if (a.proxyPool && a.proxyPool.length > 0) {
-      setTpMode('pool');
-      setTpPool(a.proxyPool);
+      setTpState({ mode: 'pool', proxyId: '', relayId: '', pool: a.proxyPool, rotate: a.proxyRotateEvery ?? 1 });
     } else if (a.proxyId) {
-      setTpMode('proxy');
-      setTpProxyId(a.proxyId);
+      setTpState({ mode: 'proxy', proxyId: a.proxyId, relayId: '', pool: [], rotate: 1 });
     } else {
-      setTpMode('none');
+      setTpState({ mode: 'none', proxyId: '', relayId: '', pool: [], rotate: 1 });
     }
-    setTpProxyId(a.proxyId ?? '');
-    setTpRelayId(a.relayId ?? '');
-    setTpPool(a.proxyPool ?? []);
-    setTpRotate(a.proxyRotateEvery ?? 1);
   }
 
   function resetForms() {
@@ -638,31 +634,31 @@ export function Accounts() {
                 payload.persona = editForm.persona;
               }
               // Transport assignment — send the active mode's fields, clearing others.
-              if (tpMode === 'none') {
+              if (tpState.mode === 'none') {
                 payload.relayId = '';
                 payload.proxyId = '';
                 payload.proxyPool = [];
-              } else if (tpMode === 'relay') {
-                payload.relayId = tpRelayId;
+              } else if (tpState.mode === 'relay') {
+                payload.relayId = tpState.relayId;
                 payload.proxyId = '';
                 payload.proxyPool = [];
-              } else if (tpMode === 'proxy') {
+              } else if (tpState.mode === 'proxy') {
                 payload.relayId = '';
-                payload.proxyId = tpProxyId;
+                payload.proxyId = tpState.proxyId;
                 payload.proxyPool = [];
-              } else if (tpMode === 'pool') {
+              } else if (tpState.mode === 'pool') {
                 payload.relayId = '';
                 payload.proxyId = '';
-                payload.proxyPool = tpPool;
-                payload.proxyRotateEvery = tpRotate;
+                payload.proxyPool = tpState.pool;
+                payload.proxyRotateEvery = tpState.rotate;
               }
               editMut.mutate(payload);
             }}
             disabled={
               editMut.isPending ||
-              (tpMode === 'relay' && !tpRelayId) ||
-              (tpMode === 'proxy' && !tpProxyId) ||
-              (tpMode === 'pool' && tpPool.length === 0)
+              (tpState.mode === 'relay' && !tpState.relayId) ||
+              (tpState.mode === 'proxy' && !tpState.proxyId) ||
+              (tpState.mode === 'pool' && tpState.pool.length === 0)
             }
           >
             {editMut.isPending ? 'Saving…' : 'Save'}
@@ -697,82 +693,7 @@ export function Accounts() {
           )}
 
           {/* --- Transport (proxy / relay) assignment --- */}
-          <div style={{ borderTop: '1px solid var(--ink-3)', paddingTop: 12, marginTop: 4 }}>
-            <label>
-              Network transport
-              <select
-                value={tpMode}
-                onChange={(e) => setTpMode((e.target as HTMLSelectElement).value as 'none' | 'proxy' | 'pool' | 'relay')}
-                class="input"
-              >
-                <option value="none">Direct / global default</option>
-                <option value="proxy">Single proxy</option>
-                <option value="pool">Proxy pool (rotate)</option>
-                <option value="relay">Relay</option>
-              </select>
-            </label>
-
-            {tpMode === 'proxy' && (
-              <label style={{ marginTop: 10, display: 'block' }}>
-                Proxy
-                <select value={tpProxyId} onChange={(e) => setTpProxyId((e.target as HTMLSelectElement).value)} class="input">
-                  <option value="">— select proxy —</option>
-                  {proxies.map((p) => (
-                    <option key={p.id} value={p.id}>{p.label} ({p.kind}){p.enabled ? '' : ' · disabled'}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-
-            {tpMode === 'relay' && (
-              <label style={{ marginTop: 10, display: 'block' }}>
-                Relay
-                <select value={tpRelayId} onChange={(e) => setTpRelayId((e.target as HTMLSelectElement).value)} class="input">
-                  <option value="">— select relay —</option>
-                  {relays.map((r) => (
-                    <option key={r.id} value={r.id}>{r.label} ({r.kind}){r.enabled ? '' : ' · disabled'}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-
-            {tpMode === 'pool' && (
-              <div style={{ marginTop: 10 }}>
-                <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Pool members (proxies)</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: 160, overflowY: 'auto' }}>
-                  {proxies.length === 0 && (
-                    <span style={{ fontSize: 12, color: 'var(--text-3)' }}>No proxies yet — add some on the Proxies page.</span>
-                  )}
-                  {proxies.map((p) => (
-                    <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                      <input
-                        type="checkbox"
-                        checked={tpPool.includes(p.id)}
-                        onChange={(e) => {
-                          const on = (e.target as HTMLInputElement).checked;
-                          setTpPool((cur) => (on ? [...cur, p.id] : cur.filter((x) => x !== p.id)));
-                        }}
-                      />
-                      {p.label} <span style={{ color: 'var(--text-3)', fontSize: 11 }}>({p.kind}){p.enabled ? '' : ' · disabled'}</span>
-                    </label>
-                  ))}
-                </div>
-                <label style={{ marginTop: 10, display: 'block' }}>
-                  Rotate every N requests
-                  <input
-                    type="number"
-                    min={1}
-                    value={tpRotate}
-                    onInput={(e) => setTpRotate(Math.max(1, Number((e.target as HTMLInputElement).value) || 1))}
-                    class="input"
-                  />
-                  <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
-                    The router uses one proxy for N requests, then advances to the next pool member.
-                  </span>
-                </label>
-              </div>
-            )}
-          </div>
+          <TransportAssignment tpState={tpState} setTpState={setTpState} proxies={proxies} relays={relays} />
 
           {/* --- Model Locks --- */}
           {locks.length > 0 && (
