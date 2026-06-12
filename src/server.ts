@@ -3,7 +3,6 @@ import { serve } from '@hono/node-server';
 import type Database from 'better-sqlite3';
 import { type Context, Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { ulid } from 'ulid';
 import { checkFallbackError } from './accounts/errorRules.js';
 import { clearExpiredModelLocks, getModelLock, setModelLock } from './accounts/locks.js';
@@ -67,6 +66,7 @@ import { calculateCost } from './providers/pricing.js';
 import { upstreamFetch } from './providers/upstreamFetch.js';
 import { headersToJson, truncateBody } from './proxy/capture.js';
 import { handleComboProxy } from './proxy/combo.js';
+import { errorMessage, safeJsonParse, statusCode, stringValue } from './proxy/helpers.js';
 import { type CursorRef, handleKiroProxy } from './proxy/kiro.js';
 import { compressMessages, formatRtkLog, rtkBytesSaved } from './rtk/index.js';
 import { markHotPath } from './runtime/hotPathMetrics.js';
@@ -75,26 +75,6 @@ import { pipeWithUsage } from './streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from './transport/resolve.js';
 import { getHost, getPort } from './util/env.js';
 import { log } from './util/log.js';
-
-function safeJsonParse(s: string): unknown {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function stringValue(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-function statusCode(value: number): ContentfulStatusCode {
-  return value as ContentfulStatusCode;
-}
 
 let _db: Database.Database | null = null;
 function getDb(): Database.Database {

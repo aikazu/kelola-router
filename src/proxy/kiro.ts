@@ -1,6 +1,5 @@
 import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
-import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { checkFallbackError } from '../accounts/errorRules.js';
 import { selectAccount } from '../accounts/selection.js';
 import type { AccountState, SelectionMode } from '../accounts/types.js';
@@ -27,29 +26,7 @@ import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
 import { headersToJson, truncateBody } from './capture.js';
-
-// Tiny helpers duplicated here to avoid a circular import with server.ts.
-// server.ts imports handleKiroProxy from this file; if this file imported from
-// server.ts, the ESM loader would see a cycle that can break at runtime.
-function safeJsonParse(s: string): unknown {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function stringValue(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-function statusCode(value: number): ContentfulStatusCode {
-  return value as ContentfulStatusCode;
-}
+import { errorMessage, safeJsonParse, statusCode, stringValue } from './helpers.js';
 
 /**
  * Mutable cursor ref passed in from server.ts so that account round-robin
