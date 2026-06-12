@@ -1,0 +1,258 @@
+# Architecture
+
+A deep-dive into how `kelola-router` is wired. Pair with `CLAUDE.md` (overview) and `MEMORY.md` (knowledge index).
+
+## Bird's-eye
+
+```
+  Client (Claude Code, hermes-agent, curl, anything speaking OpenAI/Anthropic)
+    │
+    │  Authorization: Bearer <client_key>      ── two-tier auth ──
+    ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Hono app (src/server.ts)                                     │
+│   • requireApiKey middleware  → client_keys row              │
+│   • requireAdmin middleware    → session / x-admin-key / open │
+│   • csrfGuard on /admin/* POSTs                              │
+└──────────────────────────────────────────────────────────────┘
+    │
+    │  /v1/chat/completions | /v1/messages | /v1/messages/count_tokens | /v1/models
+    ▼
+┌──────────────────────────────────────────────────────────────┐
+│ handleProxy  (src/proxy/minimax.ts + kiro/combo helpers)     │
+│                                                              │
+│  1. parseBody                                                │
+│  2. resolve model: alias → upstream_model                    │
+│  3. selectAccount  (sticky / round-robin / lowest-backoff)   │
+│  4. check per-model lock                                     │
+│  5. augmentRequest  (caveman system prompt + cache_control)  │
+│  6. compress  (RTK runtime filter compression)              │
+│  7. transform body  (OpenAI ↔ Anthropic per upstreamFormat)  │
+│  8. upstreamFetch + SSE pipe                                 │
+│  9. transform response back to client format                 │
+│ 10. insertRequestLog  (cost, tokens, latency, account)       │
+│ 11. applyAccountError  (backoff / lock on 4xx/5xx)           │
+└──────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Upstream                                                     │
+│  • MiniMax   (api.minimax.io / api.minimaxi.com)  HTTP-JSON   │
+│  • Kiro      (CodeWhisperer / Amazon Q)  AWS event-stream    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+A shared `reqId` is generated per request and threaded through every emit (`consoleBus`) and every `request_log` row for correlation.
+
+## Module map (server)
+
+```
+src/
+├── server.ts                 Hono app, routes, middleware wiring (≈ 330 LOC)
+├── auth.ts                   requireApiKey, requireAdmin, csrfGuard, session cookie
+├── auth/                     password (scrypt), session, rate limit
+├── proxy/
+│   ├── helpers.ts            Shared response/request utilities
+│   ├── minimax.ts            handleProxy — MiniMax pipeline (~470 LOC)
+│   ├── kiro.ts               handleKiroProxy — Kiro pipeline (~270 LOC)
+│   └── combo.ts              handleComboProxy — combo routing (~470 LOC)
+├── accounts/                 Account selection state machine
+│   ├── selection.ts          sticky / round-robin / lowest-backoff picker
+│   ├── state.ts              applyAccountError, isModelLockActive
+│   ├── locks.ts              per-model locks (TTL)
+│   ├── backoff.ts            exponential backoff level helpers
+│   ├── errorRules.ts         base_resp / HTTP status → decision
+│   └── types.ts              AccountState, ModelLock, SelectionOpts
+├── providers/
+│   ├── format/transform.ts   OpenAI ↔ Anthropic body conversion
+│   ├── kiro/                 Kiro protocol stack
+│   │   ├── auth.ts           ensureAccessToken (refresh + persist)
+│   │   ├── tokenRefresh.ts   AWS SSO OIDC vs Kiro social refresh
+│   │   ├── transform.ts      buildKiroPayload (OpenAI → CodeWhisperer)
+│   │   ├── eventstream.ts    binary frame decoder
+│   │   ├── assembler.ts      → OpenAI SSE chunks
+│   │   ├── anthropicSse.ts   → native Anthropic Messages SSE
+│   │   ├── index.ts          executeKiro (orchestrator)
+│   │   ├── deviceCode.ts     AWS Builder ID / IDC device code flow
+│   │   └── accountImport.ts  buildKiroAccountFields (token / idc / social)
+│   ├── baseUrl.ts            MiniMax region switch (intl/cn)
+│   ├── parseError.ts         base_resp.status_code extractor
+│   ├── pricing.ts            per-model USD pricing
+│   ├── quota.ts              quota pull
+│   ├── upstreamFetch.ts      fetch w/ transport (proxy/relay/direct)
+│   └── listModels.ts         MiniMax /v1/models fetcher
+├── caveman/                  System-prompt compression (wired in step 5)
+├── rtk/                      Runtime filter compression (wired in step 6)
+├── streaming/                pipeWithUsage, extractUsage
+├── transport/                undici dispatcher cache + SOCKS proxy loader
+│   └── resolve.ts            resolveTransportForAccount — per-account transport
+├── console/                  Live flow event bus
+│   ├── bus.ts                ring buffer + SSE subscribe
+│   ├── flow.ts               FlowEvent builders + reqId gen
+│   ├── format.ts             ANSI renderer
+│   ├── sink.ts               stdout sink (CONSOLE_FLOW env gate)
+│   └── types.ts              FlowEvent discriminated union
+├── scheduler/quotaPull.ts    Background tick: quota pull + log prune
+├── cache-injection.ts        caveman system prompt + cache_control dual breakpoints
+├── runtime/                  per-request context (rrCursor, stickyMap, getDb)
+├── db/
+│   ├── index.ts              openDb() (WAL, foreign_keys, busy_timeout)
+│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid
+│   └── repos/                One file per table: accounts, client_keys, models,
+│                             aliases, combos, requestLogs, quotaSnapshots,
+│                             transports, settings (1s cache)
+└── util/                     env, log
+```
+
+## Module map (client)
+
+```
+client/src/
+├── main.tsx                  Preact entry
+├── App.tsx                   QueryClientProvider + PrimeCache + AppShell
+├── layout/AppShell.tsx       Sidebar + top bar + hash router (#/admin/<page>)
+├── pages/                    14 pages: Overview, Usage, Accounts, Aliases, Models,
+│                             ClientKeys, Combos, Quota, Transports, Settings,
+│                             Console, RequestDetail, Login, NotFound
+├── components/               Card, Stat, Badge, Button, Modal, Toast,
+│                             CommandPalette, ErrorState, Skeleton, Confirm, …
+├── hooks/                    useKiroDeviceFlow, useKiroAutoImport
+├── lib/                      api.ts (apiFetch), queryClient, relativeTime
+└── styles/                   base.css (Obsidian Gold tokens), components.css,
+                              animations.css
+```
+
+The client is a Preact SPA — NOT server-rendered. The Hono app exposes a JSON API under `/api/admin/*`; the SPA consumes it via `apiFetch`. Built with Vite, bundled into `client/dist/`, served as static assets by the Hono app in production. In Docker, `client/dist` is baked at build time and copied to runtime.
+
+## State machines
+
+### Account selection (per request)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ listAccounts(provider=…) → filter to enabled + not backoff   │
+└──────────────────┬───────────────────────────────────────────┘
+                   ▼
+         ┌─────────────────────┐
+         │  mode?  (settings)  │
+         └──────┬──────────────┘
+                │
+   ┌────────────┼────────────┐
+   │            │            │
+   ▼            ▼            ▼
+sticky     round-robin   lowest-backoff
+   │            │            │
+   │  pinned &  │  cursor/   │  sort by
+   │  available │  step % N  │  backoffLevel asc
+   │  → return  │  → return  │  → return first
+   │            │            │
+   └────────────┴────────────┘
+                │
+                ▼
+       ┌─────────────────┐
+       │  no candidate?  │
+       │  → 503 with     │
+       │  reason=mode    │
+       └─────────────────┘
+```
+
+`sticky` pins the first selected account to a `clientKeyId` in an in-memory `Map`. `round-robin` advances a per-provider cursor every `step` requests. `lowest-backoff` is the default — picks the healthiest available.
+
+### Error → backoff (applyAccountError)
+
+```
+base_resp_code / HTTP status
+        │
+        ▼
+  errorRules.checkFallbackError()
+        │
+        ├─ 1002 (rate limit)        → cooldownMs = 30s
+        ├─ 1008 (balance)           → permanent lock
+        ├─ 1013 (server busy)       → cooldownMs = 5s
+        ├─ 1027 (rate limit variant)→ cooldownMs = 30s
+        ├─ 1039 (token limit)       → per-model lock
+        ├─ 2013 (param)             → permanent lock
+        ├─ 401                       → account.status = 'error'
+        ├─ 429 + Retry-After         → cooldownMs = retryAfter
+        └─ 5xx                       → exponential backoff level++
+```
+
+`backoffLevel` is per-account, persists in `accounts.rate_limited_until` and `accounts.backoff_level`. `selectAccount` filters by `isAccountUnavailable` (rate_limited_until > now). Resets to 0 on next success.
+
+### Model lock
+
+`account_model_locks(account_id, model, locked_until)`. Inserted on certain error classes (e.g. 1039). `selectAccount` short-circuits to 429 with `error: 'model_locked'` for the locked `(account, model)` pair. TTL is short (seconds to minutes); the proxy checks `isModelLockActive(lock)` before every request.
+
+## Data flow per request
+
+```
+HTTP in
+  ↓
+csrfGuard (admin only) → requireApiKey (proxy) / requireAdmin (admin)
+  ↓
+parseBody (c.req.json / c.req.parseBody)
+  ↓
+model resolution
+  • aliasCache.lookup(model) → upstream_model
+  • -thinking / -agentic suffix handling
+  • M3 max_completion_tokens
+  ↓
+consoleBus.emit('start', { reqId, model, endpoint })
+  ↓
+selectAccount(db, provider, opts)
+  ↓
+getModelLock(accountId, model) → 429 if active
+  ↓
+augmentRequest(body) — caveman + cache_control
+  ↓
+RTK compress body
+  ↓
+bodyOpenAIToAnthropic / bodyAnthropicToOpenAI (per upstreamFormat)
+  ↓
+resolveTransportForAccount(account) → TransportConfig
+  ↓
+upstreamFetch(url, body, headers, transport)
+  ↓
+  • streaming → pipeWithUsage → extractUsage
+  • buffered  → resp.json/text
+  ↓
+response transform back to client format
+  ↓
+consoleBus.emit('done', { reqId, status, latency, ttft, tokens, cost })
+  ↓
+insertRequestLog(row)
+  ↓
+on error: applyAccountError → emit('error')
+HTTP out
+```
+
+## Two-tier auth
+
+| Layer | Token | Source | Where it travels |
+|---|---|---|---|
+| Client (proxy) | `client_keys.key` | Dashboard → copy bearer | `Authorization: Bearer …` from client to router |
+| Admin (dashboard) | session cookie OR `x-admin-key` header | Password set in `/admin/settings` (scrypt) OR `ROUTER_ADMIN_KEY` env | Browser cookie / script header |
+
+**Never** mix these. Client never sees upstream MiniMax/Kiro keys; upstream never sees client bearers.
+
+## Storage
+
+`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Migrations tracked via `PRAGMA user_version` (current = 5). All migrations live in `src/db/migrations/`; one file per migration, additive ALTERs when possible (e.g. `002-kiro` adds `provider` / `access_token` etc. without rewriting rows).
+
+## Key invariants
+
+- `client_keys.key` is unique per active row. Soft-deleted keys keep their row.
+- One `accounts` row per upstream key per provider. `provider='kiro'` rows store the OAuth refresh token in `api_key` and the cached short-lived bearer in `access_token`.
+- `models.upstream_model` is unique (index).
+- `model_aliases.alias_name` is unique and conflicts with `combos.name` (enforced in `createCombo`).
+- `transports` are referenced by `accounts.relay_id` / `proxy_id` / `proxy_pool` (JSON array). Mutual exclusion: a row has at most one of `relay_id` / `proxy_id` / `proxy_pool` non-null.
+- `request_logs` rows are pruned at `REQUEST_LOG_RETENTION_DAYS` (default 30) by the quota-pull scheduler.
+- `settings.*` reads cache for 1s (`src/db/repos/settings.ts`). Call `clearCacheForDb(db)` in tests.
+
+## Where to look next
+
+- Proxy pipeline deep-dive → `CLAUDE.md`
+- Provider-specific quirks (MiniMax base_resp, Kiro event-stream) → `CLAUDE.md` "Provider" sections
+- Data model → `src/db/migrations/001-initial.ts` (all tables consolidated)
+- Live flow event types → `src/console/types.ts`
+- Test patterns → `AGENTS.md` "Test patterns"
