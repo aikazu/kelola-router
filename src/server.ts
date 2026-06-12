@@ -1386,8 +1386,10 @@ if (existsSync('./client/dist/index.html')) {
   }
 }
 
-// patched for Windows: import.meta.url guard doesn't work with backslash paths
-{
+// patched for Windows: import.meta.url guard doesn't work with backslash paths.
+// Skip the listen under vitest, otherwise every test file that imports this
+// module races to bind the same port and floods the run with EADDRINUSE.
+if (!process.env.VITEST) {
   const port = getPort();
   const hostname = getHost();
   serve({ fetch: app.fetch, port, hostname }, (info) => {
