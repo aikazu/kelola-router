@@ -43,10 +43,13 @@ Terse lookup tables, auto-extracted from source.
 
 ## Architecture Decision Records
 
-- `docs/adr/0001-per-provider-routing.md` — (planned) why Kiro branches off `handleProxy` instead of being a transport
-- `docs/adr/0002-event-stream-vs-json-for-kiro.md` — (planned) why Kiro uses AWS event-stream binary framing
-- `docs/adr/0003-console-sse-bus.md` — (planned) why in-process SSE bus instead of WebSocket
-- `docs/adr/0004-two-tier-auth.md` — (planned) why client_key and admin_key are separate
+Capture the *why* behind consequential design choices. MADR-lite format. New ADRs get a sequential number (`NNNN-…`) and follow the template in `docs/adr/0001-…`.
+
+- `docs/adr/0001-per-provider-routing.md` — Kiro branches as a separate provider, not a transport
+- `docs/adr/0002-kiro-aws-event-stream.md` — accept the binary event-stream framing, re-emit as SSE
+- `docs/adr/0003-in-process-sse-bus.md` — in-process EventEmitter + SSE for the live console
+- `docs/adr/0004-two-tier-auth.md` — separate `client_keys` + cascading admin modes
+- `docs/adr/0005-sqlite-wal-migrations.md` — SQLite-WAL + `user_version` + additive migrations
 
 ## Agent skills (when written)
 
