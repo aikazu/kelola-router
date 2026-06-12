@@ -55,13 +55,13 @@ Capture the *why* behind consequential design choices. MADR-lite format. New ADR
 
 `.claude/skills/<name>/SKILL.md` — auto-loaded task instructions. Each skill is terse (< 100 LOC), step-by-step, with file:line references and a checklist. Same names as the playbooks above.
 
-## Project knowledge base (when written)
+## Project knowledge base
 
-`.claude/docs/*.md` — deep technical notes indexed for search. Topics planned:
+Deep technical notes indexed for search. Read with `mcp__plugin_context-mode_context-mode__ctx_search` when an agent needs depth beyond the lookup tables or playbooks.
 
-- `codebase-map.md` — module dependency graph
-- `state-machines.md` — selection / backoff / lock
-- `data-flow.md` — request pipeline end-to-end
-- `kiro-protocol.md` — AWS event-stream + cli/ide persona
-- `format-conversion.md` — OpenAI ↔ Anthropic transform
-- `conventions.md` — terse coding rules
+- `.claude/docs/codebase-map.md` — module dependency graph + entry points
+- `.claude/docs/state-machines.md` — account selection / backoff / lock invariants
+- `.claude/docs/data-flow.md` — per-request pipeline annotated end-to-end
+- `.claude/docs/kiro-protocol.md` — AWS event-stream + IDE/CLI persona wire format
+- `.claude/docs/format-conversion.md` — OpenAI ↔ Anthropic body transform rules
+- `.claude/docs/conventions.md` — terse code-level rules
