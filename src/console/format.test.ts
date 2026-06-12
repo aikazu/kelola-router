@@ -88,4 +88,26 @@ describe('renderStdout', () => {
     };
     expect(stripAnsi(renderStdout(ev))).toBe('  ✗ 429 rate limited');
   });
+
+  it('renders transport-fail line with direct fallback', () => {
+    const ev: FlowEvent = {
+      phase: 'transport-fail',
+      reqId: 'a3f2',
+      ts: TS,
+      fellBack: true,
+      message: 'connect ECONNREFUSED',
+    };
+    expect(stripAnsi(renderStdout(ev))).toBe('  ⤷ proxy failed → direct: connect ECONNREFUSED');
+  });
+
+  it('renders transport-fail line when blocked', () => {
+    const ev: FlowEvent = {
+      phase: 'transport-fail',
+      reqId: 'a3f2',
+      ts: TS,
+      fellBack: false,
+      message: 'connect ECONNREFUSED',
+    };
+    expect(stripAnsi(renderStdout(ev))).toBe('  ⤷ proxy blocked: connect ECONNREFUSED');
+  });
 });

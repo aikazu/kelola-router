@@ -34,6 +34,10 @@ export function renderStdout(ev: FlowEvent): string {
       return `  ${C.dim}⤷${C.reset} account: ${ev.accountLabel} (${ev.reason})`;
     case 'transport':
       return `  ${C.dim}⤷${C.reset} ${ev.kind}: ${ev.label}`;
+    case 'transport-fail':
+      return ev.fellBack
+        ? `  ${C.dim}⤷${C.reset} proxy failed → direct: ${ev.message}`
+        : `  ${C.red}⤷${C.reset} proxy blocked: ${ev.message}`;
     case 'done': {
       const col = ev.status >= 400 ? C.red : C.green;
       const mark = ev.status >= 400 ? '✗' : '✓';

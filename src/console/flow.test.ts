@@ -7,6 +7,7 @@ import {
   buildError,
   buildStart,
   buildTransport,
+  buildTransportFail,
   genReqId,
 } from './flow.js';
 
@@ -47,11 +48,31 @@ describe('build* helpers', () => {
       latencyMs: 999,
     });
   });
+  it('buildTransportFail', () => {
+    expect(buildTransportFail('a', ts, true, 'ECONNREFUSED')).toEqual({
+      phase: 'transport-fail',
+      reqId: 'a',
+      ts,
+      fellBack: true,
+      message: 'ECONNREFUSED',
+    });
+  });
+  it('buildTransportFail truncates long messages', () => {
+    const ev = buildTransportFail('a', ts, false, 'x'.repeat(300));
+    if (ev.phase !== 'transport-fail') throw new Error('wrong phase');
+    expect(ev.message.length).toBe(200);
+  });
   it('emits onto a bus', () => {
     const bus = new ConsoleBus();
     bus.emit(buildAccount('a', ts, 'kiro1', 'sticky'));
     bus.emit(buildTransport('a', ts, 'proxy', 'us-1'));
+    bus.emit(buildTransportFail('a', ts, true, 'boom'));
     bus.emit(buildError('a', ts, 500, 'boom'));
-    expect(bus.recent().map((e) => e.phase)).toEqual(['account', 'transport', 'error']);
+    expect(bus.recent().map((e) => e.phase)).toEqual([
+      'account',
+      'transport',
+      'transport-fail',
+      'error',
+    ]);
   });
 });

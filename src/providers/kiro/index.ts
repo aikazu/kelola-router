@@ -6,7 +6,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { Account } from '../../db/repos/accounts.js';
-import { proxyAwareFetch } from '../../transport/proxyFetch.js';
+import { type ProxyFetchOpts, proxyAwareFetch } from '../../transport/proxyFetch.js';
 import type { TransportConfig } from '../../transport/types.js';
 import { kiroResponseToOpenAIJson, type OpenAICompletion } from './assembler.js';
 import { ensureAccessToken, type KiroAuth } from './auth.js';
@@ -91,9 +91,10 @@ export async function executeKiro(args: {
   body: OpenAIChatBody;
   stream: boolean;
   transport: TransportConfig | null;
+  proxyOpts?: ProxyFetchOpts;
   signal?: AbortSignal;
 }): Promise<KiroExecuteResult> {
-  const { db, account, model, body, stream, transport, signal } = args;
+  const { db, account, model, body, stream, transport, proxyOpts, signal } = args;
 
   const auth = await ensureAccessToken(db, account, transport);
   const persona = resolveKiroPersona(auth.providerData?.persona);
@@ -112,7 +113,8 @@ export async function executeKiro(args: {
   const resp = await proxyAwareFetch(
     url,
     { method: 'POST', headers, body: JSON.stringify(payload), signal },
-    transport
+    transport,
+    proxyOpts
   );
 
   if (!resp.ok) {

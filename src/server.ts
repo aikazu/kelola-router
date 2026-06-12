@@ -27,6 +27,7 @@ import {
   buildError,
   buildStart,
   buildTransport,
+  buildTransportFail,
   genReqId,
 } from './console/flow.js';
 import { attachStdoutSink } from './console/sink.js';
@@ -73,7 +74,7 @@ import { compressMessages, formatRtkLog, rtkBytesSaved } from './rtk/index.js';
 import { markHotPath } from './runtime/hotPathMetrics.js';
 import { startQuotaPuller, stopQuotaPuller } from './scheduler/quotaPull.js';
 import { pipeWithUsage } from './streaming/pipeWithUsage.js';
-import { resolveTransportForAccount } from './transport/resolve.js';
+import { getProxyFailureMode, resolveTransportForAccount } from './transport/resolve.js';
 import { getHost, getPort } from './util/env.js';
 import { log } from './util/log.js';
 
@@ -317,10 +318,15 @@ async function handleComboProxy(
       upstreamFormat
     );
     const transport = resolveTransportForAccount(db, acc);
+    const proxyOpts = {
+      failureMode: getProxyFailureMode(db),
+      onProxyFailure: (message: string, fellBack: boolean) =>
+        consoleBus.emit(buildTransportFail(reqId, new Date().toISOString(), fellBack, message)),
+    };
 
     try {
       const upstreamBody = JSON.stringify(attemptBody);
-      const resp = await upstreamFetch(url, upstreamBody, headers, transport);
+      const resp = await upstreamFetch(url, upstreamBody, headers, transport, proxyOpts);
 
       if (!resp.ok) {
         const errBody = await resp.text();
@@ -740,10 +746,16 @@ async function handleProxy(
     }
   }
 
+  const proxyOpts = {
+    failureMode: getProxyFailureMode(db),
+    onProxyFailure: (message: string, fellBack: boolean) =>
+      consoleBus.emit(buildTransportFail(reqId, new Date().toISOString(), fellBack, message)),
+  };
+
   try {
     const upstreamBody = bodyDirty ? body : text || '{}';
     markHotPath('proxy:upstream-fetch-start');
-    const resp = await upstreamFetch(url, upstreamBody, headers, transport);
+    const resp = await upstreamFetch(url, upstreamBody, headers, transport, proxyOpts);
     markHotPath('proxy:upstream-fetch-response');
     if (!resp.ok) {
       const errBody = await resp.text();
@@ -1020,6 +1032,12 @@ async function handleKiroProxy(
     }
   }
 
+  const proxyOpts = {
+    failureMode: getProxyFailureMode(db),
+    onProxyFailure: (message: string, fellBack: boolean) =>
+      consoleBus.emit(buildTransportFail(reqId, new Date().toISOString(), fellBack, message)),
+  };
+
   const logUsage = (
     usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null,
     isStream: boolean,
@@ -1081,6 +1099,7 @@ async function handleKiroProxy(
       body: openaiBody,
       stream: upstreamStream,
       transport,
+      proxyOpts,
     });
 
     if (!result.ok) {

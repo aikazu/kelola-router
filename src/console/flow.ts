@@ -49,6 +49,15 @@ export function buildDone(
   return { phase: 'done', reqId, ts, status, ttftMs, inTok, outTok, cacheTok, costUsd, latencyMs };
 }
 
+export function buildTransportFail(
+  reqId: string,
+  ts: string,
+  fellBack: boolean,
+  message: string
+): FlowEvent {
+  return { phase: 'transport-fail', reqId, ts, fellBack, message: message.slice(0, 200) };
+}
+
 export function buildError(reqId: string, ts: string, status: number, message: string): FlowEvent {
   return { phase: 'error', reqId, ts, status, message: message.slice(0, 200) };
 }

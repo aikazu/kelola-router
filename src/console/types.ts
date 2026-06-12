@@ -14,6 +14,7 @@ export type FlowEvent =
     }
   | { phase: 'account'; reqId: string; ts: string; accountLabel: string; reason: FlowReason }
   | { phase: 'transport'; reqId: string; ts: string; kind: TransportKind; label: string }
+  | { phase: 'transport-fail'; reqId: string; ts: string; fellBack: boolean; message: string }
   | {
       phase: 'done';
       reqId: string;
