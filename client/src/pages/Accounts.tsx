@@ -10,9 +10,11 @@ import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { AccountsTable } from '../components/AccountsTable';
 import { TransportAssignment } from '../components/TransportAssignment';
+import { KiroAutoImportForm } from '../components/KiroAutoImportForm';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
 import { relativeTime } from '../lib/relativeTime';
+import { useKiroAutoImport } from '../hooks/useKiroAutoImport';
 import type { Account, ModelLock, Transport, TransportState } from '../lib/types';
 
 interface DeviceCodeData {
@@ -56,18 +58,19 @@ export function Accounts() {
     startUrl: '',
   });
 
+  // Auto-import hook
+  const autoImport = useKiroAutoImport({
+    label: kiroForm.label,
+    onLabelChange: (label) => setKiroForm({ ...kiroForm, label }),
+    onSuccess: () => { setOpen(false); resetForms(); },
+  });
+
   // Device code flow state
   const [deviceStep, setDeviceStep] = useState<'idle' | 'loading' | 'code' | 'polling' | 'success' | 'error'>('idle');
   const [deviceData, setDeviceData] = useState<DeviceCodeData | null>(null);
   const [deviceError, setDeviceError] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef(false);
-
-  // Auto-import state
-  const [autoImportStatus, setAutoImportStatus] = useState<'idle' | 'loading' | 'found' | 'error'>('idle');
-  const [autoImportToken, setAutoImportToken] = useState('');
-  const [autoImportSource, setAutoImportSource] = useState('');
-  const [autoImportError, setAutoImportError] = useState('');
 
   // Kiro usage modal
   const [usageAccount, setUsageAccount] = useState<string | null>(null);
@@ -122,10 +125,7 @@ export function Accounts() {
     setDeviceStep('idle');
     setDeviceData(null);
     setDeviceError('');
-    setAutoImportStatus('idle');
-    setAutoImportToken('');
-    setAutoImportSource('');
-    setAutoImportError('');
+    autoImport.reset();
     abortRef.current = true;
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }
@@ -202,44 +202,6 @@ export function Accounts() {
       }
     }, interval);
   }, [deviceData, kiroForm.label, qc, toast]);
-
-  // Auto-import
-  const doAutoImport = useCallback(async () => {
-    setAutoImportStatus('loading');
-    setAutoImportError('');
-    try {
-      const res = await apiFetch<{ found: boolean; refreshToken?: string; source?: string; error?: string }>(
-        '/api/admin/accounts/kiro/auto-import'
-      );
-      if (res.found && res.refreshToken) {
-        setAutoImportToken(res.refreshToken);
-        setAutoImportSource(res.source || '');
-        setAutoImportStatus('found');
-      } else {
-        setAutoImportError(res.error || 'No token found');
-        setAutoImportStatus('error');
-      }
-    } catch (e: any) {
-      setAutoImportError(e.message || 'Auto-import failed');
-      setAutoImportStatus('error');
-    }
-  }, []);
-
-  // Save auto-imported token
-  const saveAutoImport = useMutation({
-    mutationFn: () =>
-      apiFetch('/api/admin/accounts/kiro', {
-        method: 'POST',
-        json: { label: kiroForm.label || 'kiro-auto', method: 'token', refreshToken: autoImportToken },
-      }),
-    onSuccess: () => {
-      setOpen(false);
-      resetForms();
-      qc.invalidateQueries({ queryKey: ['accounts'] });
-      toast.success('Account imported from Kiro IDE');
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   // Manual token/JSON save
   const createMut = useMutation({
@@ -408,50 +370,6 @@ export function Accounts() {
     );
   }
 
-  function renderKiroAutoImport() {
-    if (autoImportStatus === 'loading') {
-      return <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 16 }}>Scanning AWS SSO cache…</p>;
-    }
-    if (autoImportStatus === 'found') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ background: 'var(--ink-2)', border: '1px solid var(--success)', borderRadius: 6, padding: 12 }}>
-            <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Token detected</span>
-            <span style={{ color: 'var(--text-3)', fontSize: 11, marginLeft: 8 }}>from {autoImportSource}</span>
-          </div>
-          <label>
-            Label{' '}
-            <input
-              value={kiroForm.label}
-              onInput={(e) => setKiroForm({ ...kiroForm, label: (e.target as HTMLInputElement).value })}
-              placeholder="kiro-auto"
-              class="input"
-            />
-          </label>
-          <Button onClick={() => saveAutoImport.mutate()} disabled={saveAutoImport.isPending}>
-            {saveAutoImport.isPending ? 'Importing…' : 'Import this token'}
-          </Button>
-        </div>
-      );
-    }
-    if (autoImportStatus === 'error') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <p style={{ color: 'var(--danger)', fontSize: 13 }}>{autoImportError}</p>
-          <Button onClick={doAutoImport} size="sm">Retry</Button>
-        </div>
-      );
-    }
-    // idle
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <p style={{ color: 'var(--text-3)', fontSize: 13 }}>
-          Auto-detect refresh token from Kiro IDE's AWS SSO cache (<code>~/.aws/sso/cache/</code>).
-        </p>
-        <Button onClick={doAutoImport}>Scan for Kiro token</Button>
-      </div>
-    );
-  }
 
   function renderKiroTokenPaste() {
     return (
@@ -599,7 +517,7 @@ export function Accounts() {
                 Auth method
                 <select
                   value={kiroMethod}
-                  onChange={(e) => { setKiroMethod((e.target as HTMLSelectElement).value as any); setDeviceStep('idle'); setAutoImportStatus('idle'); }}
+                  onChange={(e) => { setKiroMethod((e.target as HTMLSelectElement).value as any); setDeviceStep('idle'); autoImport.reset(); }}
                   class="input"
                 >
                   <option value="builder-id">AWS Builder ID (OAuth)</option>
@@ -611,7 +529,19 @@ export function Accounts() {
 
               {/* Render method-specific UI */}
               {(kiroMethod === 'builder-id' || kiroMethod === 'idc') && renderKiroDeviceFlow()}
-              {kiroMethod === 'auto-import' && renderKiroAutoImport()}
+              {kiroMethod === 'auto-import' && (
+                <KiroAutoImportForm
+                  status={autoImport.status}
+                  token={autoImport.token}
+                  source={autoImport.source}
+                  error={autoImport.error}
+                  label={kiroForm.label}
+                  onLabelChange={(label) => setKiroForm({ ...kiroForm, label })}
+                  isPending={autoImport.isPending}
+                  onAutoImport={autoImport.doAutoImport}
+                  onSave={() => autoImport.saveAutoImport.mutate()}
+                />
+              )}
               {kiroMethod === 'token' && renderKiroTokenPaste()}
             </>
           )}
