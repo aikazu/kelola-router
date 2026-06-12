@@ -211,3 +211,46 @@ describe('CSRF on /api/admin/transports', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('proxy failure mode', () => {
+  it("defaults to 'direct'", async () => {
+    const res = await app.request('/api/admin/transports/failure-mode', {
+      headers: baseHeaders(),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ mode: 'direct' });
+  });
+
+  it("persists 'block' and reads it back without clobbering proxy/relay config", async () => {
+    // seed an existing transport setting (migration sets {relay:null,proxy:null})
+    const put = await app.request('/api/admin/transports/failure-mode', {
+      method: 'PUT',
+      headers: baseHeaders(),
+      body: JSON.stringify({ mode: 'block' }),
+    });
+    expect(put.status).toBe(204);
+
+    const res = await app.request('/api/admin/transports/failure-mode', {
+      headers: baseHeaders(),
+    });
+    expect(await res.json()).toEqual({ mode: 'block' });
+
+    // global relay/proxy keys preserved
+    const raw = db.prepare(`SELECT value FROM settings WHERE key = 'transport'`).get() as {
+      value: string;
+    };
+    const parsed = JSON.parse(raw.value);
+    expect(parsed.proxyFailureMode).toBe('block');
+    expect('relay' in parsed).toBe(true);
+    expect('proxy' in parsed).toBe(true);
+  });
+
+  it('rejects invalid mode (400)', async () => {
+    const res = await app.request('/api/admin/transports/failure-mode', {
+      method: 'PUT',
+      headers: baseHeaders(),
+      body: JSON.stringify({ mode: 'nonsense' }),
+    });
+    expect(res.status).toBe(400);
+  });
+});

@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { listAccounts } from '../../db/repos/accounts.js';
+import { getSetting, setSetting } from '../../db/repos/settings.js';
 import {
   createTransport,
   deleteTransport,
@@ -16,6 +17,40 @@ import type { TransportConfig } from '../../transport/types.js';
 import { ApiError, handleApiError } from './middleware.js';
 
 export const transportRoutes = new Hono();
+
+interface TransportSetting {
+  relay?: unknown;
+  proxy?: unknown;
+  proxyFailureMode?: 'direct' | 'block';
+}
+
+// Global proxy-failure policy lives inside the `transport` setting JSON
+// alongside the legacy global relay/proxy keys. GET/PUT here merge only the
+// proxyFailureMode field so the global relay/proxy config is never clobbered.
+transportRoutes.get('/failure-mode', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const s = getSetting<TransportSetting>(db, 'transport');
+    return c.json({ mode: s?.proxyFailureMode === 'block' ? 'block' : 'direct' });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+transportRoutes.put('/failure-mode', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const body = await c.req.json<{ mode?: string }>();
+    if (body.mode !== 'direct' && body.mode !== 'block') {
+      throw new ApiError('invalid_input', 'mode harus direct atau block', 400);
+    }
+    const current = getSetting<TransportSetting>(db, 'transport') ?? { relay: null, proxy: null };
+    setSetting(db, 'transport', { ...current, proxyFailureMode: body.mode });
+    return new Response(null, { status: 204 });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
 
 const PROXY_KINDS: TransportKind[] = ['http', 'socks5'];
 const RELAY_KINDS: TransportKind[] = ['vercel', 'cloudflare'];
