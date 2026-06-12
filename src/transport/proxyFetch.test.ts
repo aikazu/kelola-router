@@ -1,8 +1,21 @@
+import * as undici from 'undici';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { _resetEnvProxyMemo, proxyAwareFetch } from './proxyFetch.js';
 
+// The proxy-success path calls undici's `fetch` (module-bound import) so the
+// dispatcher option is honored on Node 22 (commit 6292341). Spying
+// globalThis.fetch cannot observe that call, and undici's namespace `fetch` is
+// non-configurable so vi.spyOn can't touch it either. Mock the module instead,
+// keeping the real ProxyAgent (getDispatcher imports it) so dispatcher
+// construction still works without any real network.
+vi.mock('undici', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('undici')>();
+  return { ...actual, fetch: vi.fn() };
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.mocked(undici.fetch).mockReset();
   _resetEnvProxyMemo();
 });
 
@@ -34,9 +47,9 @@ describe('proxyAwareFetch', () => {
     const prev = process.env.HTTPS_PROXY;
     process.env.HTTPS_PROXY = 'http://127.0.0.1:7890';
     try {
-      const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
+      const undiciSpy = vi.mocked(undici.fetch).mockResolvedValue(new Response('ok') as never);
       await proxyAwareFetch('https://api.minimax.io/v1/x', {}, { relay: null, proxy: null });
-      const call = spy.mock.calls[0] as [string, { dispatcher?: unknown }];
+      const call = undiciSpy.mock.calls[0] as unknown as [string, { dispatcher?: unknown }];
       expect(call[0]).toBe('https://api.minimax.io/v1/x');
       expect(call[1].dispatcher).toBeDefined();
     } finally {
@@ -63,6 +76,8 @@ describe('proxyAwareFetch', () => {
     const prev = process.env.HTTPS_PROXY;
     process.env.HTTPS_PROXY = 'http://invalid:9999';
     try {
+      // undici fetch rejects (e.g. proxy unreachable) -> code falls back to direct.
+      vi.mocked(undici.fetch).mockRejectedValue(new Error('connect ECONNREFUSED'));
       const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
       await proxyAwareFetch('https://api.minimax.io/v1/x', {}, { relay: null, proxy: null });
       expect(spy).toHaveBeenCalled();
