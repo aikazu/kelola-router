@@ -94,6 +94,12 @@ function compressText(text: string, stats: CompressStats, shape: string): string
   return out;
 }
 
+export function rtkBytesSaved(stats: CompressStats | null): number {
+  if (!stats) return 0;
+  const saved = stats.bytesBefore - stats.bytesAfter;
+  return saved > 0 ? saved : 0;
+}
+
 export function formatRtkLog(stats: CompressStats | null): string | null {
   if (!stats?.hits?.length) return null;
   const saved = stats.bytesBefore - stats.bytesAfter;

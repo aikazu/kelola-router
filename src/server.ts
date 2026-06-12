@@ -69,7 +69,7 @@ import { parseError } from './providers/parseError.js';
 import { calculateCost } from './providers/pricing.js';
 import { upstreamFetch } from './providers/upstreamFetch.js';
 import { headersToJson, truncateBody } from './proxy/capture.js';
-import { compressMessages, formatRtkLog } from './rtk/index.js';
+import { compressMessages, formatRtkLog, rtkBytesSaved } from './rtk/index.js';
 import { markHotPath } from './runtime/hotPathMetrics.js';
 import { startQuotaPuller, stopQuotaPuller } from './scheduler/quotaPull.js';
 import { pipeWithUsage } from './streaming/pipeWithUsage.js';
@@ -182,8 +182,9 @@ async function handleComboProxy(
   if (cavemanOn || cachingOn) {
     await augmentRequest(body, allSettings as Parameters<typeof augmentRequest>[1]);
   }
+  let rtkSaved = 0;
   if (rtkSetting?.enabled) {
-    compressMessages(body, true);
+    rtkSaved = rtkBytesSaved(compressMessages(body, true));
   }
 
   // OpenAI streaming: ensure include_usage
@@ -431,7 +432,7 @@ async function handleComboProxy(
             status_code: resp.status,
             base_resp_code: undefined,
             stream: 1,
-            rtk_bytes_saved: 0,
+            rtk_bytes_saved: rtkSaved,
             request_body: truncateBody(originalText),
             response_body: truncateBody(raw),
             request_headers: headersToJson(c.req.raw.headers),
@@ -510,7 +511,7 @@ async function handleComboProxy(
         status_code: resp.status,
         base_resp_code: undefined,
         stream: 0,
-        rtk_bytes_saved: 0,
+        rtk_bytes_saved: rtkSaved,
         request_body: truncateBody(originalText),
         response_body: truncateBody(respBody),
         request_headers: headersToJson(c.req.raw.headers),
@@ -603,8 +604,10 @@ async function handleProxy(
     bodyDirty = true;
   }
 
+  let rtkSaved = 0;
   if (rtkSetting?.enabled) {
     const stats = compressMessages(body, true);
+    rtkSaved = rtkBytesSaved(stats);
     const rtkLog = formatRtkLog(stats);
     if (rtkLog) console.log(rtkLog);
     // compressMessages mutates messages in-place (even when it ultimately returns
@@ -827,7 +830,7 @@ async function handleProxy(
           status_code: resp.status,
           base_resp_code: undefined,
           stream: 1,
-          rtk_bytes_saved: 0,
+          rtk_bytes_saved: rtkSaved,
           request_body: truncateBody(text),
           response_body: truncateBody(raw),
           request_headers: headersToJson(c.req.raw.headers),
@@ -900,7 +903,7 @@ async function handleProxy(
       status_code: resp.status,
       base_resp_code: undefined,
       stream: 0,
-      rtk_bytes_saved: 0,
+      rtk_bytes_saved: rtkSaved,
       request_body: truncateBody(text),
       response_body: truncateBody(respBody),
       request_headers: headersToJson(c.req.raw.headers),

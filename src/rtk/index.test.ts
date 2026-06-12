@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compressMessages } from './index.js';
+import { compressMessages, rtkBytesSaved } from './index.js';
 
 describe('compressMessages', () => {
   it('returns null when body is null', () => {
@@ -51,5 +51,23 @@ describe('compressMessages', () => {
     };
     const stats = compressMessages(body, true);
     expect(stats).toBeNull();
+  });
+});
+
+describe('rtkBytesSaved', () => {
+  it('returns 0 for null stats', () => {
+    expect(rtkBytesSaved(null)).toBe(0);
+  });
+
+  it('returns bytesBefore - bytesAfter for real stats', () => {
+    const bigText = Array(300).fill('output line').join('\n');
+    const stats = compressMessages({ messages: [{ role: 'tool', content: bigText }] }, true);
+    expect(stats).not.toBeNull();
+    expect(rtkBytesSaved(stats)).toBe(stats!.bytesBefore - stats!.bytesAfter);
+    expect(rtkBytesSaved(stats)).toBeGreaterThan(0);
+  });
+
+  it('never returns negative', () => {
+    expect(rtkBytesSaved({ bytesBefore: 5, bytesAfter: 10, hits: [] })).toBe(0);
   });
 });
