@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useState } from 'preact/hooks';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { confirmDialog } from '../components/Confirm';
@@ -11,25 +11,13 @@ import { useToast } from '../components/ToastProvider';
 import { AccountsTable } from '../components/AccountsTable';
 import { TransportAssignment } from '../components/TransportAssignment';
 import { KiroAutoImportForm } from '../components/KiroAutoImportForm';
+import { KiroDeviceFlowForm } from '../components/KiroDeviceFlowForm';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
 import { relativeTime } from '../lib/relativeTime';
 import { useKiroAutoImport } from '../hooks/useKiroAutoImport';
+import { useKiroDeviceFlow } from '../hooks/useKiroDeviceFlow';
 import type { Account, ModelLock, Transport, TransportState } from '../lib/types';
-
-interface DeviceCodeData {
-  deviceCode: string;
-  userCode: string;
-  verificationUri: string;
-  verificationUriComplete: string;
-  expiresIn: number;
-  interval: number;
-  clientId: string;
-  clientSecret: string;
-  region: string;
-  authMethod: string;
-  startUrl: string;
-}
 
 export function Accounts() {
   const qc = useQueryClient();
@@ -65,12 +53,14 @@ export function Accounts() {
     onSuccess: () => { setOpen(false); resetForms(); },
   });
 
-  // Device code flow state
-  const [deviceStep, setDeviceStep] = useState<'idle' | 'loading' | 'code' | 'polling' | 'success' | 'error'>('idle');
-  const [deviceData, setDeviceData] = useState<DeviceCodeData | null>(null);
-  const [deviceError, setDeviceError] = useState('');
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const abortRef = useRef(false);
+  // Device code flow hook
+  const deviceFlow = useKiroDeviceFlow({
+    kiroMethod,
+    region: kiroForm.region,
+    startUrl: kiroForm.startUrl,
+    label: kiroForm.label,
+    onSuccess: () => { setOpen(false); resetForms(); },
+  });
 
   // Kiro usage modal
   const [usageAccount, setUsageAccount] = useState<string | null>(null);
@@ -122,86 +112,11 @@ export function Accounts() {
     setForm({ label: '', credit_type: 'payg', api_key: '' });
     setKiroMethod('builder-id');
     setKiroForm({ label: '', credentialJson: '', refreshToken: '', region: '', startUrl: '' });
-    setDeviceStep('idle');
-    setDeviceData(null);
-    setDeviceError('');
     autoImport.reset();
-    abortRef.current = true;
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    deviceFlow.reset();
   }
 
-  // Cleanup polling on unmount
-  useEffect(() => () => { abortRef.current = true; if (pollRef.current) clearInterval(pollRef.current); }, []);
 
-  // Start device code flow
-  const startDeviceCode = useCallback(async () => {
-    setDeviceStep('loading');
-    setDeviceError('');
-    abortRef.current = false;
-    try {
-      const data = await apiFetch<DeviceCodeData>('/api/admin/accounts/kiro/device-code', {
-        method: 'POST',
-        json: {
-          authMethod: kiroMethod,
-          region: kiroForm.region || undefined,
-          startUrl: kiroForm.startUrl || undefined,
-        },
-      });
-      setDeviceData(data);
-      setDeviceStep('code');
-    } catch (e: any) {
-      setDeviceError(e.message || 'Failed to start device code flow');
-      setDeviceStep('error');
-    }
-  }, [kiroMethod, kiroForm.region, kiroForm.startUrl]);
-
-  // Start polling after user code is shown
-  const startPolling = useCallback(() => {
-    if (!deviceData) return;
-    setDeviceStep('polling');
-    abortRef.current = false;
-    const interval = (deviceData.interval || 5) * 1000;
-    const deadline = Date.now() + (deviceData.expiresIn || 300) * 1000;
-
-    pollRef.current = setInterval(async () => {
-      if (abortRef.current || Date.now() > deadline) {
-        if (pollRef.current) clearInterval(pollRef.current);
-        if (!abortRef.current) {
-          setDeviceError('Device code expired. Please try again.');
-          setDeviceStep('error');
-        }
-        return;
-      }
-      try {
-        const res = await apiFetch<any>('/api/admin/accounts/kiro/poll', {
-          method: 'POST',
-          json: {
-            deviceCode: deviceData.deviceCode,
-            clientId: deviceData.clientId,
-            clientSecret: deviceData.clientSecret,
-            region: deviceData.region,
-            authMethod: deviceData.authMethod,
-            startUrl: deviceData.startUrl,
-            label: kiroForm.label || undefined,
-          },
-        });
-        if (res.status === 'success') {
-          if (pollRef.current) clearInterval(pollRef.current);
-          setDeviceStep('success');
-          qc.invalidateQueries({ queryKey: ['accounts'] });
-          toast.success(`Kiro account "${res.label}" added`);
-          setTimeout(() => { setOpen(false); resetForms(); }, 1500);
-        } else if (res.status === 'error') {
-          if (pollRef.current) clearInterval(pollRef.current);
-          setDeviceError(res.error || 'Authorization failed');
-          setDeviceStep('error');
-        }
-        // status === 'pending' → keep polling
-      } catch (e: any) {
-        // Network errors → keep polling (transient)
-      }
-    }, interval);
-  }, [deviceData, kiroForm.label, qc, toast]);
 
   // Manual token/JSON save
   const createMut = useMutation({
@@ -277,97 +192,6 @@ export function Accounts() {
       danger: true,
     });
     if (ok) deleteMut.mutate(id);
-  }
-
-  // --- Render Kiro method-specific form ---
-  function renderKiroDeviceFlow() {
-    if (deviceStep === 'loading') {
-      return <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 16 }}>Registering with AWS SSO…</p>;
-    }
-    if (deviceStep === 'code' || deviceStep === 'polling') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', padding: '8px 0' }}>
-          <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
-            Open the link below and enter this code:
-          </p>
-          <div style={{ background: 'var(--ink-2)', border: '2px solid var(--gold)', borderRadius: 8, padding: '12px 24px', fontSize: 24, fontFamily: 'var(--font-mono)', letterSpacing: 4, fontWeight: 700 }}>
-            {deviceData?.userCode}
-          </div>
-          <a
-            href={deviceData?.verificationUriComplete || deviceData?.verificationUri}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--gold)', fontSize: 13 }}
-          >
-            {deviceData?.verificationUri} ↗
-          </a>
-          {deviceStep === 'code' && (
-            <Button onClick={startPolling} style={{ marginTop: 8 }}>
-              I've entered the code
-            </Button>
-          )}
-          {deviceStep === 'polling' && (
-            <p style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 8 }}>
-              ⏳ Waiting for authorization… (polling every {deviceData?.interval || 5}s)
-            </p>
-          )}
-        </div>
-      );
-    }
-    if (deviceStep === 'success') {
-      return <p style={{ color: 'var(--success)', textAlign: 'center', padding: 16, fontWeight: 600 }}>✓ Account connected successfully!</p>;
-    }
-    if (deviceStep === 'error') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-          <p style={{ color: 'var(--danger)', fontSize: 13 }}>{deviceError}</p>
-          <Button onClick={startDeviceCode} size="sm">Retry</Button>
-        </div>
-      );
-    }
-
-    // idle — show config + start button
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <label>
-          Label{' '}
-          <input
-            value={kiroForm.label}
-            onInput={(e) => setKiroForm({ ...kiroForm, label: (e.target as HTMLInputElement).value })}
-            placeholder="kiro1"
-            class="input"
-          />
-        </label>
-        {kiroMethod === 'idc' && (
-          <>
-            <label>
-              IDC Start URL <span style={{ color: 'var(--danger)' }}>*</span>
-              <input
-                value={kiroForm.startUrl}
-                onInput={(e) => setKiroForm({ ...kiroForm, startUrl: (e.target as HTMLInputElement).value })}
-                placeholder="https://your-org.awsapps.com/start"
-                class="input" style={{ fontFamily: 'var(--font-mono)' }}
-              />
-            </label>
-            <label>
-              Region
-              <input
-                value={kiroForm.region}
-                onInput={(e) => setKiroForm({ ...kiroForm, region: (e.target as HTMLInputElement).value })}
-                placeholder="us-east-1"
-                class="input"
-              />
-            </label>
-          </>
-        )}
-        <Button
-          onClick={startDeviceCode}
-          disabled={kiroMethod === 'idc' && !kiroForm.startUrl.trim()}
-        >
-          {kiroMethod === 'builder-id' ? 'Login with AWS Builder ID' : 'Login with IAM Identity Center'}
-        </Button>
-      </div>
-    );
   }
 
 
@@ -517,7 +341,7 @@ export function Accounts() {
                 Auth method
                 <select
                   value={kiroMethod}
-                  onChange={(e) => { setKiroMethod((e.target as HTMLSelectElement).value as any); setDeviceStep('idle'); autoImport.reset(); }}
+                  onChange={(e) => { setKiroMethod((e.target as HTMLSelectElement).value as any); autoImport.reset(); deviceFlow.reset(); }}
                   class="input"
                 >
                   <option value="builder-id">AWS Builder ID (OAuth)</option>
@@ -527,8 +351,24 @@ export function Accounts() {
                 </select>
               </label>
 
+
               {/* Render method-specific UI */}
-              {(kiroMethod === 'builder-id' || kiroMethod === 'idc') && renderKiroDeviceFlow()}
+              {(kiroMethod === 'builder-id' || kiroMethod === 'idc') && (
+                <KiroDeviceFlowForm
+                  deviceStep={deviceFlow.deviceStep}
+                  deviceData={deviceFlow.deviceData}
+                  deviceError={deviceFlow.deviceError}
+                  kiroMethod={kiroMethod}
+                  kiroLabel={kiroForm.label}
+                  kiroStartUrl={kiroForm.startUrl}
+                  kiroRegion={kiroForm.region}
+                  onLabelChange={(label) => setKiroForm({ ...kiroForm, label })}
+                  onStartUrlChange={(startUrl) => setKiroForm({ ...kiroForm, startUrl })}
+                  onRegionChange={(region) => setKiroForm({ ...kiroForm, region })}
+                  onStartDeviceCode={deviceFlow.startDeviceCode}
+                  onStartPolling={deviceFlow.startPolling}
+                />
+              )}
               {kiroMethod === 'auto-import' && (
                 <KiroAutoImportForm
                   status={autoImport.status}

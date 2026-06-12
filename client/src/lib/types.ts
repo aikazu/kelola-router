@@ -40,3 +40,17 @@ export interface TransportState {
   pool: string[];
   rotate: number;
 }
+
+export interface DeviceCodeData {
+  deviceCode: string;
+  userCode: string;
+  verificationUri: string;
+  verificationUriComplete: string;
+  expiresIn: number;
+  interval: number;
+  clientId: string;
+  clientSecret: string;
+  region: string;
+  authMethod: string;
+  startUrl: string;
+}
