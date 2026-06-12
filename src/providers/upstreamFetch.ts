@@ -1,4 +1,4 @@
-import { proxyAwareFetch } from '../transport/proxyFetch.js';
+import { type ProxyFetchOpts, proxyAwareFetch } from '../transport/proxyFetch.js';
 import type { TransportConfig } from '../transport/types.js';
 
 /**
@@ -9,7 +9,8 @@ export async function upstreamFetch(
   url: string,
   body: unknown,
   extraHeaders: Record<string, string> = {},
-  transport: TransportConfig | null = null
+  transport: TransportConfig | null = null,
+  opts?: ProxyFetchOpts
 ): Promise<Response> {
   return proxyAwareFetch(
     url,
@@ -18,6 +19,7 @@ export async function upstreamFetch(
       headers: { 'Content-Type': 'application/json', ...extraHeaders },
       body: typeof body === 'string' ? body : JSON.stringify(body),
     },
-    transport
+    transport,
+    opts
   );
 }

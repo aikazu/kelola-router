@@ -4,6 +4,25 @@ import { getDispatcher } from './dispatcherCache.js';
 import { getSocksDispatcher } from './socksLoader.js';
 import type { TransportConfig } from './types.js';
 
+export type ProxyFailureMode = 'direct' | 'block';
+
+export interface ProxyFetchOpts {
+  /** What to do when the proxy fails. 'direct' (default) falls back to a
+   *  direct fetch; 'block' throws ProxyBlockedError instead. */
+  failureMode?: ProxyFailureMode;
+  /** Notified on proxy failure: (message, fellBack). fellBack=true means a
+   *  direct fetch follows; false means the request is being blocked. */
+  onProxyFailure?: (message: string, fellBack: boolean) => void;
+}
+
+/** Thrown when a proxy fails and failureMode is 'block'. */
+export class ProxyBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ProxyBlockedError';
+  }
+}
+
 function normalizeProxyUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   try {
@@ -69,7 +88,8 @@ function shouldBypassByNoProxy(targetUrl: string, noProxyValue: string): boolean
 export async function proxyAwareFetch(
   targetUrl: string,
   options: RequestInit,
-  transportConfig: TransportConfig | null
+  transportConfig: TransportConfig | null,
+  opts?: ProxyFetchOpts
 ): Promise<Response> {
   if (transportConfig?.relay?.url) {
     const parsed = new URL(targetUrl);
@@ -98,6 +118,11 @@ export async function proxyAwareFetch(
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
+      if (opts?.failureMode === 'block') {
+        opts.onProxyFailure?.(message, false);
+        throw new ProxyBlockedError(message);
+      }
+      opts?.onProxyFailure?.(message, true);
       console.warn(`[transport] proxy failed, falling back to direct: ${message}`);
       return globalThis.fetch(targetUrl, options);
     }

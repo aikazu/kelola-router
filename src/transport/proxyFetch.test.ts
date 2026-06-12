@@ -1,6 +1,6 @@
 import * as undici from 'undici';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { _resetEnvProxyMemo, proxyAwareFetch } from './proxyFetch.js';
+import { _resetEnvProxyMemo, ProxyBlockedError, proxyAwareFetch } from './proxyFetch.js';
 
 // The proxy-success path calls undici's `fetch` (module-bound import) so the
 // dispatcher option is honored on Node 22 (commit 6292341). Spying
@@ -81,6 +81,50 @@ describe('proxyAwareFetch', () => {
       const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
       await proxyAwareFetch('https://api.minimax.io/v1/x', {}, { relay: null, proxy: null });
       expect(spy).toHaveBeenCalled();
+    } finally {
+      if (prev === undefined) delete process.env.HTTPS_PROXY;
+      else process.env.HTTPS_PROXY = prev;
+    }
+  });
+
+  it('failureMode=direct (default): calls onProxyFailure with fellBack=true then falls back', async () => {
+    const prev = process.env.HTTPS_PROXY;
+    process.env.HTTPS_PROXY = 'http://invalid:9999';
+    try {
+      vi.mocked(undici.fetch).mockRejectedValue(new Error('connect ECONNREFUSED'));
+      const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
+      const onProxyFailure = vi.fn();
+      await proxyAwareFetch(
+        'https://api.minimax.io/v1/x',
+        {},
+        { relay: null, proxy: null },
+        { onProxyFailure }
+      );
+      expect(spy).toHaveBeenCalled();
+      expect(onProxyFailure).toHaveBeenCalledWith(expect.stringContaining('ECONNREFUSED'), true);
+    } finally {
+      if (prev === undefined) delete process.env.HTTPS_PROXY;
+      else process.env.HTTPS_PROXY = prev;
+    }
+  });
+
+  it('failureMode=block: calls onProxyFailure with fellBack=false then throws ProxyBlockedError', async () => {
+    const prev = process.env.HTTPS_PROXY;
+    process.env.HTTPS_PROXY = 'http://invalid:9999';
+    try {
+      vi.mocked(undici.fetch).mockRejectedValue(new Error('connect ECONNREFUSED'));
+      const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok'));
+      const onProxyFailure = vi.fn();
+      await expect(
+        proxyAwareFetch(
+          'https://api.minimax.io/v1/x',
+          {},
+          { relay: null, proxy: null },
+          { failureMode: 'block', onProxyFailure }
+        )
+      ).rejects.toBeInstanceOf(ProxyBlockedError);
+      expect(spy).not.toHaveBeenCalled();
+      expect(onProxyFailure).toHaveBeenCalledWith(expect.stringContaining('ECONNREFUSED'), false);
     } finally {
       if (prev === undefined) delete process.env.HTTPS_PROXY;
       else process.env.HTTPS_PROXY = prev;

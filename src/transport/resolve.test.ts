@@ -6,7 +6,11 @@ import { openDb } from '../db/index.js';
 import { createAccount, updateAccount } from '../db/repos/accounts.js';
 import { clearCache, setSetting } from '../db/repos/settings.js';
 import { createTransport, updateTransport } from '../db/repos/transports.js';
-import { __resetRotationState, resolveTransportForAccount } from './resolve.js';
+import {
+  __resetRotationState,
+  getProxyFailureMode,
+  resolveTransportForAccount,
+} from './resolve.js';
 
 let db: ReturnType<typeof openDb>;
 
@@ -208,5 +212,21 @@ describe('resolveTransportForAccount', () => {
 
     expect(first?.proxy?.url).toBe('http://old');
     expect(second?.proxy?.url).toBe('http://new');
+  });
+});
+
+describe('getProxyFailureMode', () => {
+  it("defaults to 'direct' when unset", () => {
+    expect(getProxyFailureMode(db)).toBe('direct');
+  });
+
+  it("defaults to 'direct' for legacy transport setting without the key", () => {
+    setSetting(db, 'transport', { relay: null, proxy: null });
+    expect(getProxyFailureMode(db)).toBe('direct');
+  });
+
+  it("returns 'block' when configured", () => {
+    setSetting(db, 'transport', { relay: null, proxy: null, proxyFailureMode: 'block' });
+    expect(getProxyFailureMode(db)).toBe('block');
   });
 });

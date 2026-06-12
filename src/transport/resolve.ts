@@ -58,6 +58,17 @@ export function __resetRotationState(): void {
 interface GlobalTransportSetting {
   relay: { kind: RelayKind; url: string } | null;
   proxy: { kind: ProxyKind; url: string } | null;
+  proxyFailureMode?: 'direct' | 'block';
+}
+
+/**
+ * Global policy for what happens when a proxy fails: fall back to a direct
+ * fetch ('direct', default) or block the request ('block'). Reads the
+ * `transport` setting, which is cached for 5s — no per-request DB cost.
+ */
+export function getProxyFailureMode(db: Database.Database): 'direct' | 'block' {
+  const g = getSetting<GlobalTransportSetting>(db, 'transport');
+  return g?.proxyFailureMode === 'block' ? 'block' : 'direct';
 }
 
 function globalTransport(db: Database.Database): TransportConfig | null {
