@@ -1,7 +1,67 @@
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Button } from '../components/Button';
 import { TopBar } from '../layout/TopBar';
+import { apiFetch } from '../lib/api';
 import { relativeTime } from '../lib/relativeTime';
+
+interface RequestLogDetail {
+  id: number;
+  requestedModel: string | null;
+  endpoint: string;
+  statusCode: number;
+  latencyMs: number;
+  promptTokens: number;
+  completionTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  totalTokens: number;
+  cost: number;
+  rtkBytesSaved: number;
+  stream: number;
+  accountId: string | null;
+  clientKeyId: number | null;
+  requestBody: string | null;
+  responseBody: string | null;
+  error: string | null;
+}
+
+function byteLen(s: string | null): number {
+  return s ? new Blob([s]).size : 0;
+}
+
+function ConsoleBlockDetail({ reqId }: { reqId: string }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['request-log-by-req', reqId],
+    queryFn: () =>
+      apiFetch<RequestLogDetail>(`/api/admin/request-logs/by-req-id/${reqId}`),
+    staleTime: 30_000,
+    retry: false,
+  });
+  if (isLoading) return <div class="console-detail">loading…</div>;
+  if (isError || !data)
+    return <div class="console-detail">no persisted log for this request</div>;
+  return (
+    <div class="console-detail">
+      <div>account: {data.accountId ?? '—'} · client-key: {data.clientKeyId ?? '—'}</div>
+      <div>
+        model: {data.requestedModel ?? '—'} · {data.endpoint} · {data.stream ? 'stream' : 'buffered'}
+      </div>
+      <div>
+        tokens: in {data.promptTokens} out {data.completionTokens} cache{' '}
+        {data.cacheReadTokens}/{data.cacheCreationTokens} total {data.totalTokens}
+      </div>
+      <div>
+        cost ${data.cost.toFixed(6)} · latency {data.latencyMs}ms · rtk saved{' '}
+        {data.rtkBytesSaved}B
+      </div>
+      <div>
+        body sizes: req {byteLen(data.requestBody)}B · resp {byteLen(data.responseBody)}B
+      </div>
+      {data.error && <div class="console-err">error: {data.error}</div>}
+    </div>
+  );
+}
 
 export type FlowEvent =
   | { phase: 'start'; reqId: string; ts: string; method: string; path: string; model: string; alias: string | null }
@@ -78,14 +138,21 @@ function collapseBlocks(blocks: Block[]): CollapsedBlock[] {
 
 export function ConsoleBlocks({ events }: { events: FlowEvent[] }) {
   const collapsed = useMemo(() => collapseBlocks(groupBlocks(events)), [events]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const toggle = (reqId: string) => setExpanded((cur) => (cur === reqId ? null : reqId));
   return (
     <div class="console-box">
       {collapsed.map(({ block: b, count }) => {
         const failed = b.error || (b.done && b.done.status >= 400);
+        const isOpen = expanded === b.reqId;
         return (
           <div class="console-block" key={b.reqId}>
             {b.start && (
-              <div class="console-line">
+              <div
+                class="console-line console-head"
+                onClick={() => toggle(b.reqId)}
+                title="Click for request detail"
+              >
                 <span class="console-reqid">#{b.reqId}</span> → {b.start.method} {b.start.path}{' '}
                 {b.start.alias ? `${b.start.alias}→${b.start.model}` : b.start.model}
                 {count > 1 && <span class="console-count">×{count}</span>}
@@ -120,6 +187,7 @@ export function ConsoleBlocks({ events }: { events: FlowEvent[] }) {
                 ✗ {b.error.status} {b.error.message}
               </div>
             )}
+            {isOpen && <ConsoleBlockDetail reqId={b.reqId} />}
           </div>
         );
       })}

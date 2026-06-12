@@ -1248,6 +1248,21 @@ textarea::placeholder {
   color: var(--text-3);
   font-size: 0.8em;
 }
+.console-head {
+  cursor: pointer;
+}
+.console-head:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.console-detail {
+  margin: 4px 0 2px 6px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--gold);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-2);
+  font-size: 0.85em;
+  line-height: 1.5;
+}
 .console-ok {
   color: var(--signal);
 }

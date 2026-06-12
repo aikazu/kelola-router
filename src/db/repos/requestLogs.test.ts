@@ -9,6 +9,7 @@ import {
   aggregateUsage,
   cleanupOldLogs,
   flushDeferredLogs,
+  getRequestLogByReqId,
   insertRequestLog,
   insertRequestLogDeferred,
   recentLogs,
@@ -44,6 +45,34 @@ describe('requestLogs repo', () => {
     expect(logs.length).toBe(1);
     expect(logs[0].model).toBe('MiniMax-M3');
     expect(logs[0].client_key_id).toBe(ck.id);
+  });
+
+  it('getRequestLogByReqId returns the most recent matching row', () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_rid' });
+    createAccount(db, { id: 'a', label: 'L', credit_type: 'payg', api_key: 'k' });
+    const base = {
+      client_key_id: ck.id,
+      account_id: 'a',
+      model: 'MiniMax-M3',
+      endpoint: '/v1/messages',
+      format: 'anthropic' as const,
+      prompt_tokens: 1,
+      completion_tokens: 1,
+      cache_creation_tokens: 0,
+      cache_read_tokens: 0,
+      total_tokens: 2,
+      cost_usd: 0,
+      latency_ms: 1,
+      status_code: 200,
+      stream: 0,
+      rtk_bytes_saved: 0,
+    };
+    insertRequestLog(db, { ...base, req_id: 'ab12' });
+    insertRequestLog(db, { ...base, req_id: 'cd34', status_code: 429 });
+    const found = getRequestLogByReqId(db, 'cd34');
+    expect(found?.status_code).toBe(429);
+    expect(getRequestLogByReqId(db, 'nope')).toBeNull();
   });
 
   it('recentLogs filter by client_key_id', () => {

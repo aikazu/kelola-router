@@ -265,6 +265,14 @@ export function getRequestLogById(db: Database.Database, id: number): RequestLog
   return row ?? null;
 }
 
+/** Look up the most recent request log for a console flow req_id. */
+export function getRequestLogByReqId(db: Database.Database, reqId: string): RequestLog | null {
+  const row = db
+    .prepare('SELECT * FROM request_logs WHERE req_id = ? ORDER BY id DESC LIMIT 1')
+    .get(reqId) as RequestLog | undefined;
+  return row ?? null;
+}
+
 export interface LogFilter {
   clientKeyId?: number;
   limit?: number;
