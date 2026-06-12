@@ -51,9 +51,16 @@ Capture the *why* behind consequential design choices. MADR-lite format. New ADR
 - `docs/adr/0004-two-tier-auth.md` — separate `client_keys` + cascading admin modes
 - `docs/adr/0005-sqlite-wal-migrations.md` — SQLite-WAL + `user_version` + additive migrations
 
-## Agent skills (when written)
+## Agent skills
 
-`.claude/skills/<name>/SKILL.md` — auto-loaded task instructions. Each skill is terse (< 100 LOC), step-by-step, with file:line references and a checklist. Same names as the playbooks above.
+Auto-loaded task instructions for AI coding agents. Each is a terse (< 100 LOC) recipe derived from the corresponding playbook in `docs/guides/`. Same names; playbooks are human-readable, skills are agent-optimized.
+
+- `.claude/skills/add-provider/SKILL.md` — wire a new upstream provider
+- `.claude/skills/add-admin-endpoint/SKILL.md` — add a `/api/admin/*` route
+- `.claude/skills/add-dashboard-page/SKILL.md` — add a Preact page
+- `.claude/skills/add-migration/SKILL.md` — add a DB migration
+- `.claude/skills/debug-failed-request/SKILL.md` — trace a failed proxy request
+- `.claude/skills/ship-release/SKILL.md` — cut a versioned release
 
 ## Project knowledge base
 
