@@ -3,9 +3,45 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
+import DatabaseWithCipher from 'better-sqlite3-multiple-ciphers';
+import { getDbKey } from '../util/env.js';
 import { autoSeedModels } from './autoSeed.js';
 import { applyPragmas } from './migratePragmas.js';
 import { migrate } from './migrations/index.js';
+
+/**
+ * SQLCipher key escape — SQLCipher's `PRAGMA key = '...'` parser treats a
+ * doubled single-quote (`''`) inside a single-quoted string as an escaped
+ * single-quote. Anything outside the ASCII alphanumeric / common-symbol
+ * range stays byte-for-byte (it's just a passphrase, not SQL identifier).
+ */
+function escapeCipherKey(k: string): string {
+  return k.replace(/'/g, "''");
+}
+
+/**
+ * Open the SQLite file with optional SQLCipher encryption-at-rest.
+ *
+ * When `getDbKey()` returns a value, we swap to `better-sqlite3-multiple-ciphers`
+ * and set `PRAGMA key` BEFORE any other PRAGMA or schema op (SQLCipher requires
+ * the key to be the very first statement on a freshly opened handle).
+ *
+ * The cipher fork's `Database` is structurally compatible with the upstream
+ * `better-sqlite3.Database` at runtime (same `prepare`/`exec`/`pragma`/`close`/
+ * `transaction` API surface), but the two are distinct nominal types in
+ * TypeScript — the cipher fork requires `key`/`rekey` methods. We cast at this
+ * boundary so the rest of the codebase continues to see the vanilla
+ * `better-sqlite3.Database` type and no other file needs to change.
+ */
+function openDatabase(path: string): Database.Database {
+  const key = getDbKey();
+  if (key) {
+    const db = new DatabaseWithCipher(path);
+    db.pragma(`key = '${escapeCipherKey(key)}'`);
+    return db as unknown as Database.Database;
+  }
+  return new Database(path);
+}
 
 function defaultDbPath(): string {
   if (process.env.ROUTER_DB_PATH) return process.env.ROUTER_DB_PATH;
@@ -48,7 +84,7 @@ export function openDb(): Database.Database {
   const dir = dirname(dbPath);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
-  const db = new Database(dbPath);
+  const db = openDatabase(dbPath);
   applyPragmas(db);
 
   migrate(db);
