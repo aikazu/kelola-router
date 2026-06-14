@@ -9,13 +9,6 @@ export interface ModelAlias {
   createdAt: string;
 }
 
-export class AliasConflictError extends Error {
-  constructor(public aliasName: string) {
-    super(`alias name conflicts with real model: ${aliasName}`);
-    this.name = 'AliasConflictError';
-  }
-}
-
 export interface UpsertAliasArgs {
   aliasName: string;
   upstreamModel: string;
