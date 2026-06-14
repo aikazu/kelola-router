@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { type Context, Hono } from 'hono';
 import { setPassword } from '../../auth/password.js';
-import { getSetting, setSetting } from '../../db/repos/settings.js';
+import { getSettingT, setSetting } from '../../db/repos/settings.js';
 import { handleApiError } from './middleware.js';
 
 export const settingsRoutes = new Hono();
@@ -9,12 +9,12 @@ export const settingsRoutes = new Hono();
 settingsRoutes.get('/', (c) => {
   try {
     const db = c.get('db') as Database.Database;
-    const build = getSetting(db, 'build') as { version?: string } | null;
+    const build = getSettingT(db, 'build');
     return c.json({
-      caveman: getSetting(db, 'caveman') ?? { level: 'off' },
-      caching: getSetting(db, 'caching') ?? { autoBreakpoints: true },
-      rtk: getSetting(db, 'rtk') ?? { enabled: true },
-      minimax: getSetting(db, 'minimax') ?? {},
+      caveman: getSettingT(db, 'caveman') ?? { level: 'off' },
+      caching: getSettingT(db, 'caching') ?? { autoBreakpoints: true },
+      rtk: getSettingT(db, 'rtk') ?? { enabled: true },
+      minimax: getSettingT(db, 'minimax') ?? {},
       version: build?.version ?? null,
     });
   } catch (e) {
@@ -56,7 +56,7 @@ settingsRoutes.get('/selection/:provider', (c) => {
       );
     }
     const db = c.get('db') as Database.Database;
-    const sel = getSetting<{ mode?: string; step?: number }>(db, `selection.${provider}`);
+    const sel = getSettingT(db, `selection.${provider}`);
     return c.json({ mode: sel?.mode ?? 'lowest-backoff', step: sel?.step ?? 1 });
   } catch (e) {
     return handleApiError(e);
