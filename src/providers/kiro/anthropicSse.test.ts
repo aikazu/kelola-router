@@ -87,4 +87,197 @@ describe('KiroAnthropicAssembler', () => {
     ];
     expect(out.filter((e) => e.event === 'message_stop')).toHaveLength(1);
   });
+
+  // ---------------------------------------------------------------------------
+  // Byte-identical snapshot fixture (regression detector for SseAssemblerBase refactor)
+  // ---------------------------------------------------------------------------
+  // Captures the full AnthropicEvent[] output for a representative KiroEvent
+  // sequence (text + thinking + text + tool_use + contextUsage + metrics + stop).
+  // The `message.id` is masked to "msg_UUID" so the snapshot is deterministic.
+  // If a future change alters the emitted event shape, this test fails BEFORE
+  // shipping — protecting every Anthropic client using provider=kiro streaming.
+  it('emits byte-identical output for representative input (regression fixture)', () => {
+    const a = new KiroAnthropicAssembler('claude-sonnet-4-5');
+    const out: Array<{ event: string; data: Record<string, unknown> }> = [];
+    for (const e of [
+      ev('assistantResponseEvent', { content: 'Hello ' }),
+      ev('reasoningContentEvent', { text: 'thinking...' }),
+      ev('assistantResponseEvent', { content: 'world!' }),
+      ev('toolUseEvent', { toolUseId: 't1', name: 'get_weather', input: { city: 'London' } }),
+      ev('contextUsageEvent', { contextUsagePercentage: 75 }),
+      ev('metricsEvent', { inputTokens: 100, outputTokens: 50 }),
+      ev('meteringEvent', {}),
+      ev('messageStopEvent', {}),
+    ]) {
+      out.push(...a.process(e));
+    }
+    out.push(...a.finalize());
+
+    // Mask dynamic messageId (UUID) so snapshot is deterministic.
+    const normalized = JSON.stringify(out, null, 2).replace(
+      /"id":\s*"msg_[a-f0-9]+"/g,
+      '"id": "msg_UUID"'
+    );
+    expect(normalized).toMatchInlineSnapshot(`
+      "[
+        {
+          "event": "message_start",
+          "data": {
+            "type": "message_start",
+            "message": {
+              "id": "msg_UUID",
+              "type": "message",
+              "role": "assistant",
+              "model": "claude-sonnet-4-5",
+              "content": [],
+              "stop_reason": null,
+              "stop_sequence": null,
+              "usage": {
+                "input_tokens": 0,
+                "output_tokens": 0
+              }
+            }
+          }
+        },
+        {
+          "event": "content_block_start",
+          "data": {
+            "type": "content_block_start",
+            "index": 0,
+            "content_block": {
+              "type": "text",
+              "text": ""
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {
+              "type": "text_delta",
+              "text": "Hello "
+            }
+          }
+        },
+        {
+          "event": "content_block_stop",
+          "data": {
+            "type": "content_block_stop",
+            "index": 0
+          }
+        },
+        {
+          "event": "content_block_start",
+          "data": {
+            "type": "content_block_start",
+            "index": 1,
+            "content_block": {
+              "type": "thinking",
+              "thinking": ""
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 1,
+            "delta": {
+              "type": "thinking_delta",
+              "thinking": "thinking..."
+            }
+          }
+        },
+        {
+          "event": "content_block_stop",
+          "data": {
+            "type": "content_block_stop",
+            "index": 1
+          }
+        },
+        {
+          "event": "content_block_start",
+          "data": {
+            "type": "content_block_start",
+            "index": 2,
+            "content_block": {
+              "type": "text",
+              "text": ""
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 2,
+            "delta": {
+              "type": "text_delta",
+              "text": "world!"
+            }
+          }
+        },
+        {
+          "event": "content_block_stop",
+          "data": {
+            "type": "content_block_stop",
+            "index": 2
+          }
+        },
+        {
+          "event": "content_block_start",
+          "data": {
+            "type": "content_block_start",
+            "index": 3,
+            "content_block": {
+              "type": "tool_use",
+              "id": "t1",
+              "name": "get_weather",
+              "input": {}
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 3,
+            "delta": {
+              "type": "input_json_delta",
+              "partial_json": "{\\"city\\":\\"London\\"}"
+            }
+          }
+        },
+        {
+          "event": "content_block_stop",
+          "data": {
+            "type": "content_block_stop",
+            "index": 3
+          }
+        },
+        {
+          "event": "message_delta",
+          "data": {
+            "type": "message_delta",
+            "delta": {
+              "stop_reason": "tool_use",
+              "stop_sequence": null
+            },
+            "usage": {
+              "input_tokens": 100,
+              "output_tokens": 50
+            }
+          }
+        },
+        {
+          "event": "message_stop",
+          "data": {
+            "type": "message_stop"
+          }
+        }
+      ]"
+    `);
+  });
 });
