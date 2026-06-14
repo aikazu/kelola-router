@@ -21,7 +21,7 @@ describe('balance error (1008) disables account', () => {
     const db = openDb();
     createClientKey(db, { label: 't', key: 'rk_bal' });
     createAccount(db, { id: 'acc_bal', label: 'a1', credit_type: 'payg', api_key: 'mm_test' });
-    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7' });
+    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
     setSetting(db, 'transport', { relay: null, proxy: null });
     clearCache();
   });
@@ -37,7 +37,10 @@ describe('balance error (1008) disables account', () => {
     const req = new Request('http://localhost/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: 'Bearer rk_bal', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M2.7', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({
+        model: 'mm/MiniMax-M2.7',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
     });
     await app.request(req);
     const row = openDb()

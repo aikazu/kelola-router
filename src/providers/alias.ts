@@ -2,8 +2,8 @@ import type Database from 'better-sqlite3';
 import { getModel, type Model } from '../db/repos/models.js';
 import { getSetting } from '../db/repos/settings.js';
 import { resolveAlias } from './aliasCache.js';
-import { parseModelPrefix } from './modelPrefix.js';
 import type { AnthropicBody, OpenAIBody } from './format/messageTypes.js';
+import { parseModelPrefix } from './modelPrefix.js';
 
 /**
  * Models that the MiniMax reference docs (docs/minimax-reference/) list as
@@ -45,9 +45,7 @@ export function resolveModel(
     if (!model) throw new Error(`unknown model: ${requestedName}`);
     const modelProvider = model.provider ?? 'minimax';
     if (modelProvider !== parsed.provider) {
-      throw new Error(
-        `model ${parsed.modelName} not available on provider ${parsed.provider}`
-      );
+      throw new Error(`model ${parsed.modelName} not available on provider ${parsed.provider}`);
     }
     provider = parsed.provider as string;
   } else {

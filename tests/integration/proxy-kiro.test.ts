@@ -114,7 +114,7 @@ describe('Kiro proxy path', () => {
         method: 'POST',
         headers: { authorization: `Bearer ${clientKey}`, 'content-type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'kr/claude-sonnet-4-5',
           messages: [{ role: 'user', content: 'hi' }],
           stream: false,
         }),
@@ -146,7 +146,7 @@ describe('Kiro proxy path', () => {
         method: 'POST',
         headers: { authorization: `Bearer ${clientKey}`, 'content-type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'kr/claude-sonnet-4-5',
           messages: [{ role: 'user', content: 'hi' }],
           stream: true,
         }),
@@ -167,7 +167,7 @@ describe('Kiro proxy path', () => {
         method: 'POST',
         headers: { 'x-api-key': clientKey, 'content-type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'kr/claude-sonnet-4-5',
           max_tokens: 256,
           messages: [{ role: 'user', content: 'hi' }],
           stream: true,
@@ -191,7 +191,7 @@ describe('Kiro proxy path', () => {
         method: 'POST',
         headers: { authorization: `Bearer ${clientKey}`, 'content-type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'kr/claude-sonnet-4-5',
           messages: [{ role: 'user', content: 'hi' }],
         }),
       })

@@ -61,7 +61,7 @@ const fire = () =>
       method: 'POST',
       headers: { authorization: `Bearer ${clientKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'MiniMax-M3',
+        model: 'mm/MiniMax-M3',
         messages: [{ role: 'user', content: 'hi' }],
         stream: false,
       }),

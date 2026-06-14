@@ -68,7 +68,7 @@ describe('rtk_bytes_saved is persisted from real compression stats', () => {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'model-a',
+        model: 'mm/model-a',
         stream: false,
         messages: [
           { role: 'user', content: 'hi' },

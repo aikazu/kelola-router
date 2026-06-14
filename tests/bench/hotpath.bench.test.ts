@@ -97,7 +97,10 @@ describe('hot-path benchmark', () => {
       app.request('/v1/chat/completions', {
         method: 'POST',
         headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ model: 'MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
+        body: JSON.stringify({
+          model: 'mm/MiniMax-M3',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
       });
 
     await make(); // warm caches

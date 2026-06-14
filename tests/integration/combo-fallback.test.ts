@@ -48,7 +48,7 @@ describe('combo fallback — retry on 5xx', () => {
       enabled: 1,
       family: 'test',
     });
-    createCombo(db, 'test-combo', ['model-a', 'model-b']);
+    createCombo(db, 'test-combo', ['mm/model-a', 'mm/model-b']);
   });
 
   it('tries model-b when model-a returns 503', async () => {
@@ -180,7 +180,7 @@ describe('combo fallback — account re-select per model', () => {
       enabled: 1,
       family: 'test',
     });
-    createCombo(db, 'acc-combo', ['model-x', 'model-y']);
+    createCombo(db, 'acc-combo', ['mm/model-x', 'mm/model-y']);
   });
 
   it('uses a different account for the second model when first account is backoffed', async () => {
