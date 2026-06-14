@@ -45,4 +45,20 @@ describe('parseModelPrefix', () => {
   it('throws on an unknown prefix', () => {
     expect(() => parseModelPrefix('xx/foo')).toThrow(/unknown model prefix: xx/);
   });
+
+  it('passes through an empty tail after a known prefix (validated downstream)', () => {
+    expect(parseModelPrefix('mm/')).toEqual({
+      provider: 'minimax',
+      modelName: '',
+      prefixed: true,
+    });
+  });
+
+  it('treats an empty string as bare (validated downstream)', () => {
+    expect(parseModelPrefix('')).toEqual({
+      provider: null,
+      modelName: '',
+      prefixed: false,
+    });
+  });
 });
