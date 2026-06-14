@@ -84,13 +84,16 @@ src/
 │   └── types.ts              AccountState, ModelLock, SelectionOpts
 ├── providers/
 │   ├── format/transform.ts   OpenAI ↔ Anthropic body conversion
+│   ├── common/               shared provider internals
+│   │   └── SseAssemblerBase.ts  abstract template-method for Anthropic-SSE emitters
+│   │                           (shared by Kiro + CodeBuddy; see "Provider layer" below)
 │   ├── kiro/                 Kiro protocol stack
 │   │   ├── auth.ts           ensureAccessToken (refresh + persist)
 │   │   ├── tokenRefresh.ts   AWS SSO OIDC vs Kiro social refresh
 │   │   ├── transform.ts      buildKiroPayload (OpenAI → CodeWhisperer)
 │   │   ├── eventstream.ts    binary frame decoder
-│   │   ├── assembler.ts      → OpenAI SSE chunks
-│   │   ├── anthropicSse.ts   → native Anthropic Messages SSE
+│   │   ├── assembler.ts      → OpenAI SSE chunks (own I/O type; not SseAssemblerBase)
+│   │   ├── anthropicSse.ts   → Anthropic Messages SSE (extends SseAssemblerBase<KiroEvent>)
 │   │   ├── index.ts          executeKiro (orchestrator)
 │   │   ├── deviceCode.ts     AWS Builder ID / IDC device code flow
 │   │   └── accountImport.ts  buildKiroAccountFields (token / idc / social)
@@ -98,6 +101,7 @@ src/
 │   │   ├── index.ts          executeCodeBuddy orchestrator
 │   │   ├── transform.ts      prepareCodeBuddyBody (client → OpenAI upstream)
 │   │   └── streamConvert.ts  aggregate + OpenAI SSE → Anthropic SSE
+│   │                         (extends SseAssemblerBase<OpenAIStreamChunk>)
 │   ├── baseUrl.ts            MiniMax region switch (intl/cn)
 │   ├── parseError.ts         base_resp.status_code extractor
 │   ├── pricing.ts            per-model USD pricing
@@ -125,7 +129,10 @@ src/
 ├── cache-injection.ts        caveman system prompt + cache_control dual breakpoints
 ├── runtime/                  per-request context (rrCursor, stickyMap, getDb)
 ├── db/
-│   ├── index.ts              openDb() (WAL, foreign_keys, busy_timeout)
+│   ├── index.ts              openDb() — branches on getDbKey(): plaintext via better-sqlite3,
+│   │                         SQLCipher via better-sqlite3-multiple-ciphers when ROUTER_DB_KEY set
+│   │                         (key applied via pragma('key') BEFORE any other PRAGMA;
+│   │                         refuses to start if key set on a plaintext DB — fresh-deploy only)
 │   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country
 │   └── repos/                One file per table: accounts, client_keys, models,
 │                             aliases, combos, requestLogs, quotaSnapshots,
@@ -275,6 +282,27 @@ HTTP out
 ## Storage
 
 `~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Migrations tracked via `PRAGMA user_version` (current = 6). All migrations live in `src/db/migrations/`; one file per migration, additive ALTERs when possible (e.g. `002-kiro` adds `provider` / `access_token` etc. without rewriting rows).
+
+**Optional encryption-at-rest** via `ROUTER_DB_KEY` (read by `getDbKey()` in `src/util/env.ts`). When set, `openDb()` swaps to `better-sqlite3-multiple-ciphers` and issues `PRAGMA key = '...'` as the FIRST statement on the fresh handle (SQLCipher requires the key before any other PRAGMA). The cipher fork is structurally identical to `better-sqlite3` at runtime — repos see the same `Database` type via a single cast at the `openDatabase()` boundary, no repo changes anywhere else.
+
+**Fresh-deploy-only policy.** Setting `ROUTER_DB_KEY` against an existing unencrypted file refuses to start with a clear error; no in-place `--rekey` migration. The detection signal is the raw 16-byte SQLite header (the `cipher_version` pragma is unreliable in this fork — returns `[]` regardless of state). New deploys created under the key are encrypted from byte 0.
+
+## Provider layer — Anthropic-SSE assembly
+
+`src/providers/common/SseAssemblerBase.ts` is an abstract template-method base for Anthropic Messages-SSE emitters. Generic over `<TInput, TOutput = AnthropicEvent>`. Owns the shared state machine (`ensureStart` / `closeBlock` / `openBlock`) plus an async-iteration queue; subclasses implement five hooks:
+
+- `createStartEvent()` — emit the `message_start` payload
+- `createBlockEvent(input): BlockSpec | null` — describe a new `content_block_start` (or return null to skip)
+- `createDeltaEvent(input): AnthropicEvent | null` — emit one `content_block_delta` (or null if no delta)
+- `createFinishEvent(): AnthropicEvent[]` — emit `message_delta` + `message_stop`
+- `getErrorEvent(err): AnthropicEvent` — wrap an upstream error
+
+Concrete subclasses:
+
+- **`KiroAnthropicAssembler`** (`src/providers/kiro/anthropicSse.ts`, `TInput = KiroEvent`) — translates decoded Kiro event-stream frames to Anthropic SSE; overrides `process()` to route richer Kiro event types (tool-use, metadata, messageStop) through the inherited state machine.
+- **`OpenAIToAnthropicSSEAssembler`** (`src/providers/codebuddy/streamConvert.ts`, `TInput = OpenAIStreamChunk`) — translates aggregated OpenAI chunks to Anthropic SSE; uses the default 1-block-1-delta orchestrator without overriding `process()`.
+
+**Not in scope.** `KiroAssembler` (`src/providers/kiro/assembler.ts`, → OpenAI SSE) does NOT extend the base — its I/O type is OpenAI chunks, not Anthropic events, and it predates the template-method. Leaving it untouched keeps the base generic for Anthropic-SSE only.
 
 ## Key invariants
 
