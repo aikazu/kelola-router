@@ -12,3 +12,12 @@ client/node_modules/
 .kiro
 .agents
 vitest-final.json
+
+# Sidecar
+sidecar/**/.venv/
+sidecar/**/__pycache__/
+sidecar/**/cookies/*.json
+sidecar/**/*.pyc
+
+# Hermes
+.hermes/

@@ -38,6 +38,7 @@ import { log } from '../util/log.js';
 import { headersToJson, truncateBody } from './capture.js';
 import { errorMessage, safeJsonParse, statusCode } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
+import { handleCodeBuddyProxy } from './codebuddy.js';
 
 export async function handleComboProxy(
   c: Context,
@@ -210,6 +211,50 @@ export async function handleComboProxy(
         log.warn(
           { combo: combo.name, model: modelName, error: msg },
           'combo: kiro model failed, trying next'
+        );
+        lastErrorResponse = c.json({ error: msg }, 502);
+        continue;
+      }
+    }
+
+    // CodeBuddy provider: delegate to handleCodeBuddyProxy for this model
+    if (resolved.provider === 'codebuddy') {
+      try {
+        const cbBody = { ...body, model: modelName };
+        const cbCursorRef: CursorRef = { value: cursorRef.value };
+        const cbResp = await handleCodeBuddyProxy(
+          c,
+          format,
+          upstreamPath,
+          cbBody,
+          db,
+          cbCursorRef,
+          stickyMap
+        );
+        cursorRef.value = cbCursorRef.value;
+        if (
+          cbResp.status === 429 ||
+          cbResp.status === 502 ||
+          cbResp.status === 503 ||
+          cbResp.status === 504 ||
+          cbResp.status === 401 ||
+          cbResp.status === 402 ||
+          cbResp.status === 403
+        ) {
+          log.info(
+            { combo: combo.name, model: modelName, status: cbResp.status },
+            'combo: codebuddy retryable error, trying next model'
+          );
+          lastErrorResponse = cbResp;
+          continue;
+        }
+        log.info({ combo: combo.name, model: modelName, index: i }, 'combo: codebuddy success on model');
+        return cbResp;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        log.warn(
+          { combo: combo.name, model: modelName, error: msg },
+          'combo: codebuddy model failed, trying next'
         );
         lastErrorResponse = c.json({ error: msg }, 502);
         continue;

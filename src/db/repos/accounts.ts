@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { cachedStmt } from '../cachedStmt.js';
 
-export type ProviderName = 'minimax' | 'kiro';
+export type ProviderName = 'minimax' | 'kiro' | 'codebuddy';
 
 export interface Account {
   id: string;
