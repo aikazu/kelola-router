@@ -103,6 +103,209 @@ describe('OpenAIToAnthropicSSEAssembler', () => {
     const md = ev.find((e) => e.event === 'message_delta');
     expect((md?.data.delta as { stop_reason?: string }).stop_reason).toBe('tool_use');
   });
+
+  // ---------------------------------------------------------------------------
+  // Byte-identical snapshot fixture (regression detector for SseAssemblerBase refactor)
+  // ---------------------------------------------------------------------------
+  // Captures the full AnthropicEvent[] output for a representative OpenAIStreamChunk
+  // sequence (reasoning + text + tool_calls + usage + finish). The dynamic messageId
+  // UUID is masked so the snapshot is deterministic. If a future change alters the
+  // emitted event shape, this test fails BEFORE shipping — protecting every Anthropic
+  // client using provider=codebuddy streaming.
+  it('emits byte-identical output for representative input (regression fixture)', () => {
+    const out = run([
+      // thinking block
+      { choices: [{ delta: { reasoning_content: 'Let me think.' } }] },
+      // text block (new block — thinking must close first)
+      { choices: [{ delta: { content: 'Hello ' } }] },
+      { choices: [{ delta: { content: 'world!' } }] },
+      // tool_use block — fragmented args across two chunks
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'call_1', function: { name: 'get_weather', arguments: '{"ci' } },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: 'ty":"SF"}' } }] } }],
+      },
+      // terminal chunk: finish_reason + usage
+      {
+        choices: [{ delta: {}, finish_reason: 'tool_calls' }],
+        usage: {
+          prompt_tokens: 10,
+          completion_tokens: 5,
+          total_tokens: 15,
+          prompt_tokens_details: { cached_tokens: 3 },
+        },
+      },
+    ]);
+
+    // Mask dynamic messageId (UUID) so snapshot is deterministic.
+    const normalized = JSON.stringify(out, null, 2).replace(
+      /"id":\s*"msg_[a-f0-9]+"/g,
+      '"id": "msg_UUID"'
+    );
+    expect(normalized).toMatchInlineSnapshot(`
+      "[
+        {
+          "event": "message_start",
+          "data": {
+            "type": "message_start",
+            "message": {
+              "id": "msg_UUID",
+              "type": "message",
+              "role": "assistant",
+              "model": "claude-opus-4.6",
+              "content": [],
+              "stop_reason": null,
+              "stop_sequence": null,
+              "usage": {
+                "input_tokens": 0,
+                "output_tokens": 0
+              }
+            }
+          }
+        },
+        {
+          "event": "content_block_start",
+          "data": {
+            "type": "content_block_start",
+            "index": 0,
+            "content_block": {
+              "type": "thinking",
+              "thinking": ""
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {
+              "type": "thinking_delta",
+              "thinking": "Let me think."
+            }
+          }
+        },
+        {
+          "event": "content_block_stop",
+          "data": {
+            "type": "content_block_stop",
+            "index": 0
+          }
+        },
+        {
+          "event": "content_block_start",
+          "data": {
+            "type": "content_block_start",
+            "index": 1,
+            "content_block": {
+              "type": "text",
+              "text": ""
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 1,
+            "delta": {
+              "type": "text_delta",
+              "text": "Hello "
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 1,
+            "delta": {
+              "type": "text_delta",
+              "text": "world!"
+            }
+          }
+        },
+        {
+          "event": "content_block_stop",
+          "data": {
+            "type": "content_block_stop",
+            "index": 1
+          }
+        },
+        {
+          "event": "content_block_start",
+          "data": {
+            "type": "content_block_start",
+            "index": 2,
+            "content_block": {
+              "type": "tool_use",
+              "id": "call_1",
+              "name": "get_weather",
+              "input": {}
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 2,
+            "delta": {
+              "type": "input_json_delta",
+              "partial_json": "{\\"ci"
+            }
+          }
+        },
+        {
+          "event": "content_block_delta",
+          "data": {
+            "type": "content_block_delta",
+            "index": 2,
+            "delta": {
+              "type": "input_json_delta",
+              "partial_json": "ty\\":\\"SF\\"}"
+            }
+          }
+        },
+        {
+          "event": "content_block_stop",
+          "data": {
+            "type": "content_block_stop",
+            "index": 2
+          }
+        },
+        {
+          "event": "message_delta",
+          "data": {
+            "type": "message_delta",
+            "delta": {
+              "stop_reason": "tool_use",
+              "stop_sequence": null
+            },
+            "usage": {
+              "input_tokens": 10,
+              "output_tokens": 5
+            }
+          }
+        },
+        {
+          "event": "message_stop",
+          "data": {
+            "type": "message_stop"
+          }
+        }
+      ]"
+    `);
+  });
 });
 
 function sseResponse(lines: string[]): Response {
