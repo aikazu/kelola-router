@@ -35,7 +35,13 @@ export interface AnthropicEvent {
   data: Record<string, unknown>;
 }
 
-type BlockType = 'thinking' | 'text' | 'tool_use';
+export type BlockType = 'thinking' | 'text' | 'tool_use';
+
+/** Block specification returned by {@link SseAssemblerBase.createBlockEvent}. */
+export interface BlockSpec {
+  type: BlockType;
+  contentBlock: Record<string, unknown>;
+}
 
 // ---------------------------------------------------------------------------
 // Base class
@@ -63,10 +69,14 @@ export abstract class SseAssemblerBase<TInput> {
   protected abstract createStartEvent(): AnthropicEvent;
 
   /**
-   * Emit a content_block_start event for the given input.
-   * Return null to skip opening a block (e.g. no relevant content in input).
+   * Return a block specification describing the content_block_start to open for this input.
+   * Return null to skip opening a block (no relevant content, or block already open).
+   *
+   * The base {@link process} calls {@link openBlock} with the returned spec, which
+   * updates `blockIndex` / `current` and pushes the event — the subclass should NOT
+   * call `openBlock` itself inside this hook.
    */
-  protected abstract createBlockEvent(input: TInput): AnthropicEvent | null;
+  protected abstract createBlockEvent(input: TInput): BlockSpec | null;
 
   /**
    * Emit a content_block_delta event for the given input.
@@ -84,7 +94,10 @@ export abstract class SseAssemblerBase<TInput> {
   // Shared state-machine methods (concrete — identical in both assemblers)
   // ---------------------------------------------------------------------------
 
-  protected constructor(model: string) {
+  // Public so subclasses inherit a callable constructor without needing to
+  // re-declare one just to widen visibility. The class is still abstract —
+  // TypeScript prevents `new SseAssemblerBase(...)` regardless of constructor visibility.
+  constructor(model: string) {
     this.model = model;
   }
 
@@ -126,14 +139,20 @@ export abstract class SseAssemblerBase<TInput> {
   /**
    * Process one input value into zero or more Anthropic events.
    * Calls hooks in the correct order so subclasses only supply the per-type logic.
+   *
+   * The default orchestrator handles the common 1-block + 1-delta-per-input pattern.
+   * Subclasses with richer per-input behavior (multiple blocks, metadata-only events,
+   * finalization triggers) MAY override this method — they should still use the
+   * inherited {@link ensureStart} / {@link openBlock} / {@link closeBlock} helpers
+   * rather than reimplementing the state machine.
    */
   public process(input: TInput): void {
     if (this.stopped) return;
     this.ensureStart();
 
-    const blockEvent = this.createBlockEvent(input);
-    if (blockEvent !== null) {
-      this.push(blockEvent);
+    const blockSpec = this.createBlockEvent(input);
+    if (blockSpec !== null) {
+      this.openBlock(blockSpec.type, blockSpec.contentBlock);
     }
 
     const deltaEvent = this.createDeltaEvent(input);
@@ -170,9 +189,7 @@ export abstract class SseAssemblerBase<TInput> {
     if (this.stopped) return { done: true, value: undefined };
     // wait for next event
     return new Promise<IteratorResult<AnthropicEvent>>((resolve) => {
-      this.waiting.push((ev) =>
-        resolve({ done: false, value: ev }),
-      );
+      this.waiting.push((ev) => resolve({ done: false, value: ev }));
     });
   }
 
@@ -196,7 +213,12 @@ export abstract class SseAssemblerBase<TInput> {
   // Internal helpers
   // ---------------------------------------------------------------------------
 
-  private push(ev: AnthropicEvent): void {
+  /**
+   * Push an event onto the output queue (or dispatch it to a waiting iterator).
+   * Exposed as protected so subclasses that override {@link process} can emit
+   * additional events directly (e.g. multiple deltas from one input).
+   */
+  protected push(ev: AnthropicEvent): void {
     if (this.waiting.length > 0) {
       const resolve = this.waiting.shift()!;
       resolve(ev);
@@ -205,12 +227,21 @@ export abstract class SseAssemblerBase<TInput> {
     this.queue.push(ev);
   }
 
+  /**
+   * Drain and return all queued events. Subclasses that override {@link process}
+   * with a synchronous array-returning signature call this at the end to collect
+   * everything {@link push}ed during one input cycle.
+   */
+  protected drain(): AnthropicEvent[] {
+    return this.queue.splice(0);
+  }
+
   private _drainWaiting(final: boolean): void {
     for (const resolve of this.waiting) {
       resolve(
         final
           ? ({ event: 'message_stop', data: { type: 'message_stop' } } as AnthropicEvent)
-          : (undefined as unknown as AnthropicEvent),
+          : (undefined as unknown as AnthropicEvent)
       );
     }
     this.waiting.length = 0;

@@ -1,10 +1,14 @@
 /**
  * Kiro event-stream -> Anthropic Messages SSE assembler.
  *
- * Claude Code and hermes-agent prefer the native Anthropic `/v1/messages`
- * streaming protocol. This emits that wire format directly from decoded Kiro
- * events:
+ * Extends {@link SseAssemblerBase} — the shared state machine (ensureStart,
+ * closeBlock, openBlock, flush) lives in the base. This subclass provides the
+ * Kiro-specific per-event encoding logic via the abstract hooks, plus a
+ * `process()` override for Kiro event types that don't fit the base's default
+ * 1-block-1-delta orchestrator (tool arrays, metadata-only events,
+ * messageStop-triggered finalization).
  *
+ * Emitted wire format:
  *   message_start
  *   (content_block_start / content_block_delta* / content_block_stop)*   ← per block
  *   message_delta  (stop_reason + output usage)
@@ -14,24 +18,16 @@
  * each with its own incrementing index. Adapted from the 9router reference (MIT).
  */
 import { randomUUID } from 'node:crypto';
+import {
+  type AnthropicEvent,
+  type BlockSpec,
+  SseAssemblerBase,
+} from '../common/SseAssemblerBase.js';
 import type { KiroUsage } from './assembler.js';
 import type { KiroEvent } from './eventstream.js';
 import { consumeKiroFrames } from './streamConsumer.js';
 
-type BlockType = 'thinking' | 'text' | 'tool_use';
-
-interface AnthropicEvent {
-  event: string;
-  data: Record<string, unknown>;
-}
-
-export class KiroAnthropicAssembler {
-  private readonly messageId = `msg_${randomUUID().replace(/-/g, '')}`;
-  private readonly model: string;
-  private started = false;
-  private stopped = false;
-  private blockIndex = -1;
-  private current: BlockType | null = null;
+export class KiroAnthropicAssembler extends SseAssemblerBase<KiroEvent> {
   private hasToolCalls = false;
   private readonly seenToolIds = new Map<string, number>();
   private usage: KiroUsage | null = null;
@@ -40,14 +36,12 @@ export class KiroAnthropicAssembler {
   private hasMetering = false;
   private hasContextUsage = false;
 
-  constructor(model: string) {
-    this.model = model;
-  }
+  // -------------------------------------------------------------------------
+  // Abstract-hook implementations
+  // -------------------------------------------------------------------------
 
-  private ensureStart(out: AnthropicEvent[]): void {
-    if (this.started) return;
-    this.started = true;
-    out.push({
+  protected createStartEvent(): AnthropicEvent {
+    return {
       event: 'message_start',
       data: {
         type: 'message_start',
@@ -62,114 +56,132 @@ export class KiroAnthropicAssembler {
           usage: { input_tokens: 0, output_tokens: 0 },
         },
       },
-    });
+    };
   }
 
-  private closeBlock(out: AnthropicEvent[]): void {
-    if (this.current === null) return;
-    out.push({
-      event: 'content_block_stop',
-      data: { type: 'content_block_stop', index: this.blockIndex },
-    });
-    this.current = null;
-  }
+  protected createBlockEvent(input: KiroEvent): BlockSpec | null {
+    const payload = input.payload || {};
 
-  private openBlock(
-    out: AnthropicEvent[],
-    type: BlockType,
-    contentBlock: Record<string, unknown>
-  ): void {
-    this.closeBlock(out);
-    this.blockIndex++;
-    this.current = type;
-    out.push({
-      event: 'content_block_start',
-      data: { type: 'content_block_start', index: this.blockIndex, content_block: contentBlock },
-    });
-  }
-
-  /** Process one Kiro event into zero or more Anthropic SSE events. */
-  process(event: KiroEvent): AnthropicEvent[] {
-    const out: AnthropicEvent[] = [];
-    const payload = event.payload || {};
-
+    // Text content
     if (
-      (event.eventType === 'assistantResponseEvent' || event.eventType === 'codeEvent') &&
+      (input.eventType === 'assistantResponseEvent' || input.eventType === 'codeEvent') &&
       typeof payload.content === 'string'
     ) {
-      this.ensureStart(out);
-      if (this.current !== 'text') this.openBlock(out, 'text', { type: 'text', text: '' });
+      if (this.current === 'text') return null;
+      return { type: 'text', contentBlock: { type: 'text', text: '' } };
+    }
+
+    // Thinking content
+    if (input.eventType === 'reasoningContentEvent') {
+      if (this.current === 'thinking') return null;
+      return { type: 'thinking', contentBlock: { type: 'thinking', thinking: '' } };
+    }
+
+    return null;
+  }
+
+  protected createDeltaEvent(input: KiroEvent): AnthropicEvent | null {
+    const payload = input.payload || {};
+
+    // Text content
+    if (
+      (input.eventType === 'assistantResponseEvent' || input.eventType === 'codeEvent') &&
+      typeof payload.content === 'string'
+    ) {
       this.totalContentLength += payload.content.length;
-      out.push({
+      return {
         event: 'content_block_delta',
         data: {
           type: 'content_block_delta',
           index: this.blockIndex,
           delta: { type: 'text_delta', text: payload.content },
         },
-      });
+      };
     }
 
-    if (event.eventType === 'reasoningContentEvent') {
+    // Thinking content
+    if (input.eventType === 'reasoningContentEvent') {
       const r = (payload.reasoningContentEvent ?? payload) as
         | string
         | { text?: string; content?: string };
       const text = typeof r === 'string' ? r : r.text || r.content || '';
-      if (text) {
-        this.ensureStart(out);
-        if (this.current !== 'thinking') {
-          this.openBlock(out, 'thinking', { type: 'thinking', thinking: '' });
-        }
-        this.totalContentLength += text.length;
-        out.push({
-          event: 'content_block_delta',
-          data: {
-            type: 'content_block_delta',
-            index: this.blockIndex,
-            delta: { type: 'thinking_delta', thinking: text },
+      if (!text) return null;
+      this.totalContentLength += text.length;
+      return {
+        event: 'content_block_delta',
+        data: {
+          type: 'content_block_delta',
+          index: this.blockIndex,
+          delta: { type: 'thinking_delta', thinking: text },
+        },
+      };
+    }
+
+    return null;
+  }
+
+  protected createFinishEvent(): AnthropicEvent[] {
+    if (!this.usage) {
+      const outTok =
+        this.totalContentLength > 0 ? Math.max(1, Math.floor(this.totalContentLength / 4)) : 0;
+      const inp =
+        this.contextUsagePercentage > 0
+          ? Math.floor((this.contextUsagePercentage * 200000) / 100)
+          : 0;
+      this.usage = { prompt_tokens: inp, completion_tokens: outTok, total_tokens: inp + outTok };
+    }
+    return [
+      {
+        event: 'message_delta',
+        data: {
+          type: 'message_delta',
+          delta: {
+            stop_reason: this.hasToolCalls ? 'tool_use' : 'end_turn',
+            stop_sequence: null,
           },
-        });
-      }
-    }
+          usage: {
+            input_tokens: this.usage.prompt_tokens,
+            output_tokens: this.usage.completion_tokens,
+          },
+        },
+      },
+      { event: 'message_stop', data: { type: 'message_stop' } },
+    ];
+  }
 
-    if (event.eventType === 'toolUseEvent' && payload) {
-      this.hasToolCalls = true;
-      const list = Array.isArray(payload) ? payload : [payload];
-      for (const tu of list as Array<{ toolUseId?: string; name?: string; input?: unknown }>) {
-        const toolCallId = tu.toolUseId || `toolu_${randomUUID().replace(/-/g, '')}`;
-        const isNew = !this.seenToolIds.has(toolCallId);
-        this.ensureStart(out);
-        if (isNew) {
-          this.seenToolIds.set(toolCallId, this.blockIndex + 1);
-          this.openBlock(out, 'tool_use', {
-            type: 'tool_use',
-            id: toolCallId,
-            name: tu.name || '',
-            input: {},
-          });
-        }
-        if (tu.input !== undefined) {
-          const partial = typeof tu.input === 'string' ? tu.input : JSON.stringify(tu.input);
-          out.push({
-            event: 'content_block_delta',
-            data: {
-              type: 'content_block_delta',
-              index: this.blockIndex,
-              delta: { type: 'input_json_delta', partial_json: partial },
-            },
-          });
-        }
-      }
-    }
+  protected getErrorEvent(err: unknown): AnthropicEvent {
+    return { event: 'error', data: { type: 'error', error: String(err) } };
+  }
 
+  // -------------------------------------------------------------------------
+  // Process — Kiro-specific event routing
+  // -------------------------------------------------------------------------
+
+  /**
+   * Process one Kiro event into zero or more Anthropic SSE events.
+   *
+   * Overrides the base template method because Kiro events are richer than the
+   * default 1-block-1-delta orchestrator supports: metadata events emit nothing,
+   * tool-use events can carry an array of tool calls (multiple blocks + deltas),
+   * and `messageStopEvent` triggers finalization. Text/thinking events delegate
+   * to `super.process()` which uses the abstract hooks.
+   */
+  process(event: KiroEvent): AnthropicEvent[] {
+    const payload = event.payload || {};
+
+    // Metadata events — update internal state, emit nothing.
     if (event.eventType === 'contextUsageEvent') {
       const pct = (payload as { contextUsagePercentage?: number }).contextUsagePercentage;
       if (pct) {
         this.contextUsagePercentage = pct;
         this.hasContextUsage = true;
       }
+      return this.drain();
     }
-    if (event.eventType === 'meteringEvent') this.hasMetering = true;
+    if (event.eventType === 'meteringEvent') {
+      this.hasMetering = true;
+      return this.drain();
+    }
     if (event.eventType === 'metricsEvent') {
       const metrics = ((payload as { metricsEvent?: unknown }).metricsEvent ?? payload) as {
         inputTokens?: number;
@@ -180,46 +192,58 @@ export class KiroAnthropicAssembler {
       if (inp > 0 || outTok > 0) {
         this.usage = { prompt_tokens: inp, completion_tokens: outTok, total_tokens: inp + outTok };
       }
+      return this.drain();
     }
 
+    // messageStopEvent — trigger finalization.
     if (event.eventType === 'messageStopEvent') {
-      out.push(...this.finalize());
+      this.flush();
+      return this.drain();
     }
-    return out;
+
+    // Tool use — custom handling: one event can carry multiple tool calls,
+    // each opening its own block and emitting its own input_json_delta.
+    if (event.eventType === 'toolUseEvent' && payload) {
+      this.hasToolCalls = true;
+      const list = Array.isArray(payload) ? payload : [payload];
+      this.ensureStart();
+      for (const tu of list as Array<{ toolUseId?: string; name?: string; input?: unknown }>) {
+        const toolCallId = tu.toolUseId || `toolu_${randomUUID().replace(/-/g, '')}`;
+        const isNew = !this.seenToolIds.has(toolCallId);
+        if (isNew) {
+          this.seenToolIds.set(toolCallId, this.blockIndex + 1);
+          this.openBlock('tool_use', {
+            type: 'tool_use',
+            id: toolCallId,
+            name: tu.name || '',
+            input: {},
+          });
+        }
+        if (tu.input !== undefined) {
+          const partial = typeof tu.input === 'string' ? tu.input : JSON.stringify(tu.input);
+          this.push({
+            event: 'content_block_delta',
+            data: {
+              type: 'content_block_delta',
+              index: this.blockIndex,
+              delta: { type: 'input_json_delta', partial_json: partial },
+            },
+          });
+        }
+      }
+      return this.drain();
+    }
+
+    // Text + thinking events — delegate to the base template method which
+    // uses createBlockEvent + createDeltaEvent.
+    super.process(event);
+    return this.drain();
   }
 
   /** Emit the closing message_delta + message_stop (idempotent). */
   finalize(): AnthropicEvent[] {
-    if (this.stopped) return [];
-    this.stopped = true;
-    const out: AnthropicEvent[] = [];
-    this.ensureStart(out);
-    this.closeBlock(out);
-    if (!this.usage) {
-      const outTok =
-        this.totalContentLength > 0 ? Math.max(1, Math.floor(this.totalContentLength / 4)) : 0;
-      const inp =
-        this.contextUsagePercentage > 0
-          ? Math.floor((this.contextUsagePercentage * 200000) / 100)
-          : 0;
-      this.usage = { prompt_tokens: inp, completion_tokens: outTok, total_tokens: inp + outTok };
-    }
-    out.push({
-      event: 'message_delta',
-      data: {
-        type: 'message_delta',
-        delta: {
-          stop_reason: this.hasToolCalls ? 'tool_use' : 'end_turn',
-          stop_sequence: null,
-        },
-        usage: {
-          input_tokens: this.usage.prompt_tokens,
-          output_tokens: this.usage.completion_tokens,
-        },
-      },
-    });
-    out.push({ event: 'message_stop', data: { type: 'message_stop' } });
-    return out;
+    this.flush();
+    return this.drain();
   }
 
   get hasMeteringAndContext(): boolean {
