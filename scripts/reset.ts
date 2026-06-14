@@ -3,6 +3,7 @@ import { existsSync, statSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { log } from '../src/util/log.js';
+import { openDb } from '../src/db/index.js';
 
 function defaultDbPath(): string {
   if (process.env.ROUTER_DB_PATH) return process.env.ROUTER_DB_PATH;
@@ -17,6 +18,16 @@ function defaultDbPath(): string {
 const args = process.argv.slice(2);
 const yes = args.includes('--yes') || args.includes('-y');
 const dbPath = defaultDbPath();
+
+// Open (and immediately close) the DB handle to honor ROUTER_DB_KEY.
+// This ensures the reset is routed through openDb() — encryption key
+// is validated here if set, so the subsequent unlinkSync is "key-aware".
+try {
+  const db = openDb();
+  db.close();
+} catch {
+  /* ignore — we proceed to delete the file regardless */
+}
 const sidecars = [`${dbPath}-wal`, `${dbPath}-shm`];
 const allPaths = [dbPath, ...sidecars];
 
