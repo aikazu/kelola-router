@@ -1,23 +1,45 @@
-import { CODEBUDDY_DEFAULT_SYSTEM, CODEBUDDY_DEFAULT_TEMPERATURE } from './index.js';
+// src/providers/codebuddy/transform.ts
+import type { AnthropicBody } from '../format/messageTypes.js';
+import { bodyAnthropicToOpenAI } from '../format/transform.js';
+import { CODEBUDDY_DEFAULT_SYSTEM } from './index.js';
 
 /**
- * Ensure `system` and `temperature` are present in the Anthropic Messages body.
+ * Prepare a client request body for the CodeBuddy upstream.
  *
- * CodeBuddy upstream requires both fields. The body is already Anthropic format
- * from the client — we only inject defaults when missing.
+ * CodeBuddy speaks OpenAI Chat Completions and is **stream-only** and
+ * **requires a `system` role message**. This:
+ *   1. converts an Anthropic body → OpenAI (reusing the shared converter),
+ *   2. strips the `codebuddy/` model prefix,
+ *   3. guarantees a system message exists (injects a default if absent),
+ *   4. forces `stream:true` + `stream_options.include_usage`.
  */
-export function ensureCodeBuddyDefaults(body: Record<string, unknown>): Record<string, unknown> {
-  const result = { ...body };
+export function prepareCodeBuddyBody(
+  body: Record<string, unknown>,
+  clientFormat: 'openai' | 'anthropic'
+): Record<string, unknown> {
+  const out: Record<string, unknown> =
+    clientFormat === 'anthropic'
+      ? (bodyAnthropicToOpenAI(body as AnthropicBody) as unknown as Record<string, unknown>)
+      : { ...body };
 
-  // CodeBuddy requires a top-level system field
-  if (!result.system) {
-    result.system = CODEBUDDY_DEFAULT_SYSTEM;
+  if (typeof out.model === 'string' && out.model.startsWith('codebuddy/')) {
+    out.model = out.model.slice('codebuddy/'.length);
   }
 
-  // CodeBuddy requires temperature to be present
-  if (result.temperature === undefined || result.temperature === null) {
-    result.temperature = CODEBUDDY_DEFAULT_TEMPERATURE;
+  const messages = Array.isArray(out.messages) ? [...(out.messages as unknown[])] : [];
+  const hasSystem = messages.some(
+    (m) => !!m && typeof m === 'object' && (m as { role?: string }).role === 'system'
+  );
+  if (!hasSystem) {
+    messages.unshift({ role: 'system', content: CODEBUDDY_DEFAULT_SYSTEM });
+  }
+  out.messages = messages;
+
+  out.stream = true;
+  const so = out.stream_options as { include_usage?: boolean } | undefined;
+  if (!so || !('include_usage' in so)) {
+    out.stream_options = { ...(so ?? {}), include_usage: true };
   }
 
-  return result;
+  return out;
 }

@@ -1,75 +1,47 @@
+// src/providers/codebuddy/transform.test.ts
 import { describe, expect, it } from 'vitest';
-import { CODEBUDDY_DEFAULT_SYSTEM, CODEBUDDY_DEFAULT_TEMPERATURE } from './index.js';
-import { ensureCodeBuddyDefaults } from './transform.js';
+import { prepareCodeBuddyBody } from './transform.js';
 
-describe('ensureCodeBuddyDefaults', () => {
-  it('injects system when missing', () => {
-    const body = {
-      model: 'codebuddy/claude-opus-4.6',
-      messages: [{ role: 'user', content: 'hi' }],
-    };
-    const result = ensureCodeBuddyDefaults(body);
-    expect(result.system).toBe(CODEBUDDY_DEFAULT_SYSTEM);
+describe('prepareCodeBuddyBody', () => {
+  it('converts an Anthropic body to OpenAI, forces stream, and guarantees a system message', () => {
+    const out = prepareCodeBuddyBody(
+      { model: 'codebuddy/claude-opus-4.6', system: 'be terse', max_tokens: 50, messages: [{ role: 'user', content: 'hi' }] },
+      'anthropic'
+    );
+    expect(out.model).toBe('claude-opus-4.6'); // prefix stripped
+    expect(out.stream).toBe(true);
+    expect((out.stream_options as { include_usage?: boolean }).include_usage).toBe(true);
+    const msgs = out.messages as Array<{ role: string; content: unknown }>;
+    expect(msgs[0].role).toBe('system'); // moved from top-level by bodyAnthropicToOpenAI
+    expect(out.system).toBeUndefined();
   });
 
-  it('preserves existing system', () => {
-    const body = {
-      model: 'codebuddy/claude-opus-4.6',
-      system: 'Custom system prompt',
-      messages: [],
-    };
-    const result = ensureCodeBuddyDefaults(body);
-    expect(result.system).toBe('Custom system prompt');
+  it('injects a default system message when the client sent none', () => {
+    const out = prepareCodeBuddyBody(
+      { model: 'codebuddy/gemini-3.5-flash', max_tokens: 50, messages: [{ role: 'user', content: 'hi' }] },
+      'anthropic'
+    );
+    const msgs = out.messages as Array<{ role: string }>;
+    expect(msgs[0].role).toBe('system');
+    expect(msgs.filter((m) => m.role === 'system')).toHaveLength(1);
   });
 
-  it('injects temperature when missing', () => {
-    const body = { model: 'codebuddy/claude-opus-4.6', messages: [] };
-    const result = ensureCodeBuddyDefaults(body);
-    expect(result.temperature).toBe(CODEBUDDY_DEFAULT_TEMPERATURE);
+  it('passes an OpenAI client body through, still forcing stream + system', () => {
+    const out = prepareCodeBuddyBody(
+      { model: 'codebuddy/gpt-5.5', messages: [{ role: 'user', content: 'hi' }] },
+      'openai'
+    );
+    expect(out.stream).toBe(true);
+    const msgs = out.messages as Array<{ role: string }>;
+    expect(msgs[0].role).toBe('system');
   });
 
-  it('preserves existing temperature', () => {
-    const body = { model: 'codebuddy/claude-opus-4.6', temperature: 0.3, messages: [] };
-    const result = ensureCodeBuddyDefaults(body);
-    expect(result.temperature).toBe(0.3);
-  });
-
-  it('preserves temperature of 0', () => {
-    const body = { model: 'codebuddy/claude-opus-4.6', temperature: 0, messages: [] };
-    const result = ensureCodeBuddyDefaults(body);
-    expect(result.temperature).toBe(0);
-  });
-
-  it('injects temperature when null', () => {
-    const body = { model: 'codebuddy/claude-opus-4.6', temperature: null, messages: [] };
-    const result = ensureCodeBuddyDefaults(body);
-    expect(result.temperature).toBe(CODEBUDDY_DEFAULT_TEMPERATURE);
-  });
-
-  it('does not mutate original body', () => {
-    const body = {
-      model: 'codebuddy/claude-opus-4.6',
-      messages: [{ role: 'user', content: 'test' }],
-    };
-    const result = ensureCodeBuddyDefaults(body);
-    expect(body).not.toHaveProperty('system');
-    expect(body).not.toHaveProperty('temperature');
-    expect(result).not.toBe(body);
-  });
-
-  it('passes through all other fields unchanged', () => {
-    const body = {
-      model: 'codebuddy/claude-opus-4.6',
-      max_tokens: 4096,
-      stream: true,
-      system: 'My system',
-      temperature: 0.5,
-      messages: [{ role: 'user', content: 'hello' }],
-    };
-    const result = ensureCodeBuddyDefaults(body);
-    expect(result.model).toBe('codebuddy/claude-opus-4.6');
-    expect(result.max_tokens).toBe(4096);
-    expect(result.stream).toBe(true);
-    expect(result.messages).toEqual([{ role: 'user', content: 'hello' }]);
+  it('does not duplicate an existing OpenAI system message', () => {
+    const out = prepareCodeBuddyBody(
+      { model: 'glm-5.0', messages: [{ role: 'system', content: 's' }, { role: 'user', content: 'hi' }] },
+      'openai'
+    );
+    const msgs = out.messages as Array<{ role: string }>;
+    expect(msgs.filter((m) => m.role === 'system')).toHaveLength(1);
   });
 });
