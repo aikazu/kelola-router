@@ -36,10 +36,8 @@ export function prepareCodeBuddyBody(
   out.messages = messages;
 
   out.stream = true;
-  const so = out.stream_options as { include_usage?: boolean } | undefined;
-  if (!so || !('include_usage' in so)) {
-    out.stream_options = { ...(so ?? {}), include_usage: true };
-  }
+  const so = (out.stream_options as Record<string, unknown> | undefined) ?? {};
+  out.stream_options = { ...so, include_usage: true };
 
   return out;
 }

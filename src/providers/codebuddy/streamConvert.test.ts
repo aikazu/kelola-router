@@ -1,7 +1,10 @@
 // src/providers/codebuddy/streamConvert.test.ts
 import { describe, expect, it } from 'vitest';
-import { OpenAIToAnthropicSSEAssembler } from './streamConvert.js';
-import { aggregateOpenAISSE, openaiSSEToAnthropicSSE } from './streamConvert.js';
+import {
+  aggregateOpenAISSE,
+  OpenAIToAnthropicSSEAssembler,
+  openaiSSEToAnthropicSSE,
+} from './streamConvert.js';
 
 // Minimal OpenAI streaming chunk shape used by the assembler.
 type Chunk = {
@@ -33,7 +36,10 @@ describe('OpenAIToAnthropicSSEAssembler', () => {
     const ev = run([
       { choices: [{ delta: { content: 'PI' } }] },
       { choices: [{ delta: { content: 'NG' } }] },
-      { choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 } },
+      {
+        choices: [{ delta: {}, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 },
+      },
     ]);
     const types = ev.map((e) => e.event);
     expect(types[0]).toBe('message_start');
@@ -67,12 +73,26 @@ describe('OpenAIToAnthropicSSEAssembler', () => {
 
   it('assembles streamed tool_calls into a tool_use block with input_json_delta', () => {
     const ev = run([
-      { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_1', function: { name: 'get_weather', arguments: '{"ci' } }] } }] },
-      { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: 'ty":"SF"}' } }] } }] },
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'call_1', function: { name: 'get_weather', arguments: '{"ci' } },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: 'ty":"SF"}' } }] } }],
+      },
       { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
     ]);
     const start = ev.find((e) => e.event === 'content_block_start');
-    expect((start?.data.content_block as { type: string; name: string; id: string }).type).toBe('tool_use');
+    expect((start?.data.content_block as { type: string; name: string; id: string }).type).toBe(
+      'tool_use'
+    );
     expect((start?.data.content_block as { name: string }).name).toBe('get_weather');
     expect((start?.data.content_block as { id: string }).id).toBe('call_1');
     const json = ev
@@ -94,7 +114,10 @@ describe('openaiSSEToAnthropicSSE', () => {
   it('converts an upstream OpenAI SSE response into Anthropic SSE bytes', async () => {
     const upstream = sseResponse([
       JSON.stringify({ choices: [{ delta: { content: 'PING' } }] }),
-      JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
+      JSON.stringify({
+        choices: [{ delta: {}, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      }),
     ]);
     let captured: { prompt_tokens: number; completion_tokens: number } | null = null;
     const out = openaiSSEToAnthropicSSE(upstream, 'claude-opus-4.6', (u) => {
@@ -104,17 +127,60 @@ describe('openaiSSEToAnthropicSSE', () => {
     expect(text).toContain('event: message_start');
     expect(text).toContain('"type":"text_delta","text":"PING"');
     expect(text).toContain('event: message_stop');
-    expect(captured).toEqual({ prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, cache_read: 0 });
+    expect(captured).toEqual({
+      prompt_tokens: 1,
+      completion_tokens: 1,
+      total_tokens: 2,
+      cache_read: 0,
+    });
     expect(out.headers.get('content-type')).toBe('text/event-stream');
+  });
+});
+
+describe('openaiSSEToAnthropicSSE error propagation', () => {
+  it('propagates a mid-stream upstream error instead of truncating silently', async () => {
+    // Build a stream that errors after the first chunk is delivered.
+    // iterSSEChunks uses reader.read() in a loop; erroring the controller
+    // on the second pull causes reader.read() to reject, which propagates
+    // through the try/catch in openaiSSEToAnthropicSSE's start() and
+    // calls controller.error(err) on the output stream.
+    let pulled = 0;
+    const failing = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(
+          new TextEncoder().encode(
+            'data: ' + JSON.stringify({ choices: [{ delta: { content: 'hi' } }] }) + '\n\n'
+          )
+        );
+      },
+      pull(c) {
+        pulled++;
+        if (pulled >= 1) c.error(new Error('upstream exploded'));
+      },
+    });
+    const upstream = new Response(failing, {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    });
+    const out = openaiSSEToAnthropicSSE(upstream, 'claude-opus-4.6');
+    // Reading the converted response must reject (not silently truncate).
+    await expect(out.text()).rejects.toThrow();
   });
 });
 
 describe('aggregateOpenAISSE', () => {
   it('buffers streamed deltas into one OpenAI response', async () => {
     const upstream = sseResponse([
-      JSON.stringify({ id: 'x', model: 'gemini-3.5-flash', choices: [{ delta: { role: 'assistant', content: 'he' } }] }),
+      JSON.stringify({
+        id: 'x',
+        model: 'gemini-3.5-flash',
+        choices: [{ delta: { role: 'assistant', content: 'he' } }],
+      }),
       JSON.stringify({ choices: [{ delta: { content: 'llo' } }] }),
-      JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 } }),
+      JSON.stringify({
+        choices: [{ delta: {}, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 },
+      }),
     ]);
     const resp = await aggregateOpenAISSE(upstream);
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -126,8 +192,18 @@ describe('aggregateOpenAISSE', () => {
 
   it('aggregates tool_calls fragments', async () => {
     const upstream = sseResponse([
-      JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'f', arguments: '{"a"' } }] } }] }),
-      JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: ':1}' } }] } }] }),
+      JSON.stringify({
+        choices: [
+          {
+            delta: {
+              tool_calls: [{ index: 0, id: 'c1', function: { name: 'f', arguments: '{"a"' } }],
+            },
+          },
+        ],
+      }),
+      JSON.stringify({
+        choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: ':1}' } }] } }],
+      }),
       JSON.stringify({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] }),
     ]);
     const resp = await aggregateOpenAISSE(upstream);

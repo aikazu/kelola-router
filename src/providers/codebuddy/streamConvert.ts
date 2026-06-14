@@ -50,14 +50,24 @@ export class OpenAIToAnthropicSSEAssembler {
   /** Maps an OpenAI tool_call index → the Anthropic block index it opened. */
   private readonly toolBlocks = new Map<number, number>();
   private finishReason: string | null = null;
-  private usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cache_read: number } | null = null;
+  private usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cache_read: number;
+  } | null = null;
 
   constructor(model: string) {
     this.model = model;
   }
 
   /** Last captured usage (for request-log accounting). */
-  getUsage(): { prompt_tokens: number; completion_tokens: number; total_tokens: number; cache_read: number } | null {
+  getUsage(): {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cache_read: number;
+  } | null {
     return this.usage;
   }
 
@@ -84,11 +94,18 @@ export class OpenAIToAnthropicSSEAssembler {
 
   private closeBlock(out: AnthropicEvent[]): void {
     if (this.current === null) return;
-    out.push({ event: 'content_block_stop', data: { type: 'content_block_stop', index: this.blockIndex } });
+    out.push({
+      event: 'content_block_stop',
+      data: { type: 'content_block_stop', index: this.blockIndex },
+    });
     this.current = null;
   }
 
-  private openBlock(out: AnthropicEvent[], type: BlockType, contentBlock: Record<string, unknown>): number {
+  private openBlock(
+    out: AnthropicEvent[],
+    type: BlockType,
+    contentBlock: Record<string, unknown>
+  ): number {
     this.closeBlock(out);
     this.blockIndex++;
     this.current = type;
@@ -108,17 +125,24 @@ export class OpenAIToAnthropicSSEAssembler {
       this.usage = {
         prompt_tokens: chunk.usage.prompt_tokens ?? 0,
         completion_tokens: chunk.usage.completion_tokens ?? 0,
-        total_tokens: chunk.usage.total_tokens ?? (chunk.usage.prompt_tokens ?? 0) + (chunk.usage.completion_tokens ?? 0),
+        total_tokens:
+          chunk.usage.total_tokens ??
+          (chunk.usage.prompt_tokens ?? 0) + (chunk.usage.completion_tokens ?? 0),
         cache_read: chunk.usage.prompt_tokens_details?.cached_tokens ?? 0,
       };
     }
 
     if (typeof delta.reasoning_content === 'string' && delta.reasoning_content.length > 0) {
       this.ensureStart(out);
-      if (this.current !== 'thinking') this.openBlock(out, 'thinking', { type: 'thinking', thinking: '' });
+      if (this.current !== 'thinking')
+        this.openBlock(out, 'thinking', { type: 'thinking', thinking: '' });
       out.push({
         event: 'content_block_delta',
-        data: { type: 'content_block_delta', index: this.blockIndex, delta: { type: 'thinking_delta', thinking: delta.reasoning_content } },
+        data: {
+          type: 'content_block_delta',
+          index: this.blockIndex,
+          delta: { type: 'thinking_delta', thinking: delta.reasoning_content },
+        },
       });
     }
 
@@ -127,7 +151,11 @@ export class OpenAIToAnthropicSSEAssembler {
       if (this.current !== 'text') this.openBlock(out, 'text', { type: 'text', text: '' });
       out.push({
         event: 'content_block_delta',
-        data: { type: 'content_block_delta', index: this.blockIndex, delta: { type: 'text_delta', text: delta.content } },
+        data: {
+          type: 'content_block_delta',
+          index: this.blockIndex,
+          delta: { type: 'text_delta', text: delta.content },
+        },
       });
     }
 
@@ -148,7 +176,11 @@ export class OpenAIToAnthropicSSEAssembler {
         if (typeof args === 'string' && args.length > 0) {
           out.push({
             event: 'content_block_delta',
-            data: { type: 'content_block_delta', index: blockIdx, delta: { type: 'input_json_delta', partial_json: args } },
+            data: {
+              type: 'content_block_delta',
+              index: blockIdx,
+              delta: { type: 'input_json_delta', partial_json: args },
+            },
           });
         }
       }
@@ -168,8 +200,16 @@ export class OpenAIToAnthropicSSEAssembler {
       event: 'message_delta',
       data: {
         type: 'message_delta',
-        delta: { stop_reason: this.finishReason ? (FINISH_TO_STOP[this.finishReason] ?? 'end_turn') : 'end_turn', stop_sequence: null },
-        usage: { input_tokens: this.usage?.prompt_tokens ?? 0, output_tokens: this.usage?.completion_tokens ?? 0 },
+        delta: {
+          stop_reason: this.finishReason
+            ? (FINISH_TO_STOP[this.finishReason] ?? 'end_turn')
+            : 'end_turn',
+          stop_sequence: null,
+        },
+        usage: {
+          input_tokens: this.usage?.prompt_tokens ?? 0,
+          output_tokens: this.usage?.completion_tokens ?? 0,
+        },
       },
     });
     out.push({ event: 'message_stop', data: { type: 'message_stop' } });
@@ -222,25 +262,33 @@ export type CodeBuddyUsageCallback = (usage: {
 export function openaiSSEToAnthropicSSE(
   upstream: Response,
   model: string,
-  onUsage?: CodeBuddyUsageCallback,
+  onUsage?: CodeBuddyUsageCallback
 ): Response {
   const assembler = new OpenAIToAnthropicSSEAssembler(model);
   const out = new ReadableStream<Uint8Array>({
     async start(controller) {
-      if (upstream.body) {
-        for await (const chunk of iterSSEChunks(upstream.body)) {
-          for (const ev of assembler.process(chunk)) controller.enqueue(serialize(ev));
+      try {
+        if (upstream.body) {
+          for await (const chunk of iterSSEChunks(upstream.body)) {
+            for (const ev of assembler.process(chunk)) controller.enqueue(serialize(ev));
+          }
         }
+        for (const ev of assembler.finalize()) controller.enqueue(serialize(ev));
+        controller.close();
+        const u = assembler.getUsage();
+        onUsage?.(u ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cache_read: 0 });
+      } catch (err) {
+        controller.error(err);
       }
-      for (const ev of assembler.finalize()) controller.enqueue(serialize(ev));
-      controller.close();
-      const u = assembler.getUsage();
-      onUsage?.(u ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cache_read: 0 });
     },
   });
   return new Response(out, {
     status: upstream.status,
-    headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
   });
 }
 
@@ -288,7 +336,11 @@ export async function aggregateOpenAISSE(upstream: Response): Promise<OpenAIResp
 
   const toolCalls = [...tools.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([, t]) => ({ id: t.id, type: 'function' as const, function: { name: t.name, arguments: t.args } }));
+    .map(([, t]) => ({
+      id: t.id,
+      type: 'function' as const,
+      function: { name: t.name, arguments: t.args },
+    }));
 
   return {
     id,

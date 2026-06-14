@@ -45,6 +45,14 @@ describe('prepareCodeBuddyBody', () => {
     expect(msgs[0].role).toBe('system');
   });
 
+  it('forces include_usage:true even when the client opted out', () => {
+    const out = prepareCodeBuddyBody(
+      { model: 'cb/gpt-5.5', stream_options: { include_usage: false }, messages: [{ role: 'user', content: 'hi' }] },
+      'openai'
+    );
+    expect((out.stream_options as { include_usage?: boolean }).include_usage).toBe(true);
+  });
+
   it('does not duplicate an existing OpenAI system message', () => {
     const out = prepareCodeBuddyBody(
       {
