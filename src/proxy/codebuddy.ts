@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
 import { checkFallbackError } from '../accounts/errorRules.js';
 import { selectAccount } from '../accounts/selection.js';
-import type { AccountState, SelectionMode } from '../accounts/types.js';
+import type { SelectionMode } from '../accounts/types.js';
 import { consoleBus } from '../console/bus.js';
 import {
   buildAccount,
@@ -25,17 +25,24 @@ import { calculateCost } from '../providers/pricing.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
-import { headersToJson, truncateBody } from './capture.js';
-import { errorMessage, safeJsonParse, statusCode, stringValue } from './helpers.js';
+import { errorMessage, statusCode, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';
+import {
+  type Db,
+  type LogRowContext,
+  applyErrorState,
+  buildAccountStates,
+  buildLogRow,
+  clearErrorState,
+} from './pipeline.js';
 
 /**
  * Handle a CodeBuddy provider request. Bridges the client's format to the
  * upstream OpenAI-SSE stream and converts back to the client's requested format:
- *   - anthropic + stream  → OpenAI upstream SSE converted to Anthropic Messages SSE
- *   - openai   + stream  → OpenAI upstream SSE passed through with usage tee
- *   - anthropic + non-stream → aggregate upstream SSE, convert to Anthropic response
- *   - openai   + non-stream → aggregate upstream SSE, return OpenAI response
+ *   - anthropic + stream  → upstream SSE → Anthropic Messages SSE
+ *   - openai   + stream  → upstream SSE passthrough with usage tee
+ *   - anthropic + non-stream → aggregate upstream SSE → Anthropic response
+ *   - openai   + non-stream → aggregate upstream SSE → OpenAI response
  */
 export async function handleCodeBuddyProxy(
   c: Context,
@@ -48,18 +55,13 @@ export async function handleCodeBuddyProxy(
 ): Promise<Response> {
   const clientKey = c.get('clientKey');
   const startMs = c.get('startTime');
+  const originalText = JSON.stringify(body);
+  const model = stringValue(body.model) || 'cb/claude-opus-4.6';
 
   const reqId = genReqId();
   c.set('reqId', reqId);
   consoleBus.emit(
-    buildStart(
-      reqId,
-      new Date().toISOString(),
-      c.req.method,
-      upstreamPath,
-      'codebuddy',
-      'codebuddy'
-    )
+    buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, 'codebuddy', 'codebuddy')
   );
 
   // Get CodeBuddy accounts
@@ -74,14 +76,7 @@ export async function handleCodeBuddyProxy(
     mode: 'round-robin' as SelectionMode,
     step: 1,
   };
-  const accountStates: AccountState[] = allAccounts.map((a) => ({
-    id: a.id,
-    backoffLevel: a.backoff_level,
-    rateLimitedUntil: a.rate_limited_until,
-    lastError: a.last_error ? (safeJsonParse(a.last_error) as AccountState['lastError']) : null,
-    status: a.status as AccountState['status'],
-    enabled: !!a.enabled,
-  }));
+  const accountStates = buildAccountStates(allAccounts);
   const { account, reason, nextCursor } = selectAccount(accountStates, {
     mode: sel.mode,
     step: sel.step ?? 1,
@@ -117,8 +112,8 @@ export async function handleCodeBuddyProxy(
     onProxyFailure: (message: string, fellBack: boolean) =>
       consoleBus.emit(buildTransportFail(reqId, new Date().toISOString(), fellBack, message)),
   };
-
-  const originalText = JSON.stringify(body);
+  // Pipeline state helpers expect a Db with updateAccount(); adapt our handle.
+  const stateDb: Db = { updateAccount: (id, patch) => updateAccount(db, id, patch) };
 
   try {
     const resp = await executeCodeBuddy({
@@ -133,6 +128,33 @@ export async function handleCodeBuddyProxy(
       clientFormat: format,
     });
 
+    // Common log-row template — caller overrides responseBody + per-call fields.
+    const logCtxBase = (overrides: Partial<LogRowContext> = {}): LogRowContext =>
+      ({
+        clientKeyId: clientKey.id,
+        accountId: account.id,
+        model,
+        requestedModel: model,
+        endpoint: upstreamPath,
+        format,
+        promptTokens: 0,
+        completionTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+        latencyMs: Date.now() - startMs,
+        statusCode: resp.status,
+        baseRespCode: undefined,
+        stream: body.stream ? 1 : 0,
+        rtkBytesSaved: 0,
+        requestBody: originalText,
+        requestHeaders: c.req.raw.headers,
+        responseHeaders: resp.headers,
+        reqId,
+        ...overrides,
+      }) as LogRowContext;
+
     if (!resp.ok) {
       const errBody = await resp.text();
       const parsed = {
@@ -145,11 +167,8 @@ export async function handleCodeBuddyProxy(
       // Try parse CodeBuddy error format: {"error":{"data":{"code":N,"msg":"..."}}}
       try {
         const errJson = JSON.parse(errBody);
-        if (errJson?.error?.data?.msg) {
-          parsed.message = errJson.error.data.msg;
-        } else if (errJson?.error?.message) {
-          parsed.message = errJson.error.message;
-        }
+        if (errJson?.error?.data?.msg) parsed.message = errJson.error.data.msg;
+        else if (errJson?.error?.message) parsed.message = errJson.error.message;
       } catch {
         /* non-JSON error */
       }
@@ -162,48 +181,15 @@ export async function handleCodeBuddyProxy(
         parsed.windowResetMs,
         parsed.retryAfterSec ? parsed.retryAfterSec * 1000 : undefined
       );
-
-      // Update account error state
-      const rateLimitedUntil =
-        decision.cooldownMs > 0 ? new Date(Date.now() + decision.cooldownMs).toISOString() : null;
-      updateAccount(db, account.id, {
-        rate_limited_until: rateLimitedUntil,
-        backoff_level: decision.newBackoffLevel ?? 0,
-        last_error: JSON.stringify({
-          status: resp.status,
-          message: parsed.message.slice(0, 500),
-          timestamp: new Date().toISOString(),
-        }),
-        status: resp.status === 401 ? 'error' : 'active',
+      applyErrorState(stateDb, account, decision, parsed.message, {
+        status: resp.status,
+        baseRespCode: parsed.baseRespCode,
       });
 
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), resp.status, parsed.message.slice(0, 200))
       );
-      insertRequestLogDeferred(db, {
-        client_key_id: clientKey.id,
-        account_id: account.id,
-        model: stringValue(body.model) || 'cb/claude-opus-4.6',
-        requested_model: stringValue(body.model) || 'cb/claude-opus-4.6',
-        endpoint: upstreamPath,
-        format,
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        cache_creation_tokens: 0,
-        cache_read_tokens: 0,
-        total_tokens: 0,
-        cost_usd: 0,
-        latency_ms: Date.now() - startMs,
-        status_code: resp.status,
-        base_resp_code: undefined,
-        stream: body.stream ? 1 : 0,
-        rtk_bytes_saved: 0,
-        request_body: truncateBody(originalText),
-        response_body: truncateBody(errBody),
-        request_headers: headersToJson(c.req.raw.headers),
-        response_headers: headersToJson(resp.headers),
-        req_id: reqId,
-      });
+      insertRequestLogDeferred(db, buildLogRow(logCtxBase({ responseBody: errBody })));
 
       return c.body(errBody, statusCode(resp.status), {
         'content-type': resp.headers.get('content-type') ?? 'application/json',
@@ -211,25 +197,9 @@ export async function handleCodeBuddyProxy(
     }
 
     // Success — clear account errors
-    if (
-      acc.backoff_level !== 0 ||
-      acc.status !== 'active' ||
-      acc.rate_limited_until !== null ||
-      acc.last_error !== null
-    ) {
-      updateAccount(db, account.id, {
-        rate_limited_until: null,
-        backoff_level: 0,
-        last_error: null,
-        status: 'active',
-      });
-    }
+    clearErrorState(stateDb, account);
 
-    // Dispatch based on client format and streaming preference
-    const clientWantsStream = body.stream === true;
-    const model = stringValue(body.model) || 'cb/claude-opus-4.6';
-
-    const logUsage = (
+    const recordUsage = (
       prompt: number,
       completion: number,
       cacheRead: number,
@@ -242,30 +212,20 @@ export async function handleCodeBuddyProxy(
         cache_creation_tokens: 0,
         cache_read_tokens: cacheRead,
       });
-      insertRequestLogDeferred(db, {
-        client_key_id: clientKey.id,
-        account_id: account.id,
-        model,
-        requested_model: model,
-        endpoint: upstreamPath,
-        format,
-        prompt_tokens: prompt,
-        completion_tokens: completion,
-        cache_creation_tokens: 0,
-        cache_read_tokens: cacheRead,
-        total_tokens: prompt + completion,
-        cost_usd: cost,
-        latency_ms: Date.now() - startMs,
-        status_code: resp.status,
-        base_resp_code: undefined,
-        stream: isStream ? 1 : 0,
-        rtk_bytes_saved: 0,
-        request_body: truncateBody(originalText),
-        response_body: truncateBody(rawResp),
-        request_headers: headersToJson(c.req.raw.headers),
-        response_headers: headersToJson(resp.headers),
-        req_id: reqId,
-      });
+      insertRequestLogDeferred(
+        db,
+        buildLogRow(
+          logCtxBase({
+            promptTokens: prompt,
+            completionTokens: completion,
+            cacheReadTokens: cacheRead,
+            totalTokens: prompt + completion,
+            costUsd: cost,
+            stream: isStream ? 1 : 0,
+            responseBody: rawResp,
+          })
+        )
+      );
       consoleBus.emit(
         buildDone(
           reqId,
@@ -282,15 +242,15 @@ export async function handleCodeBuddyProxy(
       );
     };
 
-    if (clientWantsStream) {
+    if (body.stream === true) {
       if (format === 'anthropic') {
         return openaiSSEToAnthropicSSE(resp, model, (u) =>
-          logUsage(u.prompt_tokens, u.completion_tokens, u.cache_read, true, '[anthropic-sse]')
+          recordUsage(u.prompt_tokens, u.completion_tokens, u.cache_read, true, '[anthropic-sse]')
         );
       }
       // openai client: passthrough OpenAI SSE, tee usage
       return pipeWithUsage(resp, 'openai', (usage, raw) =>
-        logUsage(
+        recordUsage(
           usage?.prompt_tokens ?? 0,
           usage?.completion_tokens ?? 0,
           usage?.cache_read_tokens ?? 0,
@@ -299,20 +259,17 @@ export async function handleCodeBuddyProxy(
         )
       );
     }
-
     // Non-stream client: aggregate the forced upstream stream.
     const aggregated = await aggregateOpenAISSE(resp);
     const u = aggregated.usage;
-    logUsage(
+    recordUsage(
       u?.prompt_tokens ?? 0,
       u?.completion_tokens ?? 0,
       u?.prompt_tokens_details?.cached_tokens ?? 0,
       false,
       JSON.stringify(aggregated).slice(0, 2000)
     );
-    if (format === 'anthropic') {
-      return c.json(responseOpenAIToAnthropic(aggregated));
-    }
+    if (format === 'anthropic') return c.json(responseOpenAIToAnthropic(aggregated));
     return c.json(aggregated);
   } catch (e: unknown) {
     const message = errorMessage(e);
