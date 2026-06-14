@@ -1273,3 +1273,85 @@ textarea::placeholder {
   color: var(--text-3);
   font-style: italic;
 }
+
+/* --- Security banner ------------------------------------------------------ */
+/* Left-accent stripe pattern (same family as .toast / .alert). Cards keep the
+   sacred top gold-line; banners/notifications use the left stripe. */
+.security-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--gold);
+  border-radius: 0 0 4px 4px;
+  font-size: 13px;
+  color: var(--text-1);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.security-banner--soft {
+  border-left-color: var(--gold-deep);
+  background: var(--surface-1);
+  box-shadow: none;
+}
+.security-banner-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.security-banner--soft .security-banner-eyebrow {
+  color: var(--gold-deep);
+}
+.security-banner-body {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.5;
+}
+.security-banner-body code {
+  color: var(--gold-bright);
+}
+.security-banner-cta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.security-banner-cta:hover {
+  color: var(--gold-bright);
+}
+.security-banner-dismiss {
+  background: transparent;
+  border: 0;
+  color: var(--text-3);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s;
+}
+.security-banner-dismiss:hover {
+  color: var(--text-1);
+}
+@media (max-width: 640px) {
+  .security-banner {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .security-banner-body {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
