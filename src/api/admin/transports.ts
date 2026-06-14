@@ -6,6 +6,7 @@ import { getSetting, setSetting } from '../../db/repos/settings.js';
 import {
   createTransport,
   deleteTransport,
+  deleteTransports,
   getTransport,
   listTransports,
   setTransportCountry,
@@ -190,6 +191,25 @@ transportRoutes.patch('/:id', (c) => {
         }
         updateTransport(db, id, patch);
         return new Response(null, { status: 204 });
+      })
+      .catch((e: unknown) => handleApiError(e));
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+transportRoutes.post('/bulk-delete', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    return c.req
+      .json()
+      .then((body: { ids?: unknown }) => {
+        if (!Array.isArray(body.ids) || body.ids.length === 0) {
+          throw new ApiError('invalid_input', 'ids must be a non-empty array', 400);
+        }
+        const ids = body.ids.filter((x): x is string => typeof x === 'string');
+        const deleted = deleteTransports(db, ids);
+        return c.json({ deleted });
       })
       .catch((e: unknown) => handleApiError(e));
   } catch (e) {

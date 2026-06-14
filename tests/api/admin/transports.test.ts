@@ -189,6 +189,57 @@ describe('DELETE /api/admin/transports/:id', () => {
   });
 });
 
+describe('POST /api/admin/transports/bulk-delete', () => {
+  async function bulkDelete(ids: unknown) {
+    return app.request('/api/admin/transports/bulk-delete', {
+      method: 'POST',
+      headers: baseHeaders(),
+      body: JSON.stringify({ ids }),
+    });
+  }
+
+  it('deletes multiple transports and returns the deleted count', async () => {
+    const a = await (
+      await createProxy({ label: 'a', type: 'proxy', kind: 'http', url: 'http://a' })
+    ).json();
+    const b = await (
+      await createProxy({ label: 'b', type: 'proxy', kind: 'http', url: 'http://b' })
+    ).json();
+    const c = await (
+      await createProxy({ label: 'c', type: 'proxy', kind: 'http', url: 'http://c' })
+    ).json();
+
+    const res = await bulkDelete([a.id, b.id]);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: 2 });
+
+    const list = await (
+      await app.request('/api/admin/transports', { headers: baseHeaders() })
+    ).json();
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe(c.id);
+  });
+
+  it('counts only existing ids, ignoring unknown ones', async () => {
+    const a = await (
+      await createProxy({ label: 'a', type: 'proxy', kind: 'http', url: 'http://a' })
+    ).json();
+    const res = await bulkDelete([a.id, 'ghost']);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: 1 });
+  });
+
+  it('rejects an empty id list (400)', async () => {
+    const res = await bulkDelete([]);
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a non-array ids field (400)', async () => {
+    const res = await bulkDelete('nope');
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('POST /api/admin/transports/:id/test', () => {
   it('reports ok + latency when fetch succeeds', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));

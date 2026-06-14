@@ -111,3 +111,30 @@ export function deleteTransport(db: Database.Database, id: string): void {
   }
   invalidateResolvedTransportCache(db);
 }
+
+/**
+ * Delete many transports by id in one transaction. Per-id proxy cache
+ * invalidation is preserved (each removed proxy clears its dispatcher/socks
+ * agent). Returns the number of rows that actually existed and were deleted;
+ * unknown ids are silently ignored.
+ */
+export function deleteTransports(db: Database.Database, ids: string[]): number {
+  const run = db.transaction((targets: string[]) => {
+    let deleted = 0;
+    const stmt = db.prepare(`DELETE FROM transports WHERE id = ?`);
+    for (const id of targets) {
+      const existing = getTransport(db, id);
+      if (!existing) continue;
+      stmt.run(id);
+      deleted++;
+      if (existing.type === 'proxy') {
+        if (existing.kind === 'socks5') invalidateSocks(existing.url);
+        else invalidateDispatcher(existing.url);
+      }
+    }
+    return deleted;
+  });
+  const deleted = run(ids);
+  if (deleted > 0) invalidateResolvedTransportCache(db);
+  return deleted;
+}

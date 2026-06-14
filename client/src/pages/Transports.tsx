@@ -59,6 +59,23 @@ export function Transports() {
   const [editing, setEditing] = useState<Transport | null>(null);
   const [editForm, setEditForm] = useState({ label: '', url: '', kind: '' });
 
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function toggleSelect(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const allSelected = transports.length > 0 && selected.size === transports.length;
+
+  function toggleSelectAll() {
+    setSelected((s) => (s.size === transports.length ? new Set() : new Set(transports.map((t) => t.id))));
+  }
+
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [bulkKind, setBulkKind] = useState<'http' | 'socks5'>('http');
@@ -96,6 +113,21 @@ export function Transports() {
       qc.invalidateQueries({ queryKey: ['transports'] });
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Deleted');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkDeleteMut = useMutation({
+    mutationFn: (ids: string[]) =>
+      apiFetch<{ deleted: number }>('/api/admin/transports/bulk-delete', {
+        method: 'POST',
+        json: { ids },
+      }),
+    onSuccess: (res) => {
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: ['transports'] });
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success(`Deleted ${res.deleted} transport${res.deleted !== 1 ? 's' : ''}`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -150,6 +182,18 @@ export function Transports() {
       danger: true,
     });
     if (ok) deleteMut.mutate(id);
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selected];
+    if (!ids.length) return;
+    const ok = await confirmDialog({
+      title: 'Delete transports',
+      message: `Delete ${ids.length} selected transport${ids.length !== 1 ? 's' : ''}? Accounts using them will fall back to direct / global config.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (ok) bulkDeleteMut.mutate(ids);
   }
 
   function parseBulkLines(): string[] {
@@ -257,9 +301,43 @@ export function Transports() {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
+            {selected.size > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  marginBottom: 10,
+                  padding: '8px 12px',
+                  background: 'var(--surface-2, rgba(201,163,82,0.08))',
+                  borderRadius: 8,
+                }}
+              >
+                <span style={{ fontSize: 13 }}>
+                  {selected.size} selected
+                </span>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  disabled={bulkDeleteMut.isPending}
+                  onClick={handleBulkDelete}
+                >
+                  {bulkDeleteMut.isPending ? 'Deleting…' : `Delete ${selected.size}`}
+                </Button>
+              </div>
+            )}
             <table class="tbl">
               <thead>
                 <tr>
+                  <th style={{ width: 32 }}>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all transports"
+                    />
+                  </th>
                   <th>Label</th>
                   <th>Type</th>
                   <th>Geo</th>
@@ -274,6 +352,14 @@ export function Transports() {
                   const tr = testResults[t.id];
                   return (
                     <tr key={t.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(t.id)}
+                          onChange={() => toggleSelect(t.id)}
+                          aria-label={`Select ${t.label}`}
+                        />
+                      </td>
                       <td>
                         <span style={{ fontWeight: 500 }}>{t.label}</span>
                         <span class="mono" style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}>
