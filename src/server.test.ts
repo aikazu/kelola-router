@@ -81,6 +81,7 @@ describe('handleProxy with auth + accounts', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_test' });
     createAccount(db, { id: 'acc_x', label: 'L', credit_type: 'payg', api_key: 'mm_real_key' });
+    upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3', provider: 'minimax' });
     const spy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(
@@ -89,7 +90,7 @@ describe('handleProxy with auth + accounts', () => {
     const req = new Request('http://localhost/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({ model: 'mm/MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
     });
     const res = await app.request(req);
     expect(res.status).toBe(200);
@@ -105,13 +106,14 @@ describe('handleProxy with auth + accounts', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       async () => new Response('{"choices":[{"message":{"content":"x"}}]}', { status: 200 })
     );
+    upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3', provider: 'minimax' });
     for (const ck of [ck1, ck2]) {
       const res = await app.request(
         new Request('http://localhost/v1/chat/completions', {
           method: 'POST',
           headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'MiniMax-M3',
+            model: 'mm/MiniMax-M3',
             messages: [{ role: 'user', content: 'hi' }],
           }),
         })
@@ -139,6 +141,7 @@ describe('model resolution in proxy', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_t' });
     createAccount(db, { id: 'acc_z', label: 'L', credit_type: 'payg', api_key: 'kk' });
+    upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3', provider: 'minimax' });
     const spy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(
@@ -148,7 +151,7 @@ describe('model resolution in proxy', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'MiniMax-M3',
+        model: 'mm/MiniMax-M3',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });
@@ -184,6 +187,7 @@ describe('request logging', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_log' });
     createAccount(db, { id: 'a1', label: 'L', credit_type: 'payg', api_key: 'kk' });
+    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -198,7 +202,10 @@ describe('request logging', () => {
     const req = new Request('http://localhost/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M2.7', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({
+        model: 'mm/MiniMax-M2.7',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
     });
     await app.request(req);
     await flushDeferredLogs();
@@ -214,6 +221,7 @@ describe('request logging', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_stream' });
     createAccount(db, { id: 'a1', label: 'L', credit_type: 'payg', api_key: 'kk' });
+    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
     const sse = [
       `data: {"choices":[{"delta":{"content":"hi"}}]}\n\n`,
       `data: {"choices":[],"usage":{"prompt_tokens":42,"completion_tokens":7,"total_tokens":49}}\n\n`,
@@ -226,7 +234,7 @@ describe('request logging', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'MiniMax-M2.7',
+        model: 'mm/MiniMax-M2.7',
         stream: true,
         messages: [{ role: 'user', content: 'hi' }],
       }),
@@ -255,6 +263,7 @@ describe('augmentation in proxy', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_aug' });
     createAccount(db, { id: 'acc_a', label: 'L', credit_type: 'payg', api_key: 'kk' });
+    upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3', provider: 'minimax' });
     db.prepare(`UPDATE settings SET value = ? WHERE key = 'caveman'`).run('{"level":"terse"}');
     const spy = vi
       .spyOn(globalThis, 'fetch')
@@ -263,7 +272,7 @@ describe('augmentation in proxy', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'MiniMax-M3',
+        model: 'mm/MiniMax-M3',
         max_tokens: 100,
         system: 'you are helpful',
         messages: [{ role: 'user', content: 'hi' }],
@@ -280,6 +289,7 @@ describe('augmentation in proxy', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_cache' });
     createAccount(db, { id: 'acc_b', label: 'L', credit_type: 'payg', api_key: 'kk' });
+    upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3', provider: 'minimax' });
     db.prepare(`UPDATE settings SET value = ? WHERE key = 'caching'`).run(
       JSON.stringify({ autoBreakpoints: true, respectCallerMarkers: true })
     );
@@ -290,7 +300,7 @@ describe('augmentation in proxy', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'MiniMax-M3',
+        model: 'mm/MiniMax-M3',
         max_tokens: 100,
         system: 'you are helpful',
         messages: [{ role: 'user', content: 'hi' }],
@@ -334,6 +344,7 @@ describe('cross-format proxy (OpenAI client → Anthropic upstream)', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_xf' });
     createAccount(db, { id: 'acc_xf', label: 'L', credit_type: 'payg', api_key: 'kk' });
+    upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3', provider: 'minimax' });
     db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('minimax', ?)`).run(
       JSON.stringify({ upstreamFormat: 'anthropic' })
     );
@@ -365,7 +376,7 @@ describe('cross-format proxy (OpenAI client → Anthropic upstream)', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'MiniMax-M3',
+        model: 'mm/MiniMax-M3',
         messages: [{ role: 'user', content: 'weather in SF?' }],
         tools: [
           {
@@ -398,6 +409,7 @@ describe('OpenAI stream auto include_usage', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_iu' });
     createAccount(db, { id: 'acc_iu', label: 'L', credit_type: 'payg', api_key: 'kk' });
+    upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3', provider: 'minimax' });
     const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
       const sent = JSON.parse((init as RequestInit).body as string);
       expect(sent.stream_options).toEqual({ include_usage: true });
@@ -410,7 +422,7 @@ describe('OpenAI stream auto include_usage', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'MiniMax-M3',
+        model: 'mm/MiniMax-M3',
         stream: true,
         messages: [{ role: 'user', content: 'hi' }],
       }),
@@ -439,6 +451,155 @@ describe('OpenAI stream auto include_usage', () => {
       }),
     });
     await app.request(req);
+  });
+});
+
+describe('provider prefix routing', () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'pfx-')), 't.db');
+    resetDb();
+  });
+
+  it('mm/<minimax model> → minimax path taken, 200', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx1' });
+    createAccount(db, { id: 'acc_pfx1', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      provider: 'minimax',
+    });
+
+    let capturedUrl = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, _init) => {
+      capturedUrl = String(url);
+      return new Response('{"choices":[{"message":{"content":"ok"}}]}', { status: 200 });
+    });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'mm/MiniMax-M3',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(capturedUrl).toContain('minimax');
+  });
+
+  it('kr/<kiro model> → kiro path taken (503 no kiro accounts, not minimax error)', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx2' });
+    // MiniMax account present; if routing falls to MiniMax it would use this key.
+    createAccount(db, { id: 'acc_pfx2', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    upsertModel(db, {
+      name: 'kiro-model-x',
+      upstream_model: 'kiro-model-x',
+      display_name: 'Kiro Model X',
+      provider: 'kiro',
+    });
+
+    // No kiro accounts configured → kiro handler returns 503 with kiro-specific error.
+    // If routing wrongly goes to MiniMax, the mock would be called with minimax URL.
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, _init) => {
+      // Should NOT be called — kiro handler short-circuits before upstream fetch.
+      return new Response(`{"choices":[{"message":{"content":"mm fallback: ${String(url)}"}}]}`, {
+        status: 200,
+      });
+    });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'kr/kiro-model-x',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    // Kiro handler returns 503 when no kiro accounts. MiniMax would return 200 from mock.
+    expect(res.status).toBe(503);
+    expect(spy).not.toHaveBeenCalled();
+    const body = await res.json();
+    expect(String(body.error)).toMatch(/kiro/i);
+  });
+
+  it('mm/<kiro model> (provider mismatch) → 400 with error matching /provider/', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx3' });
+    createAccount(db, { id: 'acc_pfx3', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    upsertModel(db, {
+      name: 'kiro-model-x',
+      upstream_model: 'kiro-model-x',
+      display_name: 'Kiro Model X',
+      provider: 'kiro',
+    });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'mm/kiro-model-x',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(String(body.error)).toMatch(/provider/);
+  });
+
+  it('xx/foo (unknown prefix) → 400 with error matching /unknown model prefix/', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx4' });
+    createAccount(db, { id: 'acc_pfx4', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'xx/foo',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(String(body.error)).toMatch(/unknown model prefix/);
+  });
+
+  it('bare raw model name (not an alias) → 400 with error matching /unknown model/', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx5' });
+    createAccount(db, { id: 'acc_pfx5', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    // Seed MiniMax-M3 as a real model but NOT as an alias — bare name hits alias path → throws.
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      provider: 'minimax',
+    });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'MiniMax-M3',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(String(body.error)).toMatch(/unknown model/);
   });
 });
 
@@ -490,7 +651,7 @@ describe('codebuddy direct routing', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'codebuddy/claude-opus-4.6',
+        model: 'cb/codebuddy/claude-opus-4.6',
         messages: [{ role: 'user', content: 'hi' }],
         max_tokens: 10,
       }),

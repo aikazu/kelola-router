@@ -21,7 +21,7 @@ describe('request body size cap', () => {
     const db = openDb();
     const _ck = createClientKey(db, { label: 't', key: 'rk_bs' });
     createAccount(db, { id: 'acc_bs', label: 'a1', credit_type: 'payg', api_key: 'mm_test' });
-    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7' });
+    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
     setSetting(db, 'transport', { relay: null, proxy: null });
     clearCache();
   });
@@ -52,7 +52,10 @@ describe('request body size cap', () => {
     const req = new Request('http://localhost/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: 'Bearer rk_bs', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M2.7', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({
+        model: 'mm/MiniMax-M2.7',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
     });
     const res = await app.request(req);
     expect([200, 502]).toContain(res.status);

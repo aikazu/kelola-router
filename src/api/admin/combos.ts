@@ -7,6 +7,7 @@ import {
   listCombos,
   updateCombo,
 } from '../../db/repos/combos.js';
+import { parseModelPrefix } from '../../providers/modelPrefix.js';
 import { ApiError, handleApiError } from './middleware.js';
 
 export const comboRoutes = new Hono();
@@ -31,6 +32,26 @@ function validateModels(models: unknown): string[] {
   for (const m of models) {
     if (typeof m !== 'string' || !m.trim()) {
       throw new ApiError('invalid_models', 'each model must be a non-empty string', 400);
+    }
+    // Combo members are resolved per-member through the provider pipeline, so
+    // each must carry an explicit provider prefix (mm/, kr/, cb/). A bare or
+    // unknown-prefix member would silently skip in the fallback chain.
+    let prefixed: boolean;
+    try {
+      prefixed = parseModelPrefix(m).prefixed;
+    } catch {
+      throw new ApiError(
+        'invalid_models',
+        `combo member '${m}' has an unknown provider prefix; use mm/, kr/, or cb/`,
+        400
+      );
+    }
+    if (!prefixed) {
+      throw new ApiError(
+        'invalid_models',
+        `combo member '${m}' must be prefixed with a provider (mm/, kr/, or cb/)`,
+        400
+      );
     }
   }
   return models as string[];

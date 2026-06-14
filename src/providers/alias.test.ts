@@ -19,6 +19,11 @@ beforeEach(() => {
   migrate(db);
   upsertModel(db, { name: 'MiniMax-M3', upstream_model: 'MiniMax-M3' });
   upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7' });
+  upsertModel(db, {
+    name: 'kiro-claude',
+    upstream_model: 'kiro-claude',
+    provider: 'kiro',
+  });
   clearAliasCache();
 });
 
@@ -27,28 +32,63 @@ afterEach(() => {
   rmSync(dir, { recursive: true });
 });
 
-describe('resolveModel', () => {
-  it('resolves direct name and returns requestedModel = input', () => {
-    const r = resolveModel(db, 'MiniMax-M3', {});
+describe('resolveModel — prefixed', () => {
+  it('resolves a prefixed minimax model and keeps the full requestedModel', () => {
+    const r = resolveModel(db, 'mm/MiniMax-M3', {});
     expect(r.upstreamModel).toBe('MiniMax-M3');
-    expect(r.requestedModel).toBe('MiniMax-M3');
+    expect(r.provider).toBe('minimax');
+    expect(r.requestedModel).toBe('mm/MiniMax-M3');
   });
 
-  it('resolves alias and returns requestedModel = original alias', () => {
+  it('resolves a prefixed kiro model', () => {
+    const r = resolveModel(db, 'kr/kiro-claude', {});
+    expect(r.upstreamModel).toBe('kiro-claude');
+    expect(r.provider).toBe('kiro');
+    expect(r.requestedModel).toBe('kr/kiro-claude');
+  });
+
+  it('does NOT expand aliases after a prefix', () => {
+    upsertAlias(db, { aliasName: 'opus', upstreamModel: 'MiniMax-M3' });
+    clearAliasCache();
+    expect(() => resolveModel(db, 'mm/opus', {})).toThrow(/unknown model/);
+  });
+
+  it('throws on provider mismatch', () => {
+    expect(() => resolveModel(db, 'mm/kiro-claude', {})).toThrow(/provider/);
+  });
+
+  it('throws on a prefixed unknown model', () => {
+    expect(() => resolveModel(db, 'kr/does-not-exist', {})).toThrow(/unknown model/);
+  });
+
+  it('throws on a disabled prefixed model', () => {
+    disableModel(db, 'MiniMax-M3');
+    expect(() => resolveModel(db, 'mm/MiniMax-M3', {})).toThrow(/model disabled/);
+  });
+});
+
+describe('resolveModel — bare (strict)', () => {
+  it('rejects a bare raw model name', () => {
+    expect(() => resolveModel(db, 'MiniMax-M3', {})).toThrow(/unknown model/);
+  });
+
+  it('resolves a bare alias and returns the original alias as requestedModel', () => {
     upsertAlias(db, { aliasName: 'claude-opus-4-8', upstreamModel: 'MiniMax-M3' });
     clearAliasCache();
     const r = resolveModel(db, 'claude-opus-4-8', {});
     expect(r.upstreamModel).toBe('MiniMax-M3');
+    expect(r.provider).toBe('minimax');
     expect(r.requestedModel).toBe('claude-opus-4-8');
   });
 
-  it('throws for unknown direct name', () => {
-    expect(() => resolveModel(db, 'does-not-exist', {})).toThrow(/unknown model/);
+  it('routes a bare alias by the target model provider', () => {
+    upsertAlias(db, { aliasName: 'kalias', upstreamModel: 'kiro-claude' });
+    clearAliasCache();
+    const r = resolveModel(db, 'kalias', {});
+    expect(r.provider).toBe('kiro');
   });
 
-  it('throws for unknown alias target', () => {
-    // FK prevents the repo from creating this row, so insert directly with
-    // the FK bypassed. Models a stale alias left behind by a rename/delete.
+  it('throws for an unknown alias target', () => {
     db.pragma('foreign_keys = OFF');
     db.prepare(`INSERT INTO model_aliases (alias_name, upstream_model) VALUES (?, ?)`).run(
       'broken',
@@ -59,29 +99,32 @@ describe('resolveModel', () => {
     expect(() => resolveModel(db, 'broken', {})).toThrow(/unknown model/);
   });
 
-  it('throws for disabled target model', () => {
-    disableModel(db, 'MiniMax-M3');
-    expect(() => resolveModel(db, 'MiniMax-M3', {})).toThrow(/model disabled/);
-  });
-
-  it('throws for disabled target model reached via alias', () => {
+  it('throws for a disabled model reached via a bare alias', () => {
     upsertAlias(db, { aliasName: 'opus', upstreamModel: 'MiniMax-M3' });
     clearAliasCache();
     disableModel(db, 'MiniMax-M3');
     expect(() => resolveModel(db, 'opus', {})).toThrow(/model disabled/);
   });
+});
 
-  it('bodyTransform injects adaptive thinking for known models when client omits thinking', () => {
-    const r = resolveModel(db, 'MiniMax-M3', {});
+describe('resolveModel — unknown prefix', () => {
+  it('throws for a non-provider slash prefix', () => {
+    expect(() => resolveModel(db, 'xx/foo', {})).toThrow(/unknown model prefix/);
+  });
+});
+
+describe('resolveModel — bodyTransform', () => {
+  it('injects adaptive thinking for known models when client omits thinking', () => {
+    const r = resolveModel(db, 'mm/MiniMax-M3', {});
     const body: Record<string, unknown> = {};
     r.bodyTransform(body);
     expect(body.thinking).toEqual({ type: 'adaptive' });
   });
 
-  it('bodyTransform preserves client-supplied thinking', () => {
-    const r = resolveModel(db, 'MiniMax-M3', {});
-    const body: Record<string, unknown> = { thinking: { type: 'disabled' } };
+  it('preserves client-supplied thinking', () => {
+    const r = resolveModel(db, 'mm/MiniMax-M3', {});
+    const body: Record<string, unknown> = { thinking: { type: 'enabled' } };
     r.bodyTransform(body);
-    expect(body.thinking).toEqual({ type: 'disabled' });
+    expect(body.thinking).toEqual({ type: 'enabled' });
   });
 });

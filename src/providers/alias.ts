@@ -3,6 +3,7 @@ import { getModel, type Model } from '../db/repos/models.js';
 import { getSetting } from '../db/repos/settings.js';
 import { resolveAlias } from './aliasCache.js';
 import type { AnthropicBody, OpenAIBody } from './format/messageTypes.js';
+import { parseModelPrefix } from './modelPrefix.js';
 
 /**
  * Models that the MiniMax reference docs (docs/minimax-reference/) list as
@@ -33,24 +34,45 @@ export function resolveModel(
   requestedName: string,
   _body?: AnthropicBody | OpenAIBody
 ): ResolvedModel {
-  const target = resolveAlias(db, requestedName);
-  const model: Model | null = getModel(db, target);
-  if (!model) throw new Error(`unknown model: ${requestedName}`);
+  const parsed = parseModelPrefix(requestedName);
+
+  let model: Model | null;
+  let provider: string;
+
+  if (parsed.prefixed) {
+    // Literal lookup — no alias expansion. Prefix asserts the provider.
+    model = getModel(db, parsed.modelName);
+    if (!model) throw new Error(`unknown model: ${requestedName}`);
+    const modelProvider = model.provider ?? 'minimax';
+    if (modelProvider !== parsed.provider) {
+      throw new Error(`model ${parsed.modelName} not available on provider ${parsed.provider}`);
+    }
+    provider = parsed.provider as string;
+  } else {
+    // Bare: must be an alias (combos are intercepted earlier in the proxy).
+    const target = resolveAlias(db, parsed.modelName);
+    if (target === parsed.modelName) throw new Error(`unknown model: ${requestedName}`);
+    model = getModel(db, target);
+    if (!model) throw new Error(`unknown model: ${requestedName}`);
+    provider = model.provider ?? 'minimax';
+  }
+
   if (!model.enabled) throw new Error(`model disabled: ${requestedName}`);
 
   const minimaxSettings = getSetting<{ m3DefaultMaxCompletionTokens?: number }>(db, 'minimax');
   const m3DefaultMax = minimaxSettings?.m3DefaultMaxCompletionTokens ?? 131072;
+  const resolvedModel = model;
 
   return {
-    upstreamModel: model.upstream_model,
+    upstreamModel: resolvedModel.upstream_model,
     requestedModel: requestedName,
-    provider: model.provider ?? 'minimax',
+    provider,
     bodyTransform: (b: AnthropicBody | OpenAIBody) => {
-      if (ADAPTIVE_THINKING_MODELS.has(model.upstream_model) && b.thinking === undefined) {
+      if (ADAPTIVE_THINKING_MODELS.has(resolvedModel.upstream_model) && b.thinking === undefined) {
         b.thinking = { type: 'adaptive' };
       }
       if (
-        model.name === 'MiniMax-M3' &&
+        resolvedModel.name === 'MiniMax-M3' &&
         b.max_completion_tokens === undefined &&
         b.max_tokens === undefined
       ) {

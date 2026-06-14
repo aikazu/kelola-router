@@ -50,20 +50,38 @@ describe('POST /api/admin/combos', () => {
     const res = await app.request('/api/admin/combos', {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ name: 'my-combo', models: ['model-a', 'model-b'] }),
+      body: JSON.stringify({ name: 'my-combo', models: ['mm/model-a', 'kr/model-b'] }),
     });
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.name).toBe('my-combo');
-    expect(body.models).toEqual(['model-a', 'model-b']);
+    expect(body.models).toEqual(['mm/model-a', 'kr/model-b']);
   });
 
-  it('returns 409 on duplicate name', async () => {
-    createCombo(db, 'dup', ['a']);
+  it('returns 400 when a member is not prefixed', async () => {
     const res = await app.request('/api/admin/combos', {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ name: 'dup', models: ['b'] }),
+      body: JSON.stringify({ name: 'bare-combo', models: ['mm/model-a', 'model-b'] }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when a member has an unknown prefix', async () => {
+    const res = await app.request('/api/admin/combos', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ name: 'badpfx-combo', models: ['xx/model-a'] }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 409 on duplicate name', async () => {
+    createCombo(db, 'dup', ['mm/a']);
+    const res = await app.request('/api/admin/combos', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ name: 'dup', models: ['mm/b'] }),
     });
     expect(res.status).toBe(409);
   });
@@ -76,7 +94,7 @@ describe('POST /api/admin/combos', () => {
     const res = await app.request('/api/admin/combos', {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ name: 'fast', models: ['model-a'] }),
+      body: JSON.stringify({ name: 'fast', models: ['mm/model-a'] }),
     });
     expect(res.status).toBe(409);
   });
@@ -93,15 +111,15 @@ describe('POST /api/admin/combos', () => {
 
 describe('PUT /api/admin/combos/:id', () => {
   it('updates combo', async () => {
-    const combo = createCombo(db, 'upd-combo', ['a']);
+    const combo = createCombo(db, 'upd-combo', ['mm/a']);
     const res = await app.request(`/api/admin/combos/${combo.id}`, {
       method: 'PUT',
       headers: headers(),
-      body: JSON.stringify({ models: ['x', 'y'] }),
+      body: JSON.stringify({ models: ['mm/x', 'kr/y'] }),
     });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.models).toEqual(['x', 'y']);
+    expect(body.models).toEqual(['mm/x', 'kr/y']);
   });
 
   it('returns 409 when new name conflicts with existing alias', async () => {

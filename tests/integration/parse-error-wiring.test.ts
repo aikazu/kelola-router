@@ -27,7 +27,7 @@ describe('proxy uses parseError to surface windowResetMs', () => {
       credit_type: 'payg',
       api_key: 'mm_test',
     });
-    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7' });
+    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
 
     const endTime = Date.now() + 30_000;
     vi.spyOn(globalThis, 'fetch').mockImplementation(
@@ -44,7 +44,10 @@ describe('proxy uses parseError to surface windowResetMs', () => {
     const req = new Request('http://localhost/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M2.7', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({
+        model: 'mm/MiniMax-M2.7',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
     });
     const res = await app.request(req);
     expect(res.status).toBe(429);
@@ -66,7 +69,7 @@ describe('proxy uses parseError to surface windowResetMs', () => {
       credit_type: 'payg',
       api_key: 'mm_test',
     });
-    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7' });
+    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
 
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       async () =>
@@ -79,7 +82,10 @@ describe('proxy uses parseError to surface windowResetMs', () => {
     const req = new Request('http://localhost/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M2.7', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({
+        model: 'mm/MiniMax-M2.7',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
     });
     const res = await app.request(req);
     expect(res.status).toBe(429);

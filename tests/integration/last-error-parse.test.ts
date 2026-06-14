@@ -26,7 +26,7 @@ describe('proxy handles corrupted last_error safely', () => {
       api_key: 'mm_test',
     });
     createClientKey(db, { label: 't', key: 'rk_le' });
-    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7' });
+    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
     setSetting(db, 'transport', { relay: null, proxy: null });
     clearCache();
 
@@ -45,7 +45,10 @@ describe('proxy handles corrupted last_error safely', () => {
     const req = new Request('http://localhost/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: 'Bearer rk_le', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'MiniMax-M2.7', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({
+        model: 'mm/MiniMax-M2.7',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
     });
     const res = await app.request(req);
     expect([200, 502]).toContain(res.status);
