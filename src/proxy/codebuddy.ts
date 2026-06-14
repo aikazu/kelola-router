@@ -14,7 +14,7 @@ import {
 } from '../console/flow.js';
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
-import { getSetting } from '../db/repos/settings.js';
+import { getSettingT } from '../db/repos/settings.js';
 import { executeCodeBuddy } from '../providers/codebuddy/index.js';
 import {
   aggregateOpenAISSE,
@@ -71,7 +71,7 @@ export async function handleCodeBuddyProxy(
   }
 
   // Account selection (round-robin)
-  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.codebuddy') ?? {
+  const sel = getSettingT(db, 'selection.codebuddy') ?? {
     mode: 'round-robin' as SelectionMode,
     step: 1,
   };

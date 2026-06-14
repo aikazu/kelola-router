@@ -15,7 +15,7 @@ import {
 } from '../console/flow.js';
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
-import { getSetting } from '../db/repos/settings.js';
+import { getSettingT } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import { bodyAnthropicToOpenAI, responseOpenAIToAnthropic } from '../providers/format/transform.js';
 import { kiroResponseToAnthropicSSE } from '../providers/kiro/anthropicSse.js';
@@ -90,7 +90,7 @@ export async function handleKiroProxy(
   const accounts = listEnabledAccountsByProvider(db, 'kiro');
   if (accounts.length === 0) return c.json({ error: 'no Kiro accounts configured' }, 503);
   const states = buildAccountStates(accounts);
-  const kiroSel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.kiro') ?? {
+  const kiroSel = getSettingT(db, 'selection.kiro') ?? {
     mode: 'lowest-backoff' as SelectionMode,
     step: 1,
   };

@@ -19,7 +19,7 @@ import {
 import { disableAccount, listEnabledAccounts, updateAccount } from '../db/repos/accounts.js';
 import { getCombo } from '../db/repos/combos.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
-import { getAllSettings, getSetting } from '../db/repos/settings.js';
+import { getAllSettings, getSettingT } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import { getUpstreamFormat } from '../providers/format/negotiate.js';
 import {
@@ -182,7 +182,7 @@ export async function handleProxy(
     return c.json({ error: 'no upstream accounts configured' }, 503);
   }
   const accountStates = buildAccountStates(allAccounts);
-  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ?? {
+  const sel = getSettingT(db, 'selection.minimax') ?? {
     mode: 'lowest-backoff' as SelectionMode,
     step: 1,
   };

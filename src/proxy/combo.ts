@@ -17,7 +17,7 @@ import {
 import { disableAccount, listEnabledAccounts, updateAccount } from '../db/repos/accounts.js';
 import type { Combo } from '../db/repos/combos.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
-import { getAllSettings, getSetting } from '../db/repos/settings.js';
+import { getAllSettings, getSettingT } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import { getUpstreamFormat } from '../providers/format/negotiate.js';
 import {
@@ -115,7 +115,7 @@ export async function handleComboProxy(
   const stateDb: Db = { updateAccount: (id, patch) => updateAccount(db, id, patch) };
   // Selection mode dibaca sekali — tidak berubah per iterasi
   // biome-ignore format: long line
-  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ??
+  const sel = getSettingT(db, 'selection.minimax') ??
     { mode: 'lowest-backoff' as SelectionMode, step: 1 };
   let lastErrorResponse: Response | null = null;
   for (let i = 0; i < combo.models.length; i++) {
