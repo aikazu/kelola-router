@@ -79,7 +79,7 @@ git commit -m "fix bug"
 - **Do not** introduce new dependencies without a discussion (user reviews `package.json` changes).
 - **Do not** skip the typecheck step. The root `tsc --noEmit` covers `src/` only — `cd client && npm run typecheck` is a separate step.
 
-## Common tasks → see the guides
+## Common tasks → see the guides & skills
 
 - Add a new upstream provider (Anthropic, Azure, etc.) → `docs/guides/add-a-provider.md`
 - Add an admin API endpoint → `docs/guides/add-an-admin-endpoint.md`
@@ -87,5 +87,6 @@ git commit -m "fix bug"
 - Add a DB migration → `docs/guides/add-a-migration.md`
 - Debug a failed request → `docs/guides/debug-a-failed-request.md`
 - Ship a release → `docs/guides/ship-a-release.md`
+- Sync docs with live code (audit staleness after shipping) → `.claude/skills/sync-docs/SKILL.md` (skill only; no separate guide — meta maintenance task)
 
 If a guide is missing for a task you need, do the work, then write the guide as a follow-up commit. The first PR to do a thing is also the first PR to document the thing.
