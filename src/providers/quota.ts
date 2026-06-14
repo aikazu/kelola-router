@@ -50,7 +50,16 @@ export async function pullQuota(
   if (account.credit_type !== 'token-plan') {
     return { ok: true };
   }
+  const provider = account.provider ?? 'minimax';
+  if (provider === 'minimax') return pullMiniMaxQuota(db, account);
+  // CodeBuddy/Kiro: no token-plan remains endpoint reverse-engineered yet → no-op.
+  return { ok: true };
+}
 
+async function pullMiniMaxQuota(
+  db: Database.Database,
+  account: Account
+): Promise<{ ok: boolean; error?: string }> {
   const accountLite = {
     provider: 'minimax' as const,
     baseUrl: account.base_url ?? '',

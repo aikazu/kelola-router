@@ -151,4 +151,20 @@ describe('pullQuota', () => {
     expect((spy.mock.calls as unknown as Array<[string]>)[1][0]).toContain('coding_plan/remains');
     expect(latestQuotaByAccount(db, 'a6', 50).length).toBe(4);
   });
+
+  it('codebuddy token-plan is a no-op: returns ok without calling fetch', async () => {
+    const db = openDb();
+    const a = createAccount(db, {
+      id: 'a8',
+      label: 'L',
+      credit_type: 'token-plan',
+      api_key: 'k',
+      provider: 'codebuddy',
+    });
+    const spy = vi.spyOn(globalThis, 'fetch');
+    const r = await pullQuota(db, a);
+    expect(r.ok).toBe(true);
+    expect(spy).not.toHaveBeenCalled();
+    expect(latestQuotaByAccount(db, 'a8').length).toBe(0);
+  });
 });
