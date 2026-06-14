@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SSEUsage } from './extractUsage.js';
 import { pipeWithUsage } from './pipeWithUsage.js';
 
@@ -10,6 +10,13 @@ function sseResponse(body: string, format: 'openai' | 'anthropic' = 'openai'): R
 }
 
 describe('pipeWithUsage', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('forwards all upstream bytes to the client', async () => {
     const raw = `data: {"choices":[{"delta":{"content":"hi"}}]}\n\ndata: [DONE]\n\n`;
     const out = await pipeWithUsage(sseResponse(raw), 'openai', () => {});
@@ -115,7 +122,7 @@ describe('pipeWithUsage', () => {
     await reader.cancel();
 
     // Let any pending microtasks / timers settle
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await vi.advanceTimersByTimeAsync(20);
 
     // callback should NOT have fired (we aborted before stream close)
     expect(callbackInvoked).toBe(false);
