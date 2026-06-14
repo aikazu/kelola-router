@@ -2,6 +2,19 @@
 
 > Newest first. The latest shipped version sits at the top under its version heading.
 
+## v0.18 — 2026-06-14
+
+**CodeBuddy as a third upstream provider.** The router now supports MiniMax, Kiro, and CodeBuddy as parallel upstreams, selected by `body.model` prefix.
+- **CodeBuddy provider (`cb/`).** `src/proxy/codebuddy.ts` handles requests routed via the `cb/` prefix. Bridges a CodeBuddy OpenAI-format upstream to the client's chosen wire format: OpenAI SSE → Anthropic SSE assembler, SSE wrapper + non-stream aggregator, forced `stream_options.include_usage`, guaranteed system message insertion, and mid-stream SSE error propagation. `pullQuota` is provider-aware and no-ops for CodeBuddy (no quota API). Live-verified seed model list (`npm run seed-codebuddy-models`). Bare model names stored; `cb/` prefix resolved at routing time.
+- **Provider prefix routing (`mm/` / `kr/` / `cb/`).** `src/providers/modelPrefix.ts` parses the `body.model` string: a known prefix asserts the provider, the model name is looked up literally (no alias expansion), and the stored `models.provider` must agree — else 400. Unprefixed names resolve only via combos or aliases; a bare raw model name is rejected with 400. An unknown prefix (`xx/...`) → 400 (`unknown model prefix`). Combo members must carry a prefix.
+- **Combo fallback chains.** New `combos` table (`migration 005`): `id`, `name`, `models` (JSON array), timestamps. CRUD repository (`src/db/repos/combos.ts`) + admin API + dashboard Combos page (CRUD modal, sidebar nav). The proxy (`src/proxy/combo.ts`) walks the ordered member list with cross-provider fallback, re-selecting an account per iteration to skip freshly backoffed accounts. Retries on `401/402/403` (auth/payment) and `502/503/504` (transient upstream). Combo names are validated against existing aliases on creation to prevent shadowing.
+- **Per-provider account selection.** `selection.<provider>` settings key per provider (e.g. `selection.minimax`, `selection.kiro`). Each carries its own `mode` (`lowest-backoff` | `round-robin` | `sticky`) and `step` for round-robin cursor. Dashboard splits Accounts and Models into per-provider cards with inline selection controls and a health-test button. Manual model-add + model health-check endpoints added.
+- **Transport upgrades.** GeoIP country probe via `ipapi.co` on transport add (`src/transport/geoip.ts`, migration `006-transport-country`; advisory, non-blocking). LRU + SOCKS dispatcher cache invalidated on transport CRUD. Proxy failure mode (`direct` | `block`) toggle surfaced in the Console. Bulk transport import modal; "Used by" column on the Transports page.
+- **Console & dashboard enhancements.** Per-request detail expand (by-req-id endpoint). Client-side filter bar (model / account / status). Relative timestamps + collapsible blocks (opt-in toggle). RTK bytes-saved shown on the `done` line; real `rtk_bytes_saved` persisted in `request_logs`. Transport-fail rendering. Bulk model toggle, client-key label PATCH, alias shadow indicators, Account column on Overview/Usage, inline client-key label editing, Kiro Usage button, model-lock visibility, force-pull quota button.
+- **Scheduler — request log retention.** `tickQuotaOnce` in `src/scheduler/quotaPull.ts` calls `cleanupOldLogs(db, RETENTION_DAYS)` (default 30 days, overridable via `REQUEST_LOG_RETENTION_DAYS` env). The prune runs on the same periodic tick as quota pull, session cleanup, and snapshot cleanup — no new timer needed.
+- **Hot-path hardening.** Prepared-statement cache, batched log inserts, additive indexes, tuned PRAGMAs. Auth: throttled `last_seen` writes + opportunistic rate-limit sweep. Kiro: hoisted `TextDecoder`, growable SSE buffer, zero-copy slicing. Streaming: incremental usage extraction. Console: O(1) ring buffer + coalesced stdout sink. Client: scoped re-renders, tiered query defaults, font preload. `proxy` now uses `undici.fetch` for dispatcher support on Node 22.
+- **Verification.** 671/671 server tests + 25/25 client tests. `npm run typecheck` clean (root + client). `npm run build` clean.
+
 ## v0.17 — 2026-06-09
 
 **Live Console.** A single in-process bus streams per-request proxy flow events to two sinks: the dashboard's new `Console` page over SSE, and server stdout as colored lines. Both proxy paths (`handleProxy` MiniMax, `handleKiroProxy`) emit `start` → `account` → `transport` → `done`/`error` with a shared `reqId`, which also lands on `request_logs.req_id` so a flow block links to its Request Detail row.
@@ -11,16 +24,6 @@
 - **Migration `004-reqid`.** Additive `ALTER TABLE request_logs ADD COLUMN req_id TEXT`; `user_version = 4`. Existing rows stay NULL.
 - **Dashboard Console page.** `client/src/pages/Console.tsx` (Preact) — `EventSource` over `/api/admin/console/stream`, in-memory event list (capped 600 ≈ 200 blocks), pure `ConsoleBlocks` group-by-reqId component exported separately for testability, Pause / Clear buttons (uses `TopBar` actions slot), live-vs-reconnecting dot, "Waiting for requests…" empty state, and auto-scroll-stick that breaks off the bottom on manual scroll. Obsidian Gold styling: gold `reqid`, green ✓ for `done`, red ✗ for `error` / `status >= 400`. Wired into `AppShell` (lazy + `KNOWN_ROUTES` + `g n` hotkey + help modal), `Sidebar` (with new `console` terminal icon in `Icon.tsx`), and `CommandPalette`. 2 client tests on `ConsoleBlocks` (summary + error block).
 - **Verification.** 484 server tests (was 465 → +19) + 21 client tests (was 19 → +2). `npm run typecheck` clean. `cd client && npm run build` clean. Lint baseline unchanged (20 errors / 44 warnings — all pre-existing).
-
-## Next up
-
-Speculative — these are ideas, not commitments. Edit freely.
-
-- **Response caching** — per-prompt-hash TTL cache for repeat queries
-- **Request replay UI** — re-send a logged request with edits from `/admin/usage`
-- **Account health dashboard** — latency p50/p95, error rate, last-success per model per account
-- **Prometheus `/metrics` endpoint** — scrape-friendly counters and histograms
-- **Webhooks for error events** — POST to a configured URL on fatal upstream errors
 
 ## v0.16 — 2026-06-08
 
@@ -110,3 +113,13 @@ See `docs/superpowers/plans/done/2026-06-03-hot-path-latency.md` and `docs/super
 ## v0.9 — 2026-05-31
 
 **Foundation.** OpenAI + Anthropic compatibility, multi-account pool with sticky + round-robin selection, prompt caching (cache_control dual breakpoints), RTK + Caveman compression, built-in dashboard, SQLite-WAL, Hono on Node 20+. Six-phase plan: `docs/superpowers/plans/2026-06-01-minimax-router*.md`.
+
+## Next up
+
+Speculative — these are ideas, not commitments. Edit freely.
+
+- **Response caching** — per-prompt-hash TTL cache for repeat queries
+- **Request replay UI** — re-send a logged request with edits from `/admin/usage`
+- **Account health dashboard** — latency p50/p95, error rate, last-success per model per account
+- **Prometheus `/metrics` endpoint** — scrape-friendly counters and histograms
+- **Webhooks for error events** — POST to a configured URL on fatal upstream errors
