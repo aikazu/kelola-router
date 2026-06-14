@@ -22,6 +22,9 @@
  *   createDeltaEvent(input)
  *   createFinishEvent()
  *   getErrorEvent(err)
+ *
+ * Sync helper (added in Task 26, used by kiroResponseToAnthropicSSE):
+ *   drain()  — return + clear all queued events as an array
  */
 
 import { randomUUID } from 'node:crypto';
@@ -181,6 +184,19 @@ export abstract class SseAssemblerBase<TInput> {
   // AsyncIterable<TOutput> — iterate emitted events
   // ---------------------------------------------------------------------------
 
+  /**
+   * Synchronously drain all currently-queued events as an array.
+   * Non-blocking: returns [] if the queue is empty. Useful for the
+   * per-frame stream pattern in `kiroResponseToAnthropicSSE` where each
+   * decoded Kiro frame must be turned into SSE bytes immediately, before
+   * the next frame is decoded. The async iterator (`for await`) cannot
+   * express this because `next()` would block waiting for the next event.
+   */
+  public drain(): AnthropicEvent[] {
+    if (this.queue.length === 0) return [];
+    return this.queue.splice(0, this.queue.length);
+  }
+
   public async next(): Promise<IteratorResult<AnthropicEvent>> {
     if (this.queue.length > 0) {
       const ev = this.queue.shift()!;
@@ -225,15 +241,6 @@ export abstract class SseAssemblerBase<TInput> {
       return;
     }
     this.queue.push(ev);
-  }
-
-  /**
-   * Drain and return all queued events. Subclasses that override {@link process}
-   * with a synchronous array-returning signature call this at the end to collect
-   * everything {@link push}ed during one input cycle.
-   */
-  protected drain(): AnthropicEvent[] {
-    return this.queue.splice(0);
   }
 
   private _drainWaiting(final: boolean): void {
