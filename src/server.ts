@@ -32,7 +32,7 @@ import {
 } from './db/repos/client_keys.js';
 import { disableModel, enableModel } from './db/repos/models.js';
 import { flushDeferredLogs } from './db/repos/requestLogs.js';
-import { getSetting, setSetting } from './db/repos/settings.js';
+import { getSettingT, setSetting } from './db/repos/settings.js';
 import { getUpstreamFormat } from './providers/format/negotiate.js';
 import { fetchModels } from './providers/listModels.js';
 import { PROVIDER, upstreamHeaders, upstreamUrl } from './providers/minimax.js';
@@ -129,12 +129,8 @@ app.get('/v1/models', requireApiKey, async (c) => {
   const allAccounts = listEnabledAccounts(db);
   if (allAccounts.length === 0) return c.json({ error: 'no upstream accounts configured' }, 503);
   const acc = allAccounts[0]!;
-  const overrideRaw =
-    (getSetting(db, 'minimax') as { upstreamFormat?: string } | null)?.upstreamFormat ?? 'auto';
-  const upstreamFormat = getUpstreamFormat(
-    'openai',
-    overrideRaw as 'auto' | 'openai' | 'anthropic'
-  );
+  const overrideRaw = getSettingT(db, 'minimax')?.upstreamFormat ?? 'auto';
+  const upstreamFormat = getUpstreamFormat('openai', overrideRaw);
   const url = upstreamUrl(
     { provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url },
     upstreamFormat,
@@ -239,7 +235,7 @@ app.post('/admin/settings/password', requireAdmin, async (c) => {
 
 app.post('/admin/settings/minimax', requireAdmin, async (c) => {
   const body = await c.req.parseBody();
-  const current = (getSetting(c.get('db'), 'minimax') as Record<string, unknown> | null) ?? {};
+  const current = getSettingT(c.get('db'), 'minimax') ?? {};
   const next = {
     ...current,
     upstreamFormat: String((body as Record<string, string>).upstreamFormat ?? 'auto'),
