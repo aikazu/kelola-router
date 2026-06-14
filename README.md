@@ -333,6 +333,53 @@ The router supports 4 transport modes, in priority order:
 
 Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
 
+## 🔒 Security
+
+Kelola Router is a self-hosted single-tenant proxy. The server-side attack surface is the dashboard, the SQLite file, and the `audit_log` table. The mitigations below ship out of the box.
+
+### Open mode (default)
+
+No admin password is set. Every request to `/api/admin/*` is allowed. The server prints a structured warning at startup and the dashboard shows a gold banner above the sidebar. Open mode is fine for `127.0.0.1` development. For any host reachable from another machine, set a password.
+
+### Password mode
+
+Set a password from the dashboard at `/admin/settings` (Dashboard access card). Once set, the server boots in password mode: every admin route goes through `requireAdminJson`, which accepts the password (scrypt-hashed in the `settings.admin_password` row) or a session cookie. Revealing a client key's bearer (`GET /api/admin/client-keys/:id/key`) is additionally gated by a 60-second step-up cookie (`kelola_reauth=verified`, `HttpOnly`, `SameSite=Strict`, `Path=/api/admin`, `Secure` on HTTPS) — set by `POST /api/admin/reauth/verify` after a fresh password confirmation. *(commit `e9bef69`)*
+
+### Encryption at rest
+
+Set `ROUTER_DB_KEY=<secret>` in the environment to enable SQLCipher (AES-256) via the `better-sqlite3-multiple-ciphers` fork. With the key set, the SQLite file is created and read through the cipher handle; without it, the file is plain SQLite (default, backward compatible). *(commit `33a3d98`)*
+
+**Fresh-deploy only.** Setting `ROUTER_DB_KEY` against an existing plaintext database causes the server to refuse to start with the exact message:
+
+> Database file at `<path>` is unencrypted but `ROUTER_DB_KEY` is set. Either remove `ROUTER_DB_KEY` (downgrade to plaintext) or delete the DB file and re-deploy fresh. Automatic migration is intentionally not supported.
+
+There is no `--rekey` flag and no in-place migration. Export your data, wipe the file, redeploy, and re-import.
+
+### Audit log
+
+Every successful client-key reveal writes one row to the `audit_log` table: *(commit `e768797`)*
+
+```sql
+CREATE TABLE audit_log (
+  id INTEGER PK AUTOINCREMENT,
+  event TEXT NOT NULL,              -- 'client_key.reveal'
+  client_key_id INTEGER,            -- FK client_keys(id) ON DELETE SET NULL
+  ip TEXT,                          -- left-most x-forwarded-for | 'unknown'
+  user_agent TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+`client_key_id` is nullable with `ON DELETE SET NULL` so the audit trail survives deletion of the audited key. Failed reveals (404, 401) do not write rows. The insert runs synchronously inside the request; a `pino` warning is logged on failure so audit-write problems never block the response.
+
+### Banner
+
+The dashboard's `<SecurityBanner>` (mounted in `AppShell`, sticky at the top) calls `GET /api/admin/security/status` on load and re-queries it after every password change. It shows when either posture is off: open mode (gold stripe) or unencrypted DB (muted gold stripe). *(commit `795c21a`)*
+
+### Self-host monitoring
+
+`GET /api/admin/security/status` returns `{ adminPasswordSet: boolean, dbEncrypted: boolean }` and is gated by the same admin auth as the rest of `/api/admin/*`. Self-host operators can poll it from uptime checks or wire it into Grafana / Alertmanager — any non-`true` value is a posture violation worth alerting on.
+
 ## 🛣️ Roadmap
 
 | Phase | Version | Status | Scope |
