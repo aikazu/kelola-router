@@ -1,6 +1,7 @@
 // src/providers/codebuddy/streamConvert.test.ts
 import { describe, expect, it } from 'vitest';
 import { OpenAIToAnthropicSSEAssembler } from './streamConvert.js';
+import { aggregateOpenAISSE, openaiSSEToAnthropicSSE } from './streamConvert.js';
 
 // Minimal OpenAI streaming chunk shape used by the assembler.
 type Chunk = {
@@ -81,5 +82,59 @@ describe('OpenAIToAnthropicSSEAssembler', () => {
     expect(json).toBe('{"city":"SF"}');
     const md = ev.find((e) => e.event === 'message_delta');
     expect((md?.data.delta as { stop_reason?: string }).stop_reason).toBe('tool_use');
+  });
+});
+
+function sseResponse(lines: string[]): Response {
+  const body = lines.map((l) => `data: ${l}\n\n`).join('') + 'data: [DONE]\n\n';
+  return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+}
+
+describe('openaiSSEToAnthropicSSE', () => {
+  it('converts an upstream OpenAI SSE response into Anthropic SSE bytes', async () => {
+    const upstream = sseResponse([
+      JSON.stringify({ choices: [{ delta: { content: 'PING' } }] }),
+      JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
+    ]);
+    let captured: { prompt_tokens: number; completion_tokens: number } | null = null;
+    const out = openaiSSEToAnthropicSSE(upstream, 'claude-opus-4.6', (u) => {
+      captured = u;
+    });
+    const text = await out.text();
+    expect(text).toContain('event: message_start');
+    expect(text).toContain('"type":"text_delta","text":"PING"');
+    expect(text).toContain('event: message_stop');
+    expect(captured).toEqual({ prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, cache_read: 0 });
+    expect(out.headers.get('content-type')).toBe('text/event-stream');
+  });
+});
+
+describe('aggregateOpenAISSE', () => {
+  it('buffers streamed deltas into one OpenAI response', async () => {
+    const upstream = sseResponse([
+      JSON.stringify({ id: 'x', model: 'gemini-3.5-flash', choices: [{ delta: { role: 'assistant', content: 'he' } }] }),
+      JSON.stringify({ choices: [{ delta: { content: 'llo' } }] }),
+      JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 } }),
+    ]);
+    const resp = await aggregateOpenAISSE(upstream);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(resp.choices![0].message.content).toBe('hello');
+    expect(resp.choices![0].finish_reason).toBe('stop');
+    expect(resp.usage?.completion_tokens).toBe(2);
+    expect(resp.object).toBe('chat.completion');
+  });
+
+  it('aggregates tool_calls fragments', async () => {
+    const upstream = sseResponse([
+      JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'f', arguments: '{"a"' } }] } }] }),
+      JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: ':1}' } }] } }] }),
+      JSON.stringify({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] }),
+    ]);
+    const resp = await aggregateOpenAISSE(upstream);
+    const tc = resp.choices![0].message.tool_calls?.[0];
+    expect(tc?.id).toBe('c1');
+    expect(tc?.function.name).toBe('f');
+    expect(tc?.function.arguments).toBe('{"a":1}');
+    expect(resp.choices![0].finish_reason).toBe('tool_calls');
   });
 });
