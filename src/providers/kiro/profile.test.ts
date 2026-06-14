@@ -92,4 +92,54 @@ describe('ensureProfileArn', () => {
     expect(arn).toBeNull();
     expect(mockUpdate).not.toHaveBeenCalled();
   });
+
+  it('falls back to KIRO_DEFAULT_REGION when providerData is null', async () => {
+    mockFetch.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({ profiles: [{ arn: ARN }] }),
+    }));
+    const auth = { accessToken: 'tok', providerData: null };
+    const arn = await ensureProfileArn({} as never, account, auth as never);
+    expect(arn).toBe(ARN);
+    // Region should default to us-east-1
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://management.us-east-1.kiro.dev/');
+  });
+});
+
+describe('discoverProfileArn transport + signal', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('passes transport config to proxyAwareFetch', async () => {
+    const transport = { kind: 'http', url: 'http://proxy:8080' } as never;
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ profiles: [{ arn: ARN }] }),
+    });
+    await discoverProfileArn('tok', 'us-east-1', transport);
+    const [, , transportArg] = mockFetch.mock.calls[0];
+    expect(transportArg).toBe(transport);
+  });
+
+  it('passes AbortSignal to proxyAwareFetch', async () => {
+    const controller = new AbortController();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ profiles: [{ arn: ARN }] }),
+    });
+    await discoverProfileArn('tok', 'us-east-1', null, controller.signal);
+    const [, opts] = mockFetch.mock.calls[0];
+    expect(opts.signal).toBe(controller.signal);
+  });
+
+  it('returns null when profiles exist but none have an arn field', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ profiles: [{ profileName: 'nameless' }] }),
+    });
+    const arn = await discoverProfileArn('tok', 'us-east-1');
+    expect(arn).toBeNull();
+  });
 });
