@@ -4,6 +4,39 @@ All notable changes to **kelola-router** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] — 2026-06-14
+
+### Added
+
+- **CodeBuddy provider.** Third upstream alongside MiniMax and Kiro, routed by the `cb/` model prefix. Bridges a CodeBuddy OpenAI-format upstream to the client's chosen format — OpenAI SSE → Anthropic SSE assembler, SSE wrapper + non-stream aggregator, forced `stream_options.include_usage`, guaranteed system message, mid-stream SSE error propagation. Python sidecar for browser automation. Live-verified seed model list (bare model names stored, `cb/` prefix at routing time). `pullQuota` is provider-aware and no-ops for CodeBuddy.
+- **Provider prefix routing (`mm/` / `kr/` / `cb/`).** Requests select a provider by an explicit prefix on `body.model`. Prefixed names resolve literally (no alias expansion) and the model's `provider` column must agree, else 400. Unprefixed names resolve only as a combo or alias (strict) — bare raw model names are rejected. Unknown prefix → 400. New `src/providers/modelPrefix.ts` parser; enforcement in `resolveModel`. Combo members must carry a prefix.
+- **Combo fallback chains.** New `combos` table + CRUD repository and admin API; dashboard Combos page (CRUD modal + sidebar nav). Proxy walks an ordered member list with cross-provider fallback (MiniMax + Kiro), retrying `401/402/403` and `502/503/504` upstream errors down the chain. Combo names are validated against existing aliases to prevent shadowing.
+- **Per-provider account selection.** Selection mode + round-robin step are read per provider (`selection.<provider>`). Multi-mode strategy (lowest-backoff, round-robin, sticky) with configurable step; dashboard splits Accounts and Models into per-provider cards with inline selection controls and health test. Manual model-add and model health-check endpoints.
+- **Transport upgrades.** GeoIP country probe on transport add; LRU + SOCKS dispatcher cache invalidated on CRUD; proxy failure mode (`direct` | `block`) toggle surfaced in the Console; bulk transport import modal + "Used by" column.
+- **Console & dashboard.** Per-request detail expand (by-req-id endpoint), client-side filter bar (model/account/status), relative timestamps, collapsible blocks (opt-in toggle), RTK bytes-saved on the done line, transport-fail rendering. Real `rtk_bytes_saved` persisted in request logs. Bulk model toggle + client-key label PATCH, alias shadow indicators, Account column on Overview/Usage, inline client-key label editing, Kiro Usage button, model-lock visibility, force-pull quota button.
+- **Scheduler.** Prune `request_logs` older than `REQUEST_LOG_RETENTION_DAYS`.
+
+### Changed
+
+- Aliases may now shadow built-in model names.
+- Hot-path performance hardening across DB (prepared-statement cache, batched log inserts, additive indexes, tuned PRAGMAs), auth (throttled `last_seen` writes, opportunistic rate-limit sweep), Kiro (hoisted `TextDecoder`, growable SSE buffer, zero-copy slicing), streaming (incremental usage extraction), console (O(1) ring buffer, coalesced stdout sink), and client (scoped re-renders, tiered query defaults, font preload).
+- `proxy` now uses `undici.fetch` for dispatcher support on Node 22.
+
+### Fixed
+
+- Clamp invalid round-robin step to `>= 1`; isolate usage cache keys; truncate `base_resp` error messages.
+- Combo hardening: guard `JSON.parse` in `rowToCombo`, wrap `updateCombo` in a transaction, map not-found to 404, sync frontend `NAME_RE` with backend, targeted SQL in `checkAliasConflict`.
+- CodeBuddy: route direct requests to `handleCodeBuddyProxy`, drop `opus-4.7` from seed, `cb/` prefix consistency.
+- `requireAdminJson` accepts `x-admin-key` for script access; skip `listen()` under vitest to avoid `EADDRINUSE`; avoid caching global transport fallback; hide redundant alias when same as model name.
+
+### Verification
+
+- 667/667 server tests pass (`npm test`).
+- 25/25 client tests pass (`cd client && npm test`).
+- `npm run typecheck` clean (root + client).
+- `npm run build` clean.
+- Lint baseline: 3 errors / 2 infos (all pre-existing `useTemplate` nits in `codebuddy` tests; down from 20 errors at v0.17).
+
 ## [0.17.0] — 2026-06-09
 
 ### Added
