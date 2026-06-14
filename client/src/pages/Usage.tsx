@@ -88,7 +88,7 @@ export function Usage() {
       if (p.get('client_key')) setClientKeyId(Number(p.get('client_key')));
       if (p.get('days')) setDays(Number(p.get('days')));
       if (p.get('q')) setSearch(p.get('q')!);
-      if (p.get('status')) setStatusFilter(p.get('status') as any);
+      if (p.get('status')) setStatusFilter(p.get('status') as 'all' | '2xx' | '4xx' | '5xx');
       if (p.get('account_id')) setAccountFilter(p.get('account_id')!);
     };
     onHash();
@@ -187,7 +187,7 @@ export function Usage() {
           <select
             value={statusFilter}
             onChange={(e) => {
-              setStatusFilter((e.target as HTMLSelectElement).value as any);
+              setStatusFilter((e.target as HTMLSelectElement).value as 'all' | '2xx' | '4xx' | '5xx');
               setPage(1);
             }}
           >

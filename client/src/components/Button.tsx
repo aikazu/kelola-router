@@ -5,7 +5,7 @@ type Size = 'sm' | 'md';
 
 export interface ButtonProps {
   children: ComponentChildren;
-  onClick?: (e: MouseEvent) => void;
+  onClick?: (e: JSX.TargetedMouseEvent<HTMLButtonElement>) => void;
   variant?: Variant;
   size?: Size;
   type?: 'button' | 'submit' | 'reset';
@@ -36,7 +36,7 @@ export function Button({
     <button
       type={type}
       class={classes}
-      onClick={onClick as any}
+      onClick={onClick}
       disabled={disabled}
       title={title}
       style={style}

@@ -341,7 +341,7 @@ export function Accounts() {
                 Auth method
                 <select
                   value={kiroMethod}
-                  onChange={(e) => { setKiroMethod((e.target as HTMLSelectElement).value as any); autoImport.reset(); deviceFlow.reset(); }}
+                  onChange={(e) => { setKiroMethod((e.target as HTMLSelectElement).value as 'builder-id' | 'idc' | 'token' | 'auto-import'); autoImport.reset(); deviceFlow.reset(); }}
                   class="input"
                 >
                   <option value="builder-id">AWS Builder ID (OAuth)</option>
