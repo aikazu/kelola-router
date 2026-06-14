@@ -4,7 +4,7 @@ import { checkFallbackError } from '../accounts/errorRules.js';
 import { clearExpiredModelLocks, getModelLock, setModelLock } from '../accounts/locks.js';
 import { selectAccount } from '../accounts/selection.js';
 import { isModelLockActive } from '../accounts/state.js';
-import type { AccountState, SelectionMode } from '../accounts/types.js';
+import type { SelectionMode } from '../accounts/types.js';
 import { consoleBus } from '../console/bus.js';
 import {
   buildAccount,
@@ -19,6 +19,7 @@ import type { Combo } from '../db/repos/combos.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getAllSettings, getSetting } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
+import { getUpstreamFormat as getUpstreamFormatEnv } from '../util/env.js';
 import { getUpstreamFormat } from '../providers/format/negotiate.js';
 import {
   bodyAddsOpenAIStreamUsage,
@@ -35,10 +36,10 @@ import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
-import { headersToJson, truncateBody } from './capture.js';
 import { handleCodeBuddyProxy } from './codebuddy.js';
-import { errorMessage, safeJsonParse, statusCode } from './helpers.js';
+import { errorMessage, statusCode } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
+import { applyErrorState, buildAccountStates, buildLogRow, clearErrorState, type Db } from './pipeline.js';
 
 export async function handleComboProxy(
   c: Context,
@@ -54,9 +55,7 @@ export async function handleComboProxy(
   const clientKey = c.get('clientKey');
   const startMs = c.get('startTime');
   const allSettings = getAllSettings(db);
-  const minimax = allSettings.minimax as { upstreamFormat?: string } | undefined;
-  const overrideRaw = minimax?.upstreamFormat ?? process.env.ROUTER_UPSTREAM_FORMAT ?? 'auto';
-  const upstreamFormat = getUpstreamFormat(format, overrideRaw as 'auto' | 'openai' | 'anthropic');
+  const upstreamFormat = getUpstreamFormat(format, getUpstreamFormatEnv(db));
 
   const reqId = genReqId();
   c.set('reqId', reqId);
@@ -73,9 +72,7 @@ export async function handleComboProxy(
 
   // Augment body (caveman, caching, rtk) just like handleProxy does.
   const caveman = allSettings.caveman as { level: string } | undefined;
-  const caching = allSettings.caching as
-    | { autoBreakpoints: boolean; respectCallerMarkers: boolean }
-    | undefined;
+  const caching = allSettings.caching as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | undefined;
   const rtkSetting = allSettings.rtk as { enabled: boolean } | undefined;
   const cavemanOn = !!caveman?.level && caveman.level !== 'off';
   const cachingOn = !!caching?.autoBreakpoints;
@@ -110,11 +107,13 @@ export async function handleComboProxy(
     return c.json({ error: 'no upstream accounts configured' }, 503);
   }
 
+  // Pipeline helpers (applyErrorState/clearErrorState) need a Db with
+  // updateAccount; the real better-sqlite3 Database only exposes prepare().
+  const stateDb: Db = { updateAccount: (id, patch) => updateAccount(db, id, patch) };
+
   // Selection mode dibaca sekali — tidak berubah per iterasi
-  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ?? {
-    mode: 'lowest-backoff' as SelectionMode,
-    step: 1,
-  };
+  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ??
+    { mode: 'lowest-backoff' as SelectionMode, step: 1 };
 
   let lastErrorResponse: Response | null = null;
 
@@ -123,14 +122,7 @@ export async function handleComboProxy(
 
     // Re-select account each iteration so recently-backoffed accounts are skipped
     const allAccounts = listEnabledAccounts(db);
-    const accountStates: AccountState[] = allAccounts.map((a) => ({
-      id: a.id,
-      backoffLevel: a.backoff_level,
-      rateLimitedUntil: a.rate_limited_until,
-      lastError: a.last_error ? (safeJsonParse(a.last_error) as AccountState['lastError']) : null,
-      status: a.status as AccountState['status'],
-      enabled: !!a.enabled,
-    }));
+    const accountStates = buildAccountStates(allAccounts);
     const { account, reason, nextCursor } = selectAccount(accountStates, {
       mode: sel.mode,
       step: sel.step ?? 1,
@@ -298,19 +290,7 @@ export async function handleComboProxy(
         );
 
         // Apply account error state
-        const rateLimitedUntil =
-          decision.cooldownMs > 0 ? new Date(Date.now() + decision.cooldownMs).toISOString() : null;
-        updateAccount(db, account.id, {
-          rate_limited_until: rateLimitedUntil,
-          backoff_level: decision.newBackoffLevel ?? 0,
-          last_error: JSON.stringify({
-            status: resp.status,
-            message: errBody.slice(0, 500),
-            timestamp: new Date().toISOString(),
-            baseRespCode: parsed.baseRespCode,
-          }),
-          status: resp.status === 401 ? 'error' : 'active',
-        });
+        applyErrorState(stateDb, account, decision, errBody, { ...parsed, status: resp.status });
         if (decision.cooldownMs > 0) {
           setModelLock(db, account.id, resolved.upstreamModel, decision.cooldownMs);
         }
@@ -319,15 +299,15 @@ export async function handleComboProxy(
         }
 
         // Retry on 429 (rate limit), retryable 5xx (502, 503, 504), and auth/payment errors (401, 402, 403).
-        const isRetryable =
+        if (
           resp.status === 429 ||
           resp.status === 502 ||
           resp.status === 503 ||
           resp.status === 504 ||
           resp.status === 401 ||
           resp.status === 402 ||
-          resp.status === 403;
-        if (isRetryable) {
+          resp.status === 403
+        ) {
           log.info(
             { combo: combo.name, model: modelName, status: resp.status },
             'combo: retryable error, trying next model'
@@ -348,19 +328,7 @@ export async function handleComboProxy(
       }
 
       // Success! Clear account errors.
-      if (
-        acc.backoff_level !== 0 ||
-        acc.status !== 'active' ||
-        acc.rate_limited_until !== null ||
-        acc.last_error !== null
-      ) {
-        updateAccount(db, account.id, {
-          rate_limited_until: null,
-          backoff_level: 0,
-          last_error: null,
-          status: 'active',
-        });
-      }
+      clearErrorState(stateDb, account);
 
       log.info({ combo: combo.name, model: modelName, index: i }, 'combo: success on model');
 
@@ -372,36 +340,35 @@ export async function handleComboProxy(
           const cacheCreate = usage?.cache_creation_tokens ?? 0;
           const cacheRead = usage?.cache_read_tokens ?? 0;
           const total = usage?.total_tokens ?? prompt + completion;
-          const cost = calculateCost(db, resolved.upstreamModel, {
-            prompt_tokens: prompt,
-            completion_tokens: completion,
-            cache_creation_tokens: cacheCreate,
-            cache_read_tokens: cacheRead,
-          });
-          insertRequestLogDeferred(db, {
-            client_key_id: clientKey.id,
-            account_id: account.id,
-            model: resolved.upstreamModel,
-            requested_model: combo.name,
-            endpoint: upstreamPath,
-            format: upstreamFormat,
-            prompt_tokens: prompt,
-            completion_tokens: completion,
-            cache_creation_tokens: cacheCreate,
-            cache_read_tokens: cacheRead,
-            total_tokens: total,
-            cost_usd: cost,
-            latency_ms: Date.now() - startMs,
-            status_code: resp.status,
-            base_resp_code: undefined,
-            stream: 1,
-            rtk_bytes_saved: rtkSaved,
-            request_body: truncateBody(originalText),
-            response_body: truncateBody(raw),
-            request_headers: headersToJson(c.req.raw.headers),
-            response_headers: headersToJson(resp.headers),
-            req_id: reqId,
-          });
+          const cost = calculateCost(db, resolved.upstreamModel, { prompt_tokens: prompt, completion_tokens: completion,
+            cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead });
+          insertRequestLogDeferred(
+            db,
+            buildLogRow({
+              clientKeyId: clientKey.id,
+              accountId: account.id,
+              model: resolved.upstreamModel,
+              requestedModel: combo.name,
+              endpoint: upstreamPath,
+              format: upstreamFormat,
+              promptTokens: prompt,
+              completionTokens: completion,
+              cacheCreationTokens: cacheCreate,
+              cacheReadTokens: cacheRead,
+              totalTokens: total,
+              costUsd: cost,
+              latencyMs: Date.now() - startMs,
+              statusCode: resp.status,
+              baseRespCode: undefined,
+              stream: 1,
+              rtkBytesSaved: rtkSaved,
+              requestBody: originalText,
+              responseBody: raw,
+              requestHeaders: c.req.raw.headers,
+              responseHeaders: resp.headers,
+              reqId,
+            })
+          );
           consoleBus.emit(
             buildDone(
               reqId,
@@ -452,36 +419,36 @@ export async function handleComboProxy(
       } catch {
         /* non-JSON; pass through */
       }
-      const cost = calculateCost(db, resolved.upstreamModel, {
-        prompt_tokens: usage.prompt_tokens ?? 0,
-        completion_tokens: usage.completion_tokens ?? 0,
-        cache_creation_tokens: usage.cache_creation_tokens ?? 0,
-        cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
-      });
-      insertRequestLogDeferred(db, {
-        client_key_id: clientKey.id,
-        account_id: account.id,
-        model: resolved.upstreamModel,
-        requested_model: combo.name,
-        endpoint: upstreamPath,
-        format: upstreamFormat,
-        prompt_tokens: usage.prompt_tokens ?? 0,
-        completion_tokens: usage.completion_tokens ?? 0,
-        cache_creation_tokens: usage.cache_creation_tokens ?? 0,
-        cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
-        total_tokens: usage.total_tokens ?? 0,
-        cost_usd: cost,
-        latency_ms: Date.now() - startMs,
-        status_code: resp.status,
-        base_resp_code: undefined,
-        stream: 0,
-        rtk_bytes_saved: rtkSaved,
-        request_body: truncateBody(originalText),
-        response_body: truncateBody(respBody),
-        request_headers: headersToJson(c.req.raw.headers),
-        response_headers: headersToJson(resp.headers),
-        req_id: reqId,
-      });
+      const cost = calculateCost(db, resolved.upstreamModel, { prompt_tokens: usage.prompt_tokens ?? 0,
+        completion_tokens: usage.completion_tokens ?? 0, cache_creation_tokens: usage.cache_creation_tokens ?? 0,
+        cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0 });
+      insertRequestLogDeferred(
+        db,
+        buildLogRow({
+          clientKeyId: clientKey.id,
+          accountId: account.id,
+          model: resolved.upstreamModel,
+          requestedModel: combo.name,
+          endpoint: upstreamPath,
+          format: upstreamFormat,
+          promptTokens: usage.prompt_tokens ?? 0,
+          completionTokens: usage.completion_tokens ?? 0,
+          cacheCreationTokens: usage.cache_creation_tokens ?? 0,
+          cacheReadTokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
+          totalTokens: usage.total_tokens ?? 0,
+          costUsd: cost,
+          latencyMs: Date.now() - startMs,
+          statusCode: resp.status,
+          baseRespCode: undefined,
+          stream: 0,
+          rtkBytesSaved: rtkSaved,
+          requestBody: originalText,
+          responseBody: respBody,
+          requestHeaders: c.req.raw.headers,
+          responseHeaders: resp.headers,
+          reqId,
+        })
+      );
       consoleBus.emit(
         buildDone(
           reqId,
