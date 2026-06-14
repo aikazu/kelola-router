@@ -74,3 +74,5 @@ Deep technical notes indexed for search. Read with `mcp__plugin_context-mode_con
 - `CodeBuddy provider` — OpenAI SSE bridge to client format; see `src/providers/codebuddy/` + `docs/adr/0006-codebuddy-provider.md`
 - `.claude/docs/format-conversion.md` — OpenAI ↔ Anthropic body transform rules
 - `.claude/docs/conventions.md` — terse code-level rules
+- **SQLCipher encryption-at-rest** — `as unknown as Database.Database` boundary cast at `src/db/index.ts` + dual `better-sqlite3` / `better-sqlite3-multiple-ciphers` import, fresh-deploy-only `isPlaintextSqlite()` guard. Why: keeps the exported `Database` type stable across 50+ consumers. See `.omo/notepads/audit-remediation-2026-q2/decisions.md` D10.1–D10.4.
+- **Typed `getSettingT<K extends SettingKey>(db, key)`** — valibot-schema-validated settings getter at `src/db/repos/settings.ts:76`; suffix-T convention, `v.parse` (loud) over `safeParse`, coexists with untyped `getSetting<T>` until call-site migration completes. Schema registry at `src/db/repos/settings.types.ts`. See `.omo/notepads/audit-remediation-2026-q2/decisions.md` Task 21 entry.
