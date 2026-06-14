@@ -1,6 +1,6 @@
 # DB Tables
 
-Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/00{1,2,3,4,5,6}-*.ts`. Migrations tracked via `PRAGMA user_version` (current = 6). All migrations are additive (`ALTER TABLE ADD COLUMN`) after `001-initial`.
+Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/00{1,2,3,4,5,6,7}-*.ts`. Migrations tracked via `PRAGMA user_version` (current = 7). All migrations are additive (`ALTER TABLE ADD COLUMN` or `CREATE TABLE`) after `001-initial`.
 
 ## `accounts` (`001-initial` + 4 ALTERs)
 
@@ -134,6 +134,23 @@ Proxy / relay endpoints.
 
 Dashboard session cookies (when password is set). Columns: `id` (PK), `user_agent`, `ip`, `created_at`, `expires_at` (7-day TTL), `last_seen`. Cleaned by `cleanupExpiredSessions` in `src/scheduler/quotaPull.ts`.
 
+## `audit_log` (`007-audit-log`)
+
+Security-relevant admin actions (key reveals, future: logins/settings changes). Stores **only metadata** — never the secret value. Separate from `request_logs` (proxy telemetry) so audit history survives `cleanupOldLogs` pruning.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | INTEGER PK AUTOINCREMENT | |
+| `event` | TEXT NOT NULL | stable name, e.g. `client_key.reveal` |
+| `client_key_id` | INTEGER NULL | FK → `client_keys(id)` ON DELETE SET NULL (audit survives key delete) |
+| `ip` | TEXT NULL | left-most `x-forwarded-for`, or `unknown` |
+| `user_agent` | TEXT NULL | caller UA if provided |
+| `created_at` | TEXT NOT NULL DEFAULT `(datetime('now'))` | |
+
+Indexes: `idx_audit_log_event_created` on `(event, created_at DESC)`, `idx_audit_log_key_created` on `(client_key_id, created_at DESC)`.
+
+Inserted from `src/api/admin/clientKeys.ts` on every successful `GET /api/admin/client-keys/:id/key`. Wrapped in try/catch — audit failure never blocks the reveal.
+
 ## `settings` (`001-initial`)
 
 Generic key-value store for all runtime config. Columns: `key` (PK), `value` (TEXT JSON), `updated_at`. See `docs/reference/settings-keys.md` for the live key inventory.
@@ -162,5 +179,6 @@ Generic key-value store for all runtime config. Columns: `key` (PK), `value` (TE
 | 4 | `004-reqid.ts` | `req_id` on `request_logs` |
 | 5 | `005-combos.ts` | `combos` table |
 | 6 | `006-transport-country.ts` | `country` column on `transports` |
+| 7 | `007-audit-log.ts` | `audit_log` table |
 
-Current `user_version` = 6. Each migration is additive (no schema rewrites); existing rows survive upgrade.
+Current `user_version` = 7. Each migration is additive (no schema rewrites); existing rows survive upgrade.

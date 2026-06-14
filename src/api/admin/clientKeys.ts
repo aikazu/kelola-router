@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { isPasswordSet } from '../../auth/password.js';
+import { insertAuditEvent } from '../../db/repos/auditLog.js';
 import {
   createClientKey,
   deleteClientKey,
@@ -12,6 +13,8 @@ import {
   listClientKeys,
   updateClientKeyLabel,
 } from '../../db/repos/client_keys.js';
+import { log } from '../../util/log.js';
+import { clientIp } from './ip.js';
 import { ApiError, handleApiError } from './middleware.js';
 import { REAUTH_COOKIE, REAUTH_COOKIE_VALUE } from './reauth.js';
 
@@ -67,6 +70,22 @@ clientKeyRoutes.get('/:id/key', (c) => {
     }
     const row = getClientKey(db, Number(c.req.param('id')));
     if (!row) throw new ApiError('not_found', 'client key not found', 404);
+    // Audit the reveal BEFORE returning. Wrapped in try/catch — an audit
+    // failure must NEVER block the admin from getting the key (it's a
+    // forensic nicety, not a gate). Only metadata is logged; never the key.
+    try {
+      insertAuditEvent(db, {
+        event: 'client_key.reveal',
+        clientKeyId: row.id,
+        ip: clientIp(c),
+        userAgent: c.req.header('user-agent') ?? null,
+      });
+    } catch (auditErr) {
+      log.warn(
+        { err: (auditErr as Error).message, clientKeyId: row.id },
+        'audit_log insert failed for client_key reveal'
+      );
+    }
     return c.json({ id: row.id, label: row.label, key: row.key });
   } catch (e) {
     return handleApiError(e);

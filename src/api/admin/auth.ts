@@ -5,16 +5,8 @@ import { isPasswordSet, verifyPassword } from '../../auth/password.js';
 import { clearLoginFailures, isLoginLocked, recordLoginFailure } from '../../auth/rateLimit.js';
 import { createSession, destroySession, validateSession } from '../../auth/session.js';
 import { SESSION_COOKIE } from '../../auth.js';
+import { clientIp } from './ip.js';
 import { ApiError, handleApiError } from './middleware.js';
-
-function clientIp(c: { req: { header: (name: string) => string | undefined } }): string {
-  const xff = c.req.header('x-forwarded-for');
-  if (xff) {
-    const first = xff.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return 'unknown';
-}
 
 export const authRoutes = new Hono();
 
