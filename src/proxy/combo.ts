@@ -36,9 +36,9 @@ import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
 import { headersToJson, truncateBody } from './capture.js';
+import { handleCodeBuddyProxy } from './codebuddy.js';
 import { errorMessage, safeJsonParse, statusCode } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
-import { handleCodeBuddyProxy } from './codebuddy.js';
 
 export async function handleComboProxy(
   c: Context,
@@ -248,7 +248,10 @@ export async function handleComboProxy(
           lastErrorResponse = cbResp;
           continue;
         }
-        log.info({ combo: combo.name, model: modelName, index: i }, 'combo: codebuddy success on model');
+        log.info(
+          { combo: combo.name, model: modelName, index: i },
+          'combo: codebuddy success on model'
+        );
         return cbResp;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
