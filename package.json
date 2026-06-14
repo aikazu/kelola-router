@@ -1,6 +1,6 @@
 {
   "name": "kelola-router",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "description": "Local-first API router for MiniMax + Kiro (AWS CodeWhisperer) + CodeBuddy — provider-prefix routing, multi-account pool, combo fallback, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in dashboard",
   "type": "module",
   "private": true,

@@ -4,6 +4,37 @@ All notable changes to **kelola-router** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] — 2026-06-15
+
+### Added
+
+- **Security: SQLCipher encryption-at-rest (H1).** SQLite database is now encrypted at rest when the new `ROUTER_DB_KEY` environment variable is set. `openDb()` reads the key via the new `getDbKey()` helper, switches the `better-sqlite3-multiple-ciphers` driver on, and applies the cipher pragma. `reset.ts` honors the same key when re-initializing the DB, so scripted resets stay in sync with encrypted production. New dependency: `better-sqlite3-multiple-ciphers`. The key never lands in the DB or on disk — it lives only in process env. The `getDbKey()` reader is the single source of truth.
+- **Security: re-auth gate for client key reveals (H2).** `GET /api/admin/client-keys/:id/key` now requires a fresh re-authentication before returning the plaintext bearer. A real password-verification round trip (when a dashboard password is configured) sets a short-lived re-auth cookie; the reveal endpoint validates it on every call. Every reveal is also written to the new `audit_log` table (the existing audit table) with the admin's IP and ISO timestamp, giving a complete trail of who saw which key and when. The dashboard reveal flow pairs with a re-auth modal that prompts for the password in password mode and works transparently in open dev mode.
+- **Security: open-mode + unencrypted-DB warnings + status endpoint + banner (H3).** The server now logs a startup warning whenever it boots in open mode (no dashboard password) or with an unencrypted DB while `ROUTER_DB_KEY` is set, so operators see the exposure in stdout. A new endpoint `GET /api/admin/security/status` exposes the same posture to the SPA: `{ mode: 'open' | 'password', dbEncrypted: boolean, dbKeySet: boolean }`. The dashboard's `SecurityBanner` component (two variants — "open mode" and "DB not encrypted") queries the endpoint and renders an unobtrusive top-of-page banner in `AppShell` when the deployment is exposed. The banner links straight to the Settings page.
+- **Type safety: typed settings reader (H4).** New `getSettingT<K>()` wrapper backed by Valibot schemas for every known settings key (`rtk`, `caveman`, `caching`, `minimax`, `transport`, `build`, `user_settings`). Callers now get the validated, narrowed type back instead of an `unknown` blob to cast. All call sites across `src/server.ts`, `src/util/env.ts`, `src/proxy/*`, and `src/api/admin/*` have been migrated, eliminating a wide swath of `as unknown as` / `as any` casts. The underlying `getSetting(db, key)` stays for ad-hoc reads; `getSettingT` is the preferred path.
+- **Refactor: `SseAssemblerBase` template-method (Item 5).** New abstract base class in `src/providers/common/SseAssemblerBase.ts` extracts the shared Anthropic-SSE event emission state machine (`ensureStart`, `openBlock`, `closeBlock`, queue, `flush`). `KiroAnthropicAssembler` and `OpenAIToAnthropicSSEAssembler` now extend the base and implement five small hooks (`createStartEvent`, `createBlockEvent`, `createDeltaEvent`, `createFinishEvent`, `getErrorEvent`) per their input type. The `AnthropicEvent` interface moved into the base so both subclasses import it from one place. Removes ~120 lines of duplicate state-machine code; new contributors only need to read the hooks to onboard.
+- **Refactor: oversized client pages split (Item 6).** Three dashboard pages exceeded the readability budget and have been split into focused sub-components. `Transports.tsx` → `TransportsTable` + `TransportsAddModal` + `TransportsImportModal`. `Accounts.tsx` → `AccountsList` + `AccountsAddModal` + per-provider `AccountCard`s. `Models.tsx` → `ProviderModelsSection` + per-provider model tables. Each extracted module ships with its own colocated test where the logic is non-trivial.
+- **Test coverage: Kiro module test siblings (Item 7).** Added sibling test files for three Kiro modules that previously had no coverage: `src/providers/kiro/usage.test.ts` (7 cases — happy path, headers, body shape, abort signal, region, non-ok, null cases), `src/providers/kiro/profile.test.ts` (4 cases — region fallback, transport passthrough, signal passthrough, no-arn-on-any-profile), and `src/api/admin/accounts.kiroAutoImport.test.ts` (7 cases — found/missing-cache/empty/malformed/most-recent/throw-once). The 822/822 test count includes all of these.
+- **Tooling: unified account-add script (Item 8).** `scripts/add-account.ts` is now the single entry point for adding upstream accounts across all three providers. `--provider {minimax,kiro,codebuddy}` selects the flow; the same script handles MiniMax payg/coding keys, Kiro (Kiro IDE / AWS SSO OIDC / social / Builder ID / IDC / raw refresh token), and CodeBuddy. The per-provider scripts (`add-kiro-account.ts`, `add-codebuddy-account.ts`) are removed; the npm script entry remains `npm run add-account -- --provider <name> ...`. The new CLI args schema is valibot-validated so unknown flags fail fast.
+
+### Changed
+
+- **Settings reads are typed by default.** New code should call `getSettingT<K>(db, key)`. The bare `getSetting(db, key)` remains available and is used by tests / dynamic keys, but its `unknown` return type is no longer the right tool for known settings.
+- **Audit log is now the canonical trail for sensitive operations.** The client-key reveal flow writes to it; future sensitive actions (password change, key rotation, account delete) are expected to follow the same pattern.
+- **Encrypted-DB startup is now self-protecting.** Setting `ROUTER_DB_KEY` against an existing plaintext DB refuses to start with a clear error pointing at the migration path, instead of silently booting an unencrypted DB that ignores the key.
+
+### Fixed
+
+- **Kiro usage: doubled `Bearer` prefix in `Authorization` header.** `fetchKiroUsage` was unconditionally prepending `Bearer ` to whatever token the caller passed; if a future caller hands in an already-prefixed token the header becomes `Bearer Bearer …` and AWS rejects it. Now strips a single leading `Bearer ` before composing the header, so the function is robust to both raw and prefixed inputs. Caught by a new test that asserts the exact header value.
+- **`SseAssemblerBase` had a duplicate `drain()` in its async iterator.** The first drain ran the queue callback machinery; the second ran it again on the same already-empty array, wasting a microtask per `next()` call. The duplicate is gone; throughput on Anthropic-SSE streaming is unchanged in practice but the code path is now correct.
+
+### Verification
+
+- 822/822 server tests pass (`npm test`).
+- 72/72 client tests pass (`cd client && npm test`).
+- `npm run typecheck` clean (root + client).
+- 35 atomic conventional commits in the audit-remediation-2026-q2 wave (H1 → H4 → Items 5 → 9), each verified by its own test subset.
+
 ## [0.18.0] — 2026-06-14
 
 ### Added
@@ -170,6 +201,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Foundation.** OpenAI + Anthropic compatibility, multi-account pool with sticky + round-robin selection, prompt caching (cache_control dual breakpoints), RTK + Caveman compression, built-in dashboard, SQLite-WAL, Hono on Node 20+. Six-phase plan: `docs/superpowers/plans/2026-06-01-minimax-router*.md`.
 
+[0.19.0]: https://github.com/aikazu/kelola-router/compare/v0.18.0...v0.19.0
+[0.18.0]: https://github.com/aikazu/kelola-router/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/aikazu/kelola-router/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/aikazu/kelola-router/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/aikazu/kelola-router/compare/v0.14...v0.15.0
