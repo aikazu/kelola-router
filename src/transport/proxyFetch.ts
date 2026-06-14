@@ -1,9 +1,9 @@
 import type { Dispatcher } from 'undici';
 import { fetch as undiciFetch } from 'undici';
+import { log } from '../util/log.js';
 import { getDispatcher } from './dispatcherCache.js';
 import { getSocksDispatcher } from './socksLoader.js';
 import type { TransportConfig } from './types.js';
-import { log } from '../util/log.js';
 
 export type ProxyFailureMode = 'direct' | 'block';
 

@@ -28,12 +28,12 @@ import { log } from '../util/log.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';
 import {
-  type Db,
-  type LogRowContext,
   applyErrorState,
   buildAccountStates,
   buildLogRow,
   clearErrorState,
+  type Db,
+  type LogRowContext,
 } from './pipeline.js';
 
 /**
@@ -61,7 +61,14 @@ export async function handleCodeBuddyProxy(
   const reqId = genReqId();
   c.set('reqId', reqId);
   consoleBus.emit(
-    buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, 'codebuddy', 'codebuddy')
+    buildStart(
+      reqId,
+      new Date().toISOString(),
+      c.req.method,
+      upstreamPath,
+      'codebuddy',
+      'codebuddy'
+    )
   );
 
   // Get CodeBuddy accounts

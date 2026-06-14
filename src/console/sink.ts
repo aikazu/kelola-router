@@ -1,9 +1,9 @@
 // src/console/sink.ts
 
 import { Coalescer } from '../util/coalescer.js';
+import { isConsoleFlowEnabled } from '../util/env.js';
 import type { ConsoleBus } from './bus.js';
 import { renderStdout } from './format.js';
-import { isConsoleFlowEnabled } from '../util/env.js';
 
 export interface SinkOptions {
   intervalMs?: number;

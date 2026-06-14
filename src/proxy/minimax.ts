@@ -22,7 +22,6 @@ import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getAllSettings, getSetting } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import { getUpstreamFormat } from '../providers/format/negotiate.js';
-import { getUpstreamFormat as getUpstreamFormatEnv } from '../util/env.js';
 import {
   bodyAddsOpenAIStreamUsage,
   bodyAnthropicToOpenAI,
@@ -38,6 +37,7 @@ import { compressMessages, formatRtkLog, rtkBytesSaved } from '../rtk/index.js';
 import { markHotPath } from '../runtime/hotPathMetrics.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
+import { getUpstreamFormat as getUpstreamFormatEnv } from '../util/env.js';
 import { log } from '../util/log.js';
 import { handleCodeBuddyProxy } from './codebuddy.js';
 import { handleComboProxy } from './combo.js';
@@ -321,30 +321,33 @@ export async function handleProxy(
           cache_creation_tokens: cacheCreate,
           cache_read_tokens: cacheRead,
         });
-        insertRequestLogDeferred(db, buildLogRow({
-          clientKeyId: clientKey.id,
-          accountId: account.id,
-          model: modelName,
-          requestedModel,
-          endpoint: upstreamPath,
-          format: upstreamFormat,
-          promptTokens: prompt,
-          completionTokens: completion,
-          cacheCreationTokens: cacheCreate,
-          cacheReadTokens: cacheRead,
-          totalTokens: total,
-          costUsd: cost,
-          latencyMs: Date.now() - startMs,
-          statusCode: resp.status,
-          baseRespCode: undefined,
-          stream: 1,
-          rtkBytesSaved: rtkSaved,
-          requestBody: text,
-          responseBody: raw,
-          requestHeaders: c.req.raw.headers,
-          responseHeaders: resp.headers,
-          reqId,
-        }));
+        insertRequestLogDeferred(
+          db,
+          buildLogRow({
+            clientKeyId: clientKey.id,
+            accountId: account.id,
+            model: modelName,
+            requestedModel,
+            endpoint: upstreamPath,
+            format: upstreamFormat,
+            promptTokens: prompt,
+            completionTokens: completion,
+            cacheCreationTokens: cacheCreate,
+            cacheReadTokens: cacheRead,
+            totalTokens: total,
+            costUsd: cost,
+            latencyMs: Date.now() - startMs,
+            statusCode: resp.status,
+            baseRespCode: undefined,
+            stream: 1,
+            rtkBytesSaved: rtkSaved,
+            requestBody: text,
+            responseBody: raw,
+            requestHeaders: c.req.raw.headers,
+            responseHeaders: resp.headers,
+            reqId,
+          })
+        );
         consoleBus.emit(
           buildDone(
             reqId,

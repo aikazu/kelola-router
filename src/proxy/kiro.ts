@@ -151,20 +151,43 @@ export async function handleKiroProxy(
     insertRequestLogDeferred(
       db,
       buildLogRow({
-        clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel,
-        endpoint: upstreamPath, format,
-        promptTokens: prompt, completionTokens: completion,
-        cacheCreationTokens: 0, cacheReadTokens: 0,
+        clientKeyId: clientKey.id,
+        accountId: acc.id,
+        model: modelName,
+        requestedModel,
+        endpoint: upstreamPath,
+        format,
+        promptTokens: prompt,
+        completionTokens: completion,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
         totalTokens: usage?.total_tokens ?? prompt + completion,
-        costUsd: cost, latencyMs: latency,
-        statusCode: statusCodeVal, baseRespCode: undefined,
-        stream: isStream ? 1 : 0, rtkBytesSaved: 0,
-        requestBody: JSON.stringify(body), responseBody,
-        requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId,
+        costUsd: cost,
+        latencyMs: latency,
+        statusCode: statusCodeVal,
+        baseRespCode: undefined,
+        stream: isStream ? 1 : 0,
+        rtkBytesSaved: 0,
+        requestBody: JSON.stringify(body),
+        responseBody,
+        requestHeaders: c.req.raw.headers,
+        responseHeaders: new Headers(),
+        reqId,
       })
     );
     consoleBus.emit(
-      buildDone(reqId, new Date().toISOString(), statusCodeVal, null, prompt, completion, 0, cost, latency, 0)
+      buildDone(
+        reqId,
+        new Date().toISOString(),
+        statusCodeVal,
+        null,
+        prompt,
+        completion,
+        0,
+        cost,
+        latency,
+        0
+      )
     );
   };
 

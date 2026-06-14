@@ -4,11 +4,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../index.js';
 import { createAccount } from './accounts.js';
-import {
-  cleanupOldQuota,
-  insertQuotaSnapshot,
-  latestQuotaByAccount,
-} from './quotaSnapshots.js';
+import { cleanupOldQuota, insertQuotaSnapshot, latestQuotaByAccount } from './quotaSnapshots.js';
 
 let db: ReturnType<typeof openDb>;
 
@@ -83,8 +79,34 @@ describe('quotaSnapshots repo', () => {
   // 4. cleanupOldQuota(0) deletes all rows
   it('cleanupOldQuota(0) deletes all rows', () => {
     createAccount(db, { id: 'acc_del', label: 'T', credit_type: 'payg', api_key: 'k_del' });
-    insertQuotaSnapshot(db, { account_id: 'acc_del', source: 'minimax', model_name: 'M1', total_count: 100, remaining_count: 100, used_count: 0, remaining_percent: 100, remains_time: null, window_type: null, window_start: null, window_end: null, raw_response: null });
-    insertQuotaSnapshot(db, { account_id: 'acc_del', source: 'minimax', model_name: 'M2', total_count: 200, remaining_count: 200, used_count: 0, remaining_percent: 100, remains_time: null, window_type: null, window_start: null, window_end: null, raw_response: null });
+    insertQuotaSnapshot(db, {
+      account_id: 'acc_del',
+      source: 'minimax',
+      model_name: 'M1',
+      total_count: 100,
+      remaining_count: 100,
+      used_count: 0,
+      remaining_percent: 100,
+      remains_time: null,
+      window_type: null,
+      window_start: null,
+      window_end: null,
+      raw_response: null,
+    });
+    insertQuotaSnapshot(db, {
+      account_id: 'acc_del',
+      source: 'minimax',
+      model_name: 'M2',
+      total_count: 200,
+      remaining_count: 200,
+      used_count: 0,
+      remaining_percent: 100,
+      remains_time: null,
+      window_type: null,
+      window_start: null,
+      window_end: null,
+      raw_response: null,
+    });
 
     const deleted = cleanupOldQuota(db, 0);
     expect(deleted).toBe(2);
@@ -96,7 +118,20 @@ describe('quotaSnapshots repo', () => {
   // 5. cleanupOldQuota(365) deletes nothing on fresh DB
   it('cleanupOldQuota(365) deletes nothing on fresh DB', () => {
     createAccount(db, { id: 'acc_fresh', label: 'T', credit_type: 'payg', api_key: 'k_fresh' });
-    insertQuotaSnapshot(db, { account_id: 'acc_fresh', source: 'minimax', model_name: 'M1', total_count: 100, remaining_count: 100, used_count: 0, remaining_percent: 100, remains_time: null, window_type: null, window_start: null, window_end: null, raw_response: null });
+    insertQuotaSnapshot(db, {
+      account_id: 'acc_fresh',
+      source: 'minimax',
+      model_name: 'M1',
+      total_count: 100,
+      remaining_count: 100,
+      used_count: 0,
+      remaining_percent: 100,
+      remains_time: null,
+      window_type: null,
+      window_start: null,
+      window_end: null,
+      raw_response: null,
+    });
 
     const deleted = cleanupOldQuota(db, 365);
     expect(deleted).toBe(0);
@@ -141,10 +176,49 @@ describe('quotaSnapshots repo', () => {
   it('CASCADE delete: deleting account removes its quota snapshots', () => {
     createAccount(db, { id: 'acc_cascade', label: 'T', credit_type: 'payg', api_key: 'k_cascade' });
     createAccount(db, { id: 'acc_other', label: 'T', credit_type: 'payg', api_key: 'k_other' });
-    insertQuotaSnapshot(db, { account_id: 'acc_cascade', source: 'minimax', model_name: 'M1', total_count: 100, remaining_count: 100, used_count: 0, remaining_percent: 100, remains_time: null, window_type: null, window_start: null, window_end: null, raw_response: null });
-    insertQuotaSnapshot(db, { account_id: 'acc_cascade', source: 'minimax', model_name: 'M2', total_count: 200, remaining_count: 200, used_count: 0, remaining_percent: 100, remains_time: null, window_type: null, window_start: null, window_end: null, raw_response: null });
+    insertQuotaSnapshot(db, {
+      account_id: 'acc_cascade',
+      source: 'minimax',
+      model_name: 'M1',
+      total_count: 100,
+      remaining_count: 100,
+      used_count: 0,
+      remaining_percent: 100,
+      remains_time: null,
+      window_type: null,
+      window_start: null,
+      window_end: null,
+      raw_response: null,
+    });
+    insertQuotaSnapshot(db, {
+      account_id: 'acc_cascade',
+      source: 'minimax',
+      model_name: 'M2',
+      total_count: 200,
+      remaining_count: 200,
+      used_count: 0,
+      remaining_percent: 100,
+      remains_time: null,
+      window_type: null,
+      window_start: null,
+      window_end: null,
+      raw_response: null,
+    });
     // Other account's snapshot should survive
-    insertQuotaSnapshot(db, { account_id: 'acc_other', source: 'minimax', model_name: 'M3', total_count: 300, remaining_count: 300, used_count: 0, remaining_percent: 100, remains_time: null, window_type: null, window_start: null, window_end: null, raw_response: null });
+    insertQuotaSnapshot(db, {
+      account_id: 'acc_other',
+      source: 'minimax',
+      model_name: 'M3',
+      total_count: 300,
+      remaining_count: 300,
+      used_count: 0,
+      remaining_percent: 100,
+      remains_time: null,
+      window_type: null,
+      window_start: null,
+      window_end: null,
+      raw_response: null,
+    });
 
     // Delete the account (FK cascade should remove acc_cascade's snapshots)
     db.prepare(`DELETE FROM accounts WHERE id = 'acc_cascade'`).run();

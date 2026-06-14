@@ -19,7 +19,6 @@ import type { Combo } from '../db/repos/combos.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getAllSettings, getSetting } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
-import { getUpstreamFormat as getUpstreamFormatEnv } from '../util/env.js';
 import { getUpstreamFormat } from '../providers/format/negotiate.js';
 import {
   bodyAddsOpenAIStreamUsage,
@@ -35,11 +34,18 @@ import { upstreamFetch } from '../providers/upstreamFetch.js';
 import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
+import { getUpstreamFormat as getUpstreamFormatEnv } from '../util/env.js';
 import { log } from '../util/log.js';
 import { handleCodeBuddyProxy } from './codebuddy.js';
 import { errorMessage, statusCode } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
-import { applyErrorState, buildAccountStates, buildLogRow, clearErrorState, type Db } from './pipeline.js';
+import {
+  applyErrorState,
+  buildAccountStates,
+  buildLogRow,
+  clearErrorState,
+  type Db,
+} from './pipeline.js';
 
 export async function handleComboProxy(
   c: Context,
@@ -72,7 +78,9 @@ export async function handleComboProxy(
 
   // Augment body (caveman, caching, rtk) just like handleProxy does.
   const caveman = allSettings.caveman as { level: string } | undefined;
-  const caching = allSettings.caching as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | undefined;
+  const caching = allSettings.caching as
+    | { autoBreakpoints: boolean; respectCallerMarkers: boolean }
+    | undefined;
   const rtkSetting = allSettings.rtk as { enabled: boolean } | undefined;
   const cavemanOn = !!caveman?.level && caveman.level !== 'off';
   const cachingOn = !!caching?.autoBreakpoints;
@@ -112,8 +120,10 @@ export async function handleComboProxy(
   const stateDb: Db = { updateAccount: (id, patch) => updateAccount(db, id, patch) };
 
   // Selection mode dibaca sekali — tidak berubah per iterasi
-  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ??
-    { mode: 'lowest-backoff' as SelectionMode, step: 1 };
+  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ?? {
+    mode: 'lowest-backoff' as SelectionMode,
+    step: 1,
+  };
 
   let lastErrorResponse: Response | null = null;
 
@@ -340,8 +350,12 @@ export async function handleComboProxy(
           const cacheCreate = usage?.cache_creation_tokens ?? 0;
           const cacheRead = usage?.cache_read_tokens ?? 0;
           const total = usage?.total_tokens ?? prompt + completion;
-          const cost = calculateCost(db, resolved.upstreamModel, { prompt_tokens: prompt, completion_tokens: completion,
-            cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead });
+          const cost = calculateCost(db, resolved.upstreamModel, {
+            prompt_tokens: prompt,
+            completion_tokens: completion,
+            cache_creation_tokens: cacheCreate,
+            cache_read_tokens: cacheRead,
+          });
           insertRequestLogDeferred(
             db,
             buildLogRow({
@@ -419,9 +433,12 @@ export async function handleComboProxy(
       } catch {
         /* non-JSON; pass through */
       }
-      const cost = calculateCost(db, resolved.upstreamModel, { prompt_tokens: usage.prompt_tokens ?? 0,
-        completion_tokens: usage.completion_tokens ?? 0, cache_creation_tokens: usage.cache_creation_tokens ?? 0,
-        cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0 });
+      const cost = calculateCost(db, resolved.upstreamModel, {
+        prompt_tokens: usage.prompt_tokens ?? 0,
+        completion_tokens: usage.completion_tokens ?? 0,
+        cache_creation_tokens: usage.cache_creation_tokens ?? 0,
+        cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
+      });
       insertRequestLogDeferred(
         db,
         buildLogRow({

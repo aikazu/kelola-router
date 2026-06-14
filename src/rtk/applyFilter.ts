@@ -1,5 +1,5 @@
-import type { FilterFn } from './types.js';
 import { log } from '../util/log.js';
+import type { FilterFn } from './types.js';
 
 export function safeApply(fn: FilterFn | undefined, text: string): string {
   if (typeof fn !== 'function') return text;

@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { FallbackDecision } from '../accounts/errorRules.js';
 import type { AccountState } from '../accounts/types.js';
 import type { Account } from '../db/repos/accounts.js';
-import type { FallbackDecision } from '../accounts/errorRules.js';
 
 // Import from pipeline.ts — implementation lives there
 import {
+  applyErrorState,
   buildAccountStates,
   buildLogRow,
-  applyErrorState,
   clearErrorState,
-  type LogRowContext,
   type Db,
+  type LogRowContext,
 } from './pipeline.js';
 
 // ---------------------------------------------------------------------------
@@ -48,8 +48,7 @@ function makeAccountRow(overrides: Partial<Account> = {}): Account {
 describe('buildAccountStates', () => {
   it('parses last_error from valid JSON string', () => {
     const row = makeAccountRow({
-      last_error:
-        '{"status":429,"message":"rate limited","timestamp":"2024-01-01T00:00:00Z"}',
+      last_error: '{"status":429,"message":"rate limited","timestamp":"2024-01-01T00:00:00Z"}',
     });
     const states = buildAccountStates([row]);
     expect(states).toHaveLength(1);
@@ -97,8 +96,7 @@ describe('buildAccountStates', () => {
       id: 'acc-xyz',
       backoff_level: 3,
       rate_limited_until: future,
-      last_error:
-        '{"status":500,"message":"server error","timestamp":"2024-01-01T00:00:00Z"}',
+      last_error: '{"status":500,"message":"server error","timestamp":"2024-01-01T00:00:00Z"}',
       status: 'error',
       enabled: true,
     });
@@ -170,12 +168,8 @@ describe('buildLogRow', () => {
     expect(row.base_resp_code).toBeNull();
     expect(row.stream).toBe(0);
     expect(row.rtk_bytes_saved).toBe(0);
-    expect(row.request_body).toBe(
-      '{"messages":[{"role":"user","content":"hello"}]}'
-    );
-    expect(row.response_body).toBe(
-      '{"choices":[{"message":{"role":"assistant","content":"hi"}}]}'
-    );
+    expect(row.request_body).toBe('{"messages":[{"role":"user","content":"hello"}]}');
+    expect(row.response_body).toBe('{"choices":[{"message":{"role":"assistant","content":"hi"}}]}');
     expect(typeof row.request_headers).toBe('string');
     expect(typeof row.response_headers).toBe('string');
     expect(row.req_id).toBe('req-abc-123');
@@ -226,9 +220,7 @@ describe('applyErrorState', () => {
     expect(updateAccountMock).toHaveBeenCalledTimes(1);
     const [, patch] = updateAccountMock.mock.calls[0] as [string, Record<string, unknown>];
     expect(patch.rate_limited_until).not.toBeNull();
-    expect(
-      new Date(patch.rate_limited_until as string).getTime()
-    ).toBeGreaterThan(Date.now());
+    expect(new Date(patch.rate_limited_until as string).getTime()).toBeGreaterThan(Date.now());
   });
 
   it('sets rate_limited_until to null when cooldownMs = 0', () => {

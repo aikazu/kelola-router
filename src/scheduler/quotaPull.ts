@@ -4,8 +4,8 @@ import { listAccounts } from '../db/repos/accounts.js';
 import { cleanupOldQuota } from '../db/repos/quotaSnapshots.js';
 import { cleanupOldLogs } from '../db/repos/requestLogs.js';
 import { pullQuota } from '../providers/quota.js';
-import { log } from '../util/log.js';
 import { getRequestLogRetentionDays } from '../util/env.js';
+import { log } from '../util/log.js';
 
 const RETENTION_DAYS = getRequestLogRetentionDays();
 
