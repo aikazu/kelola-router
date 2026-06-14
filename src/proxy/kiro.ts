@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
 import { checkFallbackError } from '../accounts/errorRules.js';
 import { selectAccount } from '../accounts/selection.js';
-import type { AccountState, SelectionMode } from '../accounts/types.js';
+import type { SelectionMode } from '../accounts/types.js';
 import { consoleBus } from '../console/bus.js';
 import {
   buildAccount,
@@ -25,8 +25,14 @@ import { calculateCost } from '../providers/pricing.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
-import { headersToJson, truncateBody } from './capture.js';
-import { errorMessage, safeJsonParse, statusCode, stringValue } from './helpers.js';
+import { errorMessage, statusCode, stringValue } from './helpers.js';
+import {
+  applyErrorState,
+  buildAccountStates,
+  buildLogRow,
+  clearErrorState,
+  type Db,
+} from './pipeline.js';
 
 /**
  * Mutable cursor ref passed in from server.ts so that account round-robin
@@ -83,14 +89,7 @@ export async function handleKiroProxy(
 
   const accounts = listEnabledAccountsByProvider(db, 'kiro');
   if (accounts.length === 0) return c.json({ error: 'no Kiro accounts configured' }, 503);
-  const states: AccountState[] = accounts.map((a) => ({
-    id: a.id,
-    backoffLevel: a.backoff_level,
-    rateLimitedUntil: a.rate_limited_until,
-    lastError: a.last_error ? (safeJsonParse(a.last_error) as AccountState['lastError']) : null,
-    status: a.status as AccountState['status'],
-    enabled: !!a.enabled,
-  }));
+  const states = buildAccountStates(accounts);
   const kiroSel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.kiro') ?? {
     mode: 'lowest-backoff' as SelectionMode,
     step: 1,
@@ -130,7 +129,11 @@ export async function handleKiroProxy(
       consoleBus.emit(buildTransportFail(reqId, new Date().toISOString(), fellBack, message)),
   };
 
-  const logUsage = (
+  // Pipeline helpers (applyErrorState/clearErrorState) need a Db with
+  // updateAccount; the real better-sqlite3 Database only exposes prepare().
+  const stateDb: Db = { updateAccount: (id, patch) => updateAccount(db, id, patch) };
+
+  const recordKiroUsage = (
     usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null,
     isStream: boolean,
     statusCodeVal: number,
@@ -144,43 +147,24 @@ export async function handleKiroProxy(
       cache_creation_tokens: 0,
       cache_read_tokens: 0,
     });
-    insertRequestLogDeferred(db, {
-      client_key_id: clientKey.id,
-      account_id: acc.id,
-      model: modelName,
-      requested_model: requestedModel,
-      endpoint: upstreamPath,
-      format,
-      prompt_tokens: prompt,
-      completion_tokens: completion,
-      cache_creation_tokens: 0,
-      cache_read_tokens: 0,
-      total_tokens: usage?.total_tokens ?? prompt + completion,
-      cost_usd: cost,
-      latency_ms: Date.now() - startMs,
-      status_code: statusCodeVal,
-      base_resp_code: undefined,
-      stream: isStream ? 1 : 0,
-      rtk_bytes_saved: 0,
-      request_body: truncateBody(JSON.stringify(body)),
-      response_body: truncateBody(responseBody),
-      request_headers: headersToJson(c.req.raw.headers),
-      response_headers: undefined,
-      req_id: reqId,
-    });
+    const latency = Date.now() - startMs;
+    insertRequestLogDeferred(
+      db,
+      buildLogRow({
+        clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel,
+        endpoint: upstreamPath, format,
+        promptTokens: prompt, completionTokens: completion,
+        cacheCreationTokens: 0, cacheReadTokens: 0,
+        totalTokens: usage?.total_tokens ?? prompt + completion,
+        costUsd: cost, latencyMs: latency,
+        statusCode: statusCodeVal, baseRespCode: undefined,
+        stream: isStream ? 1 : 0, rtkBytesSaved: 0,
+        requestBody: JSON.stringify(body), responseBody,
+        requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId,
+      })
+    );
     consoleBus.emit(
-      buildDone(
-        reqId,
-        new Date().toISOString(),
-        statusCodeVal,
-        null,
-        prompt,
-        completion,
-        0,
-        cost,
-        Date.now() - startMs,
-        0
-      )
+      buildDone(reqId, new Date().toISOString(), statusCodeVal, null, prompt, completion, 0, cost, latency, 0)
     );
   };
 
@@ -205,17 +189,7 @@ export async function handleKiroProxy(
         undefined,
         undefined
       );
-      updateAccount(db, acc.id, {
-        rate_limited_until:
-          decision.cooldownMs > 0 ? new Date(Date.now() + decision.cooldownMs).toISOString() : null,
-        backoff_level: decision.newBackoffLevel ?? 0,
-        last_error: JSON.stringify({
-          status: result.status,
-          message: errBody.slice(0, 500),
-          timestamp: new Date().toISOString(),
-        }),
-        status: result.status === 401 ? 'error' : 'active',
-      });
+      applyErrorState(stateDb, picked, decision, errBody, { status: result.status });
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), result.status, errBody.slice(0, 200))
       );
@@ -228,19 +202,7 @@ export async function handleKiroProxy(
       );
     }
 
-    if (
-      acc.backoff_level !== 0 ||
-      acc.status !== 'active' ||
-      acc.rate_limited_until !== null ||
-      acc.last_error !== null
-    ) {
-      updateAccount(db, acc.id, {
-        rate_limited_until: null,
-        backoff_level: 0,
-        last_error: null,
-        status: 'active',
-      });
-    }
+    clearErrorState(stateDb, picked);
 
     if (upstreamStream && result.rawStreamResponse) {
       const sse =
@@ -248,7 +210,7 @@ export async function handleKiroProxy(
           ? kiroResponseToAnthropicSSE(result.rawStreamResponse, modelName)
           : kiroResponseToOpenAISSE(result.rawStreamResponse, modelName);
       return await pipeWithUsage(sse, format, (usage, raw) => {
-        logUsage(usage, true, result.status, raw);
+        recordKiroUsage(usage, true, result.status, raw);
       });
     }
 
@@ -261,7 +223,7 @@ export async function handleKiroProxy(
             )
           )
         : JSON.stringify(completion);
-    logUsage(completion.usage, false, result.status, respBody);
+    recordKiroUsage(completion.usage, false, result.status, respBody);
     return c.body(respBody, statusCode(result.status), { 'content-type': 'application/json' });
   } catch (e: unknown) {
     const message = errorMessage(e);
