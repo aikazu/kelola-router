@@ -30,7 +30,7 @@ Step-by-step guides for common contributor tasks. When a playbook is missing, wr
 - [`docs/guides/debug-a-failed-request.md`](docs/guides/debug-a-failed-request.md) — trace a request through the proxy
 - [`docs/guides/ship-a-release.md`](docs/guides/ship-a-release.md) — version bump + changelog + tag
 
-## Reference (when written)
+## Reference
 
 Terse lookup tables, auto-extracted from source.
 
@@ -70,5 +70,6 @@ Deep technical notes indexed for search. Read with `mcp__plugin_context-mode_con
 - `.claude/docs/state-machines.md` — account selection / backoff / lock invariants
 - `.claude/docs/data-flow.md` — per-request pipeline annotated end-to-end
 - `.claude/docs/kiro-protocol.md` — AWS event-stream + IDE/CLI persona wire format
+- `CodeBuddy provider` — OpenAI SSE bridge to client format; see `src/providers/codebuddy/` + `docs/adr/0006-codebuddy-provider.md`
 - `.claude/docs/format-conversion.md` — OpenAI ↔ Anthropic body transform rules
 - `.claude/docs/conventions.md` — terse code-level rules

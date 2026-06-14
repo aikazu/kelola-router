@@ -39,6 +39,7 @@ A deep-dive into how `kelola-router` is wired. Pair with `CLAUDE.md` (overview) 
 │ Upstream                                                     │
 │  • MiniMax   (api.minimax.io / api.minimaxi.com)  HTTP-JSON   │
 │  • Kiro      (CodeWhisperer / Amazon Q)  AWS event-stream    │
+│  • CodeBuddy (codebuddy.ai)  OpenAI-compatible HTTP-JSON     │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -51,10 +52,28 @@ src/
 ├── server.ts                 Hono app, routes, middleware wiring (≈ 330 LOC)
 ├── auth.ts                   requireApiKey, requireAdmin, csrfGuard, session cookie
 ├── auth/                     password (scrypt), session, rate limit
+├── api/admin/                Admin API routes
+│   ├── index.ts              Route wiring for all admin endpoints
+│   ├── accounts.ts           CRUD: accounts, provider fields, refresh token
+│   ├── aliases.ts            CRUD: model aliases (+ combo conflict check)
+│   ├── auth.ts               POST /login, /logout, /check-password, /set-password
+│   ├── clientKeys.ts         CRUD: client_keys (bearer tokens)
+│   ├── models.ts             GET /models + seed; POST create/update
+│   ├── overview.ts           GET / (provider health, usage sparkline)
+│   ├── usage.ts              GET usage stats (request count, token sums)
+│   ├── quota.ts              GET quota snapshots per account
+│   ├── combos.ts             CRUD: combo models (fallback chains)
+│   ├── transports.ts         CRUD: transports (relay/proxy/SOCKS config)
+│   ├── settings.ts           GET /settings, POST key/value store
+│   ├── requestLogs.ts        GET request logs (paginated, filterable)
+│   ├── modelHealth.ts        GET model health (per-account lock status)
+│   ├── cache.ts              POST /clear-cache (settings cache burst)
+│   └── middleware.ts         Shared middleware for /api/admin/* routes
 ├── proxy/
 │   ├── helpers.ts            Shared response/request utilities
 │   ├── minimax.ts            handleProxy — MiniMax pipeline (~470 LOC)
 │   ├── kiro.ts               handleKiroProxy — Kiro pipeline (~270 LOC)
+│   ├── codebuddy.ts          handleCodeBuddyProxy — CodeBuddy pipeline
 │   └── combo.ts              handleComboProxy — combo routing (~470 LOC)
 ├── accounts/                 Account selection state machine
 │   ├── selection.ts          sticky / round-robin / lowest-backoff picker
@@ -75,6 +94,10 @@ src/
 │   │   ├── index.ts          executeKiro (orchestrator)
 │   │   ├── deviceCode.ts     AWS Builder ID / IDC device code flow
 │   │   └── accountImport.ts  buildKiroAccountFields (token / idc / social)
+│   ├── codebuddy/            CodeBuddy protocol stack
+│   │   ├── index.ts          executeCodeBuddy orchestrator
+│   │   ├── transform.ts      prepareCodeBuddyBody (client → OpenAI upstream)
+│   │   └── streamConvert.ts  aggregate + OpenAI SSE → Anthropic SSE
 │   ├── baseUrl.ts            MiniMax region switch (intl/cn)
 │   ├── parseError.ts         base_resp.status_code extractor
 │   ├── pricing.ts            per-model USD pricing
@@ -85,7 +108,13 @@ src/
 ├── rtk/                      Runtime filter compression (wired in step 6)
 ├── streaming/                pipeWithUsage, extractUsage
 ├── transport/                undici dispatcher cache + SOCKS proxy loader
-│   └── resolve.ts            resolveTransportForAccount — per-account transport
+│   ├── resolve.ts            resolveTransportForAccount — per-account transport
+│   ├── geoip.ts              country probe via ipapi.co on transport add
+│   ├── proxyFetch.ts         undici Agent builder w/ proxy settings
+│   ├── dispatcherCache.ts    per-transport dispatcher cache
+│   ├── socksLoader.ts        SockSocket factory (socks5/socks4 client)
+│   ├── resolvedCache.ts      resolved transport cache
+│   └── types.ts              TransportConfig discriminated union
 ├── console/                  Live flow event bus
 │   ├── bus.ts                ring buffer + SSE subscribe
 │   ├── flow.ts               FlowEvent builders + reqId gen
@@ -97,7 +126,7 @@ src/
 ├── runtime/                  per-request context (rrCursor, stickyMap, getDb)
 ├── db/
 │   ├── index.ts              openDb() (WAL, foreign_keys, busy_timeout)
-│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid
+│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country
 │   └── repos/                One file per table: accounts, client_keys, models,
 │                             aliases, combos, requestLogs, quotaSnapshots,
 │                             transports, settings (1s cache)
@@ -199,6 +228,12 @@ model resolution
   • -thinking / -agentic suffix handling
   • M3 max_completion_tokens
   ↓
+provider routing (resolved.provider)
+  • combo name      → handleComboProxy (walk fallback members)
+  • 'kiro'          → handleKiroProxy
+  • 'codebuddy'     → handleCodeBuddyProxy
+  • else (minimax)  → continue MiniMax path
+  ↓
 consoleBus.emit('start', { reqId, model, endpoint })
   ↓
 selectAccount(db, provider, opts)
@@ -239,7 +274,7 @@ HTTP out
 
 ## Storage
 
-`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Migrations tracked via `PRAGMA user_version` (current = 5). All migrations live in `src/db/migrations/`; one file per migration, additive ALTERs when possible (e.g. `002-kiro` adds `provider` / `access_token` etc. without rewriting rows).
+`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Migrations tracked via `PRAGMA user_version` (current = 6). All migrations live in `src/db/migrations/`; one file per migration, additive ALTERs when possible (e.g. `002-kiro` adds `provider` / `access_token` etc. without rewriting rows).
 
 ## Key invariants
 

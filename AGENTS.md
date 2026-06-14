@@ -81,10 +81,11 @@ git commit -m "fix bug"
 
 ## Common tasks → see the guides
 
-- Add a new upstream provider (Anthropic, Azure, etc.) → `docs/guides/add-a-provider.md` (when written)
-- Add an admin API endpoint → `docs/guides/add-an-admin-endpoint.md` (when written)
-- Add a dashboard page → `docs/guides/add-a-dashboard-page.md` (when written)
-- Add a DB migration → `docs/guides/add-a-migration.md` (when written)
-- Debug a failed request → `docs/guides/debug-a-failed-request.md` (when written)
+- Add a new upstream provider (Anthropic, Azure, etc.) → `docs/guides/add-a-provider.md`
+- Add an admin API endpoint → `docs/guides/add-an-admin-endpoint.md`
+- Add a dashboard page → `docs/guides/add-a-dashboard-page.md`
+- Add a DB migration → `docs/guides/add-a-migration.md`
+- Debug a failed request → `docs/guides/debug-a-failed-request.md`
+- Ship a release → `docs/guides/ship-a-release.md`
 
 If a guide is missing for a task you need, do the work, then write the guide as a follow-up commit. The first PR to do a thing is also the first PR to document the thing.

@@ -14,7 +14,7 @@ Full playbook: `docs/guides/debug-a-failed-request.md`. Read it first.
 2. **Open the Console page** — dashboard `/#/admin/console`. Find the block by `reqid` (4-byte hex) or by time. Check for `error` line, `transport-fail` line.
 3. **Account state** — `SELECT id, label, status, backoff_level, rate_limited_until FROM accounts ORDER BY backoff_level DESC;`. If `status='error'`: 401 upstream. If `rate_limited_until > now`: in backoff. `json_extract(last_error, '$.baseRespCode')` → match to `docs/reference/error-codes.md`.
 4. **Model lock** — `SELECT * FROM account_model_locks WHERE account_id=? AND model=?;`. Clear with dashboard, `DELETE /api/admin/accounts/:id/locks/:model`, or SQL.
-5. **Inspect bodies** — `SELECT request_body, response_body, error FROM request_logs WHERE id=?;`. Common: `{"error":{"base_resp":{"status_code":1002}}}` → upstream rate limit. Missing `done` in console → format conversion or upstream parse failure.
+5. **Inspect bodies** — `SELECT request_body, response_body, error FROM request_logs WHERE id=?;`. Common: `{"error":{"base_resp":{"status_code":1002}}}` → upstream rate limit. Missing `done` in console → format conversion or upstream parse failure. Also check `request_logs.base_resp_code` column directly for the per-request upstream status code.
 6. **Model resolution** — `SELECT * FROM model_aliases WHERE alias_name=?;` then `SELECT * FROM models WHERE name=? OR upstream_model=?;`. Check `enabled` and `provider`.
 7. **Combo / fallback** — `SELECT * FROM combos WHERE name=?;`. Look for multiple `account` lines per `reqid` in the Console page.
 

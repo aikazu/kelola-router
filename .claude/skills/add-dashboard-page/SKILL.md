@@ -43,3 +43,4 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - `client/src/layout/AppShell.tsx` — KNOWN_ROUTES + switch
 - `client/src/layout/Sidebar.tsx` — nav array
 - `client/src/lib/api.ts` — `apiFetch` helper
+- Recent patterns (v0.18): model-lock visibility, inline label editing, Account column — see Accounts.tsx / Models.tsx.

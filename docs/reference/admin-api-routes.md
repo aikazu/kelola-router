@@ -36,7 +36,7 @@ All routes under `/api/admin/*` (Hono router). All require admin auth (session c
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/admin/accounts/` | List accounts (all providers). Each row shows provider, credit_type, status, backoff |
-| `POST` | `/api/admin/accounts/` | Create MiniMax account (label, credit_type, api_key) |
+| `POST` | `/api/admin/accounts/` | Create MiniMax account (label, credit_type, api_key). Note: `POST /api/admin/accounts` only creates MiniMax (default) accounts. Kiro uses `POST /api/admin/accounts/kiro`. CodeBuddy accounts must be created via CLI (`tsx scripts/add-codebuddy-account.ts`) — no admin REST endpoint yet. |
 | `PATCH` | `/api/admin/accounts/:id` | Update label / enabled / base_url / provider_data / transport assignment |
 | `POST` | `/api/admin/accounts/:id/enable` | Enable |
 | `POST` | `/api/admin/accounts/:id/disable` | Disable |

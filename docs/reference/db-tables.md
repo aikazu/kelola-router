@@ -1,6 +1,6 @@
 # DB Tables
 
-Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/00{1,2,3,4,5}-*.ts`. Migrations tracked via `PRAGMA user_version` (current = 5). All migrations are additive (`ALTER TABLE ADD COLUMN`) after `001-initial`.
+Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/00{1,2,3,4,5,6}-*.ts`. Migrations tracked via `PRAGMA user_version` (current = 6). All migrations are additive (`ALTER TABLE ADD COLUMN`) after `001-initial`.
 
 ## `accounts` (`001-initial` + 4 ALTERs)
 
@@ -128,6 +128,7 @@ Proxy / relay endpoints.
 | `url` | TEXT NOT NULL | |
 | `enabled` | INT NOT NULL DEFAULT 1 | |
 | `created_at` | TEXT NOT NULL DEFAULT `(datetime('now'))` | |
+| `country` | TEXT NULL | Geoip country code (e.g. 'SG'), null until probed |
 
 ## `sessions` (`001-initial`)
 
@@ -160,5 +161,6 @@ Generic key-value store for all runtime config. Columns: `key` (PK), `value` (TE
 | 3 | `003-transports.ts` | `transports` table + 4 columns on `accounts` |
 | 4 | `004-reqid.ts` | `req_id` on `request_logs` |
 | 5 | `005-combos.ts` | `combos` table |
+| 6 | `006-transport-country.ts` | `country` column on `transports` |
 
-Current `user_version` = 5. Each migration is additive (no schema rewrites); existing rows survive upgrade.
+Current `user_version` = 6. Each migration is additive (no schema rewrites); existing rows survive upgrade.

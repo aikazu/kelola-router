@@ -1,6 +1,6 @@
 # 🛰️ Kelola Router
 
-> Local-first API router — MiniMax + Kiro (AWS CodeWhisperer) upstreams, multi-account, intelligent fallback, prompt caching, RTK + Caveman compression, and a built-in dashboard.
+> Local-first API router — MiniMax, Kiro (AWS CodeWhisperer), and CodeBuddy upstreams, multi-account, intelligent fallback, prompt caching, RTK + Caveman compression, and a built-in dashboard.
 
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -8,7 +8,7 @@
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![v0.18](https://img.shields.io/badge/release-v0.18-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.18)
-[![Tests](https://img.shields.io/badge/tests-692-success?logo=vitest&logoColor=white)](#-development)
+[![Tests](https://img.shields.io/badge/tests-671-success?logo=vitest&logoColor=white)](#-development)
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
 ```text
@@ -31,6 +31,9 @@
 
 - 🔌 **Drop-in OpenAI + Anthropic compatibility** — `/v1/chat/completions`, `/v1/messages`, `/v1/messages/count_tokens`, `/v1/models`
 - 🟣 **Kiro upstream (AWS CodeWhisperer / Amazon Q)** — second provider alongside MiniMax, routed by model. **OAuth Device Code Flow** for AWS Builder ID / IAM Identity Center (one-click login from dashboard), auto-import from Kiro IDE (`~/.aws/sso/cache`), or manual token paste. AWS event-stream binary protocol translated to OpenAI **and native Anthropic SSE** (streaming for Claude Code + hermes-agent). Auto token refresh + caching
+- 🟦 **CodeBuddy provider** — third upstream alongside MiniMax & Kiro, routed by `cb/` model prefix. Bridges OpenAI-format upstream to client format (OpenAI SSE → Anthropic SSE assembler).
+- 🎯 **Provider prefix routing (`mm/` / `kr/` / `cb/`)** — explicit provider selection by model prefix. Unprefixed names resolve only as combo or alias (strict); prefixed requests validate provider agreement.
+- 🔄 **Combo fallback chains** — ordered cross-provider member walk, auto-retry on 401/402/403 + 502/503/504.
 - 🛠️ **Tool use passthrough with cross-format conversion** — `tools` / `tool_use` / `tool_calls` flow correctly between client + upstream regardless of which SDK you use (Anthropic SDK ↔ OpenAI SDK ↔ MiniMax upstream)
 - 🔀 **Cross-format routing** — set `upstreamFormat` in `settings.minimax` (or `ROUTER_UPSTREAM_FORMAT` env) to route OpenAI clients to Anthropic upstream or vice versa; body + non-stream response converted automatically
 - 📺 **OpenAI `stream_options.include_usage` auto-injected** — accurate per-client cost tracking even if the client forgets to set it
@@ -52,14 +55,14 @@
 - 🌐 **Fetch from upstream** — `/admin/models` can pull MiniMax's current model list; 404 fallback shows a clear message
 - 🎨 **Obsidian Gold dashboard** — Preact SPA (`client/`) with a dark-canvas + single-gold-accent theme, Fraunces/Inter/JetBrains Mono type stack, command palette (`⌘K`), keyboard nav (`g` then key), and live request telemetry
 - 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 505 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 671 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - **Node.js ≥ 20**
-- A MiniMax API key (`mm_…`) for testing
+- At least one upstream: MiniMax API key, Kiro (AWS) account, or CodeBuddy API key
 
 ### Install
 
@@ -76,7 +79,7 @@ cp .env.example .env
 
 Open the dashboard at <http://localhost:20137/>. From there:
 
-1. Add a MiniMax upstream account at `/admin/accounts` (label, credit type, API key)
+1. Add an upstream account (MiniMax, Kiro, or CodeBuddy) at `/admin/accounts` (label, API key or OAuth)
 2. Create a client key for each app at `/admin/client-keys` (label) — copy the bearer
 3. Optional: lock the dashboard at `/admin/settings` ("Set password")
 
@@ -174,6 +177,7 @@ src/
 │       ├── autoImport.ts     # auto-import from ~/.aws/sso/cache
 │       ├── accountImport.ts  # paste JSON / Builder ID / IDC / social
 │       └── index.ts          # executeKiro
+│   └── codebuddy/             # CodeBuddy provider
 ├── rtk/                      # RTK compression pipeline
 │   ├── index.ts              # compressMessages + formatRtkLog
 │   ├── applyFilter.ts        # generic filter runner
@@ -270,7 +274,7 @@ Per-user setting `user_settings.account_mode` controls selection: `sticky` (sess
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (505 tests)
+npm test              # vitest run (671 tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts

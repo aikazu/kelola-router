@@ -13,6 +13,11 @@ client/node_modules/
 .agents
 vitest-final.json
 
+# SQLite DB + test artifacts (root-level scratch dbs)
+*.db
+*.db-wal
+*.db-shm
+
 # Sidecar
 sidecar/**/.venv/
 sidecar/**/__pycache__/

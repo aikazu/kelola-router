@@ -25,8 +25,10 @@ Idempotent / destructive operations. Prefer the dashboard for non-bulk work.
 | Add client key | `npm run add-client-key -- --label <name>` | yes (label is the natural key) | Create a new client key, print the bearer once |
 | Add MiniMax account | `npm run add-account -- --label <name> --credit-type payg\|token-plan --api-key mm_xxx` | yes (label) | Create a MiniMax upstream account |
 | Add Kiro account | `npm run add-kiro-account -- --label <name> --refresh-token eyJ...` (+ optional `--client-id`/`--client-secret`/`--region`/`--profile-arn`) | yes (label) | Create a Kiro account; refresh token stored in `api_key` |
-| Seed MiniMax models | `npm run seed-models` | yes (upsert by `upstream_model`) | Upsert the 18 builtin MiniMax models |
+| Seed MiniMax models | `npm run seed-models` | yes (upsert by `upstream_model`) | Upsert the 9 builtin MiniMax models |
 | Seed Kiro models | `npm run seed-kiro-models` | yes | Upsert builtin Kiro (Claude / AWS) models |
+| Add CodeBuddy account | `tsx scripts/add-codebuddy-account.ts` | yes (label) | Add a CodeBuddy account (API key) |
+| Seed CodeBuddy models | `tsx scripts/seed-codebuddy-models.ts` | yes | Upsert builtin CodeBuddy models |
 | Reset | `npm run reset` | **destructive** | Remove `router.db` + WAL/SHM sidecars. Wipes all data |
 
 ## Argument conventions

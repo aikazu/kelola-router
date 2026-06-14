@@ -9,6 +9,7 @@ This file is auto-loaded by Claude Code at session start. Humans may also find i
 **Upstream providers** (selected by the `body.model` prefix — see "Model prefix routing"; the resolved model's `provider` column must agree):
 - **MiniMax** (default) — [minimax.io](https://minimax.io), API-key bearer, HTTP-JSON.
 - **Kiro** (AWS CodeWhisperer / Amazon Q) — OAuth refresh-token auth, AWS event-stream binary protocol, translated to/from OpenAI + Anthropic. See "Kiro provider" below.
+- **CodeBuddy** (CodeBuddy.ai) — OpenAI-compatible upstream, API-key bearer. Client request bridged to OpenAI stream and back (OpenAI SSE → Anthropic SSE assembler). Routed via cb/ prefix. See src/proxy/codebuddy.ts + src/providers/codebuddy/.
 
 ## Commands
 
@@ -33,7 +34,7 @@ CLI scripts (power-user; dashboard covers these):
 ```bash
 npm run add-client-key -- --label myapp
 npm run add-account   -- --label "PAYG main" --credit-type payg --api-key mm_xxx
-npm run seed-models                # idempotent: upsert 18 builtin models
+npm run seed-models                # idempotent: upsert 9 builtin models
 npm run reset                      # rm db + WAL/SHM sidecars
 npm run seed-kiro-models
 npm run add-kiro-account -- --label kiro1 --refresh-token eyJ...   # + optional --client-id/--client-secret/--region/--profile-arn
@@ -45,7 +46,7 @@ Docker: `docker build -t kelola-router:latest . && docker compose up -d` (serves
 
 `src/server.ts` — Hono app, ~330 LOC. Middleware: `requireApiKey` (Bearer) for `/v1/*`, `requireAdmin` for `/admin/*`, `verifySameOrigin` CSRF guard on `/admin/*` POSTs.
 
-Per-request path inside `handleProxy` (see `src/proxy/minimax.ts` + `proxy/kiro.ts` + `proxy/combo.ts`):
+Per-request path inside `handleProxy` (see `src/proxy/minimax.ts` + `proxy/kiro.ts` + `proxy/codebuddy.ts` + `proxy/combo.ts`):
 
 1. `parseBody` + model resolution (alias + thinking + M3 max-completion-tokens)
 2. `selectAccount` (state machine: sticky + round-robin w/ step, skips backoff/locked/disabled). Mode + step read per provider from `selection.<provider>` setting.
@@ -63,7 +64,7 @@ Deep-dive (module map, state machines, data flow): see [`ARCHITECTURE.md`](ARCHI
 ## Two-tier separation
 
 - **`client_keys`** — bearer credentials for clients (Claude Code, hermes-agent). One per app. Per-key usage.
-- **`accounts`** — upstream MiniMax/Kiro keys. Pool of N for fallback + quota. Each has `credit_type` (`payg` or `token-plan`) + `provider`.
+- **`accounts`** — upstream MiniMax/Kiro/CodeBuddy keys. Pool of N for fallback + quota. Each has `credit_type` (`payg` or `token-plan`) + `provider`.
 
 Never mix these. Client never sees upstream keys; upstream never sees client bearers.
 
@@ -103,7 +104,7 @@ Kiro = AWS CodeWhisperer / Amazon Q. Branched off `handleProxy` in `src/proxy/ki
 
 ## Dashboard
 
-`client/` — standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (baked in Docker build, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`. Pages: Overview, Usage, ClientKeys, Accounts, Aliases, Models, Quota, Transports, Settings, Login, RequestDetail, Console, NotFound. Theme: Obsidian Gold (`#0a0a0a` canvas + `#c9a352` accent, Fraunces/Inter/JetBrains Mono).
+`client/` — standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (baked in Docker build, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`. Pages: Overview, Usage, ClientKeys, Accounts, Aliases, Models, Combos, Quota, Transports, Settings, Login, RequestDetail, Console, NotFound. Theme: Obsidian Gold (`#0a0a0a` canvas + `#c9a352` accent, Fraunces/Inter/JetBrains Mono).
 
 ## Conventions (terse)
 
