@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -9,7 +9,7 @@ import { Modal } from '../components/Modal';
 import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
-import { apiFetch } from '../lib/api';
+import { ApiError, apiFetch } from '../lib/api';
 import { relativeTime } from '../lib/relativeTime';
 
 interface ClientKey {
@@ -38,6 +38,97 @@ export function ClientKeys() {
   const [created, setCreated] = useState<{ key: string; label: string } | null>(null);
   const [editingLabel, setEditingLabel] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  // --- Reveal-key flow (Task 16) ---------------------------------------
+  // Open mode (`!me.passwordSet`): click "Show" fetches the raw key and
+  // swaps the masked preview inline — no modal (per spec).
+  // Password mode: click "Show" opens a modal with a password input. On
+  // submit we POST /api/admin/reauth/verify (sets the kelola_reauth cookie
+  // automatically via credentials:'include'), then immediately GET /:id/key.
+  // On 401 we keep the modal open with an inline error so the user can retry.
+  const me = qc.getQueryData<{ authed: boolean; passwordSet: boolean }>(['me']);
+  const passwordMode = !!me?.passwordSet;
+  // Open-mode inline reveal: which rows are currently un-masked + the fetched key per row.
+  const [inlineRevealed, setInlineRevealed] = useState<Record<number, string>>({});
+  // Password-mode modal state. `revealFor` is non-null while the modal is open.
+  const [revealFor, setRevealFor] = useState<{ id: number; label: string } | null>(null);
+  const [revealKey, setRevealKey] = useState<string | null>(null);
+  const [revealError, setRevealError] = useState('');
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  // Focus the password input as soon as the modal body mounts. Skipped when
+  // the modal is showing the revealed key (no input to focus).
+  useEffect(() => {
+    if (revealFor && !revealKey) passwordRef.current?.focus();
+  }, [revealFor, revealKey]);
+
+  // Drop all reveal state on modal close. The password field is cleared here,
+  // on submit-success, and on submit-failure — per the MUST NOT in the spec
+  // (never persist the password in component state longer than the submit cycle).
+  function closeReveal() {
+    setRevealFor(null);
+    setRevealKey(null);
+    setRevealError('');
+    setPasswordInput('');
+    setRevealLoading(false);
+  }
+
+  async function handleShow(k: ClientKey) {
+    if (!passwordMode) {
+      // Open mode: fetch + inline reveal, no modal.
+      try {
+        const { key } = await apiFetch<{ key: string }>(
+          `/api/admin/client-keys/${k.id}/key`,
+        );
+        setInlineRevealed((prev) => ({ ...prev, [k.id]: key }));
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+      return;
+    }
+    // Password mode: open the reauth modal.
+    setRevealFor({ id: k.id, label: k.label });
+    setRevealKey(null);
+    setRevealError('');
+    setPasswordInput('');
+  }
+
+  function hideInline(id: number) {
+    setInlineRevealed((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  async function handleSubmitPassword() {
+    if (!revealFor || !passwordInput) return;
+    // Snapshot + clear password immediately — never retained beyond submit.
+    const pwd = passwordInput;
+    setPasswordInput('');
+    setRevealLoading(true);
+    setRevealError('');
+    try {
+      await apiFetch('/api/admin/reauth/verify', {
+        method: 'POST',
+        json: { password: pwd },
+      });
+      const { key } = await apiFetch<{ key: string }>(
+        `/api/admin/client-keys/${revealFor.id}/key`,
+      );
+      setRevealKey(key);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        setRevealError('Wrong password — try again.');
+      } else {
+        setRevealError((e as Error).message || 'Failed to reveal key.');
+      }
+    } finally {
+      setRevealLoading(false);
+    }
+  }
 
   const createMut = useMutation({
     mutationFn: (l: string) =>
@@ -168,7 +259,18 @@ export function ClientKeys() {
                       )}
                     </td>
                     <td class="mono">
-                      <code>{k.keyPreview}</code>
+                      {inlineRevealed[k.id] ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <code style={{ wordBreak: 'break-all' }} data-testid={`reveal-inline-${k.id}`}>
+                            {inlineRevealed[k.id]}
+                          </code>
+                          <Button size="sm" variant="ghost" onClick={() => hideInline(k.id)}>
+                            Hide
+                          </Button>
+                        </div>
+                      ) : (
+                        <code>{k.keyPreview}</code>
+                      )}
                     </td>
                     <td>
                       <Badge variant={k.enabled ? 'active' : 'muted'}>
@@ -178,6 +280,15 @@ export function ClientKeys() {
                     <td title={k.createdAt}>{relativeTime(k.createdAt)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
+                        {inlineRevealed[k.id] ? (
+                          <Button size="sm" variant="ghost" onClick={() => hideInline(k.id)}>
+                            Hide
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" onClick={() => handleShow(k)}>
+                            Show
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" onClick={() => copyKey(k.id)}>
                           Copy
                         </Button>
@@ -255,6 +366,89 @@ export function ClientKeys() {
               </span>
             )}
           </label>
+        )}
+      </Modal>
+
+      {/* Reveal-key modal — password mode only. Open mode reveals inline. */}
+      <Modal
+        open={!!revealFor}
+        onClose={closeReveal}
+        title={revealKey ? `Key: ${revealFor?.label ?? ''}` : 'Reveal key'}
+        footer={
+          revealKey ? (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (revealKey) void copy(revealKey);
+                }}
+              >
+                Copy key
+              </Button>
+              <Button size="sm" onClick={closeReveal}>
+                Close
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleSubmitPassword}
+              disabled={revealLoading || !passwordInput}
+            >
+              {revealLoading ? 'Verifying…' : 'Reveal'}
+            </Button>
+          )
+        }
+      >
+        {revealKey ? (
+          <>
+            <p style={{ marginBottom: 12, color: 'var(--text-3)', fontSize: 12 }}>
+              Copy it now — the key will be hidden when you close this dialog.
+            </p>
+            <pre
+              data-testid="reveal-key-pre"
+              style={{
+                background: 'var(--ink-2)',
+                padding: 12,
+                borderRadius: 4,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 12,
+                wordBreak: 'break-all',
+              }}
+            >
+              {revealKey}
+            </pre>
+          </>
+        ) : (
+          <>
+            <p style={{ marginBottom: 12, color: 'var(--text-3)', fontSize: 12 }}>
+              Enter the dashboard password to reveal <strong>{revealFor?.label}</strong>.
+            </p>
+            <input
+              ref={passwordRef}
+              type="password"
+              autoComplete="off"
+              value={passwordInput}
+              onInput={(e) => setPasswordInput((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && passwordInput && !revealLoading) {
+                  void handleSubmitPassword();
+                }
+              }}
+              class="input"
+              aria-label="Dashboard password"
+              style={{ width: '100%' }}
+            />
+            {revealError && (
+              <div
+                role="alert"
+                style={{ color: 'var(--alert)', fontSize: 12, marginTop: 8 }}
+              >
+                {revealError}
+              </div>
+            )}
+          </>
         )}
       </Modal>
     </>
