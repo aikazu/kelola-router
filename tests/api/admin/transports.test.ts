@@ -98,7 +98,12 @@ describe('POST /api/admin/transports', () => {
 
   it('leaves country null when the proxy is unreachable', async () => {
     geoMock.mockResolvedValueOnce({ active: false, country: null });
-    const res = await createProxy({ label: 'dead', type: 'proxy', kind: 'http', url: 'http://d:1' });
+    const res = await createProxy({
+      label: 'dead',
+      type: 'proxy',
+      kind: 'http',
+      url: 'http://d:1',
+    });
     const body = await res.json();
     expect(body.active).toBe(false);
     expect(body.country).toBeNull();

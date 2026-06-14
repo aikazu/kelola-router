@@ -106,7 +106,7 @@ describe('OpenAIToAnthropicSSEAssembler', () => {
 });
 
 function sseResponse(lines: string[]): Response {
-  const body = lines.map((l) => `data: ${l}\n\n`).join('') + 'data: [DONE]\n\n';
+  const body = `${lines.map((l) => `data: ${l}\n\n`).join('')}data: [DONE]\n\n`;
   return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
 }
 
@@ -149,7 +149,7 @@ describe('openaiSSEToAnthropicSSE error propagation', () => {
       start(c) {
         c.enqueue(
           new TextEncoder().encode(
-            'data: ' + JSON.stringify({ choices: [{ delta: { content: 'hi' } }] }) + '\n\n'
+            `data: ${JSON.stringify({ choices: [{ delta: { content: 'hi' } }] })}\n\n`
           )
         );
       },

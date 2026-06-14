@@ -86,7 +86,13 @@ describe('transports repo', () => {
   });
 
   it('country defaults to null and setTransportCountry persists a code', () => {
-    createTransport(db, { id: 'tp_geo', label: 'geo', type: 'proxy', kind: 'http', url: 'http://g' });
+    createTransport(db, {
+      id: 'tp_geo',
+      label: 'geo',
+      type: 'proxy',
+      kind: 'http',
+      url: 'http://g',
+    });
     expect(getTransport(db, 'tp_geo')?.country).toBeNull();
     setTransportCountry(db, 'tp_geo', 'SG');
     expect(getTransport(db, 'tp_geo')?.country).toBe('SG');
