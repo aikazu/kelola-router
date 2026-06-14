@@ -8,10 +8,12 @@ import {
   deleteTransport,
   getTransport,
   listTransports,
+  setTransportCountry,
   type TransportKind,
   type TransportType,
   updateTransport,
 } from '../../db/repos/transports.js';
+import { checkTransportGeo } from '../../transport/geoip.js';
 import { proxyAwareFetch } from '../../transport/proxyFetch.js';
 import type { TransportConfig } from '../../transport/types.js';
 import { ApiError, handleApiError } from './middleware.js';
@@ -106,6 +108,7 @@ transportRoutes.get('/', (c) => {
         kind: t.kind,
         url: t.url,
         enabled: t.enabled,
+        country: t.country,
         createdAt: t.created_at,
         usageCount: countMap.get(t.id) ?? 0,
       }))
@@ -120,7 +123,7 @@ transportRoutes.post('/', (c) => {
     const db = c.get('db') as Database.Database;
     return c.req
       .json()
-      .then((body: { label?: string; type?: string; kind?: string; url?: string }) => {
+      .then(async (body: { label?: string; type?: string; kind?: string; url?: string }) => {
         if (!body.label || !body.type || !body.kind || !body.url) {
           throw new ApiError('invalid_input', 'label, type, kind, url required', 400);
         }
@@ -136,8 +139,26 @@ transportRoutes.post('/', (c) => {
           kind,
           url: body.url,
         });
+        // Probe connectivity + egress country through the new transport and
+        // persist the country code (e.g. 'SG'). Best-effort: a failed probe
+        // leaves country NULL and still returns the created row.
+        const cfg: TransportConfig =
+          t.type === 'relay'
+            ? { relay: { kind: t.kind as 'vercel' | 'cloudflare', url: t.url }, proxy: null }
+            : { relay: null, proxy: { kind: t.kind as 'http' | 'socks5', url: t.url } };
+        const geo = await checkTransportGeo(cfg);
+        if (geo.country) setTransportCountry(db, t.id, geo.country);
         return c.json(
-          { id: t.id, label: t.label, type: t.type, kind: t.kind, url: t.url, enabled: t.enabled },
+          {
+            id: t.id,
+            label: t.label,
+            type: t.type,
+            kind: t.kind,
+            url: t.url,
+            enabled: t.enabled,
+            country: geo.country,
+            active: geo.active,
+          },
           201
         );
       })

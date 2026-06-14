@@ -13,11 +13,14 @@ export interface Transport {
   kind: TransportKind;
   url: string;
   enabled: boolean;
+  /** Geoip country code (e.g. 'SG'), null until probed or if undetermined. */
+  country: string | null;
   created_at: string;
 }
 
 export type TransportCreate = Pick<Transport, 'id' | 'label' | 'type' | 'kind' | 'url'> & {
   enabled?: boolean;
+  country?: string | null;
 };
 
 interface TransportRow {
@@ -27,20 +30,38 @@ interface TransportRow {
   kind: TransportKind;
   url: string;
   enabled: number;
+  country: string | null;
   created_at: string;
 }
 
 function rowToTransport(row: TransportRow): Transport {
-  return { ...row, enabled: !!row.enabled };
+  return { ...row, enabled: !!row.enabled, country: row.country ?? null };
 }
 
 export function createTransport(db: Database.Database, input: TransportCreate): Transport {
   db.prepare(`
-    INSERT INTO transports (id, label, type, kind, url, enabled)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(input.id, input.label, input.type, input.kind, input.url, input.enabled === false ? 0 : 1);
+    INSERT INTO transports (id, label, type, kind, url, enabled, country)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    input.id,
+    input.label,
+    input.type,
+    input.kind,
+    input.url,
+    input.enabled === false ? 0 : 1,
+    input.country ?? null
+  );
   invalidateResolvedTransportCache(db);
   return getTransport(db, input.id)!;
+}
+
+/** Persist the geoip country code for a transport (null clears it). */
+export function setTransportCountry(
+  db: Database.Database,
+  id: string,
+  country: string | null
+): void {
+  db.prepare(`UPDATE transports SET country = ? WHERE id = ?`).run(country, id);
 }
 
 export function getTransport(db: Database.Database, id: string): Transport | null {

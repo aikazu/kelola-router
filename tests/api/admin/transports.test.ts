@@ -10,6 +10,13 @@ import { createSession } from '../../../src/auth/session.js';
 import { SESSION_COOKIE } from '../../../src/auth.js';
 import { migrate } from '../../../src/db/migrations/index.js';
 
+// Stub the geoip probe so POST never hits the network in tests. Default: a
+// reachable SG proxy. Individual tests override the resolved value as needed.
+const geoMock = vi.fn(async () => ({ active: true, country: 'SG' as string | null }));
+vi.mock('../../../src/transport/geoip.js', () => ({
+  checkTransportGeo: (...args: unknown[]) => geoMock(...(args as [])),
+}));
+
 let db: Database.Database;
 let dir: string;
 let app: Hono;
@@ -73,6 +80,28 @@ describe('POST /api/admin/transports', () => {
     expect(body.type).toBe('proxy');
     expect(body.kind).toBe('socks5');
     expect(body.enabled).toBe(true);
+  });
+
+  it('probes geoip and persists active + country', async () => {
+    geoMock.mockResolvedValueOnce({ active: true, country: 'US' });
+    const res = await createProxy({ label: 'us', type: 'proxy', kind: 'http', url: 'http://u:1' });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.active).toBe(true);
+    expect(body.country).toBe('US');
+    // country is persisted and surfaced by the list endpoint
+    const list = await (
+      await app.request('/api/admin/transports', { headers: baseHeaders() })
+    ).json();
+    expect(list[0].country).toBe('US');
+  });
+
+  it('leaves country null when the proxy is unreachable', async () => {
+    geoMock.mockResolvedValueOnce({ active: false, country: null });
+    const res = await createProxy({ label: 'dead', type: 'proxy', kind: 'http', url: 'http://d:1' });
+    const body = await res.json();
+    expect(body.active).toBe(false);
+    expect(body.country).toBeNull();
   });
 
   it('creates a relay (201)', async () => {

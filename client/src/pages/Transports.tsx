@@ -18,6 +18,7 @@ interface Transport {
   kind: 'http' | 'socks5' | 'vercel' | 'cloudflare';
   url: string;
   enabled: boolean;
+  country: string | null;
   createdAt: string;
   usageCount: number;
 }
@@ -261,6 +262,7 @@ export function Transports() {
                 <tr>
                   <th>Label</th>
                   <th>Type</th>
+                  <th>Geo</th>
                   <th>URL</th>
                   <th>Used by</th>
                   <th>Status</th>
@@ -282,6 +284,12 @@ export function Transports() {
                         <Badge variant={t.type === 'relay' ? 'warn' : 'active'}>
                           {t.type} · {t.kind}
                         </Badge>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {t.country
+                          ? <Badge variant="active">{t.country}</Badge>
+                          : <span style={{ color: 'var(--text-3)' }}>—</span>
+                        }
                       </td>
                       <td class="mono" style={{ maxWidth: 260, fontSize: 11, color: 'var(--text-3)' }}>
                         <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.url}>

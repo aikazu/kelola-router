@@ -8,6 +8,7 @@ import {
   deleteTransport,
   getTransport,
   listTransports,
+  setTransportCountry,
   updateTransport,
 } from './transports.js';
 
@@ -82,6 +83,25 @@ describe('transports repo', () => {
     createTransport(db, { id: 'tp_d', label: 'D', type: 'proxy', kind: 'http', url: 'http://d' });
     deleteTransport(db, 'tp_d');
     expect(getTransport(db, 'tp_d')).toBeNull();
+  });
+
+  it('country defaults to null and setTransportCountry persists a code', () => {
+    createTransport(db, { id: 'tp_geo', label: 'geo', type: 'proxy', kind: 'http', url: 'http://g' });
+    expect(getTransport(db, 'tp_geo')?.country).toBeNull();
+    setTransportCountry(db, 'tp_geo', 'SG');
+    expect(getTransport(db, 'tp_geo')?.country).toBe('SG');
+  });
+
+  it('createTransport accepts an initial country', () => {
+    const t = createTransport(db, {
+      id: 'tp_cc',
+      label: 'cc',
+      type: 'proxy',
+      kind: 'http',
+      url: 'http://c',
+      country: 'US',
+    });
+    expect(t.country).toBe('US');
   });
 
   it('createTransport defaults enabled to true and accepts enabled:false', () => {
