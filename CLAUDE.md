@@ -6,7 +6,7 @@ This file is auto-loaded by Claude Code at session start. Humans may also find i
 
 `kelola-router` — local-first API router. Single-user self-host. OpenAI + Anthropic compatible proxy, multi-account pool with fallback, prompt caching, model aliases, RTK + Caveman compression, built-in dashboard. SQLite (WAL) for state. Hono on Node 20+.
 
-**Upstream providers** (routed by the resolved model's `provider` column):
+**Upstream providers** (selected by the `body.model` prefix — see "Model prefix routing"; the resolved model's `provider` column must agree):
 - **MiniMax** (default) — [minimax.io](https://minimax.io), API-key bearer, HTTP-JSON.
 - **Kiro** (AWS CodeWhisperer / Amazon Q) — OAuth refresh-token auth, AWS event-stream binary protocol, translated to/from OpenAI + Anthropic. See "Kiro provider" below.
 
@@ -74,6 +74,22 @@ Never mix these. Client never sees upstream keys; upstream never sees client bea
 3. Open mode — if no password is set, anyone with the URL gets in
 
 `POST /login` is rate-limited (`src/auth/rateLimit.ts` — 5/15min/IP, in-memory bucket). Set password via dashboard `/admin/settings` (scrypt-hashed, stored in `settings.admin_password`). Sessions in `sessions` table (7-day TTL).
+
+## Model prefix routing
+
+Requests select a provider by an explicit prefix on `body.model`:
+
+| Prefix | Provider    | Example                  |
+|--------|-------------|--------------------------|
+| `mm/`  | MiniMax     | `mm/MiniMax-M3`          |
+| `kr/`  | Kiro        | `kr/claude-sonnet-4-5`   |
+| `cb/`  | CodeBuddy   | `cb/<model>`             |
+
+- Prefixed names are looked up **literally** (no alias expansion) and the model's `provider` column MUST match the prefix, else 400.
+- **Unprefixed** names resolve **only** as a combo name or an alias (strict). A bare raw model name is rejected with 400 — add an alias or use a prefix.
+- An unknown prefix (`xx/...`) is a 400 (`unknown model prefix`).
+- `requested_model` logs the full prefixed string verbatim.
+- Parser: `src/providers/modelPrefix.ts`; enforcement: `resolveModel` in `src/providers/alias.ts`.
 
 ## MiniMax quirks
 
