@@ -61,6 +61,7 @@ Auto-loaded task instructions for AI coding agents. Each is a terse (< 100 LOC) 
 - `.claude/skills/add-migration/SKILL.md` — add a DB migration
 - `.claude/skills/debug-failed-request/SKILL.md` — trace a failed proxy request
 - `.claude/skills/ship-release/SKILL.md` — cut a versioned release
+- `.claude/skills/sync-docs/SKILL.md` — audit + fix doc staleness against live code
 
 ## Project knowledge base
 
