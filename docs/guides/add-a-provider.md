@@ -187,7 +187,7 @@ if (resolved.provider === 'foo') {
 
 **Files:** `scripts/seed-foo-models.ts` (new) + `scripts/add-foo-account.ts` (new)
 
-Mirror `scripts/seed-kiro-models.ts` and `scripts/add-kiro-account.ts`. Add the new scripts to `package.json` `scripts` block:
+Mirror `scripts/seed-kiro-models.ts` and `scripts/add-account.ts` (unified, `--provider kiro`). Add the new scripts to `package.json` `scripts` block:
 
 ```json
 "seed-foo-models": "tsx scripts/seed-foo-models.ts",

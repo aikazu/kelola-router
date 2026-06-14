@@ -46,7 +46,7 @@
 
 - Combos containing CodeBuddy members (`src/proxy/combo.ts`) — separate follow-up.
 - OAuth device-login import for CodeBuddy — the user already has a long-lived `ck_…` API key; static Bearer is sufficient.
-- Residential-proxy enforcement — `add-codebuddy-account.ts` already warns; sandbox tests hit the API directly without a proxy successfully, so it is not blocking for this plan.
+- Residential-proxy enforcement — `npm run add-account -- --provider codebuddy` already warns; sandbox tests hit the API directly without a proxy successfully, so it is not blocking for this plan.
 
 ---
 
@@ -1072,7 +1072,7 @@ Expected: `Seeded 6 CodeBuddy models`.
 
 - [ ] **Step 2: Add the CodeBuddy account**
 
-Run: `npx tsx scripts/add-codebuddy-account.ts ck_fp3jnkrwvd34.Mo6w3XepNYi5WVpqVZhQrcrTKzsGJOYqdX9CtTbgWBQ codebuddy-main`
+Run: `npm run add-account -- --provider codebuddy --api-key ck_fp3jnkrwvd34.Mo6w3XepNYi5WVpqVZhQrcrTKzsGJOYqdX9CtTbgWBQ --label codebuddy-main`
 Expected: `✓ Added CodeBuddy account: codebuddy-main`.
 
 - [ ] **Step 3: Start the server**
@@ -1116,7 +1116,7 @@ Expected: rows with `status_code=200`, non-broken model names, `stream` 1 and 0 
 - Verify CodeBuddy docs vs implementation → Background section documents the real protocol; Tasks 3-5 align the implementation to it. ✅
 - "mulus dipakai Anthropic agent (Claude Code / hermes)" → Task 5 anthropic-stream + non-stream branches + Task 7 live agent turn. ✅
 - "claude-opus-4.6/4.7, gemini-3.5-flash" → 4.6 ✅ and gemini-3.5-flash ✅ seeded (Task 6); **4.7 does not exist on CodeBuddy** — called out in Background + Task 6, surface to user. ⚠️ documented gap, not a code gap.
-- Account setup ("biar bisa dipasang dengan baik") → Task 7 Steps 1-2 reuse existing `add-codebuddy-account.ts` (already correct). ✅
+- Account setup ("biar bisa dipasang dengan baik") → Task 7 Steps 1-2 use `npm run add-account -- --provider codebuddy` (unified script). ✅
 
 **Placeholder scan:** No `TBD`/`handle edge cases`/`similar to`/`write tests for the above` — every code step has full code; every test step has full test bodies. ✅
 

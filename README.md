@@ -286,7 +286,7 @@ npx tsx scripts/seed-models.ts   # idempotent: upsert 9 builtin MiniMax models
 
 # Kiro (AWS CodeWhisperer) upstream
 npx tsx scripts/seed-kiro-models.ts                                   # builtin Kiro/Claude models
-npm run add-kiro-account -- --label kiro1 --refresh-token eyJ...      # + optional --client-id/--client-secret/--region/--profile-arn
+npm run add-account -- --provider kiro --label kiro1 --refresh-token eyJ...  # + optional --client-id/--client-secret/--region/--profile-arn
 npx tsx scripts/reset.ts --yes   # delete db + WAL/SHM sidecars
 ```
 

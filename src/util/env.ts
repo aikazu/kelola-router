@@ -4,7 +4,7 @@
  */
 
 import type Database from 'better-sqlite3';
-import { getSetting } from '../db/repos/settings.js';
+import { getSettingT } from '../db/repos/settings.js';
 
 export function getHost(): string {
   return process.env.HOST ?? '127.0.0.1';
@@ -45,7 +45,7 @@ export type UpstreamFormat = 'auto' | 'openai' | 'anthropic';
  * Treats settings value of 'auto' as "not set" (falls through to env check).
  */
 export function getUpstreamFormat(db: Database.Database): UpstreamFormat {
-  const settings = getSetting<{ upstreamFormat?: UpstreamFormat }>(db, 'minimax');
+  const settings = getSettingT(db, 'minimax');
   if (settings?.upstreamFormat && settings.upstreamFormat !== 'auto') {
     return settings.upstreamFormat;
   }

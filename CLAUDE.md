@@ -37,7 +37,7 @@ npm run add-account   -- --label "PAYG main" --credit-type payg --api-key mm_xxx
 npm run seed-models                # idempotent: upsert 9 builtin models
 npm run reset                      # rm db + WAL/SHM sidecars
 npm run seed-kiro-models
-npm run add-kiro-account -- --label kiro1 --refresh-token eyJ...   # + optional --client-id/--client-secret/--region/--profile-arn
+npm run add-account -- --provider kiro --label kiro1 --refresh-token eyJ...   # + optional --client-id/--client-secret/--region/--profile-arn
 ```
 
 Docker: `docker build -t kelola-router:latest . && docker compose up -d` (serves from baked `client/dist` on :20137). Prod reverse proxy: `Caddyfile` at repo root.
