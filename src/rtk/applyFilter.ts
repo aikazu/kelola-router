@@ -1,4 +1,5 @@
 import type { FilterFn } from './types.js';
+import { log } from '../util/log.js';
 
 export function safeApply(fn: FilterFn | undefined, text: string): string {
   if (typeof fn !== 'function') return text;
@@ -9,7 +10,7 @@ export function safeApply(fn: FilterFn | undefined, text: string): string {
   } catch (err: unknown) {
     const name = fn.filterName || 'anonymous';
     const message = err instanceof Error ? err.message : String(err);
-    console.warn(`[rtk] warning: filter '${name}' panicked — passing through: ${message}`);
+    log.warn({ filter: name }, `[rtk] filter '${name}' panicked — passing through: ${message}`);
     return text;
   }
 }

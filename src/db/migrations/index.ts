@@ -22,9 +22,12 @@ export function migrate(db: Database.Database): void {
     try {
       db.exec(m.sql);
       db.pragma(`user_version = ${m.id}`);
+      // TODO(kocomon): migrate to pino once log is initialized at db layer — 2026-06-14
       console.log(`[db] applied migration ${m.id}: ${m.name}`);
     } catch (e: unknown) {
+      // TODO(kocomon): migrate to pino once log is initialized at db layer — 2026-06-14
       console.error(`[db] migration ${m.id} failed:`, (e as Error).message);
+      // TODO(kocomon): migrate to pino once log is initialized at db layer — 2026-06-14
       console.error('[db] path:', process.env.ROUTER_DB_PATH);
       throw e;
     }

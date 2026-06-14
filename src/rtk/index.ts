@@ -2,6 +2,7 @@ import { safeApply } from './applyFilter.js';
 import { autoDetectFilter } from './autodetect.js';
 import { MIN_COMPRESS_SIZE, RAW_CAP } from './constants.js';
 import type { CompressStats } from './types.js';
+import { log } from '../util/log.js';
 
 type MutableRecord = Record<string, unknown>;
 
@@ -66,7 +67,7 @@ export function compressMessages(body: unknown, enabled: boolean): CompressStats
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
-    console.warn('[RTK] compressMessages error:', message);
+    log.warn({ err: message }, '[RTK] compressMessages error:');
     return null;
   }
   return stats.hits.length > 0 ? stats : null;

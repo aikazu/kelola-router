@@ -3,6 +3,7 @@ import { fetch as undiciFetch } from 'undici';
 import { getDispatcher } from './dispatcherCache.js';
 import { getSocksDispatcher } from './socksLoader.js';
 import type { TransportConfig } from './types.js';
+import { log } from '../util/log.js';
 
 export type ProxyFailureMode = 'direct' | 'block';
 
@@ -123,7 +124,7 @@ export async function proxyAwareFetch(
         throw new ProxyBlockedError(message);
       }
       opts?.onProxyFailure?.(message, true);
-      console.warn(`[transport] proxy failed, falling back to direct: ${message}`);
+      log.warn({ err: message }, '[transport] proxy failed, falling back to direct');
       return globalThis.fetch(targetUrl, options);
     }
   }
