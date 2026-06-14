@@ -143,6 +143,17 @@ all branch on `resolved.provider`). Verification points:
 - `CLAUDE.md` — document the prefix convention in the provider section.
 - `ARCHITECTURE.md` — note prefix-driven resolution in the model-resolution step.
 
+## Combo members (added during implementation)
+
+Combo *names* stay bare (client-facing, intercepted before resolution). Combo
+*member* models, however, are resolved per-member through the same
+`resolveModel` pipeline, so each member MUST carry a provider prefix
+(`mm/`/`kr/`/`cb/`). This is what enables cross-provider fallback chains
+(e.g. `["mm/MiniMax-M3", "kr/claude-opus-4-8", "cb/gpt-5.5"]`). Bare or
+unknown-prefix members are rejected at write time by `validateModels` in
+`src/api/admin/combos.ts` (400). Without this, a bare member would silently skip
+in the fallback loop (`combo.ts` catch/continue).
+
 ## Out of scope (YAGNI)
 
 - Prefix-overrides-column routing (running any model through any provider).
