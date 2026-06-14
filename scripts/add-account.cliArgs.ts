@@ -186,7 +186,14 @@ export function parseArgs(argv: string[]): AddAccountArgs {
         {
           reason: 'literal',
           validation: 'literal',
-          path: [{ type: 'property', input: {}, key: 'provider', message: 'Missing required --provider (minimax | kiro | codebuddy)' }],
+          path: [
+            {
+              type: 'property',
+              input: {},
+              key: 'provider',
+              message: 'Missing required --provider (minimax | kiro | codebuddy)',
+            },
+          ],
         },
       ]);
   }
