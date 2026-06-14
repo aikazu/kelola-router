@@ -20,11 +20,6 @@ export const CODEBUDDY_MODELS = [
 
 // ─── Execute ─────────────────────────────────────────────────────────────────
 
-export interface CodeBuddyAccount {
-  api_key: string;
-  base_url: string | null;
-}
-
 /**
  * Execute a request to CodeBuddy upstream.
  *
@@ -33,22 +28,34 @@ export interface CodeBuddyAccount {
  */
 export async function executeCodeBuddy(opts: {
   body: Record<string, unknown>;
-  account: CodeBuddyAccount;
+  account: { api_key: string; base_url?: string | null; chat_endpoint?: string | null };
   transport: TransportConfig | null;
   proxyOpts?: ProxyFetchOpts;
+  skipModelStrip?: boolean;
 }): Promise<Response> {
   const { body, account, transport, proxyOpts } = opts;
 
+  // Ensure system + temperature defaults
+  const prepared = ensureCodeBuddyDefaults(body);
+
+  // Strip 'codebuddy/' prefix from model name — upstream expects raw model name
+  // Unless skip_model_strip is set (e.g. enowxai bridge handles it)
+  if (typeof prepared.model === 'string' && prepared.model.startsWith('codebuddy/')) {
+    if (!opts.skipModelStrip) {
+      prepared.model = prepared.model.slice('codebuddy/'.length);
+    }
+  }
+
   const baseUrl = account.base_url || CODEBUDDY_BASE_URL;
-  const url = `${baseUrl}${CODEBUDDY_CHAT_ENDPOINT}`;
+  // Allow per-account endpoint override via provider_data (e.g. for enowxai bridge)
+  const endpoint = account.chat_endpoint || CODEBUDDY_CHAT_ENDPOINT;
+  const url = `${baseUrl}${endpoint}`;
 
-  // Inject system/temperature defaults if missing
-  const payload = ensureCodeBuddyDefaults(body);
-
-  // Auth header — CodeBuddy uses long-lived API key
-  const headers: Record<string, string> = {
+  const extraHeaders: Record<string, string> = {
     Authorization: `Bearer ${account.api_key}`,
+    'Content-Type': 'application/json',
+    'anthropic-version': '2023-06-01',
   };
 
-  return upstreamFetch(url, payload, headers, transport, proxyOpts);
+  return upstreamFetch(url, prepared, extraHeaders, transport, proxyOpts);
 }

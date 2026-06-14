@@ -83,6 +83,12 @@ export async function handleCodeBuddyProxy(
   const acc = allAccounts.find((a) => a.id === account.id)!;
   consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, reason));
 
+  // Parse provider_data for per-account overrides (e.g. chat_endpoint)
+  let providerData: Record<string, unknown> = {};
+  if (acc.provider_data) {
+    try { providerData = JSON.parse(acc.provider_data); } catch { /* ignore */ }
+  }
+
   // Resolve transport (proxy pool for residential proxy)
   const transport = resolveTransportForAccount(db, acc);
   const proxyOpts = {
@@ -96,9 +102,14 @@ export async function handleCodeBuddyProxy(
   try {
     const resp = await executeCodeBuddy({
       body,
-      account: { api_key: acc.api_key, base_url: acc.base_url },
+      account: {
+        api_key: acc.api_key,
+        base_url: acc.base_url,
+        chat_endpoint: (providerData.chat_endpoint as string) || null,
+      },
       transport,
       proxyOpts,
+      skipModelStrip: !!providerData.skip_model_strip,
     });
 
     if (!resp.ok) {
