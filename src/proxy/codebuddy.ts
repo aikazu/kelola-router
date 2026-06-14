@@ -16,6 +16,8 @@ import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accoun
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getSetting } from '../db/repos/settings.js';
 import { executeCodeBuddy } from '../providers/codebuddy/index.js';
+import { aggregateOpenAISSE, openaiSSEToAnthropicSSE } from '../providers/codebuddy/streamConvert.js';
+import { responseOpenAIToAnthropic } from '../providers/format/transform.js';
 import { calculateCost } from '../providers/pricing.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
@@ -25,13 +27,16 @@ import { errorMessage, safeJsonParse, statusCode, stringValue } from './helpers.
 import type { CursorRef } from './kiro.js';
 
 /**
- * Handle a CodeBuddy provider request. Pure Anthropic SSE passthrough:
- * client sends Anthropic Messages → we inject defaults → forward to
- * CodeBuddy /v2/chat/completions → pipe response back unchanged.
+ * Handle a CodeBuddy provider request. Bridges the client's format to the
+ * upstream OpenAI-SSE stream and converts back to the client's requested format:
+ *   - anthropic + stream  → OpenAI upstream SSE converted to Anthropic Messages SSE
+ *   - openai   + stream  → OpenAI upstream SSE passed through with usage tee
+ *   - anthropic + non-stream → aggregate upstream SSE, convert to Anthropic response
+ *   - openai   + non-stream → aggregate upstream SSE, return OpenAI response
  */
 export async function handleCodeBuddyProxy(
   c: Context,
-  _format: 'openai' | 'anthropic',
+  format: 'openai' | 'anthropic',
   upstreamPath: string,
   body: Record<string, unknown>,
   db: Database.Database,
@@ -122,7 +127,7 @@ export async function handleCodeBuddyProxy(
       },
       transport,
       proxyOpts,
-      skipModelStrip: !!providerData.skip_model_strip,
+      clientFormat: format,
     });
 
     if (!resp.ok) {
@@ -178,7 +183,7 @@ export async function handleCodeBuddyProxy(
         model: stringValue(body.model) || 'codebuddy/claude-opus-4.6',
         requested_model: stringValue(body.model) || 'codebuddy/claude-opus-4.6',
         endpoint: upstreamPath,
-        format: 'anthropic',
+        format,
         prompt_tokens: 0,
         completion_tokens: 0,
         cache_creation_tokens: 0,
@@ -217,135 +222,95 @@ export async function handleCodeBuddyProxy(
       });
     }
 
-    // Streaming passthrough — zero conversion
-    if (body.stream === true) {
-      const piped = await pipeWithUsage(resp, 'anthropic', (usage, raw) => {
-        const prompt = usage?.prompt_tokens ?? 0;
-        const completion = usage?.completion_tokens ?? 0;
-        const cacheCreate = usage?.cache_creation_tokens ?? 0;
-        const cacheRead = usage?.cache_read_tokens ?? 0;
-        const total = usage?.total_tokens ?? prompt + completion;
-        const model = stringValue(body.model) || 'codebuddy/claude-opus-4.6';
-        const cost = calculateCost(db, model, {
-          prompt_tokens: prompt,
-          completion_tokens: completion,
-          cache_creation_tokens: cacheCreate,
-          cache_read_tokens: cacheRead,
-        });
-        insertRequestLogDeferred(db, {
-          client_key_id: clientKey.id,
-          account_id: account.id,
-          model,
-          requested_model: model,
-          endpoint: upstreamPath,
-          format: 'anthropic',
-          prompt_tokens: prompt,
-          completion_tokens: completion,
-          cache_creation_tokens: cacheCreate,
-          cache_read_tokens: cacheRead,
-          total_tokens: total,
-          cost_usd: cost,
-          latency_ms: Date.now() - startMs,
-          status_code: resp.status,
-          base_resp_code: undefined,
-          stream: 1,
-          rtk_bytes_saved: 0,
-          request_body: truncateBody(originalText),
-          response_body: truncateBody(raw),
-          request_headers: headersToJson(c.req.raw.headers),
-          response_headers: headersToJson(resp.headers),
-          req_id: reqId,
-        });
-        consoleBus.emit(
-          buildDone(
-            reqId,
-            new Date().toISOString(),
-            resp.status,
-            null,
-            prompt,
-            completion,
-            cacheRead,
-            cost,
-            Date.now() - startMs,
-            0
-          )
-        );
-      });
-      return piped;
-    }
-
-    // Non-stream passthrough
-    const respBody = await resp.text();
-    let usage: {
-      prompt_tokens?: number;
-      completion_tokens?: number;
-      total_tokens?: number;
-      cache_creation_tokens?: number;
-      input_tokens?: number;
-      output_tokens?: number;
-    } = {};
-    try {
-      const parsed = JSON.parse(respBody);
-      // CodeBuddy Anthropic format uses input_tokens/output_tokens
-      if (parsed.usage) {
-        usage = {
-          prompt_tokens: parsed.usage.input_tokens ?? parsed.usage.prompt_tokens ?? 0,
-          completion_tokens: parsed.usage.output_tokens ?? parsed.usage.completion_tokens ?? 0,
-          total_tokens: (parsed.usage.input_tokens ?? 0) + (parsed.usage.output_tokens ?? 0),
-        };
-      }
-    } catch {
-      /* non-JSON; pass through */
-    }
-
+    // Dispatch based on client format and streaming preference
+    const clientWantsStream = body.stream === true;
     const model = stringValue(body.model) || 'codebuddy/claude-opus-4.6';
-    const cost = calculateCost(db, model, {
-      prompt_tokens: usage.prompt_tokens ?? 0,
-      completion_tokens: usage.completion_tokens ?? 0,
-      cache_creation_tokens: usage.cache_creation_tokens ?? 0,
-      cache_read_tokens: 0,
-    });
-    insertRequestLogDeferred(db, {
-      client_key_id: clientKey.id,
-      account_id: account.id,
-      model,
-      requested_model: model,
-      endpoint: upstreamPath,
-      format: 'anthropic',
-      prompt_tokens: usage.prompt_tokens ?? 0,
-      completion_tokens: usage.completion_tokens ?? 0,
-      cache_creation_tokens: usage.cache_creation_tokens ?? 0,
-      cache_read_tokens: 0,
-      total_tokens: usage.total_tokens ?? 0,
-      cost_usd: cost,
-      latency_ms: Date.now() - startMs,
-      status_code: resp.status,
-      base_resp_code: undefined,
-      stream: 0,
-      rtk_bytes_saved: 0,
-      request_body: truncateBody(originalText),
-      response_body: truncateBody(respBody),
-      request_headers: headersToJson(c.req.raw.headers),
-      response_headers: headersToJson(resp.headers),
-      req_id: reqId,
-    });
-    consoleBus.emit(
-      buildDone(
-        reqId,
-        new Date().toISOString(),
-        resp.status,
-        null,
-        usage.prompt_tokens ?? 0,
-        usage.completion_tokens ?? 0,
-        0,
-        cost,
-        Date.now() - startMs,
-        0
-      )
+
+    const logUsage = (
+      prompt: number,
+      completion: number,
+      cacheRead: number,
+      isStream: boolean,
+      rawResp: string
+    ): void => {
+      const cost = calculateCost(db, model, {
+        prompt_tokens: prompt,
+        completion_tokens: completion,
+        cache_creation_tokens: 0,
+        cache_read_tokens: cacheRead,
+      });
+      insertRequestLogDeferred(db, {
+        client_key_id: clientKey.id,
+        account_id: account.id,
+        model,
+        requested_model: model,
+        endpoint: upstreamPath,
+        format,
+        prompt_tokens: prompt,
+        completion_tokens: completion,
+        cache_creation_tokens: 0,
+        cache_read_tokens: cacheRead,
+        total_tokens: prompt + completion,
+        cost_usd: cost,
+        latency_ms: Date.now() - startMs,
+        status_code: resp.status,
+        base_resp_code: undefined,
+        stream: isStream ? 1 : 0,
+        rtk_bytes_saved: 0,
+        request_body: truncateBody(originalText),
+        response_body: truncateBody(rawResp),
+        request_headers: headersToJson(c.req.raw.headers),
+        response_headers: headersToJson(resp.headers),
+        req_id: reqId,
+      });
+      consoleBus.emit(
+        buildDone(
+          reqId,
+          new Date().toISOString(),
+          resp.status,
+          null,
+          prompt,
+          completion,
+          cacheRead,
+          cost,
+          Date.now() - startMs,
+          0
+        )
+      );
+    };
+
+    if (clientWantsStream) {
+      if (format === 'anthropic') {
+        return openaiSSEToAnthropicSSE(resp, model, (u) =>
+          logUsage(u.prompt_tokens, u.completion_tokens, u.cache_read, true, '[anthropic-sse]')
+        );
+      }
+      // openai client: passthrough OpenAI SSE, tee usage
+      return pipeWithUsage(resp, 'openai', (usage, raw) =>
+        logUsage(
+          usage?.prompt_tokens ?? 0,
+          usage?.completion_tokens ?? 0,
+          usage?.cache_read_tokens ?? 0,
+          true,
+          raw
+        )
+      );
+    }
+
+    // Non-stream client: aggregate the forced upstream stream.
+    const aggregated = await aggregateOpenAISSE(resp);
+    const u = aggregated.usage;
+    logUsage(
+      u?.prompt_tokens ?? 0,
+      u?.completion_tokens ?? 0,
+      u?.prompt_tokens_details?.cached_tokens ?? 0,
+      false,
+      JSON.stringify(aggregated).slice(0, 2000)
     );
-    return c.body(respBody, statusCode(resp.status), {
-      'content-type': resp.headers.get('content-type') ?? 'application/json',
-    });
+    if (format === 'anthropic') {
+      return c.json(responseOpenAIToAnthropic(aggregated));
+    }
+    return c.json(aggregated);
   } catch (e: unknown) {
     const message = errorMessage(e);
     log.warn({ provider: 'codebuddy', err: message }, 'codebuddy: upstream error');
