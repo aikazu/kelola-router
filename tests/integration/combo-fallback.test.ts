@@ -194,7 +194,7 @@ describe('combo fallback — account re-select per model', () => {
       } else if (headers && typeof headers === 'object') {
         const h = headers as Record<string, string>;
         // Header key may be 'Authorization' (capital) or 'authorization'
-        authHeader = h['Authorization'] ?? h['authorization'] ?? '';
+        authHeader = h.Authorization ?? h.authorization ?? '';
       }
       calledApiKeys.push(authHeader);
 

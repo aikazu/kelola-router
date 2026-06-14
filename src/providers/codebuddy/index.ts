@@ -1,5 +1,5 @@
-import type { TransportConfig } from '../../transport/types.js';
 import type { ProxyFetchOpts } from '../../transport/proxyFetch.js';
+import type { TransportConfig } from '../../transport/types.js';
 import { upstreamFetch } from '../upstreamFetch.js';
 import { ensureCodeBuddyDefaults } from './transform.js';
 

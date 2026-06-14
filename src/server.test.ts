@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from './db/index.js';
 import { createAccount } from './db/repos/accounts.js';
 import { createClientKey } from './db/repos/client_keys.js';
+import { upsertModel } from './db/repos/models.js';
 import { flushDeferredLogs } from './db/repos/requestLogs.js';
 import { clearCache } from './db/repos/settings.js';
 import { app, resetDb } from './server.js';
@@ -438,5 +439,65 @@ describe('OpenAI stream auto include_usage', () => {
       }),
     });
     await app.request(req);
+  });
+});
+
+describe('codebuddy direct routing', () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'cb-')), 't.db');
+    resetDb();
+  });
+
+  it('routes codebuddy model directly to CodeBuddy upstream, not MiniMax', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_cb' });
+    createAccount(db, {
+      id: 'acc_cb',
+      label: 'CodeBuddy Test',
+      credit_type: 'token-plan',
+      api_key: 'cb_test_key',
+      provider: 'codebuddy',
+      enabled: true,
+    });
+    upsertModel(db, {
+      name: 'codebuddy/claude-opus-4.6',
+      upstream_model: 'codebuddy/claude-opus-4.6',
+      display_name: 'CodeBuddy Claude Opus 4.6',
+      family: 'codebuddy',
+      context_window: 1000000,
+      pricing_input: 0,
+      pricing_output: 0,
+      pricing_cache_read: 0,
+      pricing_cache_write: 0,
+      source: 'builtin',
+      provider: 'codebuddy',
+    });
+
+    let capturedUrl = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, _init) => {
+      capturedUrl = String(url);
+      return new Response(
+        JSON.stringify({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 5, output_tokens: 3 },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+    });
+
+    const req = new Request('http://localhost/v1/messages', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'codebuddy/claude-opus-4.6',
+        messages: [{ role: 'user', content: 'hi' }],
+        max_tokens: 10,
+      }),
+    });
+    const res = await app.request(req);
+    expect(res.status, `expected 200 but got ${res.status}`).toBe(200);
+    expect(capturedUrl).toContain('codebuddy.ai');
+    expect(capturedUrl).not.toContain('minimax');
   });
 });

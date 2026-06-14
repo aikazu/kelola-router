@@ -44,7 +44,14 @@ export async function handleCodeBuddyProxy(
   const reqId = genReqId();
   c.set('reqId', reqId);
   consoleBus.emit(
-    buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, 'codebuddy', 'codebuddy')
+    buildStart(
+      reqId,
+      new Date().toISOString(),
+      c.req.method,
+      upstreamPath,
+      'codebuddy',
+      'codebuddy'
+    )
   );
 
   // Get CodeBuddy accounts
@@ -76,7 +83,9 @@ export async function handleCodeBuddyProxy(
   });
   if (nextCursor != null) cursorRef.value = nextCursor;
   if (!account) {
-    consoleBus.emit(buildError(reqId, new Date().toISOString(), 503, 'no available codebuddy account'));
+    consoleBus.emit(
+      buildError(reqId, new Date().toISOString(), 503, 'no available codebuddy account')
+    );
     return c.json({ error: { message: 'All CodeBuddy accounts exhausted' } }, 503);
   }
 
@@ -86,7 +95,11 @@ export async function handleCodeBuddyProxy(
   // Parse provider_data for per-account overrides (e.g. chat_endpoint)
   let providerData: Record<string, unknown> = {};
   if (acc.provider_data) {
-    try { providerData = JSON.parse(acc.provider_data); } catch { /* ignore */ }
+    try {
+      providerData = JSON.parse(acc.provider_data);
+    } catch {
+      /* ignore */
+    }
   }
 
   // Resolve transport (proxy pool for residential proxy)
@@ -114,7 +127,12 @@ export async function handleCodeBuddyProxy(
 
     if (!resp.ok) {
       const errBody = await resp.text();
-      const parsed = { message: errBody.slice(0, 500), baseRespCode: undefined, windowResetMs: undefined, retryAfterSec: undefined };
+      const parsed = {
+        message: errBody.slice(0, 500),
+        baseRespCode: undefined,
+        windowResetMs: undefined,
+        retryAfterSec: undefined,
+      };
 
       // Try parse CodeBuddy error format: {"error":{"data":{"code":N,"msg":"..."}}}
       try {
@@ -124,7 +142,9 @@ export async function handleCodeBuddyProxy(
         } else if (errJson?.error?.message) {
           parsed.message = errJson.error.message;
         }
-      } catch { /* non-JSON error */ }
+      } catch {
+        /* non-JSON error */
+      }
 
       const decision = checkFallbackError(
         resp.status,
@@ -149,7 +169,9 @@ export async function handleCodeBuddyProxy(
         status: resp.status === 401 ? 'error' : 'active',
       });
 
-      consoleBus.emit(buildError(reqId, new Date().toISOString(), resp.status, parsed.message.slice(0, 200)));
+      consoleBus.emit(
+        buildError(reqId, new Date().toISOString(), resp.status, parsed.message.slice(0, 200))
+      );
       insertRequestLogDeferred(db, {
         client_key_id: clientKey.id,
         account_id: account.id,
@@ -181,7 +203,12 @@ export async function handleCodeBuddyProxy(
     }
 
     // Success — clear account errors
-    if (acc.backoff_level !== 0 || acc.status !== 'active' || acc.rate_limited_until !== null || acc.last_error !== null) {
+    if (
+      acc.backoff_level !== 0 ||
+      acc.status !== 'active' ||
+      acc.rate_limited_until !== null ||
+      acc.last_error !== null
+    ) {
       updateAccount(db, account.id, {
         rate_limited_until: null,
         backoff_level: 0,
@@ -230,15 +257,33 @@ export async function handleCodeBuddyProxy(
           req_id: reqId,
         });
         consoleBus.emit(
-          buildDone(reqId, new Date().toISOString(), resp.status, null, prompt, completion, cacheRead, cost, Date.now() - startMs, 0)
+          buildDone(
+            reqId,
+            new Date().toISOString(),
+            resp.status,
+            null,
+            prompt,
+            completion,
+            cacheRead,
+            cost,
+            Date.now() - startMs,
+            0
+          )
         );
       });
       return piped;
     }
 
     // Non-stream passthrough
-    let respBody = await resp.text();
-    let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cache_creation_tokens?: number; input_tokens?: number; output_tokens?: number } = {};
+    const respBody = await resp.text();
+    let usage: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+      cache_creation_tokens?: number;
+      input_tokens?: number;
+      output_tokens?: number;
+    } = {};
     try {
       const parsed = JSON.parse(respBody);
       // CodeBuddy Anthropic format uses input_tokens/output_tokens
@@ -249,7 +294,9 @@ export async function handleCodeBuddyProxy(
           total_tokens: (parsed.usage.input_tokens ?? 0) + (parsed.usage.output_tokens ?? 0),
         };
       }
-    } catch { /* non-JSON; pass through */ }
+    } catch {
+      /* non-JSON; pass through */
+    }
 
     const model = stringValue(body.model) || 'codebuddy/claude-opus-4.6';
     const cost = calculateCost(db, model, {
@@ -283,7 +330,18 @@ export async function handleCodeBuddyProxy(
       req_id: reqId,
     });
     consoleBus.emit(
-      buildDone(reqId, new Date().toISOString(), resp.status, null, usage.prompt_tokens ?? 0, usage.completion_tokens ?? 0, 0, cost, Date.now() - startMs, 0)
+      buildDone(
+        reqId,
+        new Date().toISOString(),
+        resp.status,
+        null,
+        usage.prompt_tokens ?? 0,
+        usage.completion_tokens ?? 0,
+        0,
+        cost,
+        Date.now() - startMs,
+        0
+      )
     );
     return c.body(respBody, statusCode(resp.status), {
       'content-type': resp.headers.get('content-type') ?? 'application/json',
