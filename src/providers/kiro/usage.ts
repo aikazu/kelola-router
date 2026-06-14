@@ -73,7 +73,9 @@ export async function fetchKiroUsage(
         'x-amz-user-agent': kiroCliAmzUserAgent('runtime'),
         'x-amzn-codewhisperer-optout': 'false',
         'Accept-Encoding': 'gzip',
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: accessToken.toLowerCase().startsWith('bearer ')
+          ? accessToken
+          : `Bearer ${accessToken}`,
       },
       body,
       signal: opts.signal,
