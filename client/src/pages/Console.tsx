@@ -136,8 +136,11 @@ function collapseBlocks(blocks: Block[]): CollapsedBlock[] {
   return out;
 }
 
-export function ConsoleBlocks({ events }: { events: FlowEvent[] }) {
-  const collapsed = useMemo(() => collapseBlocks(groupBlocks(events)), [events]);
+export function ConsoleBlocks({ events, collapse = false }: { events: FlowEvent[]; collapse?: boolean }) {
+  const collapsed = useMemo(() => {
+    const blocks = groupBlocks(events);
+    return collapse ? collapseBlocks(blocks) : blocks.map((block) => ({ block, count: 1 }));
+  }, [events, collapse]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const toggle = (reqId: string) => setExpanded((cur) => (cur === reqId ? null : reqId));
   return (
@@ -200,6 +203,7 @@ const MAX_EVENTS = 600; // ~200 request blocks
 export function Console() {
   const [events, setEvents] = useState<FlowEvent[]>([]);
   const [paused, setPaused] = useState(false);
+  const [collapse, setCollapse] = useState(false);
   const [connected, setConnected] = useState(false);
   const [filterModel, setFilterModel] = useState('');
   const [filterAccount, setFilterAccount] = useState('');
@@ -292,6 +296,9 @@ export function Console() {
             <Button variant="ghost" onClick={() => setPaused((p) => !p)}>
               {paused ? 'Resume' : 'Pause'}
             </Button>
+            <Button variant="ghost" onClick={() => setCollapse((c) => !c)}>
+              {collapse ? 'Collapse: on' : 'Collapse: off'}
+            </Button>
             <Button variant="ghost" onClick={() => setEvents([])}>
               Clear
             </Button>
@@ -342,7 +349,7 @@ export function Console() {
           stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         }}
       >
-        <ConsoleBlocks events={filteredEvents} />
+        <ConsoleBlocks events={filteredEvents} collapse={collapse} />
         {events.length === 0 && <div class="console-empty">Waiting for requests…</div>}
       </div>
     </div>
