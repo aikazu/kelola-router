@@ -39,6 +39,7 @@ import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
 import { headersToJson, truncateBody } from './capture.js';
+import { handleCodeBuddyProxy } from './codebuddy.js';
 import { handleComboProxy } from './combo.js';
 import { errorMessage, safeJsonParse, statusCode, stringValue } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
@@ -108,6 +109,20 @@ export async function handleProxy(
       );
       rrCursorRef.value = kiroCursorRef.value;
       return kiroResp;
+    }
+    if (peek.provider === 'codebuddy') {
+      const cbCursorRef: CursorRef = { value: rrCursorRef.value };
+      const cbResp = await handleCodeBuddyProxy(
+        c,
+        format,
+        upstreamPath,
+        body,
+        db,
+        cbCursorRef,
+        stickyMap
+      );
+      rrCursorRef.value = cbCursorRef.value;
+      return cbResp;
     }
   } catch {
     /* unknown model — defer to the MiniMax path for the canonical error */
