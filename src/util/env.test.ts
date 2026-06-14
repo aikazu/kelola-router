@@ -1,5 +1,20 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { getDbPath, getHost, getLogLevel, getPort, getRegion } from './env.js';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type Database from 'better-sqlite3';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { openDb } from '../db/index.js';
+import { clearCacheForDb, setSetting } from '../db/repos/settings.js';
+import {
+  getDbPath,
+  getHost,
+  getLogLevel,
+  getPort,
+  getRegion,
+  getRequestLogRetentionDays,
+  getUpstreamFormat,
+  isConsoleFlowEnabled,
+} from './env.js';
 
 describe('env getters', () => {
   beforeEach(() => {
@@ -8,6 +23,8 @@ describe('env getters', () => {
     delete process.env.MINIMAX_REGION;
     delete process.env.ROUTER_DB_PATH;
     delete process.env.LOG_LEVEL;
+    delete process.env.REQUEST_LOG_RETENTION_DAYS;
+    delete process.env.CONSOLE_FLOW;
   });
 
   it('getHost defaults to 127.0.0.1', () => {
@@ -48,5 +65,62 @@ describe('env getters', () => {
 
   it('getLogLevel defaults to info', () => {
     expect(getLogLevel()).toBe('info');
+  });
+
+  // ─── getRequestLogRetentionDays ───────────────────────────────────────
+
+  it('getRequestLogRetentionDays with env unset → 30', () => {
+    expect(getRequestLogRetentionDays()).toBe(30);
+  });
+
+  it('getRequestLogRetentionDays with env = "7" → 7', () => {
+    process.env.REQUEST_LOG_RETENTION_DAYS = '7';
+    expect(getRequestLogRetentionDays()).toBe(7);
+  });
+
+  // ─── isConsoleFlowEnabled ────────────────────────────────────────────
+
+  it('isConsoleFlowEnabled with env unset → true', () => {
+    expect(isConsoleFlowEnabled()).toBe(true);
+  });
+
+  it('isConsoleFlowEnabled with env = "0" → false', () => {
+    process.env.CONSOLE_FLOW = '0';
+    expect(isConsoleFlowEnabled()).toBe(false);
+  });
+});
+
+describe('env getters (db)', () => {
+  let db: Database.Database;
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'env-test-'));
+    process.env.ROUTER_DB_PATH = join(dir, 't.db');
+    db = openDb();
+    delete process.env.ROUTER_UPSTREAM_FORMAT;
+    clearCacheForDb(db);
+  });
+
+  afterEach(() => {
+    db.close();
+    rmSync(dir, { recursive: true });
+  });
+
+  // ─── getUpstreamFormat ────────────────────────────────────────────────
+
+  it('getUpstreamFormat with settings set, env unset → returns settings value', () => {
+    setSetting(db, 'minimax', { upstreamFormat: 'openai' });
+    expect(getUpstreamFormat(db)).toBe('openai');
+  });
+
+  it('getUpstreamFormat with settings unset, env set → returns env value', () => {
+    process.env.ROUTER_UPSTREAM_FORMAT = 'anthropic';
+    expect(process.env.ROUTER_UPSTREAM_FORMAT).toBe('anthropic'); // sanity
+    expect(getUpstreamFormat(db)).toBe('anthropic');
+  });
+
+  it('getUpstreamFormat with both unset → returns auto', () => {
+    expect(getUpstreamFormat(db)).toBe('auto');
   });
 });
