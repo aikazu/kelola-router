@@ -3,6 +3,7 @@
 import { Coalescer } from '../util/coalescer.js';
 import type { ConsoleBus } from './bus.js';
 import { renderStdout } from './format.js';
+import { isConsoleFlowEnabled } from '../util/env.js';
 
 export interface SinkOptions {
   intervalMs?: number;
@@ -11,7 +12,7 @@ export interface SinkOptions {
 
 /** Subscribe a coalesced stdout writer to the bus. */
 export function attachStdoutSink(bus: ConsoleBus, opts: SinkOptions = {}): () => void {
-  if (process.env.CONSOLE_FLOW === '0') return () => {};
+  if (!isConsoleFlowEnabled()) return () => {};
   const intervalMs = opts.intervalMs ?? 50;
   const highWater = opts.highWater ?? 500;
   const coalescer = new Coalescer<{ ev: Parameters<typeof renderStdout>[0] }>({

@@ -5,8 +5,9 @@ import { cleanupOldQuota } from '../db/repos/quotaSnapshots.js';
 import { cleanupOldLogs } from '../db/repos/requestLogs.js';
 import { pullQuota } from '../providers/quota.js';
 import { log } from '../util/log.js';
+import { getRequestLogRetentionDays } from '../util/env.js';
 
-const RETENTION_DAYS = Number(process.env.REQUEST_LOG_RETENTION_DAYS ?? 30);
+const RETENTION_DAYS = getRequestLogRetentionDays();
 
 let intervalHandle: NodeJS.Timeout | null = null;
 
