@@ -24,6 +24,11 @@ export function getDbPath(): string | null {
   return process.env.ROUTER_DB_PATH ?? null;
 }
 
+export function getDbKey(): string | undefined {
+  const v = process.env.ROUTER_DB_KEY?.trim();
+  return v && v.length > 0 ? v : undefined;
+}
+
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
 export function getLogLevel(): LogLevel {

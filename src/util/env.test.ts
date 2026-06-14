@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../db/index.js';
 import { clearCacheForDb, setSetting } from '../db/repos/settings.js';
 import {
+  getDbKey,
   getDbPath,
   getHost,
   getLogLevel,
@@ -22,6 +23,7 @@ describe('env getters', () => {
     delete process.env.PORT;
     delete process.env.MINIMAX_REGION;
     delete process.env.ROUTER_DB_PATH;
+    delete process.env.ROUTER_DB_KEY;
     delete process.env.LOG_LEVEL;
     delete process.env.REQUEST_LOG_RETENTION_DAYS;
     delete process.env.CONSOLE_FLOW;
@@ -61,6 +63,32 @@ describe('env getters', () => {
   it('getDbPath returns override when set', () => {
     process.env.ROUTER_DB_PATH = '/tmp/x.db';
     expect(getDbPath()).toBe('/tmp/x.db');
+  });
+
+  // ─── getDbKey ─────────────────────────────────────────────────────────
+
+  it('getDbKey returns undefined when ROUTER_DB_KEY unset', () => {
+    expect(getDbKey()).toBeUndefined();
+  });
+
+  it('getDbKey returns undefined when ROUTER_DB_KEY is empty string', () => {
+    process.env.ROUTER_DB_KEY = '';
+    expect(getDbKey()).toBeUndefined();
+  });
+
+  it('getDbKey returns value when ROUTER_DB_KEY is set', () => {
+    process.env.ROUTER_DB_KEY = 'secret';
+    expect(getDbKey()).toBe('secret');
+  });
+
+  it('getDbKey trims whitespace when ROUTER_DB_KEY has surrounding spaces', () => {
+    process.env.ROUTER_DB_KEY = '  secret  ';
+    expect(getDbKey()).toBe('secret');
+  });
+
+  it('getDbKey returns undefined when ROUTER_DB_KEY is whitespace-only', () => {
+    process.env.ROUTER_DB_KEY = '   ';
+    expect(getDbKey()).toBeUndefined();
   });
 
   it('getLogLevel defaults to info', () => {
