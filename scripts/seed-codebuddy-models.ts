@@ -25,19 +25,29 @@ const MODELS: CodeBuddyModel[] = [
     context: 1000000,
   },
   {
-    name: 'codebuddy/gemini-3.1-pro',
-    display: 'Gemini 3.1 Pro',
-    context: 2000000,
+    name: 'codebuddy/gemini-3.5-flash',
+    display: 'Gemini 3.5 Flash',
+    context: 1000000,
   },
   {
-    name: 'codebuddy/gemini-2.5-flash',
-    display: 'Gemini 2.5 Flash',
+    name: 'codebuddy/gemini-3.1-pro',
+    display: 'Gemini 3.1 Pro',
+    context: 400000,
+  },
+  {
+    name: 'codebuddy/gpt-5.5',
+    display: 'GPT-5.5',
     context: 1000000,
+  },
+  {
+    name: 'codebuddy/glm-5.0',
+    display: 'GLM-5.0',
+    context: 200000,
   },
   {
     name: 'codebuddy/kimi-k2.5',
     display: 'Kimi K2.5',
-    context: 131072,
+    context: 164000,
   },
 ];
 
