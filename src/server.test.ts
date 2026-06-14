@@ -442,6 +442,155 @@ describe('OpenAI stream auto include_usage', () => {
   });
 });
 
+describe('provider prefix routing', () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'pfx-')), 't.db');
+    resetDb();
+  });
+
+  it('mm/<minimax model> → minimax path taken, 200', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx1' });
+    createAccount(db, { id: 'acc_pfx1', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      provider: 'minimax',
+    });
+
+    let capturedUrl = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, _init) => {
+      capturedUrl = String(url);
+      return new Response('{"choices":[{"message":{"content":"ok"}}]}', { status: 200 });
+    });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'mm/MiniMax-M3',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(capturedUrl).toContain('minimax');
+  });
+
+  it('kr/<kiro model> → kiro path taken (503 no kiro accounts, not minimax error)', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx2' });
+    // MiniMax account present; if routing falls to MiniMax it would use this key.
+    createAccount(db, { id: 'acc_pfx2', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    upsertModel(db, {
+      name: 'kiro-model-x',
+      upstream_model: 'kiro-model-x',
+      display_name: 'Kiro Model X',
+      provider: 'kiro',
+    });
+
+    // No kiro accounts configured → kiro handler returns 503 with kiro-specific error.
+    // If routing wrongly goes to MiniMax, the mock would be called with minimax URL.
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, _init) => {
+      // Should NOT be called — kiro handler short-circuits before upstream fetch.
+      return new Response(`{"choices":[{"message":{"content":"mm fallback: ${String(url)}"}}]}`, {
+        status: 200,
+      });
+    });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'kr/kiro-model-x',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    // Kiro handler returns 503 when no kiro accounts. MiniMax would return 200 from mock.
+    expect(res.status).toBe(503);
+    expect(spy).not.toHaveBeenCalled();
+    const body = await res.json();
+    expect(String(body.error)).toMatch(/kiro/i);
+  });
+
+  it('mm/<kiro model> (provider mismatch) → 400 with error matching /provider/', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx3' });
+    createAccount(db, { id: 'acc_pfx3', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    upsertModel(db, {
+      name: 'kiro-model-x',
+      upstream_model: 'kiro-model-x',
+      display_name: 'Kiro Model X',
+      provider: 'kiro',
+    });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'mm/kiro-model-x',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(String(body.error)).toMatch(/provider/);
+  });
+
+  it('xx/foo (unknown prefix) → 400 with error matching /unknown model prefix/', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx4' });
+    createAccount(db, { id: 'acc_pfx4', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'xx/foo',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(String(body.error)).toMatch(/unknown model prefix/);
+  });
+
+  it('bare raw model name (not an alias) → 400 with error matching /unknown model/', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_pfx5' });
+    createAccount(db, { id: 'acc_pfx5', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    // Seed MiniMax-M3 as a real model but NOT as an alias — bare name hits alias path → throws.
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      provider: 'minimax',
+    });
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'MiniMax-M3',
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(String(body.error)).toMatch(/unknown model/);
+  });
+});
+
 describe('codebuddy direct routing', () => {
   beforeEach(() => {
     process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'cb-')), 't.db');
