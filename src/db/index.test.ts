@@ -136,3 +136,52 @@ describe('openDb — SQLCipher encryption via ROUTER_DB_KEY', () => {
     db.close();
   });
 });
+
+describe('openDb — fresh-deploy-only encryption guard (Task 11)', () => {
+  it('refuses to start when ROUTER_DB_KEY is set on an existing plaintext DB', () => {
+    // Step 1: create a plaintext DB without a key (simulates pre-encryption upgrade)
+    const plain = openDb();
+    plain.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('probe', ?)").run('plain');
+    plain.close();
+    // Sanity: file is plaintext
+    expect(readFileHeader(process.env.ROUTER_DB_PATH as string)).toBe(SQLITE_MAGIC);
+
+    // Step 2: now set a key — openDb must refuse with a clear message, NOT auto-migrate
+    process.env.ROUTER_DB_KEY = 'new-key-after-upgrade';
+    expect(() => openDb()).toThrow(/is unencrypted but ROUTER_DB_KEY is set/);
+  });
+
+  it('on a fresh path with ROUTER_DB_KEY set, opens and creates an encrypted DB', () => {
+    // Fresh path: DB file does not exist yet — must proceed normally.
+    expect(existsSync(process.env.ROUTER_DB_PATH as string)).toBe(false);
+    process.env.ROUTER_DB_KEY = 'fresh-deploy-key';
+
+    const db = openDb();
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('probe', ?)").run('enc');
+    db.close();
+
+    // File exists and is encrypted (header is NOT SQLite magic)
+    expect(existsSync(process.env.ROUTER_DB_PATH as string)).toBe(true);
+    const header = readFileHeader(process.env.ROUTER_DB_PATH as string);
+    expect(header).not.toBe(SQLITE_MAGIC);
+    expect(header.length).toBe(16);
+  });
+
+  it('opens an existing encrypted DB with the correct key (regression check)', () => {
+    // Write encrypted DB
+    process.env.ROUTER_DB_KEY = 'right-key';
+    const w = openDb();
+    w.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('probe', ?)").run('enc');
+    w.close();
+    // Sanity: file is indeed encrypted (not plaintext magic) so the guard shouldn't fire
+    expect(readFileHeader(process.env.ROUTER_DB_PATH as string)).not.toBe(SQLITE_MAGIC);
+
+    // Reopen with same correct key — must succeed (guard must not false-positive)
+    const r = openDb();
+    const row = r.prepare("SELECT value FROM settings WHERE key = 'probe'").get() as {
+      value: string;
+    };
+    r.close();
+    expect(row.value).toBe('enc');
+  });
+});

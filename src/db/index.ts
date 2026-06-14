@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,11 +20,43 @@ function escapeCipherKey(k: string): string {
 }
 
 /**
+ * Plain-SQLite header magic — the first 16 bytes of any unencrypted SQLite file.
+ * Encrypted files have random-looking bytes here (ground-truth encryption signal,
+ * per Task 10 learnings: `cipher_version` pragma is NOT reliable).
+ */
+const SQLITE_MAGIC = 'SQLite format 3\0';
+
+/**
+ * Detect whether the file at `path` is an UNENCRYPTED SQLite database by reading
+ * the 16-byte header. Returns `false` if the file does not exist (fresh-deploy
+ * case — `openDatabase()` will create it encrypted when a key is set) or if the
+ * header is non-magic (already encrypted).
+ *
+ * Synchronous on purpose: we're at boot, before any DB handle exists.
+ */
+function isPlaintextSqlite(path: string): boolean {
+  if (!existsSync(path)) return false;
+  const fd = openSync(path, 'r');
+  try {
+    const buf = Buffer.alloc(16);
+    readSync(fd, buf, 0, 16, 0);
+    return buf.toString('latin1') === SQLITE_MAGIC;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
  * Open the SQLite file with optional SQLCipher encryption-at-rest.
  *
  * When `getDbKey()` returns a value, we swap to `better-sqlite3-multiple-ciphers`
  * and set `PRAGMA key` BEFORE any other PRAGMA or schema op (SQLCipher requires
  * the key to be the very first statement on a freshly opened handle).
+ *
+ * Fresh-deploy-only policy (v0.15): if `ROUTER_DB_KEY` is set but the existing
+ * DB file is plaintext (e.g. user upgraded from a pre-encryption version without
+ * re-encrypting), we REFUSE to start with a clear error message instead of
+ * silently corrupting the file or auto-migrating. No `--rekey` in this scope.
  *
  * The cipher fork's `Database` is structurally compatible with the upstream
  * `better-sqlite3.Database` at runtime (same `prepare`/`exec`/`pragma`/`close`/
@@ -36,6 +68,13 @@ function escapeCipherKey(k: string): string {
 function openDatabase(path: string): Database.Database {
   const key = getDbKey();
   if (key) {
+    if (isPlaintextSqlite(path)) {
+      throw new Error(
+        `Database file at ${path} is unencrypted but ROUTER_DB_KEY is set. ` +
+          'Either remove ROUTER_DB_KEY (downgrade to plaintext) or delete the DB file and re-deploy fresh. ' +
+          'Automatic migration is intentionally not supported. See README "Security" section.'
+      );
+    }
     const db = new DatabaseWithCipher(path);
     db.pragma(`key = '${escapeCipherKey(key)}'`);
     return db as unknown as Database.Database;
