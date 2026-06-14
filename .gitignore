@@ -26,3 +26,4 @@ sidecar/**/*.pyc
 
 # Hermes
 .hermes/
+.omo
