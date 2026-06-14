@@ -1,5 +1,7 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
+import { getCookie } from 'hono/cookie';
+import { isPasswordSet } from '../../auth/password.js';
 import {
   createClientKey,
   deleteClientKey,
@@ -11,6 +13,7 @@ import {
   updateClientKeyLabel,
 } from '../../db/repos/client_keys.js';
 import { ApiError, handleApiError } from './middleware.js';
+import { REAUTH_COOKIE, REAUTH_COOKIE_VALUE } from './reauth.js';
 
 export const clientKeyRoutes = new Hono();
 
@@ -53,6 +56,15 @@ clientKeyRoutes.post('/', (c) => {
 clientKeyRoutes.get('/:id/key', (c) => {
   try {
     const db = c.get('db') as Database.Database;
+    // Sensitive endpoint: when a dashboard password is configured, require a
+    // fresh (≤60s old) re-auth cookie on top of the admin auth already enforced
+    // by requireAdminJson. Open mode (no password set) stays zero-friction.
+    if (isPasswordSet(db)) {
+      const reauth = getCookie(c, REAUTH_COOKIE);
+      if (reauth !== REAUTH_COOKIE_VALUE) {
+        throw new ApiError('reauth_required', 're-authentication required', 401);
+      }
+    }
     const row = getClientKey(db, Number(c.req.param('id')));
     if (!row) throw new ApiError('not_found', 'client key not found', 404);
     return c.json({ id: row.id, label: row.label, key: row.key });
