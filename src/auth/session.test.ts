@@ -1,7 +1,7 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../db/index.js';
 import {
   cleanupExpiredSessions,
@@ -14,8 +14,13 @@ import {
 let db: ReturnType<typeof openDb>;
 
 beforeEach(() => {
+  vi.useFakeTimers();
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'sess-')), 't.db');
   db = openDb();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('session lifecycle', () => {
@@ -56,7 +61,7 @@ describe('session lifecycle', () => {
     const first = db.prepare(`SELECT last_seen FROM sessions WHERE id = ?`).get(s.id) as {
       last_seen: string;
     };
-    await new Promise((r) => setTimeout(r, 5));
+    vi.advanceTimersByTime(5);
     validateSession(db, s.id);
     const second = db.prepare(`SELECT last_seen FROM sessions WHERE id = ?`).get(s.id) as {
       last_seen: string;
