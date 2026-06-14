@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { isPasswordSet } from '../../auth/password.js';
+import { insertAuditEvent } from '../../db/repos/auditLog.js';
 import {
   createClientKey,
   deleteClientKey,
@@ -12,10 +13,9 @@ import {
   listClientKeys,
   updateClientKeyLabel,
 } from '../../db/repos/client_keys.js';
-import { insertAuditEvent } from '../../db/repos/auditLog.js';
 import { log } from '../../util/log.js';
-import { ApiError, handleApiError } from './middleware.js';
 import { clientIp } from './ip.js';
+import { ApiError, handleApiError } from './middleware.js';
 import { REAUTH_COOKIE, REAUTH_COOKIE_VALUE } from './reauth.js';
 
 export const clientKeyRoutes = new Hono();

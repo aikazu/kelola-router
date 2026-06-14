@@ -2,8 +2,8 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { app, resetDb } from '../../server.js';
 import type { AutoImportResult } from '../../providers/kiro/autoImport.js';
+import { app, resetDb } from '../../server.js';
 
 // Mock autoImportFromSsoCache at the module level — the route handler imports it
 vi.mock('../../providers/kiro/autoImport.js', () => ({

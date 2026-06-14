@@ -66,10 +66,18 @@ describe('fetchKiroUsage', () => {
   it('sends profileArn in body when profileArn option is provided', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ nextDateReset: 0, subscriptionInfo: {}, usageBreakdownList: [], overageConfiguration: {}, userInfo: {} }),
+      json: async () => ({
+        nextDateReset: 0,
+        subscriptionInfo: {},
+        usageBreakdownList: [],
+        overageConfiguration: {},
+        userInfo: {},
+      }),
     });
 
-    await fetchKiroUsage('Bearer token123', { profileArn: 'arn:aws:codewhisperer:us-east-1:1:profile/PROFILE_1' });
+    await fetchKiroUsage('Bearer token123', {
+      profileArn: 'arn:aws:codewhisperer:us-east-1:1:profile/PROFILE_1',
+    });
 
     const [_url, opts] = mockFetch.mock.calls[0];
     const body = JSON.parse(opts.body as string);
@@ -79,7 +87,13 @@ describe('fetchKiroUsage', () => {
   it('sends empty body when profileArn is null', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ nextDateReset: 0, subscriptionInfo: {}, usageBreakdownList: [], overageConfiguration: {}, userInfo: {} }),
+      json: async () => ({
+        nextDateReset: 0,
+        subscriptionInfo: {},
+        usageBreakdownList: [],
+        overageConfiguration: {},
+        userInfo: {},
+      }),
     });
 
     await fetchKiroUsage('Bearer token123', { profileArn: null });
@@ -92,7 +106,13 @@ describe('fetchKiroUsage', () => {
   it('sends correct headers for GetUsageLimits endpoint', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ nextDateReset: 0, subscriptionInfo: {}, usageBreakdownList: [], overageConfiguration: {}, userInfo: {} }),
+      json: async () => ({
+        nextDateReset: 0,
+        subscriptionInfo: {},
+        usageBreakdownList: [],
+        overageConfiguration: {},
+        userInfo: {},
+      }),
     });
 
     await fetchKiroUsage('Bearer token123', { profileArn: null });
@@ -100,7 +120,7 @@ describe('fetchKiroUsage', () => {
     const [_url, opts] = mockFetch.mock.calls[0];
     expect(opts.headers['Content-Type']).toBe('application/x-amz-json-1.0');
     expect(opts.headers['X-Amz-Target']).toBe('AmazonCodeWhispererService.GetUsageLimits');
-    expect(opts.headers['Authorization']).toBe('Bearer token123');
+    expect(opts.headers.Authorization).toBe('Bearer token123');
     expect(opts.method).toBe('POST');
   });
 
@@ -108,7 +128,13 @@ describe('fetchKiroUsage', () => {
     const controller = new AbortController();
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ nextDateReset: 0, subscriptionInfo: {}, usageBreakdownList: [], overageConfiguration: {}, userInfo: {} }),
+      json: async () => ({
+        nextDateReset: 0,
+        subscriptionInfo: {},
+        usageBreakdownList: [],
+        overageConfiguration: {},
+        userInfo: {},
+      }),
     });
 
     await fetchKiroUsage('Bearer token123', { signal: controller.signal });
@@ -120,7 +146,13 @@ describe('fetchKiroUsage', () => {
   it('uses custom region when provided', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ nextDateReset: 0, subscriptionInfo: {}, usageBreakdownList: [], overageConfiguration: {}, userInfo: {} }),
+      json: async () => ({
+        nextDateReset: 0,
+        subscriptionInfo: {},
+        usageBreakdownList: [],
+        overageConfiguration: {},
+        userInfo: {},
+      }),
     });
 
     await fetchKiroUsage('Bearer token123', { region: 'eu-west-1' });

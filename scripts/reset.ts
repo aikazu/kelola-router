@@ -2,8 +2,8 @@
 import { existsSync, statSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { log } from '../src/util/log.js';
 import { openDb } from '../src/db/index.js';
+import { log } from '../src/util/log.js';
 
 function defaultDbPath(): string {
   if (process.env.ROUTER_DB_PATH) return process.env.ROUTER_DB_PATH;

@@ -5,8 +5,8 @@ import { isPasswordSet, verifyPassword } from '../../auth/password.js';
 import { clearLoginFailures, isLoginLocked, recordLoginFailure } from '../../auth/rateLimit.js';
 import { createSession, destroySession, validateSession } from '../../auth/session.js';
 import { SESSION_COOKIE } from '../../auth.js';
-import { ApiError, handleApiError } from './middleware.js';
 import { clientIp } from './ip.js';
+import { ApiError, handleApiError } from './middleware.js';
 
 export const authRoutes = new Hono();
 
