@@ -8,6 +8,7 @@ import { comboRoutes } from './combos.js';
 import { requireAdminJson } from './middleware.js';
 import { modelRoutes } from './models.js';
 import { overviewRoutes } from './overview.js';
+import { securityRoutes } from './security.js';
 import { quotaRoutes } from './quota.js';
 import { reauthRoutes } from './reauth.js';
 import { requestLogRoutes } from './requestLogs.js';
@@ -30,6 +31,7 @@ export function adminApi(): Hono {
   app.route('/admin/combos', comboRoutes);
   app.route('/admin', quotaRoutes);
   app.route('/admin/reauth', reauthRoutes);
+  app.route('/admin/security', securityRoutes);
   app.route('/admin/settings', settingsRoutes);
   app.route('/admin/transports', transportRoutes);
   return app;
