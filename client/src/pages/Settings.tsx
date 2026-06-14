@@ -121,6 +121,9 @@ export function Settings() {
       apiFetch('/api/admin/settings/password', { method: 'POST', json: b }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['me'] });
+      // SecurityBanner (AppShell) reads this; invalidate so the banner
+      // updates immediately when a password is set or removed.
+      qc.invalidateQueries({ queryKey: ['security-status'] });
       toast.success('Updated');
     },
     onError: (e: Error) => toast.error(e.message),

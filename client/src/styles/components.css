@@ -883,9 +883,19 @@ table.tbl {
 }
 
 /* --- Layout shell -------------------------------------------------------- */
+/* Flex COLUMN: SecurityBanner (sticky full-width) on top, .app-body below.
+   Banner's own `position: sticky; top: 0` pins it to the viewport scroll. */
 .app-layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
+}
+/* Flex ROW: sidebar | main. Replaces the pre-Task-20 .app-layout role so the
+   banner can sit above both without losing the sidebar/main side-by-side. */
+.app-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
 }
 .main {
   flex: 1;
