@@ -2,8 +2,8 @@
 /**
  * Seed built-in CodeBuddy models. Idempotent: re-running upserts.
  *
- * Only proven, tested models are seeded. Model names retain the `codebuddy/`
- * prefix which is passed through to the upstream API as-is.
+ * Only proven, tested models are seeded. Model names are stored bare (no prefix);
+ * clients route via the `cb/` prefix, which the proxy strips before calling upstream.
  *
  * Pricing is set to zero (CodeBuddy uses credits, not per-token billing).
  * The dashboard will show request counts but not cost estimates.
@@ -20,32 +20,32 @@ interface CodeBuddyModel {
 
 const MODELS: CodeBuddyModel[] = [
   {
-    name: 'codebuddy/claude-opus-4.6',
+    name: 'claude-opus-4.6',
     display: 'Claude Opus 4.6',
     context: 1000000,
   },
   {
-    name: 'codebuddy/gemini-3.5-flash',
+    name: 'gemini-3.5-flash',
     display: 'Gemini 3.5 Flash',
     context: 1000000,
   },
   {
-    name: 'codebuddy/gemini-3.1-pro',
+    name: 'gemini-3.1-pro',
     display: 'Gemini 3.1 Pro',
     context: 400000,
   },
   {
-    name: 'codebuddy/gpt-5.5',
+    name: 'gpt-5.5',
     display: 'GPT-5.5',
     context: 1000000,
   },
   {
-    name: 'codebuddy/glm-5.0',
+    name: 'glm-5.0',
     display: 'GLM-5.0',
     context: 200000,
   },
   {
-    name: 'codebuddy/kimi-k2.5',
+    name: 'kimi-k2.5',
     display: 'Kimi K2.5',
     context: 164000,
   },

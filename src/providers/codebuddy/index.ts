@@ -10,12 +10,12 @@ export const CODEBUDDY_CHAT_ENDPOINT = '/v2/chat/completions';
 export const CODEBUDDY_DEFAULT_SYSTEM = 'You are a helpful assistant.';
 export const CODEBUDDY_DEFAULT_TEMPERATURE = 0.7;
 
-/** Only proven, tested models. */
+/** Only proven, tested models (bare names; clients route via `cb/` prefix). */
 export const CODEBUDDY_MODELS = [
-  'codebuddy/claude-opus-4.6',
-  'codebuddy/gemini-3.1-pro',
-  'codebuddy/gemini-2.5-flash',
-  'codebuddy/kimi-k2.5',
+  'claude-opus-4.6',
+  'gemini-3.1-pro',
+  'gemini-3.5-flash',
+  'kimi-k2.5',
 ] as const;
 
 // ─── Execute ─────────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ export const CODEBUDDY_MODELS = [
  * Execute a request to CodeBuddy upstream.
  *
  * Converts the client body (OpenAI or Anthropic format) to OpenAI Chat
- * Completions format, strips the `codebuddy/` model prefix, injects a default
+ * Completions format, strips the `cb/` model prefix, injects a default
  * system message if absent, and forces stream:true. Sends Bearer auth — no
  * anthropic-version header.
  */

@@ -16,7 +16,10 @@ import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accoun
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getSetting } from '../db/repos/settings.js';
 import { executeCodeBuddy } from '../providers/codebuddy/index.js';
-import { aggregateOpenAISSE, openaiSSEToAnthropicSSE } from '../providers/codebuddy/streamConvert.js';
+import {
+  aggregateOpenAISSE,
+  openaiSSEToAnthropicSSE,
+} from '../providers/codebuddy/streamConvert.js';
 import { responseOpenAIToAnthropic } from '../providers/format/transform.js';
 import { calculateCost } from '../providers/pricing.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
@@ -180,8 +183,8 @@ export async function handleCodeBuddyProxy(
       insertRequestLogDeferred(db, {
         client_key_id: clientKey.id,
         account_id: account.id,
-        model: stringValue(body.model) || 'codebuddy/claude-opus-4.6',
-        requested_model: stringValue(body.model) || 'codebuddy/claude-opus-4.6',
+        model: stringValue(body.model) || 'cb/claude-opus-4.6',
+        requested_model: stringValue(body.model) || 'cb/claude-opus-4.6',
         endpoint: upstreamPath,
         format,
         prompt_tokens: 0,
@@ -224,7 +227,7 @@ export async function handleCodeBuddyProxy(
 
     // Dispatch based on client format and streaming preference
     const clientWantsStream = body.stream === true;
-    const model = stringValue(body.model) || 'codebuddy/claude-opus-4.6';
+    const model = stringValue(body.model) || 'cb/claude-opus-4.6';
 
     const logUsage = (
       prompt: number,

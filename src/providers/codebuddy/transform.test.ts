@@ -5,7 +5,12 @@ import { prepareCodeBuddyBody } from './transform.js';
 describe('prepareCodeBuddyBody', () => {
   it('converts an Anthropic body to OpenAI, forces stream, and guarantees a system message', () => {
     const out = prepareCodeBuddyBody(
-      { model: 'codebuddy/claude-opus-4.6', system: 'be terse', max_tokens: 50, messages: [{ role: 'user', content: 'hi' }] },
+      {
+        model: 'cb/claude-opus-4.6',
+        system: 'be terse',
+        max_tokens: 50,
+        messages: [{ role: 'user', content: 'hi' }],
+      },
       'anthropic'
     );
     expect(out.model).toBe('claude-opus-4.6'); // prefix stripped
@@ -18,7 +23,11 @@ describe('prepareCodeBuddyBody', () => {
 
   it('injects a default system message when the client sent none', () => {
     const out = prepareCodeBuddyBody(
-      { model: 'codebuddy/gemini-3.5-flash', max_tokens: 50, messages: [{ role: 'user', content: 'hi' }] },
+      {
+        model: 'cb/gemini-3.5-flash',
+        max_tokens: 50,
+        messages: [{ role: 'user', content: 'hi' }],
+      },
       'anthropic'
     );
     const msgs = out.messages as Array<{ role: string }>;
@@ -28,7 +37,7 @@ describe('prepareCodeBuddyBody', () => {
 
   it('passes an OpenAI client body through, still forcing stream + system', () => {
     const out = prepareCodeBuddyBody(
-      { model: 'codebuddy/gpt-5.5', messages: [{ role: 'user', content: 'hi' }] },
+      { model: 'cb/gpt-5.5', messages: [{ role: 'user', content: 'hi' }] },
       'openai'
     );
     expect(out.stream).toBe(true);
@@ -38,7 +47,13 @@ describe('prepareCodeBuddyBody', () => {
 
   it('does not duplicate an existing OpenAI system message', () => {
     const out = prepareCodeBuddyBody(
-      { model: 'glm-5.0', messages: [{ role: 'system', content: 's' }, { role: 'user', content: 'hi' }] },
+      {
+        model: 'glm-5.0',
+        messages: [
+          { role: 'system', content: 's' },
+          { role: 'user', content: 'hi' },
+        ],
+      },
       'openai'
     );
     const msgs = out.messages as Array<{ role: string }>;

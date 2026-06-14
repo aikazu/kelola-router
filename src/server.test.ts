@@ -621,8 +621,8 @@ describe('codebuddy direct routing', () => {
       enabled: true,
     });
     upsertModel(db, {
-      name: 'codebuddy/claude-opus-4.6',
-      upstream_model: 'codebuddy/claude-opus-4.6',
+      name: 'claude-opus-4.6',
+      upstream_model: 'claude-opus-4.6',
       display_name: 'CodeBuddy Claude Opus 4.6',
       family: 'codebuddy',
       context_window: 1000000,
@@ -651,7 +651,7 @@ describe('codebuddy direct routing', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'cb/codebuddy/claude-opus-4.6',
+        model: 'cb/claude-opus-4.6',
         messages: [{ role: 'user', content: 'hi' }],
         max_tokens: 10,
       }),

@@ -29,8 +29,15 @@ describe('handleCodeBuddyProxy', () => {
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
-        'data: ' + JSON.stringify({ choices: [{ delta: { content: 'PONG' } }] }) + '\n\n' +
-          'data: ' + JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }) + '\n\n' +
+        'data: ' +
+          JSON.stringify({ choices: [{ delta: { content: 'PONG' } }] }) +
+          '\n\n' +
+          'data: ' +
+          JSON.stringify({
+            choices: [{ delta: {}, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+          }) +
+          '\n\n' +
           'data: [DONE]\n\n',
         { status: 200, headers: { 'content-type': 'text/event-stream' } }
       )
@@ -39,17 +46,25 @@ describe('handleCodeBuddyProxy', () => {
     // Minimal Hono-like context stub.
     const c = {
       req: { method: 'POST', raw: { headers: new Headers() } },
-      get: (k: string) => (k === 'clientKey' ? { id: 'ck_row_1' } : k === 'startTime' ? Date.now() : undefined),
+      get: (k: string) =>
+        k === 'clientKey' ? { id: 'ck_row_1' } : k === 'startTime' ? Date.now() : undefined,
       set: () => {},
-      json: (obj: unknown, status?: number) => new Response(JSON.stringify(obj), { status: status ?? 200 }),
-      body: (b: BodyInit, status?: number, headers?: Record<string, string>) => new Response(b, { status, headers }),
+      json: (obj: unknown, status?: number) =>
+        new Response(JSON.stringify(obj), { status: status ?? 200 }),
+      body: (b: BodyInit, status?: number, headers?: Record<string, string>) =>
+        new Response(b, { status, headers }),
     } as unknown as Parameters<typeof handleCodeBuddyProxy>[0];
 
     const resp = await handleCodeBuddyProxy(
       c,
       'anthropic',
       '/v1/messages',
-      { model: 'codebuddy/claude-opus-4.6', max_tokens: 10, stream: true, messages: [{ role: 'user', content: 'hi' }] },
+      {
+        model: 'cb/claude-opus-4.6',
+        max_tokens: 10,
+        stream: true,
+        messages: [{ role: 'user', content: 'hi' }],
+      },
       db,
       { value: 0 },
       new Map()

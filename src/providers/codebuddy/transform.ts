@@ -9,7 +9,7 @@ import { CODEBUDDY_DEFAULT_SYSTEM } from './index.js';
  * CodeBuddy speaks OpenAI Chat Completions and is **stream-only** and
  * **requires a `system` role message**. This:
  *   1. converts an Anthropic body → OpenAI (reusing the shared converter),
- *   2. strips the `codebuddy/` model prefix,
+ *   2. strips the `cb/` model prefix,
  *   3. guarantees a system message exists (injects a default if absent),
  *   4. forces `stream:true` + `stream_options.include_usage`.
  */
@@ -22,8 +22,8 @@ export function prepareCodeBuddyBody(
       ? (bodyAnthropicToOpenAI(body as AnthropicBody) as unknown as Record<string, unknown>)
       : { ...body };
 
-  if (typeof out.model === 'string' && out.model.startsWith('codebuddy/')) {
-    out.model = out.model.slice('codebuddy/'.length);
+  if (typeof out.model === 'string' && out.model.startsWith('cb/')) {
+    out.model = out.model.slice('cb/'.length);
   }
 
   const messages = Array.isArray(out.messages) ? [...(out.messages as unknown[])] : [];
