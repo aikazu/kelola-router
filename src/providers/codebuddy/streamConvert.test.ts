@@ -20,7 +20,12 @@ type Chunk = {
     };
     finish_reason?: string | null;
   }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    prompt_tokens_details?: { cached_tokens?: number };
+  };
 };
 
 function run(chunks: Chunk[]): { event: string; data: Record<string, unknown> }[] {

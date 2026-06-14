@@ -1,5 +1,10 @@
 // src/providers/codebuddy/streamConvert.ts
 import { randomUUID } from 'node:crypto';
+import {
+  type AnthropicEvent,
+  type BlockSpec,
+  SseAssemblerBase,
+} from '../common/SseAssemblerBase.js';
 import type { OpenAIResponse } from '../format/messageTypes.js';
 
 /** OpenAI streaming chunk (subset the converter reads). */
@@ -26,11 +31,6 @@ export interface OpenAIStreamChunk {
   };
 }
 
-export interface AnthropicEvent {
-  event: string;
-  data: Record<string, unknown>;
-}
-
 const FINISH_TO_STOP: Record<string, string> = {
   stop: 'end_turn',
   length: 'max_tokens',
@@ -38,15 +38,23 @@ const FINISH_TO_STOP: Record<string, string> = {
   content_filter: 'refusal',
 };
 
-type BlockType = 'thinking' | 'text' | 'tool_use';
-
-export class OpenAIToAnthropicSSEAssembler {
-  private readonly messageId = `msg_${randomUUID().replace(/-/g, '')}`;
-  private readonly model: string;
-  private started = false;
-  private stopped = false;
-  private blockIndex = -1;
-  private current: BlockType | null = null;
+/**
+ * OpenAI SSE → Anthropic Messages SSE assembler.
+ *
+ * Extends {@link SseAssemblerBase} — the shared state machine (ensureStart,
+ * closeBlock, openBlock, flush) lives in the base. This subclass provides
+ * OpenAI-chunk-specific encoding via the abstract hooks, plus a `process()`
+ * override because a single OpenAI chunk can carry multiple content types
+ * (reasoning_content + content + tool_calls[]) that each need their own
+ * block/delta — richer than the base's default 1-block-1-delta orchestrator.
+ *
+ * Emitted wire format:
+ *   message_start
+ *   (content_block_start / content_block_delta* / content_block_stop)*
+ *   message_delta  (stop_reason + usage)
+ *   message_stop
+ */
+export class OpenAIToAnthropicSSEAssembler extends SseAssemblerBase<OpenAIStreamChunk> {
   /** Maps an OpenAI tool_call index → the Anthropic block index it opened. */
   private readonly toolBlocks = new Map<number, number>();
   private finishReason: string | null = null;
@@ -56,10 +64,6 @@ export class OpenAIToAnthropicSSEAssembler {
     total_tokens: number;
     cache_read: number;
   } | null = null;
-
-  constructor(model: string) {
-    this.model = model;
-  }
 
   /** Last captured usage (for request-log accounting). */
   getUsage(): {
@@ -71,10 +75,12 @@ export class OpenAIToAnthropicSSEAssembler {
     return this.usage;
   }
 
-  private ensureStart(out: AnthropicEvent[]): void {
-    if (this.started) return;
-    this.started = true;
-    out.push({
+  // -------------------------------------------------------------------------
+  // Abstract-hook implementations
+  // -------------------------------------------------------------------------
+
+  protected createStartEvent(): AnthropicEvent {
+    return {
       event: 'message_start',
       data: {
         type: 'message_start',
@@ -89,38 +95,90 @@ export class OpenAIToAnthropicSSEAssembler {
           usage: { input_tokens: 0, output_tokens: 0 },
         },
       },
-    });
+    };
   }
 
-  private closeBlock(out: AnthropicEvent[]): void {
-    if (this.current === null) return;
-    out.push({
-      event: 'content_block_stop',
-      data: { type: 'content_block_stop', index: this.blockIndex },
-    });
-    this.current = null;
+  protected createBlockEvent(chunk: OpenAIStreamChunk): BlockSpec | null {
+    const delta = chunk.choices?.[0]?.delta ?? {};
+
+    if (typeof delta.reasoning_content === 'string' && delta.reasoning_content.length > 0) {
+      if (this.current === 'thinking') return null;
+      return { type: 'thinking', contentBlock: { type: 'thinking', thinking: '' } };
+    }
+    if (typeof delta.content === 'string' && delta.content.length > 0) {
+      if (this.current === 'text') return null;
+      return { type: 'text', contentBlock: { type: 'text', text: '' } };
+    }
+    return null;
   }
 
-  private openBlock(
-    out: AnthropicEvent[],
-    type: BlockType,
-    contentBlock: Record<string, unknown>
-  ): number {
-    this.closeBlock(out);
-    this.blockIndex++;
-    this.current = type;
-    out.push({
-      event: 'content_block_start',
-      data: { type: 'content_block_start', index: this.blockIndex, content_block: contentBlock },
-    });
-    return this.blockIndex;
+  protected createDeltaEvent(chunk: OpenAIStreamChunk): AnthropicEvent | null {
+    const delta = chunk.choices?.[0]?.delta ?? {};
+
+    if (typeof delta.reasoning_content === 'string' && delta.reasoning_content.length > 0) {
+      return {
+        event: 'content_block_delta',
+        data: {
+          type: 'content_block_delta',
+          index: this.blockIndex,
+          delta: { type: 'thinking_delta', thinking: delta.reasoning_content },
+        },
+      };
+    }
+    if (typeof delta.content === 'string' && delta.content.length > 0) {
+      return {
+        event: 'content_block_delta',
+        data: {
+          type: 'content_block_delta',
+          index: this.blockIndex,
+          delta: { type: 'text_delta', text: delta.content },
+        },
+      };
+    }
+    return null;
   }
 
+  protected createFinishEvent(): AnthropicEvent[] {
+    return [
+      {
+        event: 'message_delta',
+        data: {
+          type: 'message_delta',
+          delta: {
+            stop_reason: this.finishReason
+              ? (FINISH_TO_STOP[this.finishReason] ?? 'end_turn')
+              : 'end_turn',
+            stop_sequence: null,
+          },
+          usage: {
+            input_tokens: this.usage?.prompt_tokens ?? 0,
+            output_tokens: this.usage?.completion_tokens ?? 0,
+          },
+        },
+      },
+      { event: 'message_stop', data: { type: 'message_stop' } },
+    ];
+  }
+
+  protected getErrorEvent(err: unknown): AnthropicEvent {
+    return { event: 'error', data: { type: 'error', error: String(err) } };
+  }
+
+  // -------------------------------------------------------------------------
+  // Process — OpenAI chunk routing
+  // -------------------------------------------------------------------------
+
+  /**
+   * Process one OpenAI chunk into zero or more Anthropic SSE events.
+   *
+   * Overrides the base template method because a single OpenAI chunk can carry
+   * multiple content types (reasoning_content, content, tool_calls[]) that each
+   * emit their own block-open + delta sequence. Tool-call arrays can open
+   * multiple blocks from one chunk. Uses inherited ensureStart / openBlock /
+   * push helpers — the state machine is NOT reimplemented.
+   */
   process(chunk: OpenAIStreamChunk): AnthropicEvent[] {
-    const out: AnthropicEvent[] = [];
-    const choice = chunk.choices?.[0];
-    const delta = choice?.delta ?? {};
-
+    // Capture usage (side-effect, emits no events).
     if (chunk.usage) {
       this.usage = {
         prompt_tokens: chunk.usage.prompt_tokens ?? 0,
@@ -132,11 +190,16 @@ export class OpenAIToAnthropicSSEAssembler {
       };
     }
 
+    const choice = chunk.choices?.[0];
+    const delta = choice?.delta ?? {};
+
+    // reasoning_content → thinking block + delta.
     if (typeof delta.reasoning_content === 'string' && delta.reasoning_content.length > 0) {
-      this.ensureStart(out);
-      if (this.current !== 'thinking')
-        this.openBlock(out, 'thinking', { type: 'thinking', thinking: '' });
-      out.push({
+      this.ensureStart();
+      if (this.current !== 'thinking') {
+        this.openBlock('thinking', { type: 'thinking', thinking: '' });
+      }
+      this.push({
         event: 'content_block_delta',
         data: {
           type: 'content_block_delta',
@@ -146,10 +209,13 @@ export class OpenAIToAnthropicSSEAssembler {
       });
     }
 
+    // content → text block + delta.
     if (typeof delta.content === 'string' && delta.content.length > 0) {
-      this.ensureStart(out);
-      if (this.current !== 'text') this.openBlock(out, 'text', { type: 'text', text: '' });
-      out.push({
+      this.ensureStart();
+      if (this.current !== 'text') {
+        this.openBlock('text', { type: 'text', text: '' });
+      }
+      this.push({
         event: 'content_block_delta',
         data: {
           type: 'content_block_delta',
@@ -159,22 +225,24 @@ export class OpenAIToAnthropicSSEAssembler {
       });
     }
 
+    // tool_calls → tool_use block(s) + input_json_delta(s).
     if (Array.isArray(delta.tool_calls)) {
       for (const tc of delta.tool_calls) {
-        this.ensureStart(out);
+        this.ensureStart();
         let blockIdx = this.toolBlocks.get(tc.index);
         if (blockIdx === undefined) {
-          blockIdx = this.openBlock(out, 'tool_use', {
+          this.openBlock('tool_use', {
             type: 'tool_use',
             id: tc.id ?? `call_${this.messageId}_${tc.index}`,
             name: tc.function?.name ?? '',
             input: {},
           });
+          blockIdx = this.blockIndex;
           this.toolBlocks.set(tc.index, blockIdx);
         }
         const args = tc.function?.arguments;
         if (typeof args === 'string' && args.length > 0) {
-          out.push({
+          this.push({
             event: 'content_block_delta',
             data: {
               type: 'content_block_delta',
@@ -187,33 +255,13 @@ export class OpenAIToAnthropicSSEAssembler {
     }
 
     if (choice?.finish_reason) this.finishReason = choice.finish_reason;
-    return out;
+    return this.drain();
   }
 
+  /** Emit the closing message_delta + message_stop (idempotent). */
   finalize(): AnthropicEvent[] {
-    if (this.stopped) return [];
-    this.stopped = true;
-    const out: AnthropicEvent[] = [];
-    this.ensureStart(out);
-    this.closeBlock(out);
-    out.push({
-      event: 'message_delta',
-      data: {
-        type: 'message_delta',
-        delta: {
-          stop_reason: this.finishReason
-            ? (FINISH_TO_STOP[this.finishReason] ?? 'end_turn')
-            : 'end_turn',
-          stop_sequence: null,
-        },
-        usage: {
-          input_tokens: this.usage?.prompt_tokens ?? 0,
-          output_tokens: this.usage?.completion_tokens ?? 0,
-        },
-      },
-    });
-    out.push({ event: 'message_stop', data: { type: 'message_stop' } });
-    return out;
+    this.flush();
+    return this.drain();
   }
 }
 
