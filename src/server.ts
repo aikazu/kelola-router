@@ -40,6 +40,7 @@ import { upstreamFetch } from './providers/upstreamFetch.js';
 import { statusCode } from './proxy/helpers.js';
 import { handleProxy } from './proxy/minimax.js';
 import { startQuotaPuller, stopQuotaPuller } from './scheduler/quotaPull.js';
+import { getSecurityStatus } from './security/status.js';
 import { resolveTransportForAccount } from './transport/resolve.js';
 import { getHost, getPort } from './util/env.js';
 import { log } from './util/log.js';
@@ -283,6 +284,28 @@ export function resetDb(): void {
   _db = null;
 }
 
+/**
+ * Emit pino warnings for insecure boot conditions. Called once after
+ * migrations complete and before the HTTP listener starts. Both conditions
+ * emit independently — open mode (no admin password) and/or unencrypted DB
+ * (ROUTER_DB_KEY unset). Exported so tests can drive it with a controlled db.
+ */
+export function emitSecurityWarnings(db: Database.Database): void {
+  const status = getSecurityStatus(db);
+  if (!status.adminPasswordSet) {
+    log.warn(
+      { event: 'security.open_mode' },
+      'Open mode: no admin password set. Anyone with network access can use this router.'
+    );
+  }
+  if (!status.dbEncrypted) {
+    log.warn(
+      { event: 'security.db_unencrypted' },
+      'ROUTER_DB_KEY not set: SQLite file is unencrypted at rest.'
+    );
+  }
+}
+
 // Serve built SPA if client/dist exists. In dev with `npm run dev`, Vite serves on
 // :5173 with HMR; users should browse there. Visiting :20137 in dev will also serve
 // the built SPA (no HMR) so URLs stay consistent.
@@ -304,6 +327,9 @@ if (existsSync('./client/dist/index.html')) {
 if (!process.env.VITEST) {
   const port = getPort();
   const hostname = getHost();
+  // getDb() triggers openDb() (runs migrations); evaluate security posture
+  // after the schema is ready but before the HTTP listener accepts traffic.
+  emitSecurityWarnings(getDb());
   serve({ fetch: app.fetch, port, hostname }, (info) => {
     log.info({ address: info.address, port: info.port }, 'router listening');
     startQuotaPuller(getDb(), 5 * 60_000);

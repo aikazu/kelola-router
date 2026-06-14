@@ -2,13 +2,15 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setPassword } from './auth/password.js';
 import { openDb } from './db/index.js';
 import { createAccount } from './db/repos/accounts.js';
 import { createClientKey } from './db/repos/client_keys.js';
 import { upsertModel } from './db/repos/models.js';
 import { flushDeferredLogs } from './db/repos/requestLogs.js';
 import { clearCache } from './db/repos/settings.js';
-import { app, resetDb } from './server.js';
+import { app, emitSecurityWarnings, resetDb } from './server.js';
+import { log } from './util/log.js';
 
 interface LoggedRequestRow {
   prompt_tokens: number;
@@ -660,5 +662,69 @@ describe('codebuddy direct routing', () => {
     expect(res.status, `expected 200 but got ${res.status}`).toBe(200);
     expect(capturedUrl).toContain('codebuddy.ai');
     expect(capturedUrl).not.toContain('minimax');
+  });
+});
+
+describe('emitSecurityWarnings (boot-time)', () => {
+  const origKey = process.env.ROUTER_DB_KEY;
+
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'sw-')), 't.db');
+    resetDb();
+    delete process.env.ROUTER_DB_KEY;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (origKey === undefined) delete process.env.ROUTER_DB_KEY;
+    else process.env.ROUTER_DB_KEY = origKey;
+  });
+
+  it('warns for open mode AND unencrypted DB (both insecure)', () => {
+    const db = openDb();
+    const spy = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    emitSecurityWarnings(db);
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy).toHaveBeenCalledWith(
+      { event: 'security.open_mode' },
+      'Open mode: no admin password set. Anyone with network access can use this router.'
+    );
+    expect(spy).toHaveBeenCalledWith(
+      { event: 'security.db_unencrypted' },
+      'ROUTER_DB_KEY not set: SQLite file is unencrypted at rest.'
+    );
+  });
+
+  it('warns only for open mode when DB is encrypted (ROUTER_DB_KEY set)', () => {
+    process.env.ROUTER_DB_KEY = 'a-real-key';
+    const db = openDb();
+    const spy = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    emitSecurityWarnings(db);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(
+      { event: 'security.open_mode' },
+      'Open mode: no admin password set. Anyone with network access can use this router.'
+    );
+  });
+
+  it('warns only for unencrypted DB when password is set', () => {
+    const db = openDb();
+    setPassword(db, 'a-real-password');
+    const spy = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    emitSecurityWarnings(db);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(
+      { event: 'security.db_unencrypted' },
+      'ROUTER_DB_KEY not set: SQLite file is unencrypted at rest.'
+    );
+  });
+
+  it('emits no warnings when both password and ROUTER_DB_KEY are set', () => {
+    process.env.ROUTER_DB_KEY = 'a-real-key';
+    const db = openDb();
+    setPassword(db, 'a-real-password');
+    const spy = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    emitSecurityWarnings(db);
+    expect(spy).not.toHaveBeenCalled();
   });
 });
