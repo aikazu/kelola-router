@@ -148,47 +148,10 @@ export async function handleKiroProxy(
       cache_read_tokens: 0,
     });
     const latency = Date.now() - startMs;
-    insertRequestLogDeferred(
-      db,
-      buildLogRow({
-        clientKeyId: clientKey.id,
-        accountId: acc.id,
-        model: modelName,
-        requestedModel,
-        endpoint: upstreamPath,
-        format,
-        promptTokens: prompt,
-        completionTokens: completion,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
-        totalTokens: usage?.total_tokens ?? prompt + completion,
-        costUsd: cost,
-        latencyMs: latency,
-        statusCode: statusCodeVal,
-        baseRespCode: undefined,
-        stream: isStream ? 1 : 0,
-        rtkBytesSaved: 0,
-        requestBody: JSON.stringify(body),
-        responseBody,
-        requestHeaders: c.req.raw.headers,
-        responseHeaders: new Headers(),
-        reqId,
-      })
-    );
-    consoleBus.emit(
-      buildDone(
-        reqId,
-        new Date().toISOString(),
-        statusCodeVal,
-        null,
-        prompt,
-        completion,
-        0,
-        cost,
-        latency,
-        0
-      )
-    );
+    // biome-ignore format: long line
+    insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel, endpoint: upstreamPath, format, promptTokens: prompt, completionTokens: completion, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: usage?.total_tokens ?? prompt + completion, costUsd: cost, latencyMs: latency, statusCode: statusCodeVal, baseRespCode: undefined, stream: isStream ? 1 : 0, rtkBytesSaved: 0, requestBody: JSON.stringify(body), responseBody, requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId }));
+    // biome-ignore format: long line
+    consoleBus.emit(buildDone(reqId, new Date().toISOString(), statusCodeVal, null, prompt, completion, 0, cost, latency, 0));
   };
 
   try {

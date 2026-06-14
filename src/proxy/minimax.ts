@@ -321,33 +321,8 @@ export async function handleProxy(
           cache_creation_tokens: cacheCreate,
           cache_read_tokens: cacheRead,
         });
-        insertRequestLogDeferred(
-          db,
-          buildLogRow({
-            clientKeyId: clientKey.id,
-            accountId: account.id,
-            model: modelName,
-            requestedModel,
-            endpoint: upstreamPath,
-            format: upstreamFormat,
-            promptTokens: prompt,
-            completionTokens: completion,
-            cacheCreationTokens: cacheCreate,
-            cacheReadTokens: cacheRead,
-            totalTokens: total,
-            costUsd: cost,
-            latencyMs: Date.now() - startMs,
-            statusCode: resp.status,
-            baseRespCode: undefined,
-            stream: 1,
-            rtkBytesSaved: rtkSaved,
-            requestBody: text,
-            responseBody: raw,
-            requestHeaders: c.req.raw.headers,
-            responseHeaders: resp.headers,
-            reqId,
-          })
-        );
+        // biome-ignore format: long line
+        insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: account.id, model: modelName, requestedModel, endpoint: upstreamPath, format: upstreamFormat, promptTokens: prompt, completionTokens: completion, cacheCreationTokens: cacheCreate, cacheReadTokens: cacheRead, totalTokens: total, costUsd: cost, latencyMs: Date.now() - startMs, statusCode: resp.status, baseRespCode: undefined, stream: 1, rtkBytesSaved: rtkSaved, requestBody: text, responseBody: raw, requestHeaders: c.req.raw.headers, responseHeaders: resp.headers, reqId }));
         consoleBus.emit(
           buildDone(
             reqId,

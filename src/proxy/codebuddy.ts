@@ -60,16 +60,8 @@ export async function handleCodeBuddyProxy(
 
   const reqId = genReqId();
   c.set('reqId', reqId);
-  consoleBus.emit(
-    buildStart(
-      reqId,
-      new Date().toISOString(),
-      c.req.method,
-      upstreamPath,
-      'codebuddy',
-      'codebuddy'
-    )
-  );
+  // biome-ignore format: long line
+  consoleBus.emit(buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, 'codebuddy', 'codebuddy'));
 
   // Get CodeBuddy accounts
   const allAccounts = listEnabledAccountsByProvider(db, 'codebuddy');

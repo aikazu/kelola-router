@@ -75,12 +75,10 @@ export async function handleComboProxy(
       combo.name
     )
   );
-
   // Augment body (caveman, caching, rtk) just like handleProxy does.
   const caveman = allSettings.caveman as { level: string } | undefined;
-  const caching = allSettings.caching as
-    | { autoBreakpoints: boolean; respectCallerMarkers: boolean }
-    | undefined;
+  // biome-ignore format: long line
+  const caching = allSettings.caching as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | undefined;
   const rtkSetting = allSettings.rtk as { enabled: boolean } | undefined;
   const cavemanOn = !!caveman?.level && caveman.level !== 'off';
   const cachingOn = !!caching?.autoBreakpoints;
@@ -92,7 +90,6 @@ export async function handleComboProxy(
   if (rtkSetting?.enabled) {
     rtkSaved = rtkBytesSaved(compressMessages(body, true));
   }
-
   // OpenAI streaming: ensure include_usage
   if (upstreamFormat === 'openai') {
     const withUsage = bodyAddsOpenAIStreamUsage(body);
@@ -100,7 +97,6 @@ export async function handleComboProxy(
       Object.assign(body, withUsage);
     }
   }
-
   // Cross-format body conversion
   if (format !== upstreamFormat) {
     if (format === 'openai' && upstreamFormat === 'anthropic') {
@@ -114,19 +110,14 @@ export async function handleComboProxy(
   if (listEnabledAccounts(db).length === 0) {
     return c.json({ error: 'no upstream accounts configured' }, 503);
   }
-
   // Pipeline helpers (applyErrorState/clearErrorState) need a Db with
   // updateAccount; the real better-sqlite3 Database only exposes prepare().
   const stateDb: Db = { updateAccount: (id, patch) => updateAccount(db, id, patch) };
-
   // Selection mode dibaca sekali — tidak berubah per iterasi
-  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ?? {
-    mode: 'lowest-backoff' as SelectionMode,
-    step: 1,
-  };
-
+  // biome-ignore format: long line
+  const sel = getSetting<{ mode: SelectionMode; step?: number }>(db, 'selection.minimax') ??
+    { mode: 'lowest-backoff' as SelectionMode, step: 1 };
   let lastErrorResponse: Response | null = null;
-
   for (let i = 0; i < combo.models.length; i++) {
     const modelName = combo.models[i]!;
 
@@ -160,12 +151,10 @@ export async function handleComboProxy(
       log.warn({ combo: combo.name, model: modelName }, 'combo: model not resolvable, skipping');
       continue;
     }
-
     // Apply model body transform
     const attemptBody = { ...body };
     attemptBody.model = resolved.upstreamModel;
     resolved.bodyTransform(attemptBody);
-
     // Check model lock
     clearExpiredModelLocks(db);
     if (isModelLockActive(getModelLock(db, account.id, resolved.upstreamModel))) {
@@ -265,7 +254,6 @@ export async function handleComboProxy(
         continue;
       }
     }
-
     const url = upstreamUrl(
       { provider: PROVIDER, apiKey: acc.api_key, baseUrl: acc.base_url },
       upstreamFormat,
@@ -350,12 +338,9 @@ export async function handleComboProxy(
           const cacheCreate = usage?.cache_creation_tokens ?? 0;
           const cacheRead = usage?.cache_read_tokens ?? 0;
           const total = usage?.total_tokens ?? prompt + completion;
-          const cost = calculateCost(db, resolved.upstreamModel, {
-            prompt_tokens: prompt,
-            completion_tokens: completion,
-            cache_creation_tokens: cacheCreate,
-            cache_read_tokens: cacheRead,
-          });
+          // biome-ignore format: long line
+          const cost = calculateCost(db, resolved.upstreamModel, { prompt_tokens: prompt, completion_tokens: completion,
+            cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead });
           insertRequestLogDeferred(
             db,
             buildLogRow({
@@ -433,12 +418,10 @@ export async function handleComboProxy(
       } catch {
         /* non-JSON; pass through */
       }
-      const cost = calculateCost(db, resolved.upstreamModel, {
-        prompt_tokens: usage.prompt_tokens ?? 0,
-        completion_tokens: usage.completion_tokens ?? 0,
-        cache_creation_tokens: usage.cache_creation_tokens ?? 0,
-        cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
-      });
+      // biome-ignore format: long line
+      const cost = calculateCost(db, resolved.upstreamModel, { prompt_tokens: usage.prompt_tokens ?? 0,
+        completion_tokens: usage.completion_tokens ?? 0, cache_creation_tokens: usage.cache_creation_tokens ?? 0,
+        cache_read_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0 });
       insertRequestLogDeferred(
         db,
         buildLogRow({
