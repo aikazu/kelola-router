@@ -1,16 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { ensureCodeBuddyDefaults } from './transform.js';
 import { CODEBUDDY_DEFAULT_SYSTEM, CODEBUDDY_DEFAULT_TEMPERATURE } from './index.js';
+import { ensureCodeBuddyDefaults } from './transform.js';
 
 describe('ensureCodeBuddyDefaults', () => {
   it('injects system when missing', () => {
-    const body = { model: 'codebuddy/claude-opus-4.6', messages: [{ role: 'user', content: 'hi' }] };
+    const body = {
+      model: 'codebuddy/claude-opus-4.6',
+      messages: [{ role: 'user', content: 'hi' }],
+    };
     const result = ensureCodeBuddyDefaults(body);
     expect(result.system).toBe(CODEBUDDY_DEFAULT_SYSTEM);
   });
 
   it('preserves existing system', () => {
-    const body = { model: 'codebuddy/claude-opus-4.6', system: 'Custom system prompt', messages: [] };
+    const body = {
+      model: 'codebuddy/claude-opus-4.6',
+      system: 'Custom system prompt',
+      messages: [],
+    };
     const result = ensureCodeBuddyDefaults(body);
     expect(result.system).toBe('Custom system prompt');
   });
@@ -40,7 +47,10 @@ describe('ensureCodeBuddyDefaults', () => {
   });
 
   it('does not mutate original body', () => {
-    const body = { model: 'codebuddy/claude-opus-4.6', messages: [{ role: 'user', content: 'test' }] };
+    const body = {
+      model: 'codebuddy/claude-opus-4.6',
+      messages: [{ role: 'user', content: 'test' }],
+    };
     const result = ensureCodeBuddyDefaults(body);
     expect(body).not.toHaveProperty('system');
     expect(body).not.toHaveProperty('temperature');
