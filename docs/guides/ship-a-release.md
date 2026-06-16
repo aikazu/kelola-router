@@ -193,7 +193,6 @@ This guide is read-only. The version-bump commit (step 4) is the only commit for
 
 - [`../../CHANGELOG.md`](../../CHANGELOG.md) — current changelog
 - [`../adr/`](../adr/) — past design decisions referenced in release notes
-- [`../../CLAUDE.md`](../../CLAUDE.md) — conventions (commit format, etc.)
-- [`../../AGENTS.md`](../../AGENTS.md) — agent workflow (push/PR rules)
+- [`../../AGENTS.md`](../../AGENTS.md) — conventions (commit format, etc.) + agent workflow (push/PR rules)
 - [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — format reference
 - [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — semver rules

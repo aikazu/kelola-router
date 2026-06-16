@@ -1,6 +1,6 @@
 # Contributing to kelola-router
 
-Thanks for contributing. This guide covers the human-side workflow. AI coding agents should also read `AGENTS.md` (or the human can refer them to it).
+Thanks for contributing. This guide covers the human-side workflow. AI coding agents should also read `AGENTS.md` (or the human can refer them to it). `AGENTS.md` is the single source of truth for project overview + workflow + conventions — `CLAUDE.md` is just a pointer to it.
 
 ## Quick start
 

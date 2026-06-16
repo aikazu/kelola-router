@@ -1,6 +1,6 @@
 # Architecture
 
-A deep-dive into how `kelola-router` is wired. Pair with `CLAUDE.md` (overview) and `MEMORY.md` (knowledge index).
+A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview + workflow) and `MEMORY.md` (knowledge index).
 
 ## Bird's-eye
 
@@ -316,8 +316,8 @@ Concrete subclasses:
 
 ## Where to look next
 
-- Proxy pipeline deep-dive → `CLAUDE.md`
-- Provider-specific quirks (MiniMax base_resp, Kiro event-stream) → `CLAUDE.md` "Provider" sections
+- Proxy pipeline deep-dive → `AGENTS.md` "Architecture (one-page)"
+- Provider-specific quirks (MiniMax base_resp, Kiro event-stream) → `AGENTS.md` "MiniMax quirks" + "Kiro provider"
 - Data model → `src/db/migrations/001-initial.ts` (all tables consolidated)
 - Live flow event types → `src/console/types.ts`
 - Test patterns → `AGENTS.md` "Test patterns"

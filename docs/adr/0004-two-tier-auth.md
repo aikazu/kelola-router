@@ -77,5 +77,5 @@ Rejected because: client SDKs (curl, hermes-agent) don't have a refresh-token da
 - `src/auth/{password,session,rateLimit}.ts` — building blocks
 - `src/api/admin/middleware.ts` — `requireAdminJson` (JSON-shaped admin gate for `/api/*`)
 - `src/db/migrations/001-initial.ts` — `client_keys` + `sessions` tables
-- `docs/architecture/CLAUDE.md` — auth model summary
+- `docs/architecture/CLAUDE.md` (legacy) — see `../../AGENTS.md` "Auth model" instead
 - `docs/guides/debug-a-failed-request.md` — auth-failure debug

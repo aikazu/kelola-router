@@ -44,4 +44,4 @@ The version-bump commit (step 4) is the only commit for the release. `git commit
 
 - `docs/guides/ship-a-release.md` — full playbook
 - `CHANGELOG.md` — current changelog
-- `../../CLAUDE.md` (root) — never push without asking
+- `../../AGENTS.md` (root) — never push without asking

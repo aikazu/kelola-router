@@ -104,7 +104,7 @@ src/providers/format/
 - **`response_format: {type: 'json_object'}` is not supported by Anthropic.** The router warns and passes the body through unchanged. Anthropic may or may not produce valid JSON.
 - **`stop_sequences` is an array in Anthropic, scalar in OpenAI.** `bodyAnthropicToOpenAI` joins with `||` separator (which OpenAI splits back). Loss-y for clients that use `||` in their stops.
 - **`metadata.user_id` is dropped** on Anthropic → OpenAI. No way to preserve it.
-- **The router injects `stream_options.include_usage=true` for OpenAI streaming** — even if the client didn't set it. This is intentional. See CLAUDE.md "OpenAI ↔ Anthropic format conversion".
+- **The router injects `stream_options.include_usage=true` for OpenAI streaming** — even if the client didn't set it. This is intentional. See `AGENTS.md` "Architecture (one-page)" and `src/proxy/format/`.
 - **Tool messages always require a preceding assistant tool_calls message.** If the client sends a tool message with no matching `tool_use_id` upstream, the upstream may 400.
 - **System messages at the END of the messages array** (some clients do this) are moved to the top by the OpenAI → Anthropic converter. The reverse is also true.
 

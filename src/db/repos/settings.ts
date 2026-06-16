@@ -25,7 +25,7 @@ function getCache(db: Database.Database): Map<string, { value: unknown; expiry: 
 export function clearCache(): void {
   // No-op: cache is now per-db via WeakMap. Kept for backward compat with
   // existing test suites that call it. New code should use a fresh db handle
-  // for a clean cache (matches CLAUDE.md test pattern).
+  // for a clean cache (matches AGENTS.md test pattern).
 }
 
 export function clearCacheForDb(db: Database.Database): void {

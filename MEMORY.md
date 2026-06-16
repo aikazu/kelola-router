@@ -4,18 +4,19 @@ Pointers to every knowledge resource in this repository. New contributor (human 
 
 ## Read first (in this order)
 
-1. **[`AGENTS.md`](AGENTS.md)** — workflow + conventions for AI coding agents. TDD, no `any`, commit format, test patterns.
-2. **[`CLAUDE.md`](CLAUDE.md)** — auto-loaded by Claude Code. Overview: proxy pipeline, two-tier auth, MiniMax/Kiro quirks, schema summary.
-3. **[`ARCHITECTURE.md`](ARCHITECTURE.md)** — module map, state machines, data flow per request, key invariants.
-4. **[`CONTRIBUTING.md`](CONTRIBUTING.md)** — human workflow: branches, commits, PRs, releases.
-5. **[`README.md`](README.md)** — user-facing quick start + features.
+1. **[`AGENTS.md`](AGENTS.md)** — single source of truth: project overview, architecture, workflow, conventions. Replaces what used to live in `CLAUDE.md`.
+2. **[`ARCHITECTURE.md`](ARCHITECTURE.md)** — module map, state machines, data flow per request, key invariants.
+3. **[`CONTRIBUTING.md`](CONTRIBUTING.md)** — human workflow: branches, commits, PRs, releases.
+4. **[`README.md`](README.md)** — user-facing quick start + features.
+
+> `CLAUDE.md` exists as a one-paragraph pointer for auto-loaders. Anything authoritative lives in `AGENTS.md`.
 
 ## Knowledge resources
 
 | Resource | Path | Purpose |
 |---|---|---|
 | Architecture | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Deep-dive: pipeline, state machines, module map |
-| Conventions | [`AGENTS.md`](AGENTS.md) | TDD, no `any`, commit format, test patterns |
+| Conventions | [`AGENTS.md`](AGENTS.md) | Single source: project overview + workflow + conventions |
 | Changelog | [`CHANGELOG.md`](CHANGELOG.md) | Release history (Keep-a-Changelog) |
 | Roadmap | [`docs/roadmap.md`](docs/roadmap.md) | Long-term direction |
 

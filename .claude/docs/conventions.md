@@ -85,7 +85,7 @@ See `../../AGENTS.md` "Test patterns" for the full set. Highlights:
 - Subject ≤ 72 chars, body explains *why*.
 - One `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` trailer per commit (this is the global project default).
 - Branch names: `feat/<scope>-<short>`, `fix/<scope>-<short>`, etc.
-- Never push without asking (root CLAUDE.md).
+- Never push without asking (root `AGENTS.md` Boundaries).
 
 ## Gotchas
 

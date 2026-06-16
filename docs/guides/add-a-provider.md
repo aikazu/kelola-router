@@ -15,7 +15,7 @@ A new provider `foo` that:
 ## Prerequisites
 
 - Read [`ARCHITECTURE.md`](../../ARCHITECTURE.md) — module map + state machines
-- Read [`CLAUDE.md`](../../CLAUDE.md) — proxy pipeline overview
+- Read [`AGENTS.md`](../../AGENTS.md) — proxy pipeline overview + conventions
 - Read the existing Kiro provider as a reference implementation: `src/providers/kiro/`
 - Have a working dev env: `npm run dev` + a fresh test DB
 
@@ -277,4 +277,4 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - [`../reference/db-tables.md`](../reference/db-tables.md) — `accounts` table schema
 - [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md) — admin endpoint patterns
 - [`../adr/`](../adr/) — past provider decisions
-- [`../../CLAUDE.md`](../../CLAUDE.md) — proxy pipeline overview
+- [`../../AGENTS.md`](../../AGENTS.md) — proxy pipeline overview

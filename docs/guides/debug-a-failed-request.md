@@ -167,5 +167,5 @@ This guide is read-only. No code changes. If you discover a new failure mode wor
 - [`../reference/error-codes.md`](../reference/error-codes.md) — backoff/lock semantics
 - [`../reference/db-tables.md`](../reference/db-tables.md) — `request_logs`, `account_model_locks`, `accounts` schemas
 - [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) — request pipeline + state machines
-- [`../../CLAUDE.md`](../../CLAUDE.md) — proxy pipeline overview
+- [`../../AGENTS.md`](../../AGENTS.md) — proxy pipeline overview + conventions
 - [`../adr/`](../adr/) — past debug investigations

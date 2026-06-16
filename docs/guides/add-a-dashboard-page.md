@@ -12,7 +12,7 @@ A new page, e.g. `/admin/widgets` that:
 
 ## Prerequisites
 
-- Read [`CLAUDE.md`](../../CLAUDE.md) — Dashboard section
+- Read [`AGENTS.md`](../../AGENTS.md) — Dashboard section
 - Read [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md) — your endpoint
 - Read one small existing page as a reference: `client/src/pages/Aliases.tsx` (CRUD) or `client/src/pages/Quota.tsx` (read-only with polling)
 - Dev env: `cd client && npm run dev` (proxies `/api` to the running server on :20137)
@@ -264,6 +264,5 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## See also
 
 - [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md) — your endpoint contract
-- [`../../CLAUDE.md`](../../CLAUDE.md) — Dashboard section
-- [`../../AGENTS.md`](../../AGENTS.md) — TDD + test patterns
+- [`../../AGENTS.md`](../../AGENTS.md) — Dashboard section + TDD + test patterns
 - [`add-an-admin-endpoint.md`](add-an-admin-endpoint.md) — if you need a new backend route first
