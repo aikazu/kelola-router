@@ -41,4 +41,15 @@ describe('ConsoleBlocks', () => {
     render(<ConsoleBlocks events={[s1, d1, s2, d2]} collapse />);
     expect(screen.getByText(/×2/)).toBeTruthy();
   });
+
+  it('renders newest block first (reversed order)', () => {
+    const s1: FlowEvent = { ...start, reqId: 'r1', path: '/v1/old' };
+    const d1: FlowEvent = { ...done, reqId: 'r1' };
+    const s2: FlowEvent = { ...start, reqId: 'r2', path: '/v1/new' };
+    const d2: FlowEvent = { ...done, reqId: 'r2' };
+    const { container } = render(<ConsoleBlocks events={[s1, d1, s2, d2]} />);
+    const blocks = container.querySelectorAll('.console-block');
+    expect(blocks[0].textContent).toMatch(/#r2/);
+    expect(blocks[1].textContent).toMatch(/#r1/);
+  });
 });

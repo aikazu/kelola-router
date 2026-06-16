@@ -139,7 +139,9 @@ function collapseBlocks(blocks: Block[]): CollapsedBlock[] {
 export function ConsoleBlocks({ events, collapse = false }: { events: FlowEvent[]; collapse?: boolean }) {
   const collapsed = useMemo(() => {
     const blocks = groupBlocks(events);
-    return collapse ? collapseBlocks(blocks) : blocks.map((block) => ({ block, count: 1 }));
+    const out = collapse ? collapseBlocks(blocks) : blocks.map((block) => ({ block, count: 1 }));
+    // Newest on top: blocks arrive in insertion order, so render reversed.
+    return out.slice().reverse();
   }, [events, collapse]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const toggle = (reqId: string) => setExpanded((cur) => (cur === reqId ? null : reqId));
@@ -252,7 +254,8 @@ export function Console() {
 
   useEffect(() => {
     if (stickRef.current && boxRef.current) {
-      boxRef.current.scrollTop = boxRef.current.scrollHeight;
+      // Newest on top: stick to the top of the scroll container.
+      boxRef.current.scrollTop = 0;
     }
   }, [events]);
 
@@ -346,7 +349,8 @@ export function Console() {
         ref={boxRef}
         onScroll={(e) => {
           const el = e.currentTarget as HTMLDivElement;
-          stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+          // Newest is on top: "stick" means the user is near the top of the list.
+          stickRef.current = el.scrollTop < 40;
         }}
       >
         <ConsoleBlocks events={filteredEvents} collapse={collapse} />
