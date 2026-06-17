@@ -1,37 +1,45 @@
-# Notion Desktop Capture Notes
+# Notion Desktop Capture Notes v2 — RE for Router Integration
 
-**Source HAR:** `capture.har` (1098 Notion API entries)
-**Notion desktop version:** 23.13.20260617.1538 (`notion-client-version` header)
-**Account:** attila@kcmon.id (user_id: 382d872b-594c-81ff-b89c-00021216a6b0)
+**Capture source:** `docs/notion/capture.har` (1098 Notion API entries)
 **Capture date:** 2026-06-17
+**Notion desktop version:** `23.13.20260617.1538` (`notion-client-version` header)
+**Account:** attila@kcmon.id (user_id: `382d872b-594c-81ff-b89c-00021216a6b0`, workspace/space: `c8b966f7-8a76-8168-bfdb-0003e92f00e8`)
+**Verified against:** live mitmweb capture + extracted JSON-Patch records
 
-## TL;DR — Protocol is NOT OpenAI-style
+---
 
-Notion AI chat uses a **sync-style CRDT protocol**, not a chat-completion API:
+## TL;DR — Protocol Reality
 
-- **Request body**: newline-delimited JSON-patch operations (JSON-Patch RFC 6902 over a record map)
-- **Response**: `application/x-ndjson` stream (NOT SSE)
-- **Conversation model**: shared record-map with `agent-instruction-state`, `agent-turn-full-record-map`, `agent-inference`, `agent-tool-result` records
-- **Auth**: 3-step login (getLoginOptions → sendTemporaryPassword → loginWithEmail), no OTP
-- **Authentication token**: cookie session, NOT Authorization header
+Notion AI chat is **NOT a chat-completion API**. It is a **sync-style CRDT protocol**:
 
-This is fundamentally different from OpenAI/Anthropic chat completion APIs. The router integration must either:
-(a) Replay this CRDT protocol faithfully, OR
-(b) Wrap it as OpenAI-style on the client-facing side while internally translating
+- **Request body**: NDJSON stream of JSON-Patch operations (RFC 6902)
+- **Response**: `application/x-ndjson` (NDJSON) — NOT SSE
+- **Auth**: cookie-based (11 cookies required for AI request), established via 3-step login
+- **Conversation model**: shared record-map with `agent-instruction-state`, `agent-turn-full-record-map`, `agent-inference`, `agent-tool-result` records — the entire patch document IS the conversation
+- **Tool calls**: supported via `agent-tool-result` records (`toolName: "callFunction"`, modular tools like `fs-module`, `notion-module`, `web-module`)
+- **Image input**: NOT observed in this capture — needs separate RE with image upload session
 
-## Authentication
+Router integration strategy: replay JSON-Patch documents faithfully, translate to OpenAI chunks on egress, translate OpenAI requests to patch documents on ingress.
 
-### Step 1: Get Login Options
-- URL: `POST https://app.notion.com/api/v3/getLoginOptions`
-- Headers: `notion-client-version`, `content-type: application/json`, cookie session
-- Request body:
-```json
-{
-  "email": "attila@kcmon.id",
-  "requireWorkTypeEmail": false
-}
+---
+
+## 1. Authentication
+
+### 1.1 Login Flow (3 steps, NOT OTP)
+
+Notion uses a temporary password (6 alphanumeric characters) sent to the user's email, not a 6-digit OTP code.
+
+#### Step 1: `POST /api/v3/getLoginOptions`
+
 ```
-- Response:
+POST https://app.notion.com/api/v3/getLoginOptions
+notion-client-version: 23.13.20260617.1538
+content-type: application/json
+
+{"email":"attila@kcmon.id","requireWorkTypeEmail":false}
+```
+
+Response:
 ```json
 {
   "hasAccount": true,
@@ -41,15 +49,17 @@ This is fundamentally different from OpenAI/Anthropic chat completion APIs. The 
   "loginOptionsToken": "v02:login_options:..."
 }
 ```
-- Field paths:
-  - `loginOptionsToken` → must be passed to step 2
-  - `hasAccount` → indicates whether login flow continues
 
-### Step 2: Send Temporary Password
-- URL: `POST https://app.notion.com/api/v3/sendTemporaryPassword`
-- Headers: same
-- Request body:
-```json
+- `hasAccount: false` → CLI exits "no Notion account for this email"
+- `passwordSignIn: true` → CLI exits "account requires password login, not supported"
+
+#### Step 2: `POST /api/v3/sendTemporaryPassword`
+
+```
+POST https://app.notion.com/api/v3/sendTemporaryPassword
+notion-client-version: 23.13.20260617.1538
+content-type: application/json
+
 {
   "email": "attila@kcmon.id",
   "disableLoginLink": false,
@@ -61,176 +71,279 @@ This is fundamentally different from OpenAI/Anthropic chat completion APIs. The 
   "loginRouteOrigin": "login"
 }
 ```
-- Response:
-```json
-{
-  "csrfState": "v02:temp_password:..."
-}
-```
-- Side effect: sends the temporary password to user's email (NOT a 6-digit code)
 
-### Step 3: Login with Email
-- URL: `POST https://app.notion.com/api/v3/loginWithEmail`
-- Request body:
+Response:
 ```json
+{"csrfState": "v02:temp_password:..."}
+```
+
+Side effect: sends 6-char temp password to user's email.
+
+#### Step 3: `POST /api/v3/loginWithEmail`
+
+```
+POST https://app.notion.com/api/v3/loginWithEmail
+notion-client-version: 23.13.20260617.1538
+content-type: application/json
+
 {
   "state": "v02:temp_password:...",
-  "password": "<6-char temp password from email>",
+  "password": "<6-char from email>",
   "appSource": "notion",
   "loginRouteOrigin": "login"
 }
 ```
-- Response:
+
+Response body:
 ```json
-{
-  "isNewSignup": false,
-  "userId": "382d872b-594c-81ff-b89c-00021216a6b0"
-}
+{"isNewSignup": false, "userId": "382d872b-594c-81ff-b89c-00021216a6b0"}
 ```
-- Note: response does NOT contain token directly — the token is set as a `Set-Cookie` response header (`file_token` / `token` cookie)
 
-### Cookie-based session
-- Auth state lives in cookies (e.g., `notion_user_id`, `token_v2`, `file_token`)
-- All subsequent requests to `app.notion.com/api/v3/*` send cookies via browser/Electron
-- NO `Authorization: Bearer` header is used — this is cookie auth, not token auth
+**Response Set-Cookie headers** (all 7 cookies required for subsequent requests):
 
-### Token Refresh
-- Not observed in capture (no 401 → refresh sequence)
-- Notion sessions appear to persist long-lived (likely weeks)
-- Refresh endpoint: NOT FOUND
+| Cookie | Domain | Path | Expires | HttpOnly | Secure | SameSite | Purpose |
+|---|---|---|---|---|---|---|---|
+| `token_v2` | `app.notion.com` | `/` | 1 year | Yes | Yes | (default) | Primary auth (JWT-like encrypted) |
+| `file_token` | `.notion.com` | `/f` | 1 year | Yes | Yes | (default) | File access for `/f/*` URLs only |
+| `notion_user_id` | `app.notion.com` | `/` | 1 year | No | Yes | (default) | UUID of current user |
+| `notion_users` | `app.notion.com` | `/` | 1 year | No | Yes | (default) | JSON array of user UUIDs |
+| `notion_sync_user_id` | `.notion.com` | `/` | 90 days | No | Yes | (default) | JSON sync state |
+| `notion_locale` | `app.notion.com` | `/` | 1 year | No | Yes | (default) | User locale |
+| `NEXT_LOCALE` | `app.notion.com` | `/` | 1 year | No | Yes | (default) | Next.js locale |
+| `p_sync_session` | `.notion.com` | `/` | 1 year | Yes | Yes | Lax | Push sync session token |
+| `device_id` | `app.notion.com` | `/` | 1 year | Yes | Yes | (default) | UUID (sent in step 2 + set on `/f/refresh`) |
+| `notion_browser_id` | `app.notion.com` | `/` | (long) | No | Yes | (default) | UUID |
+| `notion_check_cookie_consent` | `app.notion.com` | `/` | (session) | No | Yes | (default) | Boolean flag |
 
-## AI Chat
+`token_v2` is JWT-like: `v03:eyJhbGciOiJkaXIiLCJraWQiOiJwcm9kdWN0aW9uOnRva2VuLXYzOjIwMjQtMTEtMDciLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIn0..<encrypted-payload>.<sig>` — do NOT decrypt, store verbatim.
 
-### Endpoint
-- URL: `POST https://app.notion.com/api/v3/runInferenceTranscript`
-- Headers:
-  - `notion-client-version: 23.13.20260617.1538`
-  - `content-type: application/json`
-  - cookie session (no Authorization header)
-- Response Content-Type: `application/x-ndjson`
+### 1.2 Cookies Required for AI Chat Requests
 
-### Request Body Format
+Headers on `POST /api/v3/runInferenceTranscript` (verified from capture, 1738 bytes):
 
-Body is newline-delimited JSON-patch operations. First record establishes an `agent-instruction-state`, subsequent patches add records to a `s` (state) array. Example abbreviated:
+```
+cookie: device_id=...; notion_browser_id=...; notion_check_cookie_consent=false;
+        onetap_nonce=...; notion_user_id=...; notion_sync_user_id=...;
+        NEXT_LOCALE=...; p_sync_session=...; _cioid=...;
+        notion_locale=...; notion_users=["..."]; token_v2=v03:...
+        + Cloudflare cookies (__cf_bm, _cfuvid)
+```
+
+**Minimum required (without Cloudflare, which is infra not auth):** 11 cookies listed above. **`file_token` NOT sent on AI requests** — only on `/f/*` file URLs.
+
+### 1.3 Token Lifecycle
+
+- Sessions last 1 year (most cookies)
+- `notion_sync_user_id` expires in 90 days (this is the weakest link)
+- **No refresh endpoint observed** — when cookies expire, user must re-run the 3-step login
+- `notion_user_id` cookie expires 1 year; when it expires, Notion desktop triggers re-login automatically (via `app.notion.com/api/v3/authValidate` polling)
+- Router strategy: store all 11 cookies encrypted at rest, re-validate via `authValidate` periodically (or on 401), trigger CLI re-login on auth failure
+
+---
+
+## 2. AI Chat Protocol
+
+### 2.1 Endpoint
+
+```
+POST https://app.notion.com/api/v3/runInferenceTranscript
+notion-client-version: 23.13.20260617.1538
+accept: application/x-ndjson
+content-type: application/json
+cookie: <11 cookies from §1.2>
+```
+
+Response Content-Type: `application/x-ndjson`
+
+### 2.2 Request Body — JSON-Patch Stream
+
+Body is **NDJSON** where each line is a JSON-Patch operation (RFC 6902). Full structure (extracted from real capture):
 
 ```
 {"type":"patch-start","data":{"s":[{"id":"<uuid>","type":"agent-instruction-state","owner":"regular","root":{"type":"none"},"sources":[],"selectedSkillPageIds":[],"trackedInstructionTreePages":[]}]},"version":1}
 {"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-turn-full-record-map"}}]}
 {"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-tool-result","toolName":"callFunction",...}}]}
-... (more patches adding messages, sources, etc.)
-{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-inference","value":[{"type":"text","content":"Hello!"}],"traceId":"<uuid>","startedAt":<unix-ms>}}]}
+{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-inference","value":[{"type":"text","content":"Hello!"}],"traceId":"<uuid>","startedAt":1781725646413,"previousAttemptValues":[]}}]}
 {"type":"done"}
 ```
 
-Patch op codes seen:
-- `o: "a"` = array append at path `p`
-- `o: "x"` = patch value at path `p` with `v`
+**Patch op codes:**
+- `o: "a"` = append to array at path `p`
+- `o: "x"` = patch value at path `p` with `v` (text deltas land here)
+- `o: "r"` = replace (rare)
 
-### Response Format
+**Record types:**
+- `agent-instruction-state`: root record, owns conversation metadata
+- `agent-turn-full-record-map`: parent record for a single user turn
+- `agent-inference`: a model response (text or tool call)
+- `agent-tool-result`: a tool call (input + result)
 
-NDJSON stream of same patch operations plus a final `{"type":"done"}`. Each line is a complete JSON object.
+### 2.3 Response Body — NDJSON Stream
 
-Example response lines (concatenated, real capture):
+Same patch operations echoed back from server plus incremental updates. Streaming is via `o: "x"` patches against content paths like `/s/<index>/value/0/content`.
+
+Example response lines from capture (real text):
 ```
-{"type":"patch-start","data":{"s":[...]}, "version":1}
-{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-inference","value":[{"type":"text","content":"Halo, Attila!"}],"traceId":"<uuid>","startedAt":1781725646413}}]}
+{"type":"patch-start","data":{"s":[{"id":"...","type":"agent-instruction-state",...}]},"version":1}
+{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"...","type":"agent-inference","value":[{"type":"text","content":"Halo, Attila!"}],"traceId":"...","startedAt":1781725646413}}]}
 {"type":"patch","v":[{"o":"x","p":"/s/1/value/0/content","v":" 👋 Senang ngobrol sama kamu. ..."}]}
 {"type":"done"}
 ```
 
-### Streaming Content Extraction
+### 2.4 Streaming Content Extraction Algorithm
 
-The text content is delivered incrementally via `o:"x"` patches against paths like `/s/<index>/value/0/content`. The router must:
-1. Accumulate patches
-2. Apply them to a local JSON-Patch state (json-patch library)
-3. Diff against previous state to extract new text tokens
-4. Forward as OpenAI `chat.completion.chunk` deltas
+The router must:
 
-### Conversation IDs
+1. **Accumulate** all `agent-inference` records into a state object
+2. **Track each `value[0].content` field** per record
+3. **On each `o: "x"` patch against a content path**, diff old vs new value
+4. **Emit `TextDelta { delta: <new_chars - old_chars>, ... }`** for each diff
+5. **Final `{"type": "done"}` line** → emit `TextDelta { done: true }`
 
-UUIDs like `382966f7-8a76-81d9-a7d4-00aaa76c719b` — correspond to the `id` of the `agent-turn-full-record-map` record, OR a higher-level conversation entity. NOT a single `conversation_id` field; it's the patch document itself that represents the conversation.
+Use `fast-json-patch` library for patch application + state management.
 
-### Model IDs
+### 2.5 Conversation Identity
+
+A "conversation" = entire patch document. Root conversation UUID = `id` of the first `agent-turn-full-record-map` record. This is what the router stores as `conversation_routing.conversation_id`.
+
+---
+
+## 3. Models
 
 From `POST /api/v3/getAvailableModels` (request body `{spaceId: "<workspace-uuid>"}`):
 
-| Internal ID (`model`) | Display (`modelMessage`) | Family |
-|---|---|---|
-| `oatmeal-cookie` | GPT-5.2 | openai |
-| `oval-kumquat-medium` | GPT-5.4 | openai |
-| `opal-quince-medium` | GPT-5.5 | openai |
-| `vertex-gemini-2.5-flash` | Gemini 2.5 Flash | gemini |
-| `vertex-gemini-3.5-flash` | Gemini 3.5 Flash | gemini |
-| `almond-croissant-low` | Sonnet 4.6 | anthropic |
-| `acai-budino` | Fable 5 (restricted, trial_not_allowed) | anthropic |
+| Router Alias | Internal ID (`model`) | Display (`modelMessage`) | Family | Notes |
+|---|---|---|---|---|
+| `nt/notion-gpt-5.2` | `oatmeal-cookie` | GPT-5.2 | openai | |
+| `nt/notion-gpt-5.4` | `oval-kumquat-medium` | GPT-5.4 | openai | |
+| `nt/notion-gpt-5.5` | `opal-quince-medium` | GPT-5.5 | openai | |
+| `nt/notion-gemini-2.5-flash` | `vertex-gemini-2.5-flash` | Gemini 2.5 Flash | gemini | |
+| `nt/notion-gemini-3.5-flash` | `vertex-gemini-3.5-flash` | Gemini 3.5 Flash | gemini | |
+| `nt/notion-sonnet-4.6` | `almond-croissant-low` | Sonnet 4.6 | anthropic | |
+| (restricted) | `acai-budino` | Fable 5 | anthropic | Trial not allowed |
 
-The internal ID is what goes into the patch stream's `model` field. Display name is for UI. Some models may also need a `spaceId` in the request context — router should fetch available models per-account on demand.
+**Request to Notion uses the internal ID**, not the display name.
 
-## Other Useful Endpoints
+**Capabilities per model (from `modelCardAttributes`):** Notion rates speed/intelligence/cost on 1-5 scale, but does NOT expose max-tokens, vision support, or function-calling flags in this endpoint. Capability inference from observation only.
 
-| URL | Method | Purpose |
-|---|---|---|
-| `/api/v3/getLoginOptions` | POST | Login step 1 |
-| `/api/v3/sendTemporaryPassword` | POST | Login step 2 (triggers email) |
-| `/api/v3/loginWithEmail` | POST | Login step 3 (returns userId + sets cookie) |
-| `/api/v3/authValidate` | POST | Validate current session |
-| `/api/v3/getAvailableModels` | POST | Model catalog for AI |
-| `/api/v3/getAIUsageEligibility` | POST | Check AI access for account |
-| `/api/v3/getAIUsageEligibilityV2` | POST | Same, newer version |
-| `/api/v3/runInferenceTranscript` | POST | Main AI chat endpoint |
-| `/api/v3/getInferenceTranscriptsForUser` | POST | List user's conversations |
-| `/api/v3/markInferenceTranscriptSeen` | POST | Mark conversation read |
-| `https://identity.notion.com/authSync` | GET | Identity sync (returns HTML — auth happens client-side via WebSocket or postMessage to iframe) |
+---
 
-## Identity Sync (`identity.notion.com`)
+## 4. Tool Calls
 
-The `identity.notion.com/authSync` endpoint returns an HTML page that bootstraps an authentication iframe. Actual auth credential exchange happens via WebSocket or postMessage. The cookie set by this iframe is what gets sent on subsequent `app.notion.com` requests.
+**Confirmed working in capture.** Tool record schema:
 
-For the router integration, we can SKIP this and use the cookie directly:
-1. Capture the cookie value after a successful login (via mitmproxy)
-2. Store as `accounts.cookie` (encrypted at rest)
-3. Send `Cookie: <value>` header on every request
+```json
+{
+  "id": "<uuid>",
+  "type": "agent-tool-result",
+  "toolName": "callFunction",
+  "toolType": "callFunction",
+  "traceId": "<uuid>",          // links to agent-inference that triggered this tool
+  "startedAt": 1781725627926,   // unix ms
+  "finishedAt": 1781725627947,
+  "durationMs": 21,
+  "input": {
+    "function": "connections.fs.readFiles",
+    "args": {
+      "files": ["modules/fs/AGENTS.md", ...]
+    }
+  },
+  "state": "applied",
+  "result": {
+    "output": "<JSON-stringified result>",
+    "headerLabel": [["Loaded tools"]]
+  },
+  "moduleInfo": {
+    "id": "bc98da72-0be3-4971-881b-6a3c951e0103",
+    "name": "fs-module",
+    "type": "fs"
+  },
+  "renderedResultArtifactPointer": {
+    "table": "workflow_artifact",
+    "id": "<uuid>",
+    "spaceId": "<workspace-uuid>"
+  },
+  "threadOperations": []
+}
+```
 
-This is simpler than reimplementing the WebSocket handshake.
+**Modular tools observed in capture:**
 
-## Error Responses
+| Module | Function examples |
+|---|---|
+| `fs-module` | `connections.fs.readFiles` |
+| `notion-module` | (Notion page operations — names TBD) |
+| `web-module` | (web fetch / search — names TBD) |
+| `mcpServer-module` | (MCP server — names TBD) |
+| `search-module` | (search — names TBD) |
+| `helpdocs-module` | (help docs — names TBD) |
+| `system-module` | (system — names TBD) |
 
-No 4xx/5xx observed in the AI chat flow during capture (all 200). Typical Notion errors observed in other contexts:
-- 401 → session expired, redirect to login
-- 403 → permission denied
-- 402 → no AI subscription (via `getAIUsageEligibility` returning false)
+**Router strategy:** translate `agent-tool-result` records with `toolName: "callFunction"` → OpenAI `tool_calls` chunks. Map `moduleInfo.type` → tool name in OpenAI tools array. Function name format `<module>.<action>` → OpenAI function name.
 
-## Token Lifecycle
+---
 
-- Sessions persist for weeks (cookies last 1 year by default per Notion's cookie config)
-- No refresh endpoint observed — when cookie expires, user must re-login
-- `authValidate` is called periodically to check session validity
+## 5. Image Input — NOT YET CAPTURED
 
-## Integration Implications
+The current capture only has text conversations. Need a separate session with:
+1. Open Notion AI chat
+2. Attach an image (drag-drop, paste, or "Add image" button)
+3. Send message with image
 
-Given the CRDT-style protocol, the router integration strategy should be:
+Then inspect request body for image-related fields. Likely candidates:
+- New record type: `agent-attachment` or `image-source`
+- Field on `agent-inference.value[].type: "image"` with `url` / `file_token` / `blockId`
+- Or a separate `image-upload` endpoint (similar to `/f/upload`)
 
-**Option A (Faithful replay — recommended for v1):**
-- Client sends OpenAI-style request to router
-- Router uses captured conversation documents (UUIDs) as proxies for "conversations"
-- Router replays the exact same patch sequence to Notion's runInferenceTranscript
-- Router parses NDJSON response, extracts text deltas, returns as OpenAI chunks
-- Pros: works, minimal Notion-side surprises
-- Cons: complex parser, brittle if Notion changes patch shape
+**Action:** dispatch subagent to capture session with image, then update this section.
 
-**Option B (Wrapper):**
-- Router exposes OpenAI-compatible surface
-- Internally, translator converts OpenAI request → Notion patch sequence
-- State management: router keeps "fake conversations" that map to patch documents
-- Pros: clean external surface
-- Cons: stateful on router, can drift from Notion's actual document state
+---
 
-**Recommend A for v1** — replay as faithfully as possible. Once stable, consider B if protocol drifts.
+## 6. Error Responses
 
-## Open Questions
+Observed in capture:
+- 200 success on all chat calls in this session
+- `/api/v3/logout` returns 200 with cookie expiration headers (not an error)
 
-1. How does conversation persistence work? Are conversations tied to specific cookie+userId, or can a different cookie+userId resume? (Need to capture: login as user A → start conversation → login as user B → try same UUID)
-2. What is the exact field schema of `getAvailableModels` response? (Need to inspect)
-3. Does streaming continue after `[DONE]` in any cases?
-4. What triggers `runInferenceTranscript` to emit `agent-tool-result` records (function calling)?
-5. Is there a way to pass system prompts / conversation history beyond what's in the initial agent-instruction-state?
+Not observed but expected (based on API patterns):
+- 401 → cookies expired, re-login required
+- 403 → no permission for workspace/space
+- 429 → rate limited (Notion enforces usage limits per `getAIUsageEligibility`)
+- 500/502/503 → upstream error, retryable
+
+`POST /api/v3/getAIUsageEligibility` returns:
+```json
+{"isEligible": true, ...}
+```
+If false → account cannot use AI features (subscription issue).
+
+---
+
+## 7. Endpoints Inventory
+
+| Endpoint | Method | Auth | Purpose |
+|---|---|---|---|
+| `/api/v3/getLoginOptions` | POST | none | Login step 1 |
+| `/api/v3/sendTemporaryPassword` | POST | none | Login step 2 (triggers email) |
+| `/api/v3/loginWithEmail` | POST | none | Login step 3 (returns userId + sets cookies) |
+| `/api/v3/logout` | POST | cookies | Clear session |
+| `/api/v3/authValidate` | POST | cookies | Check session validity |
+| `/api/v3/getAvailableModels` | POST | cookies | Model catalog |
+| `/api/v3/getAIUsageEligibility` | POST | cookies | AI subscription check |
+| `/api/v3/runInferenceTranscript` | POST | cookies | Main AI chat (NDJSON) |
+| `/api/v3/getInferenceTranscriptsForUser` | POST | cookies | List user's conversations |
+| `/api/v3/markInferenceTranscriptSeen` | POST | cookies | Mark conversation read |
+| `/api/v3/getUserSignals` | POST | cookies | Telemetry |
+| `/f/refresh` | GET | cookies | Refresh device_id cookie |
+| `https://identity.notion.com/authSync` | GET | (browser) | Identity bootstrap iframe |
+
+---
+
+## 8. Open RE Questions (remaining work)
+
+1. **Image input wire format** — needs fresh capture with image upload (Task 0b)
+2. **Tool call input format for non-`callFunction` tools** — does router need to handle `web-module.search`, `notion-module.search` etc.? (Task 0c — partial via fs-module)
+3. **Cookie expiration detection** — does router need to handle `authValidate` polling, or just react to 401? (Task 0d — partially answered: cookies last 1 year, no proactive refresh)
+4. **Does `runInferenceTranscript` accept multi-turn via the patch document, or must router send fresh document each turn?** Capture evidence suggests fresh each turn (no conversation resumption seen in this capture).
+
+These block: image support implementation, conversation continuity semantics, tool-calls-to-OpenAI-tools mapping.
