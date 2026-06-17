@@ -148,6 +148,22 @@ export function Models() {
             shadowedNames={shadowedNames}
             onAddModel={() => setAddOpen('kiro')}
           />
+          <ProviderModelsSection
+            title="Pioneer"
+            models={filtered.filter((m) => m.provider === 'pioneer')}
+            selected={selected}
+            onSelectChange={setSelected}
+            shadowedNames={shadowedNames}
+            onAddModel={() => setAddOpen('pioneer')}
+          />
+          <ProviderModelsSection
+            title="CodeBuddy"
+            models={filtered.filter((m) => m.provider === 'codebuddy')}
+            selected={selected}
+            onSelectChange={setSelected}
+            shadowedNames={shadowedNames}
+            onAddModel={() => setAddOpen('codebuddy')}
+          />
         </>
       )}
 

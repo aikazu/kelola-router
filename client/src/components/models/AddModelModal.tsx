@@ -59,7 +59,15 @@ export function AddModelModal({ open, onClose, provider }: AddModelModalProps) {
     <Modal
       open={open}
       onClose={onClose}
-      title={`Add ${provider === 'kiro' ? 'Kiro' : 'MiniMax'} model`}
+      title={`Add ${
+        provider === 'kiro'
+          ? 'Kiro'
+          : provider === 'pioneer'
+            ? 'Pioneer'
+            : provider === 'codebuddy'
+              ? 'CodeBuddy'
+              : 'MiniMax'
+      } model`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

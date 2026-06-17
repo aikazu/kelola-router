@@ -58,7 +58,9 @@ export function AccountsTable({
               </td>
               <td style={{ whiteSpace: 'nowrap' }}>
                 <Badge variant={a.provider === 'kiro' ? 'active' : 'muted'}>
-                  {a.provider === 'kiro' ? `kiro · ${a.authMethod || 'token'}` : 'minimax'}
+                  {a.provider === 'kiro'
+                    ? `kiro · ${a.authMethod || 'token'}`
+                    : (a.provider ?? 'minimax')}
                 </Badge>
                 {a.provider === 'kiro' && (
                   <Badge variant={a.persona === 'cli' ? 'warn' : 'muted'} style={{ marginLeft: 6 }}>

@@ -1,8 +1,10 @@
 import type Database from 'better-sqlite3';
-import { listEnabledAccountsByProvider } from '../../db/repos/accounts.js';
+import { listEnabledAccountsByProvider, type ProviderName } from '../../db/repos/accounts.js';
 import type { Model } from '../../db/repos/models.js';
+import { executeCodeBuddy } from '../../providers/codebuddy/index.js';
 import { executeKiro } from '../../providers/kiro/index.js';
 import { upstreamHeaders, upstreamUrl } from '../../providers/minimax.js';
+import { executePioneer } from '../../providers/pioneer/index.js';
 import { upstreamFetch } from '../../providers/upstreamFetch.js';
 import { resolveTransportForAccount } from '../../transport/resolve.js';
 
@@ -20,7 +22,7 @@ export async function testModelUpstream(
   db: Database.Database,
   model: Model
 ): Promise<ModelTestResult> {
-  const provider = model.provider === 'kiro' ? 'kiro' : 'minimax';
+  const provider = (model.provider ?? 'minimax') as ProviderName;
   const account = listEnabledAccountsByProvider(db, provider)[0];
   if (!account) {
     return { ok: false, latencyMs: 0, error: `Tidak ada account ${provider} yang aktif` };
@@ -48,6 +50,43 @@ export async function testModelUpstream(
           latencyMs,
           error: result.errorBody?.slice(0, 200) || `HTTP ${result.status}`,
         };
+      }
+      return { ok: true, latencyMs };
+    }
+
+    if (provider === 'pioneer') {
+      const resp = await executePioneer({
+        body: {
+          model: model.upstream_model,
+          messages: [{ role: 'user', content: 'ping' }],
+        },
+        account: { api_key: account.api_key, base_url: account.base_url },
+        transport,
+        clientFormat: 'openai',
+        upstreamModel: model.upstream_model,
+      });
+      const latencyMs = Date.now() - started;
+      if (!resp.ok) {
+        const text = await resp.text();
+        return { ok: false, latencyMs, error: text.slice(0, 200) || `HTTP ${resp.status}` };
+      }
+      return { ok: true, latencyMs };
+    }
+
+    if (provider === 'codebuddy') {
+      const resp = await executeCodeBuddy({
+        body: {
+          model: model.upstream_model,
+          messages: [{ role: 'user', content: 'ping' }],
+        },
+        account: { api_key: account.api_key, base_url: account.base_url },
+        transport,
+        clientFormat: 'openai',
+      });
+      const latencyMs = Date.now() - started;
+      if (!resp.ok) {
+        const text = await resp.text();
+        return { ok: false, latencyMs, error: text.slice(0, 200) || `HTTP ${resp.status}` };
       }
       return { ok: true, latencyMs };
     }

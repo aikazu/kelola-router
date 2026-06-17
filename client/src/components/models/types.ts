@@ -15,7 +15,7 @@ export interface Model {
   aliasCount: number;
 }
 
-export type Provider = 'minimax' | 'kiro';
+export type Provider = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer';
 
 export type TestState =
   | { state: 'loading' }

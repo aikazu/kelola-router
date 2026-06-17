@@ -53,8 +53,15 @@ modelRoutes.post('/', async (c) => {
     if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
       return c.json({ error: 'invalid_body', message: 'Nama model wajib diisi' }, 400);
     }
-    if (body.provider !== 'minimax' && body.provider !== 'kiro') {
-      return c.json({ error: 'invalid_body', message: 'Provider harus minimax atau kiro' }, 400);
+    const ALLOWED_PROVIDERS = ['minimax', 'kiro', 'codebuddy', 'pioneer'] as const;
+    if (!body.provider || !(ALLOWED_PROVIDERS as readonly string[]).includes(body.provider)) {
+      return c.json(
+        {
+          error: 'invalid_body',
+          message: `Provider harus salah satu: ${ALLOWED_PROVIDERS.join(', ')}`,
+        },
+        400
+      );
     }
     const name = body.name.trim();
     if (getModel(db, name)) {
@@ -67,7 +74,7 @@ modelRoutes.post('/', async (c) => {
       context_window: typeof body.contextWindow === 'number' ? body.contextWindow : null,
       pricing_input: typeof body.pricingInput === 'number' ? body.pricingInput : null,
       pricing_output: typeof body.pricingOutput === 'number' ? body.pricingOutput : null,
-      provider: body.provider,
+      provider: body.provider as (typeof ALLOWED_PROVIDERS)[number],
       source: 'manual',
     });
     return c.json({ ok: true }, 201);

@@ -39,6 +39,7 @@ import { log } from '../util/log.js';
 import { handleCodeBuddyProxy } from './codebuddy.js';
 import { errorMessage, statusCode } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
+import { handlePioneerProxy } from './pioneer.js';
 import {
   applyErrorState,
   buildAccountStates,
@@ -249,6 +250,53 @@ export async function handleComboProxy(
         log.warn(
           { combo: combo.name, model: modelName, error: msg },
           'combo: codebuddy model failed, trying next'
+        );
+        lastErrorResponse = c.json({ error: msg }, 502);
+        continue;
+      }
+    }
+
+    // Pioneer provider: delegate to handlePioneerProxy for this model
+    if (resolved.provider === 'pioneer') {
+      try {
+        const pioBody = { ...body, model: modelName };
+        const pioCursorRef: CursorRef = { value: cursorRef.value };
+        const pioResp = await handlePioneerProxy(
+          c,
+          format,
+          upstreamPath,
+          pioBody,
+          db,
+          pioCursorRef,
+          stickyMap
+        );
+        cursorRef.value = pioCursorRef.value;
+        if (
+          pioResp.status === 429 ||
+          pioResp.status === 502 ||
+          pioResp.status === 503 ||
+          pioResp.status === 504 ||
+          pioResp.status === 401 ||
+          pioResp.status === 402 ||
+          pioResp.status === 403
+        ) {
+          log.info(
+            { combo: combo.name, model: modelName, status: pioResp.status },
+            'combo: pioneer retryable error, trying next model'
+          );
+          lastErrorResponse = pioResp;
+          continue;
+        }
+        log.info(
+          { combo: combo.name, model: modelName, index: i },
+          'combo: pioneer success on model'
+        );
+        return pioResp;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        log.warn(
+          { combo: combo.name, model: modelName, error: msg },
+          'combo: pioneer model failed, trying next'
         );
         lastErrorResponse = c.json({ error: msg }, 502);
         continue;

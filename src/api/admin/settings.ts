@@ -38,7 +38,7 @@ settingsRoutes.post('/rtk', post('rtk'));
 settingsRoutes.post('/caching', post('caching'));
 settingsRoutes.post('/minimax', post('minimax'));
 
-const SELECTION_PROVIDERS = ['minimax', 'kiro'] as const;
+const SELECTION_PROVIDERS = ['minimax', 'kiro', 'codebuddy', 'pioneer'] as const;
 type SelectionProvider = (typeof SELECTION_PROVIDERS)[number];
 const SELECTION_MODES = ['lowest-backoff', 'round-robin', 'sticky'] as const;
 
@@ -51,7 +51,10 @@ settingsRoutes.get('/selection/:provider', (c) => {
     const provider = c.req.param('provider');
     if (!isSelectionProvider(provider)) {
       return c.json(
-        { error: 'invalid_provider', message: 'Provider harus minimax atau kiro' },
+        {
+          error: 'invalid_provider',
+          message: `Provider harus salah satu: ${SELECTION_PROVIDERS.join(', ')}`,
+        },
         400
       );
     }
@@ -68,7 +71,10 @@ settingsRoutes.post('/selection/:provider', async (c) => {
     const provider = c.req.param('provider');
     if (!isSelectionProvider(provider)) {
       return c.json(
-        { error: 'invalid_provider', message: 'Provider harus minimax atau kiro' },
+        {
+          error: 'invalid_provider',
+          message: `Provider harus salah satu: ${SELECTION_PROVIDERS.join(', ')}`,
+        },
         400
       );
     }
