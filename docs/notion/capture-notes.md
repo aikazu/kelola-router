@@ -293,58 +293,160 @@ From `POST /api/v3/getAvailableModels` (request body `{spaceId: "<workspace-uuid
 
 ---
 
-## 5. Image Input — CONFIRMED WORKING
+## 5. File Upload (images, PDFs, any content) — CONFIRMED WORKING
 
-Captured from session where user sent a PNG screenshot (`Screenshot 2026-06-03 141122.png`, 2999×1546, 167683 bytes).
+Captured from session where user uploaded a PDF (38738 bytes, 1 page) and asked the model to read + summarize it. Model emitted a text-only response (no file write, no page create — just a normal `agent-inference` text record).
 
-**Attachment record in `transcript` array:**
+### 5.1 Upload Flow (3 steps)
+
+#### Step 1: Request presigned URL
+```
+POST https://app.notion.com/api/v3/getUploadFileUrlForAssistantChatTranscriptUpload
+{
+  "name": "f3fe9f90-8443-432a-92f5-efd878fb7033.pdf",
+  "contentType": "application/pdf",
+  "assistantChatTranscriptSessionPointer": {
+    "spaceId": "<workspace-uuid>",
+    "table": "thread",
+    "id": "<thread-uuid>"
+  },
+  "contentLength": 38738,
+  "createThread": true
+}
+```
+
+Response:
+```json
+{
+  "url": "attachment:<owner-uuid>:<file-uuid>.pdf",
+  "signedGetUrl": "https://file.notion.com/f/f/<spaceId>/<owner-uuid>/<file-uuid>.pdf?table=thread&id=<thread-uuid>&spaceId=<spaceId>&expirationTimestamp=<ms>&signature=<sig>",
+  "signedUploadPostUrl": "https://prod-files-secure.s3.us-west-2.amazonaws.com/",
+  "postHeaders": [],
+  "fields": {
+    "Content-Type": "application/pdf",
+    "x-amz-storage-class": "INTELLIGENT_TIERING",
+    "tagging": "<Tagging><TagSet><Tag><Key>source</Key><Value>AssistantUserUpload</Value></Tag><Tag><Key>env</Key><Value>production</Value></Tag><Tag><Key>creator</Key><Value>notion_user:<userId>:<spaceId>:</Value></Tag></TagSet></Tagging>",
+    "bucket": "prod-files-secure",
+    "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+    "X-Amz-Credential": "ASIA.../20260617/us-west-2/s3/aws4_request",
+    "X-Amz-Date": "20260617T201927Z",
+    "X-Amz-Security-Token": "<aws-sts-token>",
+    "key": "f/<spaceId>/<owner-uuid>/<file-uuid>",
+    "policy": "<base64-policy>",
+    "X-Amz-Signature": "<hex-sig>"
+  }
+}
+```
+
+- `createThread: true` → creates a new chat thread
+- `createThread: false` → uploads to existing thread (provide `id` of existing thread)
+- `X-Amz-Security-Token` is short-lived STS credential (not the Notion cookie)
+- `signature` on `signedGetUrl` expires at `expirationTimestamp`
+
+#### Step 2: Upload to S3
+```
+POST https://prod-files-secure.s3.us-west-2.amazonaws.com/
+Content-Type: multipart/form-data; boundary=...
+Body: multipart with fields from step 1 + binary file as final part
+```
+
+Response: `204 No Content` on success.
+
+The router must:
+1. Build multipart body with all `fields` from step 1 + file as last `form-data` part
+2. POST to `signedUploadPostUrl`
+3. Handle 204 success / 4xx-5xx error
+
+#### Step 3: Trigger attachment processing
+```
+POST https://app.notion.com/api/v3/enqueueTask
+{
+  "task": {
+    "eventName": "processAgentAttachment",
+    "request": {
+      "url": "attachment:<owner-uuid>:<file-uuid>.pdf",
+      "spaceId": "<workspace-uuid>",
+      "aiSessionPointer": {
+        "spaceId": "<workspace-uuid>",
+        "table": "thread",
+        "id": "<thread-uuid>"
+      },
+      "source": "user_upload",
+      "clientVersion": "23.13.20260617.1538"
+    }
+  }
+}
+```
+
+Response: `{"taskId": "<task-id>"}`
+
+Poll for completion:
+```
+POST https://app.notion.com/api/v3/getTasks
+{"taskIds": ["<task-id>"]}
+```
+
+Success response includes:
+```json
+{
+  "state": "success",
+  "status": {
+    "result": {
+      "type": "success",
+      "data": {
+        "fileSizeBytes": 38738,
+        "contentType": "application/pdf",
+        "numPages": 1,
+        "aiTraceId": "<uuid>",
+        "attachmentRisk": "scanned",
+        "stepMetadata": {
+          "numPages": 1,
+          "guardrail": {"attachmentRisk": "scanned", "inferenceId": "<uuid>"},
+          "fileSizeBytes": 38738,
+          "aiTraceId": "<uuid>",
+          "estimatedTokens": {"anthropic": 1743, "openai": -1}
+        }
+      }
+    }
+  }
+}
+```
+
+### 5.2 Use Uploaded File in Chat
+
+After upload + processing, the file can be referenced as an `attachment` record in `transcript[]`:
 
 ```json
 {
   "id": "<uuid>",
   "type": "attachment",
-  "fileUrl": "attachment:<owner-uuid>:<file-uuid>.png",
-  "fileName": "Screenshot 2026-06-03 141122.png",
-  "contentType": "image/png",
+  "fileUrl": "attachment:<owner-uuid>:<file-uuid>.pdf",
+  "fileName": "<filename>",
+  "contentType": "application/pdf",
   "metadata": {
-    "width": 2999,
-    "height": 1546,
+    "numPages": 1,
     "moderation": {"status": "passed"},
-    "guardrail": {"attachmentRisk": "skipped", "inferenceId": "<uuid>"},
-    "fileSizeBytes": 167683,
-    "aiTraceId": "<uuid>"
+    "guardrail": {"attachmentRisk": "scanned", "inferenceId": "<uuid>"},
+    "fileSizeBytes": 38738,
+    "aiTraceId": "<uuid>",
+    "estimatedTokens": {"anthropic": 1743, "openai": -1}
   }
 }
 ```
 
-**`fileUrl` format:** `attachment:<owner-uuid>:<file-uuid>.<ext>`. The `<owner-uuid>` is the user's storage namespace UUID (same across all user's files). `<file-uuid>` is unique per upload.
+Note PDF attachment uses `numPages` instead of `width`/`height`. Image attachments use `width`/`height`. Router must inspect `contentType` to choose which metadata fields to set.
 
-**Image fetch URL pattern (from capture):**
-```
-https://app.notion.com/image/attachment%3A<owner-uuid>%3A<file-uuid>.png
-  ?table=thread&id=<thread-uuid>&spaceId=<workspace-uuid>
-  &width=1200&userId=<user-uuid>&cache=v2&imgBuildSrc=filePreview
-```
+### 5.3 Multi-file Upload
 
-Image hosted at `https://file.notion.com/f/f/<spaceId>/<owner-uuid>/<file-uuid>.png` (direct file URL).
+For multiple files in one chat: upload each via the 3-step flow (each creates its own task + processing), then reference all as separate `attachment` records in `transcript[]`.
 
-**Upload endpoint: NOT captured.** Image was already on Notion (likely uploaded in a previous session, or via Notion desktop's file picker which uses a separate protocol not visible to mitmproxy). The router will need to either:
-1. Pre-upload to Notion's file service (reverse engineer separately)
-2. Accept image as base64/data URL on input, convert to `attachment` record with a pre-uploaded file_url
-3. For v1, support image-pass-through only when client provides a Notion fileUrl (image already on Notion's storage)
+### 5.4 Implementation Notes
 
-**Config flag to enable image generation/output:** `enableAgentGenerateImage: true` — controls whether Notion can generate images in response (not directly related to image input).
-
-**Multi-image:** attach multiple `attachment` records in the `transcript` array, one per image. Router should pass through all OpenAI `messages[].content[].type: "image_url"` items as separate `attachment` records.
-
-**Vision-capable models:** all observed models support vision (capture showed Gemini + GPT variants processing the PNG). Router should not gate on model — pass image through, let upstream decide.
-
-**Open Question:** how does router ingest an image from an OpenAI client? The client's `image_url` can be:
-- HTTPS URL → router must fetch + upload to Notion (or pass URL if Notion can fetch)
-- Base64 data URL → router must upload to Notion
-- Existing Notion fileUrl → pass through directly
-
-This requires a separate file-upload RE. For v1, support only the "existing Notion fileUrl" case (clients pre-upload to Notion, router passes through).
+- `createThread: true` on first upload creates a new conversation; subsequent uploads within the same chat must use `createThread: false` + existing thread `id`
+- The `X-Amz-Security-Token` is separate from the Notion `token_v2` cookie — it's an AWS STS token issued by Notion for this specific upload
+- Presigned URLs expire (check `expirationTimestamp` field). If expired, re-do step 1.
+- `attachmentRisk: "scanned"` means the file passed Notion's content moderation (vs `"skipped"` for files smaller than scan threshold or `"flagged"` for blocked content)
+- **Tool calls available:** only `connections.fs.readFiles`, `connections.fs.readDir`, `connections.notion.listUserConnections`, `connections.notion.loadUser` observed. No write/create tool calls — Notion AI's default behavior is text-only responses with `connections.fs.readFiles` to ingest the uploaded PDF content.
 
 ---
 
