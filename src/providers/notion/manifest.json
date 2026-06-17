@@ -1,53 +1,25 @@
 {
   "provider": "notion",
   "models": [
-    {
-      "id": "oatmeal-cookie",
-      "alias": "nt/notion-gpt-5.2",
-      "displayName": "GPT-5.2",
-      "family": "openai",
-      "maxCompletionTokens": 8192,
-      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
-    },
-    {
-      "id": "oval-kumquat-medium",
-      "alias": "nt/notion-gpt-5.4",
-      "displayName": "GPT-5.4",
-      "family": "openai",
-      "maxCompletionTokens": 8192,
-      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
-    },
-    {
-      "id": "opal-quince-medium",
-      "alias": "nt/notion-gpt-5.5",
-      "displayName": "GPT-5.5",
-      "family": "openai",
-      "maxCompletionTokens": 8192,
-      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
-    },
-    {
-      "id": "vertex-gemini-2.5-flash",
-      "alias": "nt/notion-gemini-2.5-flash",
-      "displayName": "Gemini 2.5 Flash",
-      "family": "gemini",
-      "maxCompletionTokens": 8192,
-      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
-    },
-    {
-      "id": "vertex-gemini-3.5-flash",
-      "alias": "nt/notion-gemini-3.5-flash",
-      "displayName": "Gemini 3.5 Flash",
-      "family": "gemini",
-      "maxCompletionTokens": 8192,
-      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
-    },
-    {
-      "id": "almond-croissant-low",
-      "alias": "nt/notion-sonnet-4.6",
-      "displayName": "Sonnet 4.6",
-      "family": "anthropic",
-      "maxCompletionTokens": 8192,
-      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
-    }
+    { "id": "oatmeal-cookie", "alias": "nt/notion-gpt-5.2", "displayName": "GPT-5.2", "family": "openai", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "oval-kumquat-medium", "alias": "nt/notion-gpt-5.4", "displayName": "GPT-5.4", "family": "openai", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "opal-quince-medium", "alias": "nt/notion-gpt-5.5", "displayName": "GPT-5.5", "family": "openai", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "oregon-grape-medium", "alias": "nt/notion-gpt-5.4-mini", "displayName": "GPT-5.4 Mini", "family": "openai", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "otaheite-apple-medium", "alias": "nt/notion-gpt-5.4-nano", "displayName": "GPT-5.4 Nano", "family": "openai", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "almond-croissant-low", "alias": "nt/notion-sonnet-4.6", "displayName": "Sonnet 4.6", "family": "anthropic", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "avocado-froyo-medium", "alias": "nt/notion-opus-4.6", "displayName": "Opus 4.6", "family": "anthropic", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "apricot-sorbet-high", "alias": "nt/notion-opus-4.7", "displayName": "Opus 4.7", "family": "anthropic", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "ambrosia-tart-high", "alias": "nt/notion-opus-4.8", "displayName": "Opus 4.8", "family": "anthropic", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "anthropic-haiku-4.5", "alias": "nt/notion-haiku-4.5", "displayName": "Haiku 4.5", "family": "anthropic", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "acai-budino-high", "alias": "nt/notion-fable-5", "displayName": "Fable 5", "family": "anthropic", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "vertex-gemini-2.5-flash", "alias": "nt/notion-gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "family": "gemini", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "vertex-gemini-3.5-flash", "alias": "nt/notion-gemini-3.5-flash", "displayName": "Gemini 3.5 Flash", "family": "gemini", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "gingerbread", "alias": "nt/notion-gemini-3-flash", "displayName": "Gemini 3 Flash", "family": "gemini", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "galette-medium-thinking", "alias": "nt/notion-gemini-3.1-pro", "displayName": "Gemini 3.1 Pro (thinking)", "family": "gemini", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "xigua-mochi-medium", "alias": "nt/notion-grok-4.3", "displayName": "Grok 4.3", "family": "xai", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "xinomavro-cake", "alias": "nt/notion-grok-build-0.1", "displayName": "Grok Build 0.1", "family": "xai", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "fireworks-kimi-k2.6", "alias": "nt/notion-kimi-k2.6", "displayName": "Kimi K2.6", "family": "mystery", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "baseten-deepseek-v4-pro", "alias": "nt/notion-deepseek-v4-pro", "displayName": "DeepSeek V4 Pro", "family": "mystery", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } },
+    { "id": "baseten-glm-5.2", "alias": "nt/notion-glm-5.2", "displayName": "GLM 5.2", "family": "mystery", "maxCompletionTokens": 8192, "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 } }
   ]
 }
