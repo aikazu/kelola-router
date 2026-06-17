@@ -63,7 +63,7 @@ Docker: `docker build -t kelola-router:latest . && docker compose up -d` (serves
 
 `src/server.ts` — Hono app, ~330 LOC. Middleware: `requireApiKey` (Bearer) for `/v1/*`, `requireAdmin` for `/admin/*`, `verifySameOrigin` CSRF guard on `/admin/*` POSTs.
 
-Per-request path inside `handleProxy` (see `src/proxy/minimax.ts` + `proxy/kiro.ts` + `proxy/codebuddy.ts` + `proxy/pioneer.ts` + `proxy/combo.ts`):
+Per-request path inside `handleProxy` (see `src/proxy/minimax.ts` + `proxy/kiro.ts` + `proxy/codebuddy.ts` + `proxy/pioneer.ts` + `proxy/notion.ts` + `proxy/combo.ts`):
 
 1. `parseBody` + model resolution (alias + thinking + M3 max-completion-tokens)
 2. `selectAccount` (state machine: sticky + round-robin w/ step, skips backoff/locked/disabled). Mode + step read per provider from `selection.<provider>` setting.
@@ -87,6 +87,7 @@ Deep-dive (module map, state machines, data flow): see [`ARCHITECTURE.md`](ARCHI
 - **Kiro** (AWS CodeWhisperer / Amazon Q) — OAuth refresh-token auth, AWS event-stream binary protocol, translated to/from OpenAI + Anthropic. See "Kiro provider" below.
 - **CodeBuddy** (CodeBuddy.ai) — OpenAI-compatible upstream, API-key bearer. Client request bridged to OpenAI stream and back (OpenAI SSE → Anthropic SSE assembler). Routed via cb/ prefix. See src/proxy/codebuddy.ts + src/providers/codebuddy/.
 - **Pioneer** (api.pioneer.ai) — OpenAI-compatible Chat Completions, X-API-Key bearer. Reuses CodeBuddy's OpenAI→Anthropic SSE bridge. Routed via pio/ prefix; models namespaced under pioneer/ to avoid global-unique id collisions. See src/proxy/pioneer.ts + src/providers/pioneer/.
+- **Notion** (app.notion.com) — reverse-engineered Notion desktop AI chat. 3-step temp-password login (email + 6-char temp password emailed), cookie-based session (11 cookies required), CRDT-style JSON request body + NDJSON patch-stream response. Routed via nt/ prefix; OpenAI streaming format. See src/proxy/notion.ts + src/providers/notion/ + docs/notion/wire-format.md.
 
 ## Two-tier separation
 
