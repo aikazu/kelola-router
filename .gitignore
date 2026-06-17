@@ -27,3 +27,5 @@ sidecar/**/*.pyc
 # Hermes
 .hermes/
 .omo
+automation
+kie-auto
