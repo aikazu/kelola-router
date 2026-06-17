@@ -1,0 +1,53 @@
+{
+  "provider": "notion",
+  "models": [
+    {
+      "id": "oatmeal-cookie",
+      "alias": "nt/notion-gpt-5.2",
+      "displayName": "GPT-5.2",
+      "family": "openai",
+      "maxCompletionTokens": 8192,
+      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
+    },
+    {
+      "id": "oval-kumquat-medium",
+      "alias": "nt/notion-gpt-5.4",
+      "displayName": "GPT-5.4",
+      "family": "openai",
+      "maxCompletionTokens": 8192,
+      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
+    },
+    {
+      "id": "opal-quince-medium",
+      "alias": "nt/notion-gpt-5.5",
+      "displayName": "GPT-5.5",
+      "family": "openai",
+      "maxCompletionTokens": 8192,
+      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
+    },
+    {
+      "id": "vertex-gemini-2.5-flash",
+      "alias": "nt/notion-gemini-2.5-flash",
+      "displayName": "Gemini 2.5 Flash",
+      "family": "gemini",
+      "maxCompletionTokens": 8192,
+      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
+    },
+    {
+      "id": "vertex-gemini-3.5-flash",
+      "alias": "nt/notion-gemini-3.5-flash",
+      "displayName": "Gemini 3.5 Flash",
+      "family": "gemini",
+      "maxCompletionTokens": 8192,
+      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
+    },
+    {
+      "id": "almond-croissant-low",
+      "alias": "nt/notion-sonnet-4.6",
+      "displayName": "Sonnet 4.6",
+      "family": "anthropic",
+      "maxCompletionTokens": 8192,
+      "pricing": { "inputPerMillion": 0, "outputPerMillion": 0 }
+    }
+  ]
+}
