@@ -2,6 +2,7 @@ const PREFIX_TO_PROVIDER: Readonly<Record<string, string>> = {
   mm: 'minimax',
   kr: 'kiro',
   cb: 'codebuddy',
+  pio: 'pioneer',
 };
 
 export interface ParsedModel {
@@ -15,7 +16,7 @@ export interface ParsedModel {
 /**
  * Parse a `body.model` string into its provider prefix and model name.
  *
- * - `<mm|kr|cb>/<name>` → prefixed, provider mapped, name is everything after
+ * - `<mm|kr|cb|pio>/<name>` → prefixed, provider mapped, name is everything after
  *   the first slash.
  * - A string with a slash whose first segment is not a known prefix throws.
  * - A string with no slash is bare (resolved later via combos/aliases).

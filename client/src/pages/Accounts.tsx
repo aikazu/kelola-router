@@ -5,7 +5,7 @@ import { confirmDialog } from '../components/Confirm';
 import { ErrorState } from '../components/ErrorState';
 import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
-import { AddAccountModal, type KiroForm, type MinimaxForm, type KiroMethod } from '../components/accounts/AddAccountModal';
+import { AddAccountModal, type KiroForm, type MinimaxForm, type PioneerForm, type KiroMethod } from '../components/accounts/AddAccountModal';
 import { EditAccountModal, type EditForm } from '../components/accounts/EditAccountModal';
 import { KiroUsageModal } from '../components/accounts/KiroUsageModal';
 import { ProviderAccountSection } from '../components/accounts/ProviderAccountSection';
@@ -28,14 +28,19 @@ export function Accounts() {
     queryKey: ['accounts'],
     queryFn: () => apiFetch<Account[]>('/api/admin/accounts'),
   });
-  const minimaxAccounts = accounts.filter((a) => (a.provider ?? 'minimax') !== 'kiro');
   const kiroAccounts = accounts.filter((a) => a.provider === 'kiro');
+  const pioneerAccounts = accounts.filter((a) => a.provider === 'pioneer');
+  const minimaxAccounts = accounts.filter((a) => {
+    const p = a.provider ?? 'minimax';
+    return p !== 'kiro' && p !== 'pioneer';
+  });
 
   // Add-account modal state.
   const [open, setOpen] = useState(false);
-  const [provider, setProvider] = useState<'minimax' | 'kiro'>('minimax');
+  const [provider, setProvider] = useState<'minimax' | 'kiro' | 'pioneer'>('minimax');
   const [form, setForm] = useState<MinimaxForm>({ label: '', credit_type: 'payg', api_key: '' });
   const [kiroMethod, setKiroMethod] = useState<KiroMethod>('builder-id');
+  const [pioneerForm, setPioneerForm] = useState<PioneerForm>({ label: '', api_key: '' });
   const [kiroForm, setKiroForm] = useState<KiroForm>({
     label: '',
     credentialJson: '',
@@ -109,6 +114,7 @@ export function Accounts() {
   function resetForms() {
     setProvider('minimax');
     setForm({ label: '', credit_type: 'payg', api_key: '' });
+    setPioneerForm({ label: '', api_key: '' });
     setKiroMethod('builder-id');
     setKiroForm({ label: '', credentialJson: '', refreshToken: '', region: '', startUrl: '' });
     autoImport.reset();
@@ -123,7 +129,17 @@ export function Accounts() {
             method: 'POST',
             json: { label: kiroForm.label, method: 'token', credentialJson: kiroForm.credentialJson, refreshToken: kiroForm.refreshToken },
           })
-        : apiFetch('/api/admin/accounts', { method: 'POST', json: form }),
+        : provider === 'pioneer'
+          ? apiFetch('/api/admin/accounts', {
+              method: 'POST',
+              json: {
+                label: pioneerForm.label,
+                credit_type: 'payg',
+                api_key: pioneerForm.api_key,
+                provider: 'pioneer',
+              },
+            })
+          : apiFetch('/api/admin/accounts', { method: 'POST', json: form }),
     onSuccess: () => {
       setOpen(false);
       resetForms();
@@ -199,6 +215,7 @@ export function Accounts() {
       />
       <p class="card-sub">
         MiniMax uses API keys. Kiro (AWS) supports OAuth, auto-import from Kiro IDE, or manual token paste.
+        Pioneer is an OpenAI-compatible upstream using X-API-Key authentication.
         The router fans out across enabled accounts with exponential backoff.
       </p>
       <Card>
@@ -232,6 +249,18 @@ export function Accounts() {
               onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
               onDelete={handleDelete}
             />
+            <ProviderAccountSection
+              title="Pioneer"
+              provider="pioneer"
+              accounts={pioneerAccounts}
+              transports={transports}
+              onAdd={() => { setProvider('pioneer'); setOpen(true); }}
+              onUsage={setUsageAccount}
+              onEdit={(a, editFormInitialState) => { setEditing(a); setEditForm(editFormInitialState); }}
+              onLoadTransportState={loadTransportState}
+              onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+              onDelete={handleDelete}
+            />
           </>
         )}
       </Card>
@@ -246,6 +275,8 @@ export function Accounts() {
         onKiroMethodChange={setKiroMethod}
         kiroForm={kiroForm}
         onKiroFormChange={setKiroForm}
+        pioneerForm={pioneerForm}
+        onPioneerFormChange={setPioneerForm}
         autoImport={autoImport}
         deviceFlow={deviceFlow}
         onCreate={() => createMut.mutate()}

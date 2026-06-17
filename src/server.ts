@@ -266,6 +266,7 @@ app.post('/admin/settings/caching', requireAdmin, async (c) => {
 export { handleCodeBuddyProxy } from './proxy/codebuddy.js';
 export { handleComboProxy } from './proxy/combo.js';
 export { handleKiroProxy } from './proxy/kiro.js';
+export { handlePioneerProxy } from './proxy/pioneer.js';
 export { handleProxy } from './proxy/minimax.js';
 export { app };
 

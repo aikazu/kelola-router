@@ -57,6 +57,23 @@ describe('resolveModel — prefixed', () => {
     expect(() => resolveModel(db, 'mm/kiro-claude', {})).toThrow(/provider/);
   });
 
+  it('resolves a clean prefix to a provider-namespaced row when the bare name clashes', () => {
+    // Kiro owns the bare `claude-opus-4-8`; Pioneer stores its own under
+    // `pioneer/claude-opus-4-8`. `pio/claude-opus-4-8` must reach the Pioneer row.
+    upsertModel(db, { name: 'claude-opus-4-8', upstream_model: 'claude-opus-4-8', provider: 'kiro' });
+    upsertModel(db, {
+      name: 'pioneer/claude-opus-4-8',
+      upstream_model: 'pioneer/claude-opus-4-8',
+      provider: 'pioneer',
+    });
+    clearAliasCache();
+    const r = resolveModel(db, 'pio/claude-opus-4-8', {});
+    expect(r.provider).toBe('pioneer');
+    expect(r.upstreamModel).toBe('pioneer/claude-opus-4-8');
+    // And the clashing bare name still routes to Kiro under its own prefix.
+    expect(resolveModel(db, 'kr/claude-opus-4-8', {}).provider).toBe('kiro');
+  });
+
   it('throws on a prefixed unknown model', () => {
     expect(() => resolveModel(db, 'kr/does-not-exist', {})).toThrow(/unknown model/);
   });

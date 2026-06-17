@@ -21,10 +21,15 @@ export interface KiroForm {
   startUrl: string;
 }
 
+export interface PioneerForm {
+  label: string;
+  api_key: string;
+}
+
 export interface AddAccountModalProps {
   open: boolean;
   onClose: () => void;
-  provider: 'minimax' | 'kiro';
+  provider: 'minimax' | 'kiro' | 'pioneer';
   // Minimax form state (owned by parent so resetForms can clear it).
   form: MinimaxForm;
   onFormChange: (next: MinimaxForm) => void;
@@ -33,6 +38,9 @@ export interface AddAccountModalProps {
   onKiroMethodChange: (method: KiroMethod) => void;
   kiroForm: KiroForm;
   onKiroFormChange: (next: KiroForm) => void;
+  // Pioneer form state (owned by parent for the same reason).
+  pioneerForm: PioneerForm;
+  onPioneerFormChange: (next: PioneerForm) => void;
   // Pre-resolved hook returns — the parent owns these so their onSuccess
   // callbacks can close the modal + reset forms from one place.
   autoImport: ReturnType<typeof useKiroAutoImport>;
@@ -60,12 +68,15 @@ export function AddAccountModal({
   onKiroMethodChange,
   kiroForm,
   onKiroFormChange,
+  pioneerForm,
+  onPioneerFormChange,
   autoImport,
   deviceFlow,
   onCreate,
   isCreating,
 }: AddAccountModalProps) {
-  const showFooter = provider === 'minimax' || (provider === 'kiro' && kiroMethod === 'token');
+  const showFooter =
+    provider === 'minimax' || provider === 'pioneer' || (provider === 'kiro' && kiroMethod === 'token');
 
   return (
     <Modal
@@ -80,7 +91,9 @@ export function AddAccountModal({
               isCreating ||
               (provider === 'minimax'
                 ? !form.label || !form.api_key
-                : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
+                : provider === 'pioneer'
+                  ? !pioneerForm.label || !pioneerForm.api_key
+                  : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
             }
           >
             {isCreating ? 'Adding…' : 'Add'}
@@ -117,6 +130,28 @@ export function AddAccountModal({
                 value={form.api_key}
                 onInput={(e) => onFormChange({ ...form, api_key: (e.target as HTMLInputElement).value })}
                 placeholder="mm_xxxxxxxx"
+                class="input"
+                aria-required="true"
+              />
+            </label>
+          </>
+        ) : provider === 'pioneer' ? (
+          <>
+            <label>
+              Label{' '}
+              <input
+                value={pioneerForm.label}
+                onInput={(e) => onPioneerFormChange({ ...pioneerForm, label: (e.target as HTMLInputElement).value })}
+                class="input"
+                aria-required="true"
+              />
+            </label>
+            <label>
+              Pioneer API key{' '}
+              <input
+                value={pioneerForm.api_key}
+                onInput={(e) => onPioneerFormChange({ ...pioneerForm, api_key: (e.target as HTMLInputElement).value })}
+                placeholder="pio_sk_xxxxxxxx"
                 class="input"
                 aria-required="true"
               />

@@ -68,24 +68,47 @@ accountRoutes.get('/', (c) => {
   }
 });
 
+const PROVIDER_ALLOWLIST = ['minimax', 'kiro', 'codebuddy', 'pioneer'] as const;
+type ManualProvider = (typeof PROVIDER_ALLOWLIST)[number];
+
 accountRoutes.post('/', (c) => {
   try {
     return c.req
       .json()
       .then(
-        (body: { label?: string; credit_type?: string; api_key?: string; base_url?: string }) => {
-          if (!body.label || !body.credit_type || !body.api_key) {
-            throw new ApiError('invalid_input', 'label, credit_type, api_key required', 400);
+        (body: {
+          label?: string;
+          credit_type?: string;
+          api_key?: string;
+          base_url?: string;
+          provider?: string;
+        }) => {
+          if (!body.label || !body.api_key) {
+            throw new ApiError('invalid_input', 'label, api_key required', 400);
+          }
+          const provider = (body.provider ?? 'minimax') as ManualProvider;
+          if (!PROVIDER_ALLOWLIST.includes(provider)) {
+            throw new ApiError(
+              'invalid_input',
+              `provider must be one of: ${PROVIDER_ALLOWLIST.join(', ')}`,
+              400
+            );
           }
           const db = c.get('db') as Database.Database;
+          const creditType = (body.credit_type ??
+            (provider === 'pioneer' ? 'payg' : 'token-plan')) as 'payg' | 'token-plan';
           const acc = createAccount(db, {
             id: ulid(),
             label: body.label,
-            credit_type: body.credit_type as 'payg' | 'token-plan',
+            credit_type: creditType,
             api_key: body.api_key,
             base_url: body.base_url ?? null,
+            provider,
           });
-          return c.json({ id: acc.id, label: acc.label, creditType: acc.credit_type }, 201);
+          return c.json(
+            { id: acc.id, label: acc.label, provider: acc.provider, creditType: acc.credit_type },
+            201
+          );
         }
       )
       .catch((e: unknown) => handleApiError(e));

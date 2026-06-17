@@ -26,6 +26,22 @@ describe('parseModelPrefix', () => {
     });
   });
 
+  it('parses pio prefix to pioneer', () => {
+    expect(parseModelPrefix('pio/claude-opus-4-8')).toEqual({
+      provider: 'pioneer',
+      modelName: 'claude-opus-4-8',
+      prefixed: true,
+    });
+  });
+
+  it('parses a pio prefix with a slashed upstream id (first slash only)', () => {
+    expect(parseModelPrefix('pio/deepseek-ai/DeepSeek-V4-Pro')).toEqual({
+      provider: 'pioneer',
+      modelName: 'deepseek-ai/DeepSeek-V4-Pro',
+      prefixed: true,
+    });
+  });
+
   it('treats a string with no slash as bare', () => {
     expect(parseModelPrefix('claude-opus-4-8')).toEqual({
       provider: null,

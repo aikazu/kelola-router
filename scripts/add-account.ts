@@ -25,6 +25,9 @@ import { ulid } from 'ulid';
  *   tsx scripts/add-account.ts --provider codebuddy --api-key cb_xxx \
  *     [--label my-cb] [--base-url https://www.codebuddy.ai]
  *
+ *   tsx scripts/add-account.ts --provider pioneer --api-key pio_sk_xxx \
+ *     [--label my-pio] [--base-url https://api.pioneer.ai]
+ *
  * Exit codes: 0 on success, 1 on validation or runtime error.
  */
 import * as v from 'valibot';
@@ -41,6 +44,7 @@ import {
   type CodeBuddyArgs,
   type KiroArgs,
   type MinimaxArgs,
+  type PioneerArgs,
   parseArgs,
 } from './add-account.cliArgs.js';
 
@@ -150,6 +154,35 @@ export function runCodeBuddy(db: Database.Database, args: CodeBuddyArgs): Accoun
 // Dispatch
 // ---------------------------------------------------------------------------
 
+/**
+ * Pioneer runner — same shape as CodeBuddy but with a different default base
+ * URL and Pioneer's `X-API-Key` HTTP auth header.
+ */
+export function runPioneer(db: Database.Database, args: PioneerArgs): Account {
+  const id = `acc_${ulid()}`;
+  const label = args.label ?? `pioneer-${id.slice(4, 12).toLowerCase()}`;
+  const baseUrl = args.baseUrl ?? 'https://api.pioneer.ai';
+
+  const account = createAccount(db, {
+    id,
+    label,
+    credit_type: 'payg',
+    api_key: args.apiKey,
+    base_url: baseUrl,
+    provider: 'pioneer',
+    enabled: true,
+  });
+
+  console.log(`✓ Added Pioneer account: ${label} (${id})`);
+  console.log(`  Base URL: ${baseUrl}`);
+  console.log('');
+  console.log(
+    '⚠ Remember to run `tsx scripts/seed-pioneer-models.ts` if you have not seeded Pioneer models yet.'
+  );
+  console.log('  Pioneer bills per credit; pricing in the dashboard is seeded at zero.');
+  return account;
+}
+
 export function dispatch(db: Database.Database, args: AddAccountArgs): Account {
   switch (args.provider) {
     case 'minimax':
@@ -158,6 +191,8 @@ export function dispatch(db: Database.Database, args: AddAccountArgs): Account {
       return runKiro(db, args);
     case 'codebuddy':
       return runCodeBuddy(db, args);
+    case 'pioneer':
+      return runPioneer(db, args);
   }
 }
 
@@ -171,6 +206,8 @@ const USAGE_KIRO =
   '  kiro:      add-account --provider kiro --label <l> --refresh-token <t> [--client-id <i> --client-secret <s>] [--region <r>] [--profile-arn <a>]';
 const USAGE_CODEBUDDY =
   '  codebuddy: add-account --provider codebuddy --api-key <k> [--label <l>] [--base-url <u>]';
+const USAGE_PIONEER =
+  '  pioneer:   add-account --provider pioneer --api-key <k> [--label <l>] [--base-url <u>]';
 
 export function main(argv: string[]): void {
   let args: AddAccountArgs;
@@ -187,6 +224,7 @@ export function main(argv: string[]): void {
       console.error(USAGE_MINIMAX);
       console.error(USAGE_KIRO);
       console.error(USAGE_CODEBUDDY);
+      console.error(USAGE_PIONEER);
     } else {
       console.error('Unexpected error parsing arguments:', err);
     }

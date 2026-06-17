@@ -18,7 +18,7 @@
  *   - src/server.ts:132,231,241,249,255,260,265 — write paths
  *   - src/util/env.ts:43                 — minimax.upstreamFormat reader
  *   - src/transport/resolve.ts:58-79     — GlobalTransportSetting
- *   - src/proxy/{minimax,kiro,combo,codebuddy}.ts — selection.* readers
+ *   - src/proxy/{minimax,kiro,combo,codebuddy,pioneer}.ts — selection.* readers
  *   - src/auth/password.ts               — admin_password scrypt hash format
  *   - src/caveman/prompts.ts:6           — CavemanLevel union
  *   - src/accounts/types.ts:3            — SelectionMode union
@@ -158,6 +158,7 @@ export const SETTINGS_SCHEMAS = {
   'selection.minimax': selectionSchema,
   'selection.kiro': selectionSchema,
   'selection.codebuddy': selectionSchema,
+  'selection.pioneer': selectionSchema,
 } as const satisfies Record<string, v.GenericSchema>;
 
 /**

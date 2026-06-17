@@ -41,6 +41,7 @@ import { getUpstreamFormat as getUpstreamFormatEnv } from '../util/env.js';
 import { log } from '../util/log.js';
 import { handleCodeBuddyProxy } from './codebuddy.js';
 import { handleComboProxy } from './combo.js';
+import { handlePioneerProxy } from './pioneer.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
 import type { Db } from './pipeline.js';
@@ -123,6 +124,20 @@ export async function handleProxy(
       );
       rrCursorRef.value = cbCursorRef.value;
       return cbResp;
+    }
+    if (peek.provider === 'pioneer') {
+      const pioCursorRef: CursorRef = { value: rrCursorRef.value };
+      const pioResp = await handlePioneerProxy(
+        c,
+        format,
+        upstreamPath,
+        body,
+        db,
+        pioCursorRef,
+        stickyMap
+      );
+      rrCursorRef.value = pioCursorRef.value;
+      return pioResp;
     }
   } catch {
     /* unknown model — defer to the MiniMax path for the canonical error */

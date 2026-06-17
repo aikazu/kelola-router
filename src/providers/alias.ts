@@ -42,8 +42,20 @@ export function resolveModel(
   if (parsed.prefixed) {
     // Literal lookup — no alias expansion. Prefix asserts the provider.
     model = getModel(db, parsed.modelName);
+    let modelProvider = model?.provider ?? 'minimax';
+    // Some providers namespace their DB rows under `<provider>/` so their ids
+    // don't collide with same-named rows from other providers on the unique
+    // `name` / `upstream_model` columns (e.g. Pioneer's `claude-opus-4-8` vs
+    // Kiro's). Clients still use the clean `pio/<id>` form, so if the bare
+    // lookup missed or resolved to a different provider, retry namespaced.
+    if (!model || modelProvider !== parsed.provider) {
+      const namespaced = getModel(db, `${parsed.provider}/${parsed.modelName}`);
+      if (namespaced) {
+        model = namespaced;
+        modelProvider = namespaced.provider ?? 'minimax';
+      }
+    }
     if (!model) throw new Error(`unknown model: ${requestedName}`);
-    const modelProvider = model.provider ?? 'minimax';
     if (modelProvider !== parsed.provider) {
       throw new Error(`model ${parsed.modelName} not available on provider ${parsed.provider}`);
     }

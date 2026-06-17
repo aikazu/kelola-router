@@ -49,11 +49,18 @@ export interface CodeBuddyArgs {
   baseUrl?: string;
 }
 
+export interface PioneerArgs {
+  provider: 'pioneer';
+  apiKey: string;
+  label?: string;
+  baseUrl?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Discriminated union
 // ---------------------------------------------------------------------------
 
-export type AddAccountArgs = MinimaxArgs | KiroArgs | CodeBuddyArgs;
+export type AddAccountArgs = MinimaxArgs | KiroArgs | CodeBuddyArgs | PioneerArgs;
 
 // ---------------------------------------------------------------------------
 // Valibot schemas (one per provider)
@@ -94,6 +101,15 @@ const CodeBuddySchema = v.intersect([
   }),
 ]);
 
+const PioneerSchema = v.intersect([
+  v.object({ provider: v.literal('pioneer') }),
+  v.object({
+    apiKey: v.string('Missing required --api-key'),
+    label: v.optional(v.string()),
+    baseUrl: v.optional(v.string()),
+  }),
+]);
+
 // ---------------------------------------------------------------------------
 // Helper: extract a --flag <value> pair from argv
 // ---------------------------------------------------------------------------
@@ -125,6 +141,7 @@ function getOptionalFlag(argv: string[], name: string): string | undefined {
  *     case 'minimax':  // args is MinimaxArgs — label, creditType, apiKey … all typed
  *     case 'kiro':      // args is KiroArgs    — label, refreshToken, region … all typed
  *     case 'codebuddy': // args is CodeBuddyArgs
+ *     case 'pioneer':  // args is PioneerArgs
  *   }
  * } catch (err) {
  *   if (err instanceof v.ValiError) console.error(err.message);
@@ -181,6 +198,20 @@ export function parseArgs(argv: string[]): AddAccountArgs {
         'Invalid codebuddy arguments'
       ) as CodeBuddyArgs;
 
+    case 'pioneer':
+      return v.parse(
+        PioneerSchema,
+        Object.fromEntries(
+          [
+            ['provider', 'pioneer'],
+            ['apiKey', getArg(argv, 'api-key')],
+            ['label', getOptionalFlag(argv, 'label')],
+            ['baseUrl', getOptionalFlag(argv, 'base-url')],
+          ].filter(([, v]) => v !== undefined)
+        ),
+        'Invalid pioneer arguments'
+      ) as PioneerArgs;
+
     default:
       throw new v.ValiError([
         {
@@ -191,7 +222,7 @@ export function parseArgs(argv: string[]): AddAccountArgs {
               type: 'property',
               input: {},
               key: 'provider',
-              message: 'Missing required --provider (minimax | kiro | codebuddy)',
+              message: 'Missing required --provider (minimax | kiro | codebuddy | pioneer)',
             },
           ],
         },

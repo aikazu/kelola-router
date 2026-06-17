@@ -48,6 +48,8 @@ const baseProps: AddAccountModalProps = {
   onKiroMethodChange: vi.fn(),
   kiroForm: { label: '', credentialJson: '', refreshToken: '', region: '', startUrl: '' },
   onKiroFormChange: vi.fn(),
+  pioneerForm: { label: '', api_key: '' },
+  onPioneerFormChange: vi.fn(),
   autoImport: mockAutoImport(),
   deviceFlow: mockDeviceFlow(),
   onCreate: vi.fn(),
@@ -229,6 +231,50 @@ describe('AddAccountModal', () => {
       expect(onKiroFormChange).toHaveBeenCalledWith(
         expect.objectContaining({ refreshToken: 'aorAAAAAGxxxx', credentialJson: '' }),
       );
+    });
+  });
+
+  describe('pioneer provider', () => {
+    it('shows label + api-key fields and the footer Add button', () => {
+      renderModal({ provider: 'pioneer' });
+      expect(screen.getByText('Label', { exact: true })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('pio_sk_xxxxxxxx')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+    });
+
+    it('disables the footer Add button until label + api_key are filled', () => {
+      const { rerender } = renderModal({ provider: 'pioneer' });
+      expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+
+      rerender(
+        <AddAccountModal
+          {...baseProps}
+          provider="pioneer"
+          pioneerForm={{ label: 'main', api_key: 'pio_sk_xxx' }}
+        />,
+      );
+      expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
+    });
+
+    it('fires onCreate when the enabled Add button is clicked', () => {
+      const onCreate = vi.fn();
+      renderModal({
+        provider: 'pioneer',
+        pioneerForm: { label: 'main', api_key: 'pio_sk_xxx' },
+        onCreate,
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      expect(onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the Adding… label and stays disabled while isCreating', () => {
+      renderModal({
+        provider: 'pioneer',
+        pioneerForm: { label: 'main', api_key: 'pio_sk_xxx' },
+        isCreating: true,
+      });
+      const btn = screen.getByRole('button', { name: 'Adding…' });
+      expect(btn).toBeDisabled();
     });
   });
 });
