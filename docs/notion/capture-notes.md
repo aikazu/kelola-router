@@ -446,7 +446,17 @@ For multiple files in one chat: upload each via the 3-step flow (each creates it
 - The `X-Amz-Security-Token` is separate from the Notion `token_v2` cookie — it's an AWS STS token issued by Notion for this specific upload
 - Presigned URLs expire (check `expirationTimestamp` field). If expired, re-do step 1.
 - `attachmentRisk: "scanned"` means the file passed Notion's content moderation (vs `"skipped"` for files smaller than scan threshold or `"flagged"` for blocked content)
-- **Tool calls available:** only `connections.fs.readFiles`, `connections.fs.readDir`, `connections.notion.listUserConnections`, `connections.notion.loadUser` observed. No write/create tool calls — Notion AI's default behavior is text-only responses with `connections.fs.readFiles` to ingest the uploaded PDF content.
+- **Tool calls observed in this capture:** `connections.fs.readFiles`, `connections.fs.readDir`, `connections.notion.listUserConnections`, `connections.notion.loadUser` (all read-only). No write/create tool calls captured here.
+
+### 5.5 Write-to-Page (UNVERIFIED — needs separate capture)
+
+User reports GPT 5.5 can write results to a Notion page (e.g., a "Save to Notion" button or automatic write of long responses). This capture did NOT include a write tool call. Likely candidates:
+
+- A different `connections.notion.*` function (e.g., `connections.notion.createPage`, `connections.notion.appendBlocks`)
+- An out-of-band endpoint call (e.g., `POST /api/v3/saveTransactions` with block patches)
+- A separate agent tool result type (not `agent-tool-result`) such as `agent-page-write`
+
+**Action required:** dispatch a fresh capture where the user asks the model to write/save the response to a Notion page. Then update this section with the actual endpoint + payload. Until captured, **router implementation should NOT include write-to-page** — leave that as a follow-up task.
 
 ---
 
