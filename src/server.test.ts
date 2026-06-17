@@ -189,7 +189,19 @@ describe('request logging', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_log' });
     createAccount(db, { id: 'a1', label: 'L', credit_type: 'payg', api_key: 'kk' });
-    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
+    upsertModel(db, {
+      name: 'MiniMax-M2.7',
+      upstream_model: 'MiniMax-M2.7',
+      display_name: 'MiniMax M2.7',
+      family: 'm2.7',
+      context_window: 204800,
+      pricing_input: 0.3,
+      pricing_output: 1.2,
+      pricing_cache_read: 0.06,
+      pricing_cache_write: 0.375,
+      source: 'builtin',
+      provider: 'minimax',
+    });
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -223,7 +235,19 @@ describe('request logging', () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_stream' });
     createAccount(db, { id: 'a1', label: 'L', credit_type: 'payg', api_key: 'kk' });
-    upsertModel(db, { name: 'MiniMax-M2.7', upstream_model: 'MiniMax-M2.7', provider: 'minimax' });
+    upsertModel(db, {
+      name: 'MiniMax-M2.7',
+      upstream_model: 'MiniMax-M2.7',
+      display_name: 'MiniMax M2.7',
+      family: 'm2.7',
+      context_window: 204800,
+      pricing_input: 0.3,
+      pricing_output: 1.2,
+      pricing_cache_read: 0.06,
+      pricing_cache_write: 0.375,
+      source: 'builtin',
+      provider: 'minimax',
+    });
     const sse = [
       `data: {"choices":[{"delta":{"content":"hi"}}]}\n\n`,
       `data: {"choices":[],"usage":{"prompt_tokens":42,"completion_tokens":7,"total_tokens":49}}\n\n`,

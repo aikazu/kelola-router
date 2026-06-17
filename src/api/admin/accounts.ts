@@ -10,6 +10,7 @@ import {
   listAccounts,
   updateAccount,
 } from '../../db/repos/accounts.js';
+import { seedModelsForProviderBestEffort } from '../../db/seedBuiltinModels.js';
 import {
   buildKiroAccountFields,
   type KiroImportInput,
@@ -76,7 +77,7 @@ accountRoutes.post('/', (c) => {
     return c.req
       .json()
       .then(
-        (body: {
+        async (body: {
           label?: string;
           credit_type?: string;
           api_key?: string;
@@ -105,8 +106,24 @@ accountRoutes.post('/', (c) => {
             base_url: body.base_url ?? null,
             provider,
           });
+
+          // Seed the provider's model catalogue now that the account exists. Live
+          // endpoints are used for MiniMax and Pioneer; Kiro / CodeBuddy fall
+          // back to builtins. Seed failures are logged but must not fail account
+          // creation.
+          const modelsSeeded = await seedModelsForProviderBestEffort(db, provider, {
+            apiKey: body.api_key,
+            baseUrl: body.base_url,
+          });
+
           return c.json(
-            { id: acc.id, label: acc.label, provider: acc.provider, creditType: acc.credit_type },
+            {
+              id: acc.id,
+              label: acc.label,
+              provider: acc.provider,
+              creditType: acc.credit_type,
+              modelsSeeded,
+            },
             201
           );
         }
@@ -117,11 +134,11 @@ accountRoutes.post('/', (c) => {
   }
 });
 
-accountRoutes.post('/kiro', (c) => {
+accountRoutes.post('/kiro', async (c) => {
   try {
-    return c.req
+    return await c.req
       .json()
-      .then((body: KiroImportInput) => {
+      .then(async (body: KiroImportInput) => {
         const db = c.get('db') as Database.Database;
         let fields: ReturnType<typeof buildKiroAccountFields>;
         try {
@@ -145,7 +162,8 @@ accountRoutes.post('/kiro', (c) => {
             token_expires_at: fields.token_expires_at,
           });
         }
-        return c.json({ id: acc.id, label: acc.label, provider: 'kiro' }, 201);
+        const modelsSeeded = await seedModelsForProviderBestEffort(db, 'kiro');
+        return c.json({ id: acc.id, label: acc.label, provider: 'kiro', modelsSeeded }, 201);
       })
       .catch((e: unknown) => handleApiError(e));
   } catch (e) {
@@ -221,7 +239,14 @@ accountRoutes.post('/kiro/poll', async (c) => {
       provider_data: providerData,
     });
     updateAccount(db, id, { access_token: result.accessToken!, token_expires_at: expiresAt });
-    return c.json({ status: 'success', id: acc.id, label: acc.label, provider: 'kiro' });
+    const modelsSeeded = await seedModelsForProviderBestEffort(db, 'kiro');
+    return c.json({
+      status: 'success',
+      id: acc.id,
+      label: acc.label,
+      provider: 'kiro',
+      modelsSeeded,
+    });
   } catch (e) {
     return handleApiError(e);
   }

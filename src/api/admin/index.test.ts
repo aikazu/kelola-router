@@ -63,7 +63,7 @@ describe('POST /admin/models/fetch', () => {
     });
     // 302 = success redirect to /admin/models?fetched=N
     expect(res.status).toBe(302);
-    expect(res.headers.get('location')).toMatch(/fetched=1/);
+    expect(res.headers.get('location')).toMatch(/fetched=2/);
   });
 });
 

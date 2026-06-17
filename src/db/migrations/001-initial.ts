@@ -156,18 +156,5 @@ export const migration_001 = {
       ('minimax', '{"upstreamFormat": "auto", "m3DefaultMaxCompletionTokens": 131072}'),
       ('transport', '{"relay": null, "proxy": null}'),
       ('build', '{"version": "0.16.0"}');
-
-    INSERT OR IGNORE INTO models (name, display_name, family, upstream_model, context_window, pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, source) VALUES
-      ('MiniMax-M3',             'MiniMax M3',             'm3',   'MiniMax-M3',        1000000, 0.60, 2.40, 0.12, NULL,
-        '{"base":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null},"high":{"input":1.20,"output":4.80,"cacheRead":0.24,"cacheWrite":null},"promotional":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null}}',
-        'builtin'),
-      ('MiniMax-M2.7',           'MiniMax M2.7',           'm2.7', 'MiniMax-M2.7',      204800,  0.30, 1.20, 0.06, 0.375, NULL, 'builtin'),
-      ('MiniMax-M2.7-highspeed', 'MiniMax M2.7 highspeed', 'm2.7', 'MiniMax-M2.7-highspeed', 204800, 0.60, 2.40, 0.06, 0.375, NULL, 'builtin'),
-      ('MiniMax-M2.5',           'MiniMax M2.5',           'm2.5', 'MiniMax-M2.5',      204800,  0.30, 1.20, 0.03, 0.375, NULL, 'builtin'),
-      ('MiniMax-M2.5-highspeed', 'MiniMax M2.5 highspeed', 'm2.5', 'MiniMax-M2.5-highspeed', 204800, 0.60, 2.40, 0.03, 0.375, NULL, 'builtin'),
-      ('MiniMax-M2.1',           'MiniMax M2.1',           'm2.1', 'MiniMax-M2.1',      204800,  0.30, 1.20, 0.03, 0.375, NULL, 'builtin'),
-      ('MiniMax-M2.1-highspeed', 'MiniMax M2.1 highspeed', 'm2.1', 'MiniMax-M2.1-highspeed', 204800, 0.60, 2.40, 0.03, 0.375, NULL, 'builtin'),
-      ('MiniMax-M2',             'MiniMax M2',             'm2',   'MiniMax-M2',        204800,  0.30, 1.20, 0.03, 0.375, NULL, 'builtin'),
-      ('MiniMax-M2-her',         'MiniMax M2-her (roleplay)','m2-her', 'MiniMax-M2-her', 64000, NULL, NULL, NULL, NULL, NULL, 'builtin');
   `,
 };

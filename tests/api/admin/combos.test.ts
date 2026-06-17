@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { adminApi } from '../../../src/api/admin/index.js';
 import { migrate } from '../../../src/db/migrations/index.js';
 import { createCombo } from '../../../src/db/repos/combos.js';
+import { upsertModel } from '../../../src/db/repos/models.js';
 
 let db: Database.Database;
 let dir: string;
@@ -87,6 +88,13 @@ describe('POST /api/admin/combos', () => {
   });
 
   it('returns 409 when name conflicts with existing alias', async () => {
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      family: 'm3',
+      source: 'manual',
+    });
     db.prepare(
       `INSERT INTO model_aliases (alias_name, upstream_model, created_at)
        VALUES ('fast', 'MiniMax-M3', datetime('now'))`
@@ -124,6 +132,13 @@ describe('PUT /api/admin/combos/:id', () => {
 
   it('returns 409 when new name conflicts with existing alias', async () => {
     const combo = createCombo(db, 'my-combo', ['a']);
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      family: 'm3',
+      source: 'manual',
+    });
     db.prepare(
       `INSERT INTO model_aliases (alias_name, upstream_model, created_at)
        VALUES ('alias-x', 'MiniMax-M3', datetime('now'))`

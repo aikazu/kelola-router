@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useRef, useEffect } from 'preact/hooks';
 import { useToast } from '../components/ToastProvider';
 import { apiFetch } from '../lib/api';
@@ -87,6 +87,7 @@ export function useKiroDeviceFlow({
           if (pollRef.current) clearInterval(pollRef.current);
           setDeviceStep('success');
           qc.invalidateQueries({ queryKey: ['accounts'] });
+          qc.invalidateQueries({ queryKey: ['models'] });
           toast.success(`Kiro account "${res.label}" added`);
           setTimeout(() => { onSuccess(); }, 1500);
         } else if (res.status === 'error') {

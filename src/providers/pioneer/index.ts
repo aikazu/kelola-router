@@ -8,21 +8,6 @@ import { preparePioneerBody } from './transform.js';
 export const PIONEER_BASE_URL = 'https://api.pioneer.ai';
 export const PIONEER_CHAT_ENDPOINT = '/v1/chat/completions';
 
-/**
- * Proven, tested Pioneer models (bare names; clients route via the `pio/`
- * prefix and the proxy strips it before calling upstream).
- */
-export const PIONEER_MODELS = [
-  'claude-opus-4-8',
-  'claude-sonnet-4-6',
-  'claude-haiku-4-5',
-  'gpt-5.5',
-  'gemini-3.1-pro',
-  'deepseek-ai/DeepSeek-V4-Pro',
-  'qwen3.7-max',
-  'moonshotai/Kimi-K2.6',
-] as const;
-
 // ─── Execute ─────────────────────────────────────────────────────────────────
 
 /**

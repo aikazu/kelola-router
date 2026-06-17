@@ -23,7 +23,6 @@
     "add-account": "tsx scripts/add-account.ts",
     "seed-models": "tsx scripts/seed-models.ts",
     "seed-kiro-models": "tsx scripts/seed-kiro-models.ts",
-    "seed-pioneer-models": "tsx scripts/seed-pioneer-models.ts",
     "reset": "tsx scripts/reset.ts",
     "typecheck": "tsc --noEmit"
   },

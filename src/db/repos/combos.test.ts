@@ -11,6 +11,7 @@ import {
   listCombos,
   updateCombo,
 } from './combos.js';
+import { upsertModel } from './models.js';
 
 let db: ReturnType<typeof openDb>;
 
@@ -91,6 +92,13 @@ describe('combos repo', () => {
   });
 
   it('createCombo throws conflict error when name matches existing alias', () => {
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      family: 'm3',
+      source: 'manual',
+    });
     db.prepare(
       `INSERT INTO model_aliases (alias_name, upstream_model, created_at)
        VALUES ('fast', 'MiniMax-M3', datetime('now'))`
@@ -99,6 +107,13 @@ describe('combos repo', () => {
   });
 
   it('updateCombo throws conflict error when new name matches existing alias', () => {
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      family: 'm3',
+      source: 'manual',
+    });
     db.prepare(
       `INSERT INTO model_aliases (alias_name, upstream_model, created_at)
        VALUES ('smart', 'MiniMax-M3', datetime('now'))`

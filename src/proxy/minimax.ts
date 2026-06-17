@@ -41,9 +41,9 @@ import { getUpstreamFormat as getUpstreamFormatEnv } from '../util/env.js';
 import { log } from '../util/log.js';
 import { handleCodeBuddyProxy } from './codebuddy.js';
 import { handleComboProxy } from './combo.js';
-import { handlePioneerProxy } from './pioneer.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
+import { handlePioneerProxy } from './pioneer.js';
 import type { Db } from './pipeline.js';
 import { applyErrorState, buildAccountStates, buildLogRow, clearErrorState } from './pipeline.js';
 

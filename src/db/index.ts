@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import DatabaseWithCipher from 'better-sqlite3-multiple-ciphers';
 import { getDbKey } from '../util/env.js';
-import { autoSeedModels } from './autoSeed.js';
 import { applyPragmas } from './migratePragmas.js';
 import { migrate } from './migrations/index.js';
 
@@ -127,7 +126,6 @@ export function openDb(): Database.Database {
   applyPragmas(db);
 
   migrate(db);
-  autoSeedModels(db);
   syncBuildVersion(db);
   return db;
 }

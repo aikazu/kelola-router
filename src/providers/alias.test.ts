@@ -60,7 +60,11 @@ describe('resolveModel — prefixed', () => {
   it('resolves a clean prefix to a provider-namespaced row when the bare name clashes', () => {
     // Kiro owns the bare `claude-opus-4-8`; Pioneer stores its own under
     // `pioneer/claude-opus-4-8`. `pio/claude-opus-4-8` must reach the Pioneer row.
-    upsertModel(db, { name: 'claude-opus-4-8', upstream_model: 'claude-opus-4-8', provider: 'kiro' });
+    upsertModel(db, {
+      name: 'claude-opus-4-8',
+      upstream_model: 'claude-opus-4-8',
+      provider: 'kiro',
+    });
     upsertModel(db, {
       name: 'pioneer/claude-opus-4-8',
       upstream_model: 'pioneer/claude-opus-4-8',

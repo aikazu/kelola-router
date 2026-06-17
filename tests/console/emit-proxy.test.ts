@@ -26,6 +26,14 @@ describe('handleProxy emits flow events', () => {
     const key = genClientKey();
     createClientKey(db, { label: 'test', key });
     createAccount(db, { label: 'acct1', api_key: 'mm_x', credit_type: 'payg' });
+    const { upsertModel } = await import('../../src/db/repos/models.js');
+    upsertModel(db, {
+      name: 'MiniMax-M2',
+      upstream_model: 'MiniMax-M2',
+      display_name: 'MiniMax M2',
+      family: 'm2',
+      source: 'builtin',
+    });
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

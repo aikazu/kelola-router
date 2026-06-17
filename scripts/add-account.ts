@@ -38,6 +38,7 @@ import {
   listAccounts,
   listEnabledAccountsByProvider,
 } from '../src/db/repos/accounts.js';
+import { seedModelsForProviderBestEffort } from '../src/db/seedBuiltinModels.js';
 import { log } from '../src/util/log.js';
 import {
   type AddAccountArgs,
@@ -117,7 +118,6 @@ export function runKiro(db: Database.Database, args: KiroArgs): Account {
   console.log(`Kiro account created: ${account.label} (${account.id})`);
   console.log(`  auth method: ${providerData.authMethod}`);
   console.log(`  total Kiro accounts: ${total}`);
-  console.log('Run `tsx scripts/seed-kiro-models.ts` if you have not seeded Kiro models yet.');
   return account;
 }
 
@@ -175,25 +175,40 @@ export function runPioneer(db: Database.Database, args: PioneerArgs): Account {
 
   console.log(`✓ Added Pioneer account: ${label} (${id})`);
   console.log(`  Base URL: ${baseUrl}`);
-  console.log('');
-  console.log(
-    '⚠ Remember to run `tsx scripts/seed-pioneer-models.ts` if you have not seeded Pioneer models yet.'
-  );
   console.log('  Pioneer bills per credit; pricing in the dashboard is seeded at zero.');
   return account;
 }
 
-export function dispatch(db: Database.Database, args: AddAccountArgs): Account {
+export async function dispatch(db: Database.Database, args: AddAccountArgs): Promise<Account> {
+  let account: Account;
+  let apiKey: string | undefined;
+  let baseUrl: string | undefined;
   switch (args.provider) {
     case 'minimax':
-      return runMinimax(db, args);
+      account = runMinimax(db, args);
+      apiKey = args.apiKey;
+      baseUrl = args.baseUrl;
+      break;
     case 'kiro':
-      return runKiro(db, args);
+      account = runKiro(db, args);
+      break;
     case 'codebuddy':
-      return runCodeBuddy(db, args);
+      account = runCodeBuddy(db, args);
+      break;
     case 'pioneer':
-      return runPioneer(db, args);
+      account = runPioneer(db, args);
+      apiKey = args.apiKey;
+      baseUrl = args.baseUrl;
+      break;
   }
+
+  // Seed the provider's model catalogue now that the account exists, mirroring
+  // the dashboard's add-account flow (live fetch for minimax/pioneer, builtins
+  // for kiro/codebuddy). Best-effort: a seed failure must not fail the add.
+  const seeded = await seedModelsForProviderBestEffort(db, args.provider, { apiKey, baseUrl });
+  if (seeded > 0) console.log(`  Imported ${seeded} model${seeded === 1 ? '' : 's'}.`);
+
+  return account;
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +224,7 @@ const USAGE_CODEBUDDY =
 const USAGE_PIONEER =
   '  pioneer:   add-account --provider pioneer --api-key <k> [--label <l>] [--base-url <u>]';
 
-export function main(argv: string[]): void {
+export async function main(argv: string[]): Promise<void> {
   let args: AddAccountArgs;
   try {
     args = parseArgs(argv);
@@ -234,7 +249,7 @@ export function main(argv: string[]): void {
 
   try {
     const db = openDb();
-    dispatch(db, args);
+    await dispatch(db, args);
   } catch (err) {
     console.error('Failed to create account:', err);
     process.exitCode = 1;

@@ -10,11 +10,19 @@ import { createClientKey, getClientKey } from '../../src/db/repos/client_keys.js
 import { clearCache as clearSettingsCache } from '../../src/db/repos/settings.js';
 import { app, resetDb } from '../../src/server.js';
 
+function seedMiniMaxAuth(db: ReturnType<typeof openDb>): void {
+  db.prepare(
+    `INSERT INTO models (name, upstream_model, display_name, family, source)
+     VALUES ('MiniMax-M3', 'MiniMax-M3', 'MiniMax M3', 'm3', 'manual')`
+  ).run();
+}
+
 describe('login rate limit', () => {
   beforeEach(() => resetRateLimit());
 
   it('returns 401 on first 5 wrong attempts, then 429 on 6th', async () => {
     const db = openDb();
+    seedMiniMaxAuth(db);
     db.prepare(`INSERT INTO settings (key, value) VALUES ('admin_password', ?)`).run(
       JSON.stringify(hashPassword('right'))
     );
@@ -62,6 +70,11 @@ describe('login rate limit', () => {
 });
 
 describe('/admin/models actions', () => {
+  beforeEach(() => {
+    const db = openDb();
+    seedMiniMaxAuth(db);
+  });
+
   it('POST /admin/models/:name/enable sets enabled=1', async () => {
     const db = openDb();
     db.prepare(`UPDATE models SET enabled = 0 WHERE name = 'MiniMax-M3'`).run();

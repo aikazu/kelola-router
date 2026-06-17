@@ -125,12 +125,12 @@ export function Accounts() {
   const createMut = useMutation({
     mutationFn: () =>
       provider === 'kiro'
-        ? apiFetch('/api/admin/accounts/kiro', {
+        ? apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts/kiro', {
             method: 'POST',
             json: { label: kiroForm.label, method: 'token', credentialJson: kiroForm.credentialJson, refreshToken: kiroForm.refreshToken },
           })
         : provider === 'pioneer'
-          ? apiFetch('/api/admin/accounts', {
+          ? apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', {
               method: 'POST',
               json: {
                 label: pioneerForm.label,
@@ -139,12 +139,18 @@ export function Accounts() {
                 provider: 'pioneer',
               },
             })
-          : apiFetch('/api/admin/accounts', { method: 'POST', json: form }),
-    onSuccess: () => {
+          : apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', { method: 'POST', json: form }),
+    onSuccess: (res) => {
       setOpen(false);
       resetForms();
       qc.invalidateQueries({ queryKey: ['accounts'] });
-      toast.success('Account added');
+      qc.invalidateQueries({ queryKey: ['models'] });
+      const seeded = res?.modelsSeeded;
+      toast.success(
+        typeof seeded === 'number'
+          ? `Account added — ${seeded} model${seeded === 1 ? '' : 's'} imported`
+          : 'Account added'
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });

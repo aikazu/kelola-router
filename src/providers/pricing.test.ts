@@ -3,15 +3,47 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../db/index.js';
+import { upsertModel } from '../db/repos/models.js';
 import { calculateCost, resolvePricing } from './pricing.js';
 
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'pr-')), 't.db');
 });
 
+function seedMiniMaxForPricing(db: ReturnType<typeof openDb>): void {
+  // Old builtin pricing values for MiniMax models (recovered from HEAD:src/db/autoSeed.ts).
+  upsertModel(db, {
+    name: 'MiniMax-M3',
+    upstream_model: 'MiniMax-M3',
+    display_name: 'MiniMax M3',
+    family: 'm3',
+    context_window: 1_000_000,
+    pricing_input: 0.6,
+    pricing_output: 2.4,
+    pricing_cache_read: 0.12,
+    pricing_cache_write: null,
+    pricing_tiers:
+      '{"base":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null},"high":{"input":1.20,"output":4.80,"cacheRead":0.24,"cacheWrite":null},"promotional":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null}}',
+    source: 'builtin',
+  });
+  upsertModel(db, {
+    name: 'MiniMax-M2.7',
+    upstream_model: 'MiniMax-M2.7',
+    display_name: 'MiniMax M2.7',
+    family: 'm2.7',
+    context_window: 204800,
+    pricing_input: 0.3,
+    pricing_output: 1.2,
+    pricing_cache_read: 0.06,
+    pricing_cache_write: 0.375,
+    source: 'builtin',
+  });
+}
+
 describe('resolvePricing', () => {
   it('M3 ≤ 512k → base pricing', () => {
     const db = openDb();
+    seedMiniMaxForPricing(db);
     const p = resolvePricing(db, 'MiniMax-M3', 100_000);
     expect(p?.input).toBe(0.6);
     expect(p?.output).toBe(2.4);
@@ -20,6 +52,7 @@ describe('resolvePricing', () => {
 
   it('M3 > 512k → high pricing (2x)', () => {
     const db = openDb();
+    seedMiniMaxForPricing(db);
     const p = resolvePricing(db, 'MiniMax-M3', 600_000);
     expect(p?.input).toBe(1.2);
     expect(p?.output).toBe(4.8);
@@ -28,6 +61,7 @@ describe('resolvePricing', () => {
 
   it('M2.7 → flat pricing', () => {
     const db = openDb();
+    seedMiniMaxForPricing(db);
     const p = resolvePricing(db, 'MiniMax-M2.7', 50_000);
     expect(p?.input).toBe(0.3);
     expect(p?.output).toBe(1.2);
@@ -37,6 +71,14 @@ describe('resolvePricing', () => {
 
   it('M2-her with NULL pricing → null', () => {
     const db = openDb();
+    upsertModel(db, {
+      name: 'MiniMax-M2-her',
+      upstream_model: 'MiniMax-M2-her',
+      display_name: 'MiniMax M2-her (roleplay)',
+      family: 'm2-her',
+      context_window: 64000,
+      source: 'builtin',
+    });
     expect(resolvePricing(db, 'MiniMax-M2-her', 1000)).toBeNull();
   });
 
@@ -49,6 +91,7 @@ describe('resolvePricing', () => {
 describe('calculateCost', () => {
   it('M2.7 with cache_read returns positive cost', () => {
     const db = openDb();
+    seedMiniMaxForPricing(db);
     const c = calculateCost(db, 'MiniMax-M2.7', {
       prompt_tokens: 1000,
       completion_tokens: 500,
@@ -61,6 +104,7 @@ describe('calculateCost', () => {
 
   it('M3 with cache_creation: cacheWrite NULL → cost excludes cache_creation (honest unknown)', () => {
     const db = openDb();
+    seedMiniMaxForPricing(db);
     const c = calculateCost(db, 'MiniMax-M3', {
       prompt_tokens: 1000,
       completion_tokens: 500,

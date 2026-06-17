@@ -13,7 +13,7 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CodeBuddyArgs, KiroArgs, MinimaxArgs } from '../../scripts/add-account.cliArgs.js';
 import { dispatch, main, runCodeBuddy, runKiro, runMinimax } from '../../scripts/add-account.js';
 import { openDb } from '../../src/db/index.js';
@@ -167,8 +167,17 @@ describe('runCodeBuddy (ports scripts/add-codebuddy-account.ts)', () => {
 });
 
 describe('dispatch', () => {
-  it('routes minimax', () => {
-    const a = dispatch(db, {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('routes minimax', async () => {
+    // minimax seeds models via a live /v1/models fetch; stub it so the dispatch
+    // path runs offline. Seeding is best-effort, so an empty list is fine.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [] }), { status: 200 })
+    );
+    const a = await dispatch(db, {
       provider: 'minimax',
       label: 'd-mm',
       creditType: 'payg',
@@ -177,36 +186,44 @@ describe('dispatch', () => {
     expect(getAccount(db, a.id)!.provider).toBe('minimax');
   });
 
-  it('routes kiro', () => {
-    const a = dispatch(db, { provider: 'kiro', label: 'd-k', refreshToken: 'r' });
+  it('routes kiro', async () => {
+    const a = await dispatch(db, { provider: 'kiro', label: 'd-k', refreshToken: 'r' });
     expect(getAccount(db, a.id)!.provider).toBe('kiro');
   });
 
-  it('routes codebuddy', () => {
-    const a = dispatch(db, { provider: 'codebuddy', apiKey: 'k' });
+  it('routes codebuddy', async () => {
+    const a = await dispatch(db, { provider: 'codebuddy', apiKey: 'k' });
     expect(getAccount(db, a.id)!.provider).toBe('codebuddy');
   });
 });
 
 describe('main', () => {
-  it('sets exitCode=1 and prints usage on missing --provider', () => {
-    main(['--label', 'x', '--api-key', 'k']);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sets exitCode=1 and prints usage on missing --provider', async () => {
+    await main(['--label', 'x', '--api-key', 'k']);
     expect(process.exitCode).toBe(1);
   });
 
-  it('sets exitCode=1 on missing required minimax field', () => {
-    main(['--provider', 'minimax', '--credit-type', 'payg', '--api-key', 'k']); // no --label
+  it('sets exitCode=1 on missing required minimax field', async () => {
+    await main(['--provider', 'minimax', '--credit-type', 'payg', '--api-key', 'k']); // no --label
     expect(process.exitCode).toBe(1);
   });
 
-  it('sets exitCode=1 on invalid provider', () => {
-    main(['--provider', 'nope', '--api-key', 'k']);
+  it('sets exitCode=1 on invalid provider', async () => {
+    await main(['--provider', 'nope', '--api-key', 'k']);
     expect(process.exitCode).toBe(1);
   });
 
-  it('happy path minimax: inserts row, leaves exitCode unset (0)', () => {
+  it('happy path minimax: inserts row, leaves exitCode unset (0)', async () => {
+    // Stub the live model fetch the minimax add triggers.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [] }), { status: 200 })
+    );
     const before = listAccounts(db).length;
-    main([
+    await main([
       '--provider',
       'minimax',
       '--label',
@@ -220,16 +237,16 @@ describe('main', () => {
     expect(listAccounts(db).length).toBe(before + 1);
   });
 
-  it('happy path kiro: inserts row', () => {
-    main(['--provider', 'kiro', '--label', 'cli-kiro', '--refresh-token', 'rcli']);
+  it('happy path kiro: inserts row', async () => {
+    await main(['--provider', 'kiro', '--label', 'cli-kiro', '--refresh-token', 'rcli']);
     expect(process.exitCode).toBe(0);
     const kiro = listAccounts(db).filter((a) => a.provider === 'kiro');
     expect(kiro.length).toBe(1);
     expect(kiro[0].api_key).toBe('rcli');
   });
 
-  it('happy path codebuddy: inserts row', () => {
-    main(['--provider', 'codebuddy', '--api-key', 'cb_cli', '--label', 'cli-cb']);
+  it('happy path codebuddy: inserts row', async () => {
+    await main(['--provider', 'codebuddy', '--api-key', 'cb_cli', '--label', 'cli-cb']);
     expect(process.exitCode).toBe(0);
     const cb = listAccounts(db).filter((a) => a.provider === 'codebuddy');
     expect(cb.length).toBe(1);

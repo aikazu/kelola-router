@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 
 describe('fetchModels', () => {
-  it('hits upstream /v1/models and merges new ones', async () => {
+  it('hits upstream /v1/models and upserts rows', async () => {
     const db = openDb();
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -24,22 +24,23 @@ describe('fetchModels', () => {
 
     const result = await fetchModels(db, 'mm_test');
     expect(result.ok).toBe(true);
-    expect(result.added).toBe(2); // 2 new (M3 already seeded)
+    expect(result.added).toBe(3);
 
     const all = listModels(db, { includeDisabled: true });
     const names = all.map((m) => m.name);
     expect(names).toContain('MiniMax-newmodel');
     expect(names).toContain('MiniMax-another');
-    expect(names).toContain('MiniMax-M3'); // still there
+    expect(names).toContain('MiniMax-M3');
   });
 
-  it('updates display_name + family on existing models', async () => {
+  it('updates source on existing models', async () => {
     const db = openDb();
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ data: [{ id: 'MiniMax-M3' }] }), { status: 200 })
     );
     const result = await fetchModels(db, 'mm_test');
     expect(result.ok).toBe(true);
+    expect(result.added).toBe(1);
     const m = listModels(db, { includeDisabled: true }).find((x) => x.name === 'MiniMax-M3')!;
     expect(m.source).toBe('fetched');
   });
