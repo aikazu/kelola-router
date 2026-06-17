@@ -29,3 +29,8 @@ sidecar/**/*.pyc
 .omo
 automation
 kie-autodocs/notion/__pycache__/
+
+# Notion RE capture artifacts (large, regenerable)
+docs/notion/*.har
+docs/notion/*.flow
+docs/notion/__pycache__/
