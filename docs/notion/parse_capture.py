@@ -114,7 +114,6 @@ def render_section(title: str, entries: list[dict]) -> str:
         status = resp.get("status", "?")
         ct = resp.get("content", {}).get("mimeType", "")
         req_headers = {h["name"].lower(): h["value"] for h in req.get("headers", [])}
-        resp_headers = {h["name"].lower(): h["value"] for h in resp.get("headers", [])}
         req_body = safe_json_body(e) if req.get("postData") else None
         resp_text = resp.get("content", {}).get("text", "")
         resp_body = None
