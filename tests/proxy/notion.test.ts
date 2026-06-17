@@ -1,9 +1,9 @@
+import { ulid } from 'ulid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../src/db/index.js';
 import { createAccount } from '../../src/db/repos/accounts.js';
 import { upsertModel } from '../../src/db/repos/models.js';
 import { handleNotionProxy } from '../../src/proxy/notion.js';
-import { ulid } from 'ulid';
 
 /**
  * Integration test for handleNotionProxy.
@@ -40,10 +40,7 @@ function makeResponse(opts: { status: number; body: string; contentType?: string
   return new Response(opts.body, { status: opts.status, headers });
 }
 
-function seedAccount(opts: {
-  cookies?: Record<string, string>;
-  spaceId?: string;
-} = {}) {
+function seedAccount(opts: { cookies?: Record<string, string>; spaceId?: string } = {}) {
   const db = openDb();
   const id = ulid();
   createAccount(db, {
@@ -127,7 +124,7 @@ beforeEach(() => {
   const db = openDb();
   try {
     db.exec('DELETE FROM accounts');
-    db.exec('DELETE FROM models')
+    db.exec('DELETE FROM models');
   } finally {
     db.close();
   }
@@ -197,10 +194,17 @@ describe('handleNotionProxy — integration', () => {
         provider: 'notion',
         provider_data: JSON.stringify({
           cookies: {
-            device_id: 'd', notion_browser_id: 'b', notion_check_cookie_consent: 'false',
-            notion_user_id: 'u', notion_sync_user_id: '%7B%7D', NEXT_LOCALE: 'en-US',
-            p_sync_session: '%7B%7D', _cioid: 'c', notion_locale: 'en-US',
-            notion_users: '%5B%22u%22%5D', token_v2: 'v03:abc',
+            device_id: 'd',
+            notion_browser_id: 'b',
+            notion_check_cookie_consent: 'false',
+            notion_user_id: 'u',
+            notion_sync_user_id: '%7B%7D',
+            NEXT_LOCALE: 'en-US',
+            p_sync_session: '%7B%7D',
+            _cioid: 'c',
+            notion_locale: 'en-US',
+            notion_users: '%5B%22u%22%5D',
+            token_v2: 'v03:abc',
           },
           spaceId: null,
         }),
@@ -254,7 +258,12 @@ describe('handleNotionProxy — integration', () => {
       expect(dataLines.length).toBeGreaterThanOrEqual(1);
       // Concatenate all delta.content values to verify the full text reached client
       const fullText = dataLines
-        .map((line) => JSON.parse(line.slice('data: '.length)) as { choices: Array<{ delta: { content?: string } }> })
+        .map(
+          (line) =>
+            JSON.parse(line.slice('data: '.length)) as {
+              choices: Array<{ delta: { content?: string } }>;
+            }
+        )
         .map((chunk) => chunk.choices[0]?.delta.content ?? '')
         .join('');
       expect(fullText).toBe('Hello from Notion!');
@@ -273,7 +282,10 @@ describe('handleNotionProxy — integration', () => {
       captured = {
         url: String(url),
         body: String(init?.body ?? ''),
-        headers: init?.headers instanceof Headers ? init.headers : new Headers(init?.headers as Record<string, string>),
+        headers:
+          init?.headers instanceof Headers
+            ? init.headers
+            : new Headers(init?.headers as Record<string, string>),
       };
       return makeResponse({
         status: 200,

@@ -38,40 +38,160 @@ export interface NotionModelEntry {
 
 export const NOTION_MODEL_TABLE: readonly NotionModelEntry[] = [
   // OpenAI GPT-5 family
-  { internalId: 'oatmeal-cookie', alias: 'nt/notion-gpt-5.2', displayName: 'GPT-5.2', family: 'openai', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'oval-kumquat-medium', alias: 'nt/notion-gpt-5.4', displayName: 'GPT-5.4', family: 'openai', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'opal-quince-medium', alias: 'nt/notion-gpt-5.5', displayName: 'GPT-5.5', family: 'openai', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'oregon-grape-medium', alias: 'nt/notion-gpt-5.4-mini', displayName: 'GPT-5.4 Mini', family: 'openai', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'otaheite-apple-medium', alias: 'nt/notion-gpt-5.4-nano', displayName: 'GPT-5.4 Nano', family: 'openai', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
+  {
+    internalId: 'oatmeal-cookie',
+    alias: 'nt/notion-gpt-5.2',
+    displayName: 'GPT-5.2',
+    family: 'openai',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'oval-kumquat-medium',
+    alias: 'nt/notion-gpt-5.4',
+    displayName: 'GPT-5.4',
+    family: 'openai',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'opal-quince-medium',
+    alias: 'nt/notion-gpt-5.5',
+    displayName: 'GPT-5.5',
+    family: 'openai',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'oregon-grape-medium',
+    alias: 'nt/notion-gpt-5.4-mini',
+    displayName: 'GPT-5.4 Mini',
+    family: 'openai',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'otaheite-apple-medium',
+    alias: 'nt/notion-gpt-5.4-nano',
+    displayName: 'GPT-5.4 Nano',
+    family: 'openai',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
   // Anthropic Claude family
-  { internalId: 'almond-croissant-low', alias: 'nt/notion-sonnet-4.6', displayName: 'Sonnet 4.6', family: 'anthropic', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'avocado-froyo-medium', alias: 'nt/notion-opus-4.6', displayName: 'Opus 4.6', family: 'anthropic', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'apricot-sorbet-high', alias: 'nt/notion-opus-4.7', displayName: 'Opus 4.7', family: 'anthropic', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'ambrosia-tart-high', alias: 'nt/notion-opus-4.8', displayName: 'Opus 4.8', family: 'anthropic', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'anthropic-haiku-4.5', alias: 'nt/notion-haiku-4.5', displayName: 'Haiku 4.5', family: 'anthropic', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'acai-budino-high', alias: 'nt/notion-fable-5', displayName: 'Fable 5', family: 'anthropic', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
+  {
+    internalId: 'almond-croissant-low',
+    alias: 'nt/notion-sonnet-4.6',
+    displayName: 'Sonnet 4.6',
+    family: 'anthropic',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'avocado-froyo-medium',
+    alias: 'nt/notion-opus-4.6',
+    displayName: 'Opus 4.6',
+    family: 'anthropic',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'apricot-sorbet-high',
+    alias: 'nt/notion-opus-4.7',
+    displayName: 'Opus 4.7',
+    family: 'anthropic',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'ambrosia-tart-high',
+    alias: 'nt/notion-opus-4.8',
+    displayName: 'Opus 4.8',
+    family: 'anthropic',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'anthropic-haiku-4.5',
+    alias: 'nt/notion-haiku-4.5',
+    displayName: 'Haiku 4.5',
+    family: 'anthropic',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'acai-budino-high',
+    alias: 'nt/notion-fable-5',
+    displayName: 'Fable 5',
+    family: 'anthropic',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
   // Gemini family
-  { internalId: 'vertex-gemini-2.5-flash', alias: 'nt/notion-gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', family: 'gemini', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'vertex-gemini-3.5-flash', alias: 'nt/notion-gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', family: 'gemini', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'gingerbread', alias: 'nt/notion-gemini-3-flash', displayName: 'Gemini 3 Flash', family: 'gemini', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'galette-medium-thinking', alias: 'nt/notion-gemini-3.1-pro', displayName: 'Gemini 3.1 Pro (thinking)', family: 'gemini', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
+  {
+    internalId: 'vertex-gemini-2.5-flash',
+    alias: 'nt/notion-gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
+    family: 'gemini',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'vertex-gemini-3.5-flash',
+    alias: 'nt/notion-gemini-3.5-flash',
+    displayName: 'Gemini 3.5 Flash',
+    family: 'gemini',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'gingerbread',
+    alias: 'nt/notion-gemini-3-flash',
+    displayName: 'Gemini 3 Flash',
+    family: 'gemini',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'galette-medium-thinking',
+    alias: 'nt/notion-gemini-3.1-pro',
+    displayName: 'Gemini 3.1 Pro (thinking)',
+    family: 'gemini',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
   // xAI Grok family
-  { internalId: 'xigua-mochi-medium', alias: 'nt/notion-grok-4.3', displayName: 'Grok 4.3', family: 'xai', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'xinomavro-cake', alias: 'nt/notion-grok-build-0.1', displayName: 'Grok Build 0.1', family: 'xai', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
+  {
+    internalId: 'xigua-mochi-medium',
+    alias: 'nt/notion-grok-4.3',
+    displayName: 'Grok 4.3',
+    family: 'xai',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'xinomavro-cake',
+    alias: 'nt/notion-grok-build-0.1',
+    displayName: 'Grok Build 0.1',
+    family: 'xai',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
   // Mystery / partner models (Kimi, DeepSeek, GLM)
-  { internalId: 'fireworks-kimi-k2.6', alias: 'nt/notion-kimi-k2.6', displayName: 'Kimi K2.6', family: 'mystery', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'baseten-deepseek-v4-pro', alias: 'nt/notion-deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', family: 'mystery', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
-  { internalId: 'baseten-glm-5.2', alias: 'nt/notion-glm-5.2', displayName: 'GLM 5.2', family: 'mystery', maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS },
+  {
+    internalId: 'fireworks-kimi-k2.6',
+    alias: 'nt/notion-kimi-k2.6',
+    displayName: 'Kimi K2.6',
+    family: 'mystery',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'baseten-deepseek-v4-pro',
+    alias: 'nt/notion-deepseek-v4-pro',
+    displayName: 'DeepSeek V4 Pro',
+    family: 'mystery',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
+  {
+    internalId: 'baseten-glm-5.2',
+    alias: 'nt/notion-glm-5.2',
+    displayName: 'GLM 5.2',
+    family: 'mystery',
+    maxCompletionTokens: NOTION_DEFAULT_MAX_COMPLETION_TOKENS,
+  },
 ] as const;
 
 /** Lookup map: router alias → Notion internal model entry. */
 export const NOTION_ALIAS_TO_MODEL: ReadonlyMap<string, NotionModelEntry> = new Map(
-  NOTION_MODEL_TABLE.map((m) => [m.alias, m]),
+  NOTION_MODEL_TABLE.map((m) => [m.alias, m])
 );
 
 /** Reverse lookup: internal ID → model entry. For `getAvailableModels` reconciliation. */
 export const NOTION_INTERNAL_TO_MODEL: ReadonlyMap<string, NotionModelEntry> = new Map(
-  NOTION_MODEL_TABLE.map((m) => [m.internalId, m]),
+  NOTION_MODEL_TABLE.map((m) => [m.internalId, m])
 );
 
 /** Cookies required for AI requests (see docs/notion/wire-format.md §1.2). */

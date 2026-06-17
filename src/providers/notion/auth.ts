@@ -30,7 +30,7 @@ export class NotionAuthError extends Error {
       | 'rate_limited'
       | 'network'
       | 'unknown',
-    message?: string,
+    message?: string
   ) {
     super(message ?? `notion auth: ${code}`);
     this.name = 'NotionAuthError';
@@ -61,7 +61,7 @@ export async function getLoginOptions(email: string): Promise<LoginOptions> {
   if (data.passwordSignIn) {
     throw new NotionAuthError(
       'password_required',
-      'account requires password login (not supported by router v1)',
+      'account requires password login (not supported by router v1)'
     );
   }
   return data;
@@ -70,7 +70,7 @@ export async function getLoginOptions(email: string): Promise<LoginOptions> {
 export async function sendTemporaryPassword(
   email: string,
   loginOptionsToken: string,
-  deviceId: string,
+  deviceId: string
 ): Promise<{ csrfState: string }> {
   const res = await fetch(`${NOTION_BASE}/api/v3/sendTemporaryPassword`, {
     method: 'POST',
@@ -132,10 +132,7 @@ export function parseSetCookieHeader(headerValue: string): Record<string, string
   return out;
 }
 
-export async function loginWithEmail(
-  csrfState: string,
-  password: string,
-): Promise<LoginResult> {
+export async function loginWithEmail(csrfState: string, password: string): Promise<LoginResult> {
   const res = await fetch(`${NOTION_BASE}/api/v3/loginWithEmail`, {
     method: 'POST',
     headers: JSON_HEADERS,

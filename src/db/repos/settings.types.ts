@@ -159,6 +159,7 @@ export const SETTINGS_SCHEMAS = {
   'selection.kiro': selectionSchema,
   'selection.codebuddy': selectionSchema,
   'selection.pioneer': selectionSchema,
+  'selection.notion': selectionSchema,
 } as const satisfies Record<string, v.GenericSchema>;
 
 /**

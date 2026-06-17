@@ -52,11 +52,13 @@ function cookieHeader(cookies: Record<string, string>): string {
 }
 
 function hasAllRequiredCookies(cookies: Record<string, string>): boolean {
-  return NOTION_AI_COOKIE_NAMES.every((n) => typeof cookies[n] === 'string' && cookies[n]!.length > 0);
+  return NOTION_AI_COOKIE_NAMES.every(
+    (n) => typeof cookies[n] === 'string' && cookies[n]!.length > 0
+  );
 }
 
 function readOpenAIMessages(
-  body: Record<string, unknown>,
+  body: Record<string, unknown>
 ): Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }> {
   const raw = Array.isArray(body.messages) ? body.messages : [];
   const out: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }> = [];
@@ -65,9 +67,7 @@ function readOpenAIMessages(
     const obj = m as Record<string, unknown>;
     const roleRaw = typeof obj.role === 'string' ? obj.role : 'user';
     const role: 'system' | 'user' | 'assistant' | 'tool' =
-      roleRaw === 'system' || roleRaw === 'assistant' || roleRaw === 'tool'
-        ? roleRaw
-        : 'user';
+      roleRaw === 'system' || roleRaw === 'assistant' || roleRaw === 'tool' ? roleRaw : 'user';
     const content = typeof obj.content === 'string' ? obj.content : '';
     out.push({ role, content });
   }
@@ -81,7 +81,7 @@ export async function handleNotionProxy(
   body: Record<string, unknown>,
   db: Database.Database,
   cursorRef: CursorRef,
-  stickyMap: Map<number, string>,
+  stickyMap: Map<number, string>
 ): Promise<Response> {
   // v1: cursorRef + stickyMap + format all unused (no failover, text-only, OpenAI-format output only)
   void cursorRef;
@@ -150,7 +150,10 @@ export async function handleNotionProxy(
   if (!upstream.ok) {
     const status = upstream.status;
     const isFatal = NOTION_FATAL_STATUSES.has(status);
-    log.warn({ reqId, accountId: account.id, status, fatal: isFatal }, `notion upstream HTTP ${status}`);
+    log.warn(
+      { reqId, accountId: account.id, status, fatal: isFatal },
+      `notion upstream HTTP ${status}`
+    );
     if (status === 401 || status === 403) {
       return c.json(
         { error: 'notion_reauth_required', message: `notion HTTP ${status}` },
@@ -225,9 +228,7 @@ export async function handleNotionProxy(
                   object: 'chat.completion.chunk',
                   created: Math.floor(Date.now() / 1000),
                   model: internalModelId,
-                  choices: [
-                    { index: 0, delta: { content: delta.delta }, finish_reason: null },
-                  ],
+                  choices: [{ index: 0, delta: { content: delta.delta }, finish_reason: null }],
                 })}\n\n`
               )
             );
@@ -286,4 +287,4 @@ export async function handleNotionProxy(
 }
 
 // Re-export for tests
-export { pickAccount, hasAllRequiredCookies, cookieHeader, NOTION_LOGIN_COOKIE_NAMES };
+export { cookieHeader, hasAllRequiredCookies, NOTION_LOGIN_COOKIE_NAMES, pickAccount };

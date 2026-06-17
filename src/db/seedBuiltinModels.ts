@@ -185,7 +185,7 @@ export function seedCodebuddyBuiltins(db: Database.Database): SeedResult {
 
 // ── Dispatcher ─────────────────────────────────────────────────────────────
 
-export type SeedableProvider = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer';
+export type SeedableProvider = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer' | 'notion';
 
 export interface SeedProviderOptions {
   apiKey?: string;

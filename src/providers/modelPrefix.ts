@@ -3,6 +3,7 @@ const PREFIX_TO_PROVIDER: Readonly<Record<string, string>> = {
   kr: 'kiro',
   cb: 'codebuddy',
   pio: 'pioneer',
+  nt: 'notion',
 };
 
 export interface ParsedModel {

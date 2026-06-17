@@ -48,7 +48,10 @@ interface AgentToolResultRecord {
   result?: { output?: string };
 }
 
-type StateRecord = AgentInferenceRecord | AgentToolResultRecord | { id: string; type: string; [k: string]: unknown };
+type StateRecord =
+  | AgentInferenceRecord
+  | AgentToolResultRecord
+  | { id: string; type: string; [k: string]: unknown };
 
 interface NotionState {
   s: StateRecord[];
@@ -166,7 +169,12 @@ export async function* extractNotionStream(response: Response): AsyncIterable<Te
         } catch {
           continue;
         }
-        const ev = obj as { type?: string; data?: { s?: StateRecord[] }; v?: Array<{ o: string; p: string; v?: unknown }>; version?: number };
+        const ev = obj as {
+          type?: string;
+          data?: { s?: StateRecord[] };
+          v?: Array<{ o: string; p: string; v?: unknown }>;
+          version?: number;
+        };
 
         if (ev.type === 'patch-start' && ev.data?.s) {
           state.s = ev.data.s;
@@ -187,7 +195,9 @@ export async function* extractNotionStream(response: Response): AsyncIterable<Te
   }
 }
 
-function parseLine(line: string): { type: string; v?: Array<{ o: string; p: string; v?: unknown }> } | null {
+function parseLine(
+  line: string
+): { type: string; v?: Array<{ o: string; p: string; v?: unknown }> } | null {
   try {
     return JSON.parse(line);
   } catch {

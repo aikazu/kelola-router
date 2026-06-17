@@ -10,8 +10,8 @@
  *   tsx scripts/seed-notion-models.ts
  */
 import { openDb } from '../src/db/index.js';
-import { NOTION_MODEL_TABLE } from '../src/providers/notion/constants.js';
 import { listModels, upsertModel } from '../src/db/repos/models.js';
+import { NOTION_MODEL_TABLE } from '../src/providers/notion/constants.js';
 
 interface ModelRow {
   name: string;
@@ -49,7 +49,9 @@ function main(): number {
       if (isExisting) updated++;
       else inserted++;
     }
-    console.log(`Notion models: ${inserted} inserted, ${updated} updated, ${NOTION_MODEL_TABLE.length} total`);
+    console.log(
+      `Notion models: ${inserted} inserted, ${updated} updated, ${NOTION_MODEL_TABLE.length} total`
+    );
     return 0;
   } finally {
     db.close();

@@ -8,7 +8,7 @@ export interface SelectionSettings {
 }
 
 /** Inline selection mode + step controls for one provider card (auto-saves). */
-export function SelectionControls({ provider }: { provider: 'minimax' | 'kiro' | 'pioneer' }) {
+export function SelectionControls({ provider }: { provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' }) {
   const qc = useQueryClient();
   const toast = useToast();
   const { data } = useQuery({

@@ -16,16 +16,13 @@
  * Exit codes: 0 success, 1 invalid args, 2 auth failed, 3 ineligible for AI.
  */
 import { randomUUID } from 'node:crypto';
+import { argv, stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
-import { stdin, stdout, argv } from 'node:process';
 import { ulid } from 'ulid';
-import { NOTION_BASE, NOTION_CLIENT_VERSION } from '../src/providers/notion/constants.js';
 import { openDb } from '../src/db/index.js';
-import {
-  createAccount,
-  listEnabledAccountsByProvider,
-} from '../src/db/repos/accounts.js';
+import { createAccount, listEnabledAccountsByProvider } from '../src/db/repos/accounts.js';
 import { seedModelsForProviderBestEffort } from '../src/db/seedBuiltinModels.js';
+import { NOTION_BASE, NOTION_CLIENT_VERSION } from '../src/providers/notion/constants.js';
 
 function arg(name: string): string | undefined {
   const i = argv.indexOf(`--${name}`);
@@ -58,7 +55,10 @@ function parseSetCookie(headerValue: string | null): Record<string, string> {
   return out;
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<{ status: number; json: T; setCookie: string | null }> {
+async function postJson<T>(
+  path: string,
+  body: unknown
+): Promise<{ status: number; json: T; setCookie: string | null }> {
   const res = await fetch(`${NOTION_BASE}${path}`, {
     method: 'POST',
     headers: {
@@ -165,7 +165,9 @@ async function main(): Promise<number> {
   if (!spaceId) {
     console.log('No --space-id provided; will be populated on first chat request.');
     console.log('To populate manually, run a chat request then update the DB:');
-    console.log(`  UPDATE accounts SET provider_data = json_set(provider_data, '$.spaceId', '<uuid>') WHERE id = '<account-id>';`);
+    console.log(
+      `  UPDATE accounts SET provider_data = json_set(provider_data, '$.spaceId', '<uuid>') WHERE id = '<account-id>';`
+    );
   }
 
   // Step 5: insert into DB

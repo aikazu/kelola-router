@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getLoginOptions,
-  sendTemporaryPassword,
   loginWithEmail,
-  parseSetCookieHeader,
   NotionAuthError,
+  parseSetCookieHeader,
+  sendTemporaryPassword,
 } from '../../../src/providers/notion/auth';
 
 /**
@@ -69,9 +69,11 @@ describe('notion auth — login flow', () => {
   });
 
   it('sendTemporaryPassword posts loginOptionsToken + deviceId', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      mockResponse({ body: JSON.stringify({ csrfState: 'v02:temp_password:xyz' }) })
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockResponse({ body: JSON.stringify({ csrfState: 'v02:temp_password:xyz' }) })
+      );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const out = await sendTemporaryPassword(
@@ -98,7 +100,10 @@ describe('notion auth — login flow', () => {
       'notion_user_id=382d872b-594c-81ff-b89c-00021216a6b0; Domain=app.notion.com; Path=/; Expires=Thu, 17 Jun 2027 19:50:55 GMT; Secure';
     const fetchMock = vi.fn().mockResolvedValue(
       mockResponse({
-        body: JSON.stringify({ isNewSignup: false, userId: '382d872b-594c-81ff-b89c-00021216a6b0' }),
+        body: JSON.stringify({
+          isNewSignup: false,
+          userId: '382d872b-594c-81ff-b89c-00021216a6b0',
+        }),
         setCookie,
       })
     );
@@ -121,9 +126,7 @@ describe('notion auth — login flow', () => {
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await expect(loginWithEmail('v02:temp_password:xyz', 'wrong')).rejects.toThrow(
-      NotionAuthError
-    );
+    await expect(loginWithEmail('v02:temp_password:xyz', 'wrong')).rejects.toThrow(NotionAuthError);
   });
 });
 

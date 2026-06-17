@@ -53,7 +53,7 @@ modelRoutes.post('/', async (c) => {
     if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
       return c.json({ error: 'invalid_body', message: 'Nama model wajib diisi' }, 400);
     }
-    const ALLOWED_PROVIDERS = ['minimax', 'kiro', 'codebuddy', 'pioneer'] as const;
+    const ALLOWED_PROVIDERS = ['minimax', 'kiro', 'codebuddy', 'pioneer', 'notion'] as const;
     if (!body.provider || !(ALLOWED_PROVIDERS as readonly string[]).includes(body.provider)) {
       return c.json(
         {
