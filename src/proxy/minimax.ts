@@ -43,6 +43,7 @@ import { handleCodeBuddyProxy } from './codebuddy.js';
 import { handleComboProxy } from './combo.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
+import { handleNotionProxy } from './notion.js';
 import { handlePioneerProxy } from './pioneer.js';
 import type { Db } from './pipeline.js';
 import { applyErrorState, buildAccountStates, buildLogRow, clearErrorState } from './pipeline.js';
@@ -138,6 +139,20 @@ export async function handleProxy(
       );
       rrCursorRef.value = pioCursorRef.value;
       return pioResp;
+    }
+    if (peek.provider === 'notion') {
+      const notionCursorRef: CursorRef = { value: rrCursorRef.value };
+      const notionResp = await handleNotionProxy(
+        c,
+        format,
+        upstreamPath,
+        body,
+        db,
+        notionCursorRef,
+        stickyMap
+      );
+      rrCursorRef.value = notionCursorRef.value;
+      return notionResp;
     }
   } catch {
     /* unknown model — defer to the MiniMax path for the canonical error */

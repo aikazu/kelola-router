@@ -267,6 +267,7 @@ export { handleCodeBuddyProxy } from './proxy/codebuddy.js';
 export { handleComboProxy } from './proxy/combo.js';
 export { handleKiroProxy } from './proxy/kiro.js';
 export { handleProxy } from './proxy/minimax.js';
+export { handleNotionProxy } from './proxy/notion.js';
 export { handlePioneerProxy } from './proxy/pioneer.js';
 export { app };
 
