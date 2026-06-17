@@ -52,7 +52,10 @@ export async function exchangeOtp(email: string, code: string): Promise<{
   userId: string
   workspaceId: string
 }>
-export async function refreshNotionToken(accountId: string): Promise<void>  // no-op placeholder; OTP re-auth when expired
+// Notion tokens do not refresh — OTP is a fresh login each time.
+// On 401, proxy emits a structured error (`code: 'notion_reauth_required'`)
+// and the dashboard surfaces a "Re-authenticate" button that re-runs the OTP flow.
+// No silent refresh path; user action is explicit.
 ```
 
 - Endpoints discovered via mitmproxy capture (placeholders until RE done):
@@ -89,8 +92,10 @@ Implements the standard provider interface (same as Kiro):
 Mirrors `selection/kiro.ts`:
 - `mode`: `sticky` (default) | `round-robin`
 - `step`: round-robin offset (default 1)
-- Skip rules: account in `backoff_until > now`, `state='locked'` or `'disabled'`, model explicitly locked
+- Skip rules: account in `backoff_until > now`, account `state` in `{locked, disabled}`, model explicitly locked
 - After successful response: clear backoff, bump `last_used_at`, decrement `error_count`
+
+> **Implementation note:** the `accounts.state` enum and column names above are placeholders mirroring the existing Kiro selection module. The implementation plan must verify the actual schema in `src/db/schema.ts` (or equivalent) before writing migration code, and adjust this spec section if the names differ.
 
 ### 5. Conversation continuity — new table
 
@@ -108,21 +113,35 @@ CREATE INDEX idx_conv_routing_last_used ON conversation_routing(last_used_at);
 **Lookup flow** (in `selectAccount` for `notion`):
 1. Extract `conversation_id` from request body (OpenAI `messages` metadata or custom `x-notion-conversation` header — TBD from capture)
 2. If present in `conversation_routing` AND referenced account is healthy (not backoff/locked/disabled) → use that account (override selection mode)
-3. If present but referenced account unhealthy → pick next healthy account, **insert/upsert routing row with new account_id** (graceful migration), set response header `X-Notion-Conversation-Migrated: true`
+3. If present but referenced account unhealthy → **two-phase handling**:
+   - Phase A (probing): try the request against the next healthy account **without** sending the old `conversation_id` (omit it from the Notion body so the upstream creates a fresh conversation). This avoids Notion rejecting an unknown conversation_id from a foreign account.
+   - Phase B (post-response): the new conversation_id returned by Notion is a different value. Upsert routing row with the NEW id mapped to the new account. Set response header `X-Notion-Conversation-Migrated: true` AND echo the new id in response body so the client can update its local reference.
 4. If absent → fresh conversation, run normal `selectAccount`, insert routing row after upstream returns the conversation_id
 
 **Cleanup:** lazy check on lookup — if `last_used_at < now - 7d` → delete row, treat as absent.
 
+**Concurrency:** routing table upsert uses SQLite `INSERT ... ON CONFLICT(conversation_id) DO UPDATE` for atomicity. No explicit lock — SQLite WAL serializes writers, and a stale concurrent lookup that just lost the upsert race will see the updated row on its next request. Acceptable for v1; revisit if collision rate becomes a metric.
+
 ### 6. Models — `src/models/notion.ts`
 
-Catalogue seeded on `account-add`. Discovered via capture (placeholders):
-- `notion-claude-sonnet-4` (Anthropic Claude Sonnet 4)
-- `notion-claude-opus-4`
-- `notion-gpt-4o`
-- `notion-gpt-4-turbo`
-- `notion-llama-3.1-70b`
+Catalogue seeded on `account-add`. The exact list of models Notion AI exposes via its chat endpoints is **not known until capture is done**; the seed module reads the model list from a JSON manifest at `src/models/notion/manifest.json`, which is populated during RE phase from the captured response that lists available models. The manifest shape:
 
-Stored in `models` table w/ `provider='notion'`, thinking params, max-tokens defaults.
+```json
+{
+  "provider": "notion",
+  "models": [
+    {
+      "id": "<notion-internal-model-id>",
+      "alias": "<router-facing-alias>",
+      "thinking": { "supported": false },
+      "maxCompletionTokens": <number>,
+      "pricing": { "inputPerMillion": <usd>, "outputPerMillion": <usd> }
+    }
+  ]
+}
+```
+
+If capture cannot extract a model list (e.g., Notion returns models only inside the request UI), the manifest starts empty and grows as users report working model ids in issues — manual mode, no auto-discovery. Either way, the seed step is idempotent and re-runnable via `npm run seed-notion-models` (mirrors `seed-kiro-models`).
 
 ---
 
@@ -155,18 +174,21 @@ Client (OpenAI format)
   → parseBody + model alias resolution
   → selectAccount('notion')
       ├─ extract conversation_id from body/header
-      ├─ if in conversation_routing + healthy → return that account
-      ├─ if in routing + unhealthy → failover + migrate row + X-Migrated header
-      └─ else → run sticky/round-robin selection
+      ├─ if in conversation_routing + healthy → return that account, send conversation_id as-is to Notion
+      ├─ if in routing + unhealthy → return next healthy account, OMIT conversation_id from Notion body
+      │   (force fresh upstream conversation; capture returned id for upsert + client echo)
+      └─ else → run sticky/round-robin selection (no conversation_id from client)
   → checkModelLock → 429 if locked
   → augment system prompt + cache breakpoints
-  → bodyOpenAIToNotion(req)
+  → bodyOpenAIToNotion(req) — strips/keeps conversation_id per branch above
   → upstreamFetch (Bearer + Notion-Client-Version headers)
-      ├─ SSE pipe via pipeWithUsage
-      └─ parse chunks → assemble conversation_id from first response event
-  → responseNotionToOpenAI → client
-  → upsert conversation_routing(conversation_id, account_id, model)
-  → insertRequestLog(cost, tokens, latency, account_id, requested_model)
+      └─ SSE pipe via pipeWithUsage
+  → responseNotionToOpenAI → extract new conversation_id from first chunk metadata
+      ├─ if migration branch → set X-Notion-Conversation-Migrated: true, echo new id in body
+      └─ if normal branch → echo id as-is
+  → upsert conversation_routing(conversation_id=NEW, account_id, model)
+      ON CONFLICT DO UPDATE (atomic; see Concurrency note)
+  → insertRequestLog(cost, tokens, latency, account_id, requested_model, conversation_id)
   → applyAccountError (clear on success, backoff/lock on failure)
 ```
 
@@ -180,14 +202,14 @@ Client (OpenAI format)
 - `exchangeOtp` success → row inserted w/ token, email, workspace_id, `provider='notion'`
 
 **`tests/proxy/notion.test.ts`**
-- Format conversion roundtrip: OpenAI request → Notion body → OpenAI response preserves message content
+- Format conversion: OpenAI request → Notion body (asserts field mapping: `messages` → Notion `conversation.messages`, `model` → Notion `model_id`, system prompt handling, tool messages if any). Then Notion SSE chunk → OpenAI `chat.completion.chunk` (asserts role/content/tool_calls delta mapping, finish_reason translation). Tests assert on each direction separately, not a roundtrip, because Notion's response shape is upstream-controlled and may drift.
 - SSE chunk assembly produces valid OpenAI streaming chunks
 - 401 → account disabled, NO failover attempted
 - 429 → backoff set, failover to next account attempted
 - 5xx → exp backoff, max 3 attempts, then return error to client
-- `conversation_id` present + account healthy → uses that account, routing row unchanged
-- `conversation_id` present + account unhealthy → migrates to new account, `X-Notion-Conversation-Migrated: true` header set
-- `conversation_id` absent → fresh selection, routing row upserted after upstream response
+- `conversation_id` present + account healthy → uses that account, routing row unchanged, response echoes the same id
+- `conversation_id` present + account unhealthy → omits the old id from the Notion body, gets fresh id back, upserts routing row with NEW id, `X-Notion-Conversation-Migrated: true` header set, response body contains new id
+- `conversation_id` absent → fresh selection, routing row upserted after upstream response returns the new id
 
 **`tests/selection/notion.test.ts`**
 - Sticky mode: 5 sequential requests → same account
