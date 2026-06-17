@@ -33,18 +33,20 @@ def is_static(url: str, content_type: str = "") -> bool:
 
 def looks_like_ai_chat(url: str) -> bool:
     p = urlparse(url).path.lower()
-    return any(seg in p for seg in ("/ai/", "/chat", "/completion", "/conversation"))
+    return any(seg in p for seg in ("runinference", "/ai/", "/chat", "/completion",
+                                    "/conversation", "streamagent", "streamchat"))
 
 
 def looks_like_auth(url: str) -> bool:
     p = urlparse(url).path.lower()
     return any(seg in p for seg in ("login", "auth", "otp", "sendotp", "verify",
-                                    "token", "refresh", "session"))
+                                    "token", "refresh", "session", "loginwith"))
 
 
 def looks_like_user_lookup(url: str) -> bool:
     p = urlparse(url).path.lower()
-    return any(seg in p for seg in ("users/me", "workspaces", "/me", "/workspace"))
+    return any(seg in p for seg in ("users/me", "workspaces", "/me", "/workspace",
+                                    "getavailablemodels", "loginoptions", "authvalidate"))
 
 
 def safe_json_body(entry: dict) -> object | None:
@@ -89,7 +91,9 @@ def categorize(entries: list[dict]) -> dict[str, list[dict]]:
         p = urlparse(url).path.lower()
         if method == "POST" and ("sendotp" in p or "send_otp" in p):
             cats["auth_otp_send"].append(e)
-        elif method == "POST" and ("verify" in p or "exchange" in p or "confirm" in p) and looks_like_auth(url):
+        elif method == "POST" and (("verify" in p or "exchange" in p or "confirm" in p) and looks_like_auth(url)):
+            cats["auth_otp_verify"].append(e)
+        elif method == "POST" and ("loginwith" in p or "login" in p) and looks_like_auth(url):
             cats["auth_otp_verify"].append(e)
         elif method == "POST" and "refresh" in p and looks_like_auth(url):
             cats["auth_token_refresh"].append(e)
