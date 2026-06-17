@@ -51,11 +51,17 @@ export async function exchangeOtp(email: string, code: string): Promise<{
   token: string
   userId: string
   workspaceId: string
+  refreshToken?: string   // discovered during RE — Notion may or may not issue one
 }>
-// Notion tokens do not refresh — OTP is a fresh login each time.
-// On 401, proxy emits a structured error (`code: 'notion_reauth_required'`)
-// and the dashboard surfaces a "Re-authenticate" button that re-runs the OTP flow.
-// No silent refresh path; user action is explicit.
+// Token refresh: behaviour is RE-driven. Two scenarios:
+// (a) Notion issues a refresh_token at OTP exchange → background refresh before
+//     `token` expiry (token TTL discovered during RE).
+// (b) Notion issues only a short-lived token with no refresh path → on 401,
+//     proxy emits `code: 'notion_reauth_required'`, dashboard surfaces a
+//     "Re-authenticate" button that re-runs the OTP flow.
+// The RE phase MUST capture the token TTL, presence of refresh_token, and any
+// refresh/extend-session endpoint. Implementation lands whichever scenario the
+// capture confirms — same dual-mode pattern as Kiro's refresh vs re-auth.
 ```
 
 - Endpoints discovered via mitmproxy capture (placeholders until RE done):
@@ -240,6 +246,7 @@ Client (OpenAI format)
 3. Which model IDs are available + their thinking params
 4. Whether conversation_id is in body metadata or custom header
 5. Whether Notion AI requires active subscription (gating signal beyond token)
+6. **Token refresh: does Notion issue a `refresh_token` at OTP exchange? If so, what is the access-token TTL and the refresh/extend-session endpoint?** Critical — drives whether `auth/notion.ts` implements background refresh (Kiro-style) or only re-auth-on-401 (OTP-flow). Capture MUST log every auth-related response header and body field.
 
 ---
 
