@@ -25,7 +25,7 @@ All routes under `/api/admin/*` (Hono router). All require admin auth (session c
 |---|---|---|
 | `GET` | `/api/admin/client-keys/` | List all client keys (masked) |
 | `POST` | `/api/admin/client-keys/` | Create new key. Returns full plaintext key once |
-| `GET` | `/api/admin/client-keys/:id/key` | Reveal the full bearer (security-sensitive — logs access) |
+| `GET` | `/api/admin/client-keys/:id/key` | Reveal the full bearer. Requires re-auth cookie from `POST /api/admin/reauth/verify` (else `401 reauth_required`); writes an `audit_log` event on reveal |
 | `PATCH` | `/api/admin/client-keys/:id` | Update label / enabled |
 | `POST` | `/api/admin/client-keys/:id/enable` | Enable a disabled key |
 | `POST` | `/api/admin/client-keys/:id/disable` | Disable (soft — keeps the row) |
@@ -36,7 +36,7 @@ All routes under `/api/admin/*` (Hono router). All require admin auth (session c
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/admin/accounts/` | List accounts (all providers). Each row shows provider, credit_type, status, backoff |
-| `POST` | `/api/admin/accounts/` | Create MiniMax account (label, credit_type, api_key). Note: `POST /api/admin/accounts` only creates MiniMax (default) accounts. Kiro uses `POST /api/admin/accounts/kiro`. CodeBuddy accounts must be created via CLI (`npm run add-account -- --provider codebuddy`) — no admin REST endpoint yet. |
+| `POST` | `/api/admin/accounts/` | Provider-aware create (label, credit_type, api_key, base_url). `provider` body field selects `minimax` (default) / `codebuddy` / `pioneer` (allowlist). `credit_type` defaults to `payg` for pioneer, else `token-plan`. Seeds the provider model catalogue (best-effort). Kiro uses `POST /api/admin/accounts/kiro`. |
 | `PATCH` | `/api/admin/accounts/:id` | Update label / enabled / base_url / provider_data / transport assignment |
 | `POST` | `/api/admin/accounts/:id/enable` | Enable |
 | `POST` | `/api/admin/accounts/:id/disable` | Disable |
@@ -85,6 +85,19 @@ All routes under `/api/admin/*` (Hono router). All require admin auth (session c
 |---|---|---|
 | `GET` | `/api/admin/quota` | Latest quota snapshot per `(model_name, window_type)`, grouped for the Quota page |
 | `POST` | `/api/admin/quota/pull` | Manually trigger a quota pull (default runs every scheduler tick) |
+
+## Re-auth (`src/api/admin/reauth.ts`)
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/admin/reauth/verify` | Verify dashboard password; sets a short-lived (60s) HttpOnly re-auth cookie that gates client-key reveal |
+| `POST` | `/api/admin/reauth/clear` | Clear the re-auth cookie |
+
+## Security (`src/api/admin/security.ts`)
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/admin/security/status` | Deployment security posture `{ mode: 'open'\|'password', dbEncrypted, dbKeySet }` for the SecurityBanner |
 
 ## Settings (`src/api/admin/settings.ts`)
 

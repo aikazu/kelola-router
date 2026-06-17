@@ -2,6 +2,20 @@
 
 > Newest first. The latest shipped version sits at the top under its version heading.
 
+## v0.19 — 2026-06-17
+
+**Security hardening, the Pioneer upstream, and seed-on-account-add.**
+- **SQLCipher encryption-at-rest.** Optional encrypted SQLite via the new `ROUTER_DB_KEY` env (`better-sqlite3-multiple-ciphers`); `openDb()` + `reset.ts` honor it. Key lives only in process env.
+- **Re-auth gate on client-key reveal.** `GET /api/admin/client-keys/:id/key` now requires a fresh re-auth (`POST /api/admin/reauth/verify` + short-lived cookie) and writes every reveal to `audit_log` with IP + ISO timestamp (migration `007-audit-log`, `user_version = 7`). Dashboard reveal flow pairs with a re-auth modal.
+- **Security posture surface.** Startup warnings for open mode / unencrypted DB; `GET /api/admin/security/status` (`{ mode, dbEncrypted, dbKeySet }`); `SecurityBanner` in the dashboard `AppShell`.
+- **Typed settings reader.** `getSettingT<K>()` backed by Valibot schemas for every known settings key; admin/proxy/server call sites migrated off `as unknown as`.
+- **SseAssemblerBase template-method refactor.** Shared Anthropic-SSE state machine extracted to `src/providers/common/SseAssemblerBase.ts`; `KiroAnthropicAssembler` + `OpenAIToAnthropicSSEAssembler` extend it.
+- **Client page splits.** `Transports.tsx`, `Accounts.tsx`, `Models.tsx` broken into focused sub-components.
+- **Unified add-account CLI.** `scripts/add-account.ts` is the single entry point across all providers (`--provider minimax|kiro|codebuddy|pioneer`), valibot-validated; per-provider scripts removed.
+- **Pioneer upstream provider (`pio/`).** Fourth upstream (`src/proxy/pioneer.ts` + `src/providers/pioneer/`). Standard OpenAI Chat Completions + `X-API-Key`, reusing CodeBuddy's OpenAI-SSE bridge for both client formats. Provider enum + `pio` prefix + `selection.pioneer` + dispatch branch added. Models namespaced under `pioneer/` in both `name` and `upstream_model` (global-UNIQUE collision fix); `resolveModel` maps `pio/<id>` to the namespaced row. Full dashboard card; provider-aware admin `POST /accounts`.
+- **Seed-on-account-add.** Dropped first-startup pre-seed; each provider's catalogue seeds when an account is added (MiniMax/Pioneer live-fetch `GET /v1/models`, Kiro/CodeBuddy builtin lists via `src/db/seedBuiltinModels.ts`). Fresh DB starts empty; `autoSeed.ts` removed and the MiniMax INSERT dropped from `001-initial`.
+- 855 backend + 77 client tests green.
+
 ## v0.18 — 2026-06-14
 
 **CodeBuddy as a third upstream provider.** The router now supports MiniMax, Kiro, and CodeBuddy as parallel upstreams, selected by `body.model` prefix.

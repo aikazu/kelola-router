@@ -2,6 +2,8 @@
 
 All CLI entry points. The dashboard covers everything here; these are power-user shortcuts and seed/reset operations. Source: `package.json` `scripts` field + `scripts/*.ts` (each is a `tsx` script runnable directly).
 
+Models auto-seed per-provider on account-add, so the `seed-*` scripts are manual idempotent re-seeds, not required for first run.
+
 | Script | Command | Purpose |
 |---|---|---|
 | Dev (both) | `npm run dev` | Run server (`tsx watch :20137`) + client (`vite :5173`) concurrently |
@@ -25,9 +27,10 @@ Idempotent / destructive operations. Prefer the dashboard for non-bulk work.
 | Add client key | `npm run add-client-key -- --label <name>` | yes (label is the natural key) | Create a new client key, print the bearer once |
 | Add MiniMax account | `npm run add-account -- --label <name> --credit-type payg\|token-plan --api-key mm_xxx` | yes (label) | Create a MiniMax upstream account |
 | Add Kiro account | `npm run add-account -- --provider kiro --label <name> --refresh-token eyJ...` (+ optional `--client-id`/`--client-secret`/`--region`/`--profile-arn`) | yes (label) | Create a Kiro account; refresh token stored in `api_key` |
-| Seed MiniMax models | `npm run seed-models` | yes (upsert by `upstream_model`) | Upsert the 9 builtin MiniMax models |
+| Seed MiniMax models | `npm run seed-models` | yes (upsert by `upstream_model`) | Live-fetch + upsert MiniMax models from `/v1/models` |
 | Seed Kiro models | `npm run seed-kiro-models` | yes | Upsert builtin Kiro (Claude / AWS) models |
 | Add CodeBuddy account | `npm run add-account -- --provider codebuddy --api-key <key>` | yes (label) | Add a CodeBuddy account (API key) |
+| Add Pioneer account | `npm run add-account -- --provider pioneer --api-key <key>` | yes (label) | Add a Pioneer account (X-API-Key); models live-seed on add |
 | Seed CodeBuddy models | `tsx scripts/seed-codebuddy-models.ts` | yes | Upsert builtin CodeBuddy models |
 | Reset | `npm run reset` | **destructive** | Remove `router.db` + WAL/SHM sidecars. Wipes all data |
 

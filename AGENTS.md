@@ -50,10 +50,11 @@ CLI scripts (power-user; dashboard covers these):
 ```bash
 npm run add-client-key -- --label myapp
 npm run add-account   -- --label "PAYG main" --credit-type payg --api-key mm_xxx
-npm run seed-models                # idempotent: upsert 9 builtin models
+npm run seed-models                # manual MiniMax upsert shortcut (models otherwise auto-seed on account-add)
 npm run reset                      # rm db + WAL/SHM sidecars
 npm run seed-kiro-models
 npm run add-account -- --provider kiro --label kiro1 --refresh-token eyJ...   # + optional --client-id/--client-secret/--region/--profile-arn
+npm run add-account -- --provider pioneer --api-key pio_...
 ```
 
 Docker: `docker build -t kelola-router:latest . && docker compose up -d` (serves from baked `client/dist` on :20137). Prod reverse proxy: `Caddyfile` at repo root.
@@ -62,7 +63,7 @@ Docker: `docker build -t kelola-router:latest . && docker compose up -d` (serves
 
 `src/server.ts` — Hono app, ~330 LOC. Middleware: `requireApiKey` (Bearer) for `/v1/*`, `requireAdmin` for `/admin/*`, `verifySameOrigin` CSRF guard on `/admin/*` POSTs.
 
-Per-request path inside `handleProxy` (see `src/proxy/minimax.ts` + `proxy/kiro.ts` + `proxy/codebuddy.ts` + `proxy/combo.ts`):
+Per-request path inside `handleProxy` (see `src/proxy/minimax.ts` + `proxy/kiro.ts` + `proxy/codebuddy.ts` + `proxy/pioneer.ts` + `proxy/combo.ts`):
 
 1. `parseBody` + model resolution (alias + thinking + M3 max-completion-tokens)
 2. `selectAccount` (state machine: sticky + round-robin w/ step, skips backoff/locked/disabled). Mode + step read per provider from `selection.<provider>` setting.
@@ -85,11 +86,12 @@ Deep-dive (module map, state machines, data flow): see [`ARCHITECTURE.md`](ARCHI
 - **MiniMax** (default) — [minimax.io](https://minimax.io), API-key bearer, HTTP-JSON.
 - **Kiro** (AWS CodeWhisperer / Amazon Q) — OAuth refresh-token auth, AWS event-stream binary protocol, translated to/from OpenAI + Anthropic. See "Kiro provider" below.
 - **CodeBuddy** (CodeBuddy.ai) — OpenAI-compatible upstream, API-key bearer. Client request bridged to OpenAI stream and back (OpenAI SSE → Anthropic SSE assembler). Routed via cb/ prefix. See src/proxy/codebuddy.ts + src/providers/codebuddy/.
+- **Pioneer** (api.pioneer.ai) — OpenAI-compatible Chat Completions, X-API-Key bearer. Reuses CodeBuddy's OpenAI→Anthropic SSE bridge. Routed via pio/ prefix; models namespaced under pioneer/ to avoid global-unique id collisions. See src/proxy/pioneer.ts + src/providers/pioneer/.
 
 ## Two-tier separation
 
 - **`client_keys`** — bearer credentials for clients (Claude Code, hermes-agent). One per app. Per-key usage.
-- **`accounts`** — upstream MiniMax/Kiro/CodeBuddy keys. Pool of N for fallback + quota. Each has `credit_type` (`payg` or `token-plan`) + `provider`.
+- **`accounts`** — upstream MiniMax/Kiro/CodeBuddy/Pioneer keys. Pool of N for fallback + quota. Each has `credit_type` (`payg` or `token-plan`) + `provider`.
 
 Never mix these. Client never sees upstream keys; upstream never sees client bearers.
 
@@ -110,6 +112,7 @@ Requests select a provider by an explicit prefix on `body.model`:
 | `mm/`  | MiniMax     | `mm/MiniMax-M3`          |
 | `kr/`  | Kiro        | `kr/claude-sonnet-4-5`   |
 | `cb/`  | CodeBuddy   | `cb/<model>`             |
+| `pio/` | Pioneer     | `pio/claude-opus-4-8`    |
 
 - Prefixed names are looked up **literally** (no alias expansion) and the model's `provider` column MUST match the prefix, else 400.
 - **Unprefixed** names resolve **only** as a combo name or an alias (strict). A bare raw model name is rejected with 400 — add an alias or use a prefix.

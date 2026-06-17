@@ -7,8 +7,8 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.18](https://img.shields.io/badge/release-v0.18-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.18)
-[![Tests](https://img.shields.io/badge/tests-671-success?logo=vitest&logoColor=white)](#-development)
+[![v0.19](https://img.shields.io/badge/release-v0.19-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.19)
+[![Tests](https://img.shields.io/badge/tests-855-success?logo=vitest&logoColor=white)](#-development)
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
 ```text
@@ -19,8 +19,12 @@
 │  IDE,    │ ◀── │  → resolve → select → proxy  │ ──▶ │  Kiro (AWS Code-   │
 │  Claude) │     │       (routed by model)      │     │  Whisperer / Q)    │
 └──────────┘     └──────────────────────────────┘     └────────────────────┘
-                           │
-                           ▼
+                           │                           ┌────────────────────┐
+                           │                       ──▶ │  CodeBuddy (cb/)   │
+                           │                           └────────────────────┘
+                           │                           ┌────────────────────┐
+                           │                       ──▶ │  Pioneer (pio/)    │
+                           ▼                           └────────────────────┘
                    ┌───────────────┐
                    │  SQLite (WAL) │
                    │  + dashboard  │
@@ -32,7 +36,9 @@
 - 🔌 **Drop-in OpenAI + Anthropic compatibility** — `/v1/chat/completions`, `/v1/messages`, `/v1/messages/count_tokens`, `/v1/models`
 - 🟣 **Kiro upstream (AWS CodeWhisperer / Amazon Q)** — second provider alongside MiniMax, routed by model. **OAuth Device Code Flow** for AWS Builder ID / IAM Identity Center (one-click login from dashboard), auto-import from Kiro IDE (`~/.aws/sso/cache`), or manual token paste. AWS event-stream binary protocol translated to OpenAI **and native Anthropic SSE** (streaming for Claude Code + hermes-agent). Auto token refresh + caching
 - 🟦 **CodeBuddy provider** — third upstream alongside MiniMax & Kiro, routed by `cb/` model prefix. Bridges OpenAI-format upstream to client format (OpenAI SSE → Anthropic SSE assembler).
-- 🎯 **Provider prefix routing (`mm/` / `kr/` / `cb/`)** — explicit provider selection by model prefix. Unprefixed names resolve only as combo or alias (strict); prefixed requests validate provider agreement.
+- 🟢 **Pioneer upstream (`pio/` prefix)** — fourth provider, OpenAI Chat Completions wire format with `X-API-Key` auth, reuses the CodeBuddy SSE bridge to serve both client formats. Models namespaced under `pioneer/` (name + upstream_model) to dodge global-unique id collisions; client uses `pio/<id>` verbatim.
+- 🔒 **Security hardening** — SQLCipher encryption-at-rest via `ROUTER_DB_KEY`, re-auth gate + audit log on client-key reveal, `GET /api/admin/security/status` with a security-status banner in the dashboard.
+- 🎯 **Provider prefix routing (`mm/` / `kr/` / `cb/` / `pio/`)** — explicit provider selection by model prefix. Unprefixed names resolve only as combo or alias (strict); prefixed requests validate provider agreement.
 - 🔄 **Combo fallback chains** — ordered cross-provider member walk, auto-retry on 401/402/403 + 502/503/504.
 - 🛠️ **Tool use passthrough with cross-format conversion** — `tools` / `tool_use` / `tool_calls` flow correctly between client + upstream regardless of which SDK you use (Anthropic SDK ↔ OpenAI SDK ↔ MiniMax upstream)
 - 🔀 **Cross-format routing** — set `upstreamFormat` in `settings.minimax` (or `ROUTER_UPSTREAM_FORMAT` env) to route OpenAI clients to Anthropic upstream or vice versa; body + non-stream response converted automatically
@@ -55,7 +61,7 @@
 - 🌐 **Fetch from upstream** — `/admin/models` can pull MiniMax's current model list; 404 fallback shows a clear message
 - 🎨 **Obsidian Gold dashboard** — Preact SPA (`client/`) with a dark-canvas + single-gold-accent theme, Fraunces/Inter/JetBrains Mono type stack, command palette (`⌘K`), keyboard nav (`g` then key), and live request telemetry
 - 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 671 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 855 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🚀 Quick Start
 
@@ -83,7 +89,7 @@ Open the dashboard at <http://localhost:20137/>. From there:
 2. Create a client key for each app at `/admin/client-keys` (label) — copy the bearer
 3. Optional: lock the dashboard at `/admin/settings` ("Set password")
 
-The CLI scripts (`npm run add-client-key`, `add-account`, `seed-models`, `reset`) are still available for power users / bulk seeding.
+Models now seed automatically when a provider's first account is added (MiniMax/Pioneer live-fetch `/v1/models`, Kiro/CodeBuddy builtin lists) — a fresh DB starts empty. The CLI scripts (`npm run add-client-key`, `add-account`, `seed-models`, `reset`) remain available as power-user shortcuts.
 
 ### Run the server
 
@@ -267,14 +273,14 @@ All settings live in the `settings` table and are editable via the dashboard at 
 | `caching` | `{autoBreakpoints:true,respectCallerMarkers:true}` | Dual cache_control (v0.4) |
 | `minimax` | `{upstreamFormat:"auto",m3DefaultMaxCompletionTokens:131072}` | Cross-format routing + M3 defaults (v0.7, simplified v0.11) |
 | `transport` | `{relay:null,proxy:null}` | Upstream transport (v0.6) |
-| `build` | `{version:"0.18.0"}` | Self-describe (auto-synced from package.json on startup) |
+| `build` | `{version:"0.19.0"}` | Self-describe (auto-synced from package.json on startup) |
 
 Per-user setting `user_settings.account_mode` controls selection: `sticky` (session-pinned) or `round-robin` (default). Sticky key is read from header `x-router-key`. *(deprecated in v0.7 — single-user model)*
 
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (671 tests)
+npm test              # vitest run (855 tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
@@ -282,7 +288,7 @@ npm run dev           # tsx watch src/server.ts
 # CLI scripts
 npm run add-client-key -- --label myapp
 npm run add-account -- --label "main" --credit-type payg --api-key mm_xxx
-npx tsx scripts/seed-models.ts   # idempotent: upsert 9 builtin MiniMax models
+npx tsx scripts/seed-models.ts   # power-user shortcut: re-upsert MiniMax models (auto-seeded on first account add)
 
 # Kiro (AWS CodeWhisperer) upstream
 npx tsx scripts/seed-kiro-models.ts                                   # builtin Kiro/Claude models
@@ -384,6 +390,7 @@ The dashboard's `<SecurityBanner>` (mounted in `AppShell`, sticky at the top) ca
 
 | Phase | Version | Status | Scope |
 |------:|:--------|:------:|:------|
+| 19 | **v0.19** | ✅ shipped | **Security hardening + Pioneer provider + seed-on-account-add.** SQLCipher encryption-at-rest (ROUTER_DB_KEY, better-sqlite3-multiple-ciphers); re-auth gate on client-key reveal with audit_log (migration 007-audit-log, user_version 7); GET /api/admin/security/status + SecurityBanner; startup open-mode/unencrypted warnings. Typed settings reader getSettingT<K>() (valibot). SseAssemblerBase template-method refactor (Kiro + CodeBuddy assemblers). Oversized client pages split (Transports/Accounts/Models). Unified add-account CLI across providers. **Pioneer upstream (pio/)** — OpenAI Chat Completions + X-API-Key, reuses CodeBuddy SSE bridge, models namespaced under pioneer/ to dodge global-unique id collisions, full dashboard card. **Seed-on-account-add** — dropped startup pre-seed; each provider's catalogue seeds when its first account is added (MiniMax/Pioneer live-fetch, Kiro/CodeBuddy builtin); fresh DB starts empty. 855 backend + 77 client tests |
 | 18 | **v0.18** | ✅ shipped | **CodeBuddy provider + provider-prefix routing.** Third upstream (CodeBuddy, `cb/` prefix) bridging an OpenAI upstream to client format (OpenAI SSE → Anthropic SSE assembler, forced `include_usage`, mid-stream error propagation, Python browser-automation sidecar). Explicit provider prefixes `mm/` / `kr/` / `cb/` on `body.model` (`src/providers/modelPrefix.ts`): prefixed → literal lookup with `provider` agreement, unprefixed → combo/alias only (strict), bare names rejected. **Combo fallback chains** — `combos` table + CRUD + dashboard page, ordered cross-provider member walk retrying `401/402/403` + `5xx`. **Per-provider account selection** (`selection.<provider>`: lowest-backoff / round-robin+step / sticky), Accounts + Models split into per-provider cards with health test + manual add. **Transport** geoip country probe, LRU + SOCKS dispatcher cache, proxy failure mode (`direct`\|`block`). Console per-request detail, filter bar, relative timestamps, RTK bytes-saved; `request_logs` retention pruning. Broad hot-path perf hardening (DB prepared-stmt cache + indexes + PRAGMAs, Kiro buffer reuse, client re-render scoping) |
 | 17 | **v0.17** | ✅ shipped | **Live Console** — in-process flow event bus + SSE stream + dashboard page. `src/console/` modules: `bus.ts` (200-event ring buffer + throwing-subscriber isolation), `format.ts` (pure ANSI renderer with `stripAnsi` / `fmtTokens`), `flow.ts` (5 event builders + `genReqId`), `sink.ts` (env-gated stdout writer, `CONSOLE_FLOW=0` to silence). Both proxy paths (`handleProxy` MiniMax + `handleKiroProxy`) emit `start` / `account` / `transport` / `done` / `error` events with a shared `reqId`; log inserts carry the same `reqId`. `GET /api/admin/console/stream` (Hono `streamSSE`) backfills recent + live + 15s heartbeat. Migration `004-reqid` adds nullable `req_id` on `request_logs` (additive; `user_version = 4`). Dashboard `Console` page (`/admin/console`, hotkey `g n`, palette entry) — `EventSource` → grouped blocks by `reqId` (start / account / transport / done / error lines), Pause / Clear / auto-scroll-stick, live dot. +19 tests: 4 `bus`, 7 `format`, 5 `flow`, 2 `sink`, 1 `sse` (backfill), 1 `migration-004`, 1 `requestlog-reqid` roundtrip, 1 `emit-proxy` integration, 1 `emit-kiro` smoke; 423 → 484 server tests, 19 → 21 client tests. Server stdout gets the same lines colored (gold reqid, green ✓, red ✗) by default |
 | 16 | **v0.16** | ✅ shipped | Kiro (AWS CodeWhisperer / Amazon Q) as a second upstream provider, routed by model `provider`. Additive migration `002-kiro` (`provider`/`access_token`/`token_expires_at`/`provider_data` on accounts, `provider` on models). New `src/providers/kiro/` modules: CodeWhisperer request transform, AWS event-stream binary decoder, OpenAI SSE + **native Anthropic Messages SSE** assemblers (Claude Code/hermes streaming), token refresh (AWS SSO OIDC / Kiro social) with DB-cached auto-refresh. Account import — paste credential JSON / AWS Builder ID / AWS IAM Identity Center / refresh token — via `POST /api/admin/accounts/kiro` + dashboard form. **OAuth Device Code Flow** for AWS Builder ID / IAM Identity Center (one-click login from dashboard): `POST /kiro/device-code` + `POST /kiro/poll`. **Auto-import** from Kiro IDE (`~/.aws/sso/cache`): `GET /kiro/auto-import`. `seed-kiro-models` + `add-kiro-account` CLI. **Switchable per-account persona** — `ide` (legacy, default; `codewhisperer.*.amazonaws.com` + KiroIDE fingerprint) ⇄ `cli` (experimental; `runtime.*.kiro.dev` mirroring the real kiro-cli wire format, verified against captured traffic) toggled from the dashboard or `PATCH /accounts/:id {persona}`, with CLI model-id dotting + automatic `profileArn` discovery via `ListAvailableProfiles`. **Live-verified** against real AWS/Kiro endpoints. 18 unit tests + end-to-end proxy integration test (mocked binary upstream) |

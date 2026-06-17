@@ -19,7 +19,7 @@ A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview +
     │  /v1/chat/completions | /v1/messages | /v1/messages/count_tokens | /v1/models
     ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ handleProxy  (src/proxy/minimax.ts + kiro/combo helpers)     │
+│ handleProxy (minimax.ts + kiro/cb/pioneer/combo helpers)     │
 │                                                              │
 │  1. parseBody                                                │
 │  2. resolve model: alias → upstream_model                    │
@@ -40,6 +40,7 @@ A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview +
 │  • MiniMax   (api.minimax.io / api.minimaxi.com)  HTTP-JSON   │
 │  • Kiro      (CodeWhisperer / Amazon Q)  AWS event-stream    │
 │  • CodeBuddy (codebuddy.ai)  OpenAI-compatible HTTP-JSON     │
+│  • Pioneer  (api.pioneer.ai)  OpenAI-compatible HTTP-JSON    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,6 +75,7 @@ src/
 │   ├── minimax.ts            handleProxy — MiniMax pipeline (~470 LOC)
 │   ├── kiro.ts               handleKiroProxy — Kiro pipeline (~270 LOC)
 │   ├── codebuddy.ts          handleCodeBuddyProxy — CodeBuddy pipeline
+│   ├── pioneer.ts            handlePioneerProxy — Pioneer pipeline
 │   └── combo.ts              handleComboProxy — combo routing (~470 LOC)
 ├── accounts/                 Account selection state machine
 │   ├── selection.ts          sticky / round-robin / lowest-backoff picker
@@ -102,6 +104,11 @@ src/
 │   │   ├── transform.ts      prepareCodeBuddyBody (client → OpenAI upstream)
 │   │   └── streamConvert.ts  aggregate + OpenAI SSE → Anthropic SSE
 │   │                         (extends SseAssemblerBase<OpenAIStreamChunk>)
+│   ├── pioneer/             Pioneer protocol (OpenAI CC + X-API-Key;
+│   │                         reuses CodeBuddy SSE bridge)
+│   │   ├── index.ts          execute orchestrator
+│   │   ├── transform.ts      client → OpenAI upstream body
+│   │   └── models.ts         pioneer/ namespaced model catalogue
 │   ├── baseUrl.ts            MiniMax region switch (intl/cn)
 │   ├── parseError.ts         base_resp.status_code extractor
 │   ├── pricing.ts            per-model USD pricing
@@ -133,7 +140,7 @@ src/
 │   │                         SQLCipher via better-sqlite3-multiple-ciphers when ROUTER_DB_KEY set
 │   │                         (key applied via pragma('key') BEFORE any other PRAGMA;
 │   │                         refuses to start if key set on a plaintext DB — fresh-deploy only)
-│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country
+│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country, 007-audit-log
 │   └── repos/                One file per table: accounts, client_keys, models,
 │                             aliases, combos, requestLogs, quotaSnapshots,
 │                             transports, settings (1s cache)
@@ -239,6 +246,7 @@ provider routing (resolved.provider)
   • combo name      → handleComboProxy (walk fallback members)
   • 'kiro'          → handleKiroProxy
   • 'codebuddy'     → handleCodeBuddyProxy
+  • 'pioneer'       → handlePioneerProxy
   • else (minimax)  → continue MiniMax path
   ↓
 consoleBus.emit('start', { reqId, model, endpoint })
@@ -281,7 +289,7 @@ HTTP out
 
 ## Storage
 
-`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Migrations tracked via `PRAGMA user_version` (current = 6). All migrations live in `src/db/migrations/`; one file per migration, additive ALTERs when possible (e.g. `002-kiro` adds `provider` / `access_token` etc. without rewriting rows).
+`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Migrations tracked via `PRAGMA user_version` (current = 7). All migrations live in `src/db/migrations/`; one file per migration, additive ALTERs when possible (e.g. `002-kiro` adds `provider` / `access_token` etc. without rewriting rows).
 
 **Optional encryption-at-rest** via `ROUTER_DB_KEY` (read by `getDbKey()` in `src/util/env.ts`). When set, `openDb()` swaps to `better-sqlite3-multiple-ciphers` and issues `PRAGMA key = '...'` as the FIRST statement on the fresh handle (SQLCipher requires the key before any other PRAGMA). The cipher fork is structurally identical to `better-sqlite3` at runtime — repos see the same `Database` type via a single cast at the `openDatabase()` boundary, no repo changes anywhere else.
 
@@ -300,7 +308,7 @@ HTTP out
 Concrete subclasses:
 
 - **`KiroAnthropicAssembler`** (`src/providers/kiro/anthropicSse.ts`, `TInput = KiroEvent`) — translates decoded Kiro event-stream frames to Anthropic SSE; overrides `process()` to route richer Kiro event types (tool-use, metadata, messageStop) through the inherited state machine.
-- **`OpenAIToAnthropicSSEAssembler`** (`src/providers/codebuddy/streamConvert.ts`, `TInput = OpenAIStreamChunk`) — translates aggregated OpenAI chunks to Anthropic SSE; uses the default 1-block-1-delta orchestrator without overriding `process()`.
+- **`OpenAIToAnthropicSSEAssembler`** (`src/providers/codebuddy/streamConvert.ts`, `TInput = OpenAIStreamChunk`) — translates aggregated OpenAI chunks to Anthropic SSE; uses the default 1-block-1-delta orchestrator without overriding `process()`. Pioneer reuses this same assembler (and the `aggregateOpenAISSE` / `openaiSSEToAnthropicSSE` bridge) — no Pioneer-specific assembler.
 
 **Not in scope.** `KiroAssembler` (`src/providers/kiro/assembler.ts`, → OpenAI SSE) does NOT extend the base — its I/O type is OpenAI chunks, not Anthropic events, and it predates the template-method. Leaving it untouched keeps the base generic for Anthropic-SSE only.
 
