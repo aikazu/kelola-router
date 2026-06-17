@@ -10,16 +10,16 @@
 
 ## TL;DR — Protocol Reality
 
-Notion AI chat is **NOT a chat-completion API**. It is a **sync-style CRDT protocol**:
+Notion AI chat is **NOT a chat-completion API**. It is a **CRDT sync protocol with state diffs**:
 
-- **Request body**: NDJSON stream of JSON-Patch operations (RFC 6902)
-- **Response**: `application/x-ndjson` (NDJSON) — NOT SSE
+- **Request body**: single JSON object `{traceId, spaceId, transcript: [...records...], patches: [...]}` — the records describe the new state
+- **Response**: NDJSON stream of `{type: "patch-start" | "patch" | "patch-end" | "done"}` — incremental JSON-Patch operations building up the response state
 - **Auth**: cookie-based (11 cookies required for AI request), established via 3-step login
-- **Conversation model**: shared record-map with `agent-instruction-state`, `agent-turn-full-record-map`, `agent-inference`, `agent-tool-result` records — the entire patch document IS the conversation
+- **Conversation model**: shared record-map with `config`, `agent-instruction-state`, `agent-turn-full-record-map`, `agent-inference`, `agent-tool-result`, `attachment` records
 - **Tool calls**: supported via `agent-tool-result` records (`toolName: "callFunction"`, modular tools like `fs-module`, `notion-module`, `web-module`)
-- **Image input**: NOT observed in this capture — needs separate RE with image upload session
+- **Image input**: confirmed working — image attached as `attachment` record with `fileUrl` referencing Notion-hosted file
 
-Router integration strategy: replay JSON-Patch documents faithfully, translate to OpenAI chunks on egress, translate OpenAI requests to patch documents on ingress.
+Router integration strategy: build request JSON from OpenAI input, send to Notion, parse NDJSON response, apply patches to local state, extract text deltas for OpenAI streaming.
 
 ---
 
@@ -155,37 +155,47 @@ cookie: <11 cookies from §1.2>
 
 Response Content-Type: `application/x-ndjson`
 
-### 2.2 Request Body — JSON-Patch Stream
+### 2.2 Request Body — Single JSON with `transcript` Array
 
-Body is **NDJSON** where each line is a JSON-Patch operation (RFC 6902). Full structure (extracted from real capture):
+**Body is a single JSON object** (NOT NDJSON on request side):
 
+```json
+{
+  "traceId": "<uuid>",
+  "spaceId": "<workspace-uuid>",
+  "transcript": [
+    { "id": "<uuid>", "type": "config", "value": { "model": "ambrosia-tart-high", "modelFromUser": true, ... } },
+    { "id": "<uuid>", "type": "agent-instruction-state", "owner": "regular", "root": {"type": "none"}, "sources": [], "selectedSkillPageIds": [], "trackedInstructionTreePages": [], "currentDatetime": "...", "surface": "ai_module" },
+    { "id": "<uuid>", "type": "agent-turn-full-record-map", "value": { ... } },
+    { "id": "<uuid>", "type": "attachment", "fileUrl": "attachment:<owner-uuid>:<file-uuid>.png", "fileName": "...", "contentType": "image/png", "metadata": { ... } },
+    { "id": "<uuid>", "type": "agent-inference", "value": [{"type": "text", "content": "user prompt"}], "traceId": "<uuid>", "startedAt": 1781725646413, "previousAttemptValues": [] }
+  ],
+  "patches": []
+}
 ```
-{"type":"patch-start","data":{"s":[{"id":"<uuid>","type":"agent-instruction-state","owner":"regular","root":{"type":"none"},"sources":[],"selectedSkillPageIds":[],"trackedInstructionTreePages":[]}]},"version":1}
-{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-turn-full-record-map"}}]}
-{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-tool-result","toolName":"callFunction",...}}]}
-{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-inference","value":[{"type":"text","content":"Hello!"}],"traceId":"<uuid>","startedAt":1781725646413,"previousAttemptValues":[]}}]}
-{"type":"done"}
+
+**Top-level keys:**
+- `traceId` — correlates with `agent-inference.traceId` in response
+- `spaceId` — workspace UUID (must match account's `notion_space_id`)
+- `transcript` — array of records describing the conversation state
+- `patches` — (optional) JSON-Patch ops to apply to existing state
+
+**Record types in `transcript`:**
+- `config` — feature flags + model selection
+- `agent-instruction-state` — root conversation metadata
+- `agent-turn-full-record-map` — parent record for a turn
+- `agent-inference` — model message (user prompt OR assistant response)
+- `agent-tool-result` — tool call (input + result)
+- `attachment` — image/file upload
+
+### 2.3 Response Body — NDJSON Patch Stream
+
+Response is NDJSON of `{type, data?, v?, version?, p?}` operations building up response state. Streaming text content is via `o: "x"` patches against content paths like `/s/<index>/value/0/content`.
+
+Example response lines (from real capture):
 ```
-
-**Patch op codes:**
-- `o: "a"` = append to array at path `p`
-- `o: "x"` = patch value at path `p` with `v` (text deltas land here)
-- `o: "r"` = replace (rare)
-
-**Record types:**
-- `agent-instruction-state`: root record, owns conversation metadata
-- `agent-turn-full-record-map`: parent record for a single user turn
-- `agent-inference`: a model response (text or tool call)
-- `agent-tool-result`: a tool call (input + result)
-
-### 2.3 Response Body — NDJSON Stream
-
-Same patch operations echoed back from server plus incremental updates. Streaming is via `o: "x"` patches against content paths like `/s/<index>/value/0/content`.
-
-Example response lines from capture (real text):
-```
-{"type":"patch-start","data":{"s":[{"id":"...","type":"agent-instruction-state",...}]},"version":1}
-{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"...","type":"agent-inference","value":[{"type":"text","content":"Halo, Attila!"}],"traceId":"...","startedAt":1781725646413}}]}
+{"type":"patch-start","data":{"s":[{"id":"<uuid>","type":"agent-instruction-state",...}]},"version":1}
+{"type":"patch","v":[{"o":"a","p":"/s/-","v":{"id":"<uuid>","type":"agent-inference","value":[{"type":"text","content":"Halo, Attila!"}],"traceId":"<uuid>","startedAt":1781725646413}}]}
 {"type":"patch","v":[{"o":"x","p":"/s/1/value/0/content","v":" 👋 Senang ngobrol sama kamu. ..."}]}
 {"type":"done"}
 ```
@@ -283,19 +293,58 @@ From `POST /api/v3/getAvailableModels` (request body `{spaceId: "<workspace-uuid
 
 ---
 
-## 5. Image Input — NOT YET CAPTURED
+## 5. Image Input — CONFIRMED WORKING
 
-The current capture only has text conversations. Need a separate session with:
-1. Open Notion AI chat
-2. Attach an image (drag-drop, paste, or "Add image" button)
-3. Send message with image
+Captured from session where user sent a PNG screenshot (`Screenshot 2026-06-03 141122.png`, 2999×1546, 167683 bytes).
 
-Then inspect request body for image-related fields. Likely candidates:
-- New record type: `agent-attachment` or `image-source`
-- Field on `agent-inference.value[].type: "image"` with `url` / `file_token` / `blockId`
-- Or a separate `image-upload` endpoint (similar to `/f/upload`)
+**Attachment record in `transcript` array:**
 
-**Action:** dispatch subagent to capture session with image, then update this section.
+```json
+{
+  "id": "<uuid>",
+  "type": "attachment",
+  "fileUrl": "attachment:<owner-uuid>:<file-uuid>.png",
+  "fileName": "Screenshot 2026-06-03 141122.png",
+  "contentType": "image/png",
+  "metadata": {
+    "width": 2999,
+    "height": 1546,
+    "moderation": {"status": "passed"},
+    "guardrail": {"attachmentRisk": "skipped", "inferenceId": "<uuid>"},
+    "fileSizeBytes": 167683,
+    "aiTraceId": "<uuid>"
+  }
+}
+```
+
+**`fileUrl` format:** `attachment:<owner-uuid>:<file-uuid>.<ext>`. The `<owner-uuid>` is the user's storage namespace UUID (same across all user's files). `<file-uuid>` is unique per upload.
+
+**Image fetch URL pattern (from capture):**
+```
+https://app.notion.com/image/attachment%3A<owner-uuid>%3A<file-uuid>.png
+  ?table=thread&id=<thread-uuid>&spaceId=<workspace-uuid>
+  &width=1200&userId=<user-uuid>&cache=v2&imgBuildSrc=filePreview
+```
+
+Image hosted at `https://file.notion.com/f/f/<spaceId>/<owner-uuid>/<file-uuid>.png` (direct file URL).
+
+**Upload endpoint: NOT captured.** Image was already on Notion (likely uploaded in a previous session, or via Notion desktop's file picker which uses a separate protocol not visible to mitmproxy). The router will need to either:
+1. Pre-upload to Notion's file service (reverse engineer separately)
+2. Accept image as base64/data URL on input, convert to `attachment` record with a pre-uploaded file_url
+3. For v1, support image-pass-through only when client provides a Notion fileUrl (image already on Notion's storage)
+
+**Config flag to enable image generation/output:** `enableAgentGenerateImage: true` — controls whether Notion can generate images in response (not directly related to image input).
+
+**Multi-image:** attach multiple `attachment` records in the `transcript` array, one per image. Router should pass through all OpenAI `messages[].content[].type: "image_url"` items as separate `attachment` records.
+
+**Vision-capable models:** all observed models support vision (capture showed Gemini + GPT variants processing the PNG). Router should not gate on model — pass image through, let upstream decide.
+
+**Open Question:** how does router ingest an image from an OpenAI client? The client's `image_url` can be:
+- HTTPS URL → router must fetch + upload to Notion (or pass URL if Notion can fetch)
+- Base64 data URL → router must upload to Notion
+- Existing Notion fileUrl → pass through directly
+
+This requires a separate file-upload RE. For v1, support only the "existing Notion fileUrl" case (clients pre-upload to Notion, router passes through).
 
 ---
 
@@ -341,9 +390,8 @@ If false → account cannot use AI features (subscription issue).
 
 ## 8. Open RE Questions (remaining work)
 
-1. **Image input wire format** — needs fresh capture with image upload (Task 0b)
-2. **Tool call input format for non-`callFunction` tools** — does router need to handle `web-module.search`, `notion-module.search` etc.? (Task 0c — partial via fs-module)
-3. **Cookie expiration detection** — does router need to handle `authValidate` polling, or just react to 401? (Task 0d — partially answered: cookies last 1 year, no proactive refresh)
-4. **Does `runInferenceTranscript` accept multi-turn via the patch document, or must router send fresh document each turn?** Capture evidence suggests fresh each turn (no conversation resumption seen in this capture).
-
-These block: image support implementation, conversation continuity semantics, tool-calls-to-OpenAI-tools mapping.
+1. **Image upload endpoint** — Notion has internal file upload (likely uses WebSocket or separate API not in this capture). For v1, only support pre-uploaded Notion fileUrls. (deferred)
+2. **Tool call input format for non-`callFunction` tools** — partial answer via `fs-module.readFiles`, `notion-module.loadUser` in capture. Need to capture `web-module.search`, etc. for complete coverage. (deferred)
+3. **Cookie expiration detection** — does router need to handle `authValidate` polling, or just react to 401? Partially answered: cookies last 1 year, no proactive refresh observed. (can use simple 401→re-auth approach)
+4. **Does `runInferenceTranscript` accept multi-turn via the patch document, or must router send fresh document each turn?** Capture evidence: each request contains full `transcript` array (no server-side conversation memory). Fresh document each turn.
+5. **New internal model ID `ambrosia-tart-high`** observed in latest capture — NOT in `getAvailableModels` response. Possibly a test/A-B model. Router should ignore unknown model IDs in `config.value.model` and just pass through.

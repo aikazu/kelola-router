@@ -28,4 +28,4 @@ sidecar/**/*.pyc
 .hermes/
 .omo
 automation
-kie-auto
+kie-autodocs/notion/__pycache__/
