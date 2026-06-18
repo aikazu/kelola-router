@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
+import { listEnabledAccountsByProvider } from '../../db/repos/accounts.js';
 import { listAliasesForTargets } from '../../db/repos/aliases.js';
 import {
   bulkToggleModels,
@@ -9,6 +10,8 @@ import {
   listModels,
   upsertModel,
 } from '../../db/repos/models.js';
+import { fetchModels } from '../../providers/listModels.js';
+import { fetchAndSeedPioneerModels } from '../../providers/pioneer/models.js';
 import { handleApiError } from './middleware.js';
 import { testModelUpstream } from './modelHealth.js';
 
@@ -130,12 +133,46 @@ modelRoutes.post('/bulk-toggle', async (c) => {
   }
 });
 
-modelRoutes.post('/fetch', (c) => {
+const FETCH_PROVIDERS = ['minimax', 'pioneer'] as const;
+type FetchProvider = (typeof FETCH_PROVIDERS)[number];
+
+modelRoutes.post('/fetch/:provider', async (c) => {
   try {
-    // Placeholder: actual upstream fetch is in src/server.ts. We just touch upsertModel to validate route.
     const db = c.get('db') as Database.Database;
-    const before = listModels(db).length;
-    return c.json({ added: 0, updated: 0, total: before });
+    const provider = c.req.param('provider');
+    if (!(FETCH_PROVIDERS as readonly string[]).includes(provider)) {
+      return c.json(
+        { error: 'no_upstream_list', message: `${provider} has no model-list endpoint` },
+        404
+      );
+    }
+    const p = provider as FetchProvider;
+    const accounts = listEnabledAccountsByProvider(db, p);
+    const first = accounts[0];
+    if (!first) {
+      return c.json(
+        { error: 'no_account', message: `no active ${p} account to fetch from` },
+        400
+      );
+    }
+
+    if (p === 'minimax') {
+      const result = await fetchModels(db, first.api_key);
+      if (!result.ok) {
+        return c.json({ error: 'fetch_failed', message: result.error ?? 'upstream error' }, 502);
+      }
+      const total = listModels(db).length;
+      return c.json({ added: result.added ?? 0, total });
+    }
+    // pioneer: the seed function returns `total: entries.length` (pre-dedup). The
+    // dashboard wants post-seed row count, so read it from the table — mirrors
+    // the minimax branch above.
+    const result = await fetchAndSeedPioneerModels(db, first.api_key, first.base_url);
+    if (!result.ok) {
+      return c.json({ error: 'fetch_failed', message: result.error ?? 'upstream error' }, 502);
+    }
+    const total = listModels(db).length;
+    return c.json({ added: result.added ?? 0, total });
   } catch (e) {
     return handleApiError(e);
   }
