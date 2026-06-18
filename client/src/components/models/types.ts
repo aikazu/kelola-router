@@ -7,12 +7,14 @@ export interface Model {
   displayName: string | null;
   family: string | null;
   contextWindow: number | null;
+  contextOutput: number | null;
   provider: string;
   pricingInput: number | null;
   pricingOutput: number | null;
   source: string;
   enabled: boolean;
   aliasCount: number;
+  comboCount: number;
 }
 
 export type Provider = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer' | 'notion';
