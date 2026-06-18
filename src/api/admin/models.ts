@@ -10,6 +10,7 @@ import {
   enableModel,
   getModel,
   listModels,
+  updateModel,
   upsertModel,
 } from '../../db/repos/models.js';
 import { fetchModels } from '../../providers/listModels.js';
@@ -25,18 +26,29 @@ modelRoutes.get('/', (c) => {
     const rows = listModels(db, { includeDisabled: true });
     const targets = [...new Set(rows.map((r) => r.upstream_model))];
     const aliasesByTarget = listAliasesForTargets(db, targets);
+
+    // Combo membership counts: combos.models is a JSON array of member names.
+    const comboCountByName = new Map<string, number>();
+    for (const combo of listCombos(db)) {
+      for (const memberName of combo.models) {
+        comboCountByName.set(memberName, (comboCountByName.get(memberName) ?? 0) + 1);
+      }
+    }
+
     return c.json(
       rows.map((m) => ({
         name: m.name,
         displayName: m.display_name,
         family: m.family,
         contextWindow: m.context_window,
+        contextOutput: m.context_output,
         provider: m.provider ?? 'minimax',
         pricingInput: m.pricing_input,
         pricingOutput: m.pricing_output,
         source: m.source,
         enabled: !!m.enabled,
         aliasCount: (aliasesByTarget[m.upstream_model] ?? []).length,
+        comboCount: comboCountByName.get(m.name) ?? 0,
       }))
     );
   } catch (e) {
@@ -158,6 +170,33 @@ modelRoutes.delete('/:name', (c) => {
       return c.json({ error: 'has_refs', refs: { aliases, combos } }, 409);
     }
     deleteModel(db, name);
+    return c.json({ ok: true });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+modelRoutes.patch('/:name', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const name = decodeURIComponent(c.req.param('name'));
+    const model = getModel(db, name);
+    if (!model) throw new ApiError('not_found', 'Model tidak ditemukan', 404);
+
+    const body = await c.req.json<{
+      displayName?: string | null;
+      contextWindow?: number | null;
+      contextOutput?: number | null;
+      pricingInput?: number | null;
+      pricingOutput?: number | null;
+    }>();
+    updateModel(db, name, {
+      displayName: body.displayName,
+      contextWindow: body.contextWindow,
+      contextOutput: body.contextOutput,
+      pricingInput: body.pricingInput,
+      pricingOutput: body.pricingOutput,
+    });
     return c.json({ ok: true });
   } catch (e) {
     return handleApiError(e);

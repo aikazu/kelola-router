@@ -92,3 +92,40 @@ export function deleteModel(db: Database.Database, name: string): boolean {
   const r = db.prepare(`DELETE FROM models WHERE name = ?`).run(name);
   return r.changes > 0;
 }
+
+export interface ModelUpdate {
+  displayName?: string | null;
+  contextWindow?: number | null;
+  contextOutput?: number | null;
+  pricingInput?: number | null;
+  pricingOutput?: number | null;
+}
+
+export function updateModel(db: Database.Database, name: string, patch: ModelUpdate): boolean {
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  if (patch.displayName !== undefined) {
+    sets.push('display_name = ?');
+    vals.push(patch.displayName);
+  }
+  if (patch.contextWindow !== undefined) {
+    sets.push('context_window = ?');
+    vals.push(patch.contextWindow);
+  }
+  if (patch.contextOutput !== undefined) {
+    sets.push('context_output = ?');
+    vals.push(patch.contextOutput);
+  }
+  if (patch.pricingInput !== undefined) {
+    sets.push('pricing_input = ?');
+    vals.push(patch.pricingInput);
+  }
+  if (patch.pricingOutput !== undefined) {
+    sets.push('pricing_output = ?');
+    vals.push(patch.pricingOutput);
+  }
+  if (sets.length === 0) return false;
+  vals.push(name);
+  const r = db.prepare(`UPDATE models SET ${sets.join(', ')} WHERE name = ?`).run(...vals);
+  return r.changes > 0;
+}
