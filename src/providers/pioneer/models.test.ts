@@ -18,11 +18,11 @@ describe('fetchAndSeedPioneerModels', () => {
     const db = openDb();
     const catalogue = {
       data: [
-        { id: 'gpt-5.5', max_input_tokens: 1000, max_tokens: 500 },
-        { id: 'anthropic/pioneer/gpt-5.5', max_input_tokens: 1000, max_tokens: 500 },
-        { id: 'Qwen/Qwen3-32B', max_input_tokens: 2000, max_tokens: 800 },
-        { id: 'anthropic/pioneer/Qwen/Qwen3-32B', max_input_tokens: 2000, max_tokens: 800 },
-        { id: 'claude-opus-4-8', max_input_tokens: 3000, max_tokens: 1000 },
+        { id: 'gpt-5.5', max_input_tokens: 1000 },
+        { id: 'anthropic/pioneer/gpt-5.5', max_input_tokens: 1000 },
+        { id: 'Qwen/Qwen3-32B', max_input_tokens: 2000 },
+        { id: 'anthropic/pioneer/Qwen/Qwen3-32B', max_input_tokens: 2000 },
+        { id: 'claude-opus-4-8', max_input_tokens: 3000 },
       ],
     };
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
