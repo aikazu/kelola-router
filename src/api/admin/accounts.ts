@@ -472,7 +472,7 @@ accountRoutes.post('/notion/verify-otp', async (c) => {
     // Step 1 re-fetch loginOptionsToken
     const opts = await getLoginOptions(body.email);
     const deviceId = body.deviceId ?? `dev-${Date.now()}`;
-    const { csrfState } = await sendTemporaryPassword(body.email, opts.loginOptionsToken, deviceId, undefined);
+    const { csrfState } = await sendTemporaryPassword(body.email, opts.loginOptionsToken, deviceId);
     const { cookies, userId } = await loginWithEmail(csrfState, body.code);
 
     // Build account

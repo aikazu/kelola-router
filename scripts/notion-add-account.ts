@@ -111,9 +111,8 @@ async function main(): Promise<number> {
   console.log(`Sending temporary password to ${email}...`);
   const step2 = await postJson<TempPasswordResponse>('/api/v3/sendTemporaryPassword', {
     email,
-    redirectURL: '/',
     disableLoginLink: false,
-    native: true,
+    native: false,
     isSignup: false,
     shouldHidePasscode: false,
     loginOptionsToken: step1.json.loginOptionsToken,

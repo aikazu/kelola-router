@@ -90,8 +90,7 @@ describe('notion auth — login flow', () => {
       deviceId: 'device-uuid',
       appSource: 'notion',
       isSignup: false,
-      native: true,
-      redirectURL: '/', // Notion requires this field or silently ignores email send
+      native: false, // Match browser behavior — native=true may trigger stricter code expiry
     });
   });
 
