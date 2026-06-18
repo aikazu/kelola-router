@@ -59,10 +59,24 @@ export async function handlePioneerProxy(
   const originalText = JSON.stringify(body);
   const model = stringValue(body.model) || 'pio/claude-opus-4-8';
 
+  // Resolve the requested model up-front so the console flow shows the real
+  // model/alias pair (e.g. `claude-opus-4-8 > pio/claude-opus-4-8`) instead of
+  // the previous `pioneer > pioneer` placeholder.
+  let requestedModel: string | null = null;
+  let upstreamModel: string | undefined;
+  try {
+    const resolved = resolveModel(db, model, body);
+    requestedModel = resolved.requestedModel;
+    const raw = resolved.upstreamModel;
+    upstreamModel = raw.startsWith('pioneer/') ? raw.slice('pioneer/'.length) : raw;
+  } catch {
+    /* leave placeholders null — preparePioneerBody will fall back to prefix-strip */
+  }
+
   const reqId = genReqId();
   c.set('reqId', reqId);
   // biome-ignore format: long line
-  consoleBus.emit(buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, 'pioneer', 'pioneer'));
+  consoleBus.emit(buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, upstreamModel ?? model, requestedModel ?? model));
 
   // Get Pioneer accounts.
   const allAccounts = listEnabledAccountsByProvider(db, 'pioneer');
@@ -118,14 +132,8 @@ export async function handlePioneerProxy(
   // Resolve the requested model to its real upstream id. Pioneer DB rows are
   // namespaced under `pioneer/` (in both name and upstream_model) to avoid
   // clashes with same-named Kiro/CodeBuddy rows, so strip the single leading
-  // `pioneer/` to recover the bare id Pioneer's API expects.
-  let upstreamModel: string | undefined;
-  try {
-    const resolved = resolveModel(db, model, body).upstreamModel;
-    upstreamModel = resolved.startsWith('pioneer/') ? resolved.slice('pioneer/'.length) : resolved;
-  } catch {
-    /* fall back to prefix-stripping inside preparePioneerBody */
-  }
+  // `pioneer/` to recover the bare id Pioneer's API expects. (Done above so
+  // the console flow can log the real model/alias — see buildStart emit.)
 
   try {
     const resp = await executePioneer({
