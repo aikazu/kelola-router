@@ -24,7 +24,9 @@ function notionNdjsonResponse(): Response {
     {
       type: 'patch-start',
       version: 1,
-      data: { s: [{ id: 'inf1', type: 'agent-inference', value: [{ type: 'text', content: '' }] }] },
+      data: {
+        s: [{ id: 'inf1', type: 'agent-inference', value: [{ type: 'text', content: '' }] }],
+      },
     },
     { type: 'patch', v: [{ o: 'x', p: '/s/0/value/0/content', v: 'hi' }] },
     { type: 'done' },
@@ -100,9 +102,7 @@ describe('handleNotionProxy console flow', () => {
     const phases = emitPhases(emitSpy);
     expect(phases).toContain('start');
     expect(phases).toContain('done');
-    const logs = db
-      .prepare('SELECT COUNT(*) c FROM request_logs')
-      .get() as { c: number };
+    const logs = db.prepare('SELECT COUNT(*) c FROM request_logs').get() as { c: number };
     expect(logs.c).toBeGreaterThanOrEqual(1);
   });
 
@@ -136,9 +136,7 @@ describe('handleNotionProxy console flow', () => {
     const phases = emitPhases(emitSpy);
     expect(phases).toContain('start');
     expect(phases).toContain('error');
-    const logs = db
-      .prepare('SELECT COUNT(*) c FROM request_logs')
-      .get() as { c: number };
+    const logs = db.prepare('SELECT COUNT(*) c FROM request_logs').get() as { c: number };
     expect(logs.c).toBeGreaterThanOrEqual(1);
   });
 });

@@ -56,10 +56,13 @@ describe('handleProxy minimax error-path log row', () => {
     });
     // MiniMax rate-limit surfaces as HTTP 429 — hits the `!resp.ok` branch.
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ base_resp: { status_code: 1002, status_msg: 'rate limited' } }), {
-        status: 429,
-        headers: { 'content-type': 'application/json' },
-      })
+      new Response(
+        JSON.stringify({ base_resp: { status_code: 1002, status_msg: 'rate limited' } }),
+        {
+          status: 429,
+          headers: { 'content-type': 'application/json' },
+        }
+      )
     );
     const key = seedClientKey(db);
 

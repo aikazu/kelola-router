@@ -11,13 +11,7 @@
 import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
 import { consoleBus } from '../console/bus.js';
-import {
-  buildAccount,
-  buildDone,
-  buildError,
-  buildStart,
-  genReqId,
-} from '../console/flow.js';
+import { buildAccount, buildDone, buildError, buildStart, genReqId } from '../console/flow.js';
 import type { Account } from '../db/repos/accounts.js';
 import { listEnabledAccountsByProvider } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
@@ -116,8 +110,7 @@ export async function handleNotionProxy(
   } catch {
     /* unknown/disabled — keep placeholder, request will surface a 400 later */
   }
-  const aliasForFlow =
-    requestedModel && requestedModel !== upstreamModel ? requestedModel : null;
+  const aliasForFlow = requestedModel && requestedModel !== upstreamModel ? requestedModel : null;
   consoleBus.emit(
     buildStart(
       reqId,
@@ -136,9 +129,7 @@ export async function handleNotionProxy(
     message: string,
     accountId: string
   ): Response => {
-    consoleBus.emit(
-      buildError(reqId, new Date().toISOString(), statusCodeVal, message)
-    );
+    consoleBus.emit(buildError(reqId, new Date().toISOString(), statusCodeVal, message));
     const ctx: LogRowContext = {
       clientKeyId: clientKey?.id ?? 0,
       accountId,
@@ -187,9 +178,7 @@ export async function handleNotionProxy(
     return failAndLog(401, 'notion_reauth_required', msg, account.id);
   }
 
-  consoleBus.emit(
-    buildAccount(reqId, new Date().toISOString(), account.label, 'round-robin')
-  );
+  consoleBus.emit(buildAccount(reqId, new Date().toISOString(), account.label, 'round-robin'));
 
   const openaiMessages = readOpenAIMessages(body);
   const { body: notionBody } = buildNotionPayload({
@@ -331,18 +320,7 @@ export async function handleNotionProxy(
         // Notion's NDJSON stream does not surface token counts — log 0/0
         // and cost 0. Keeps parity with Pioneer/Kiro happy-path emissions.
         consoleBus.emit(
-          buildDone(
-            reqId,
-            new Date().toISOString(),
-            200,
-            null,
-            0,
-            0,
-            0,
-            0,
-            Date.now() - startMs,
-            0
-          )
+          buildDone(reqId, new Date().toISOString(), 200, null, 0, 0, 0, 0, Date.now() - startMs, 0)
         );
         controller.close();
       } catch (e) {

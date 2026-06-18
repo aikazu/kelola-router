@@ -28,8 +28,7 @@ interface MockContext {
 function makeCtx(): MockContext {
   const store = new Map<string, unknown>();
   return {
-    get: (key: string) =>
-      key === 'clientKey' ? { id: 1 } : (store.get(key) ?? undefined),
+    get: (key: string) => (key === 'clientKey' ? { id: 1 } : (store.get(key) ?? undefined)),
     set: (key: string, value: unknown) => {
       store.set(key, value);
     },
