@@ -50,7 +50,8 @@ export async function handleKiroProxy(
   body: Record<string, unknown>,
   db: Database.Database,
   cursorRef: CursorRef,
-  stickyMap: Map<number, string>
+  stickyMap: Map<number, string>,
+  parentReqId?: string
 ): Promise<Response> {
   const clientKey = c.get('clientKey');
   const startMs = c.get('startTime');
@@ -74,8 +75,10 @@ export async function handleKiroProxy(
   const requestedModel = resolved.requestedModel;
   const modelName = resolved.upstreamModel;
 
-  const reqId = genReqId();
-  c.set('reqId', reqId);
+  // When delegated from a combo, reuse the combo's reqId so the console shows
+  // one thread per combo request instead of two disconnected ones.
+  const reqId = parentReqId ?? genReqId();
+  if (!parentReqId) c.set('reqId', reqId);
   consoleBus.emit(
     buildStart(
       reqId,
@@ -179,6 +182,10 @@ export async function handleKiroProxy(
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), result.status, errBody.slice(0, 200))
       );
+      // Parity with CodeBuddy/Pioneer/Notion/minimax: log the failed request so
+      // it surfaces in the Request log. Tokens/cost are 0 — it's an error.
+      // biome-ignore format: long line
+      insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel, endpoint: upstreamPath, format, promptTokens: 0, completionTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, costUsd: 0, latencyMs: Date.now() - startMs, statusCode: result.status, baseRespCode: undefined, stream: upstreamStream ? 1 : 0, rtkBytesSaved: 0, requestBody: JSON.stringify(body), responseBody: errBody, requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId }));
       return c.body(
         errBody || JSON.stringify({ error: 'kiro upstream error' }),
         statusCode(result.status),

@@ -20,12 +20,19 @@ import { handleNotionProxy } from '../../src/proxy/notion.js';
 
 interface MockContext {
   get(key: string): unknown;
+  set(key: string, value: unknown): void;
+  req: { method: string; raw: { headers: Headers } };
   json(body: unknown, status?: number): Response;
 }
 
 function makeCtx(): MockContext {
+  const store = new Map<string, unknown>();
   return {
-    get: (key: string) => (key === 'clientKey' ? { id: 1 } : undefined),
+    get: (key: string) => (key === 'clientKey' ? { id: 1 } : (store.get(key) ?? undefined)),
+    set: (key: string, value: unknown) => {
+      store.set(key, value);
+    },
+    req: { method: 'POST', raw: { headers: new Headers() } },
     json: (body: unknown, status?: number) =>
       new Response(JSON.stringify(body), {
         status: status ?? 200,

@@ -52,7 +52,8 @@ export async function handlePioneerProxy(
   body: Record<string, unknown>,
   db: Database.Database,
   cursorRef: CursorRef,
-  stickyMap: Map<number, string>
+  stickyMap: Map<number, string>,
+  parentReqId?: string
 ): Promise<Response> {
   const clientKey = c.get('clientKey');
   const startMs = c.get('startTime');
@@ -73,8 +74,10 @@ export async function handlePioneerProxy(
     /* leave placeholders null — preparePioneerBody will fall back to prefix-strip */
   }
 
-  const reqId = genReqId();
-  c.set('reqId', reqId);
+  // When delegated from a combo, reuse the combo's reqId so the console shows
+  // one thread per combo request instead of two disconnected ones.
+  const reqId = parentReqId ?? genReqId();
+  if (!parentReqId) c.set('reqId', reqId);
   // biome-ignore format: long line
   consoleBus.emit(buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, upstreamModel ?? model, requestedModel ?? model));
 

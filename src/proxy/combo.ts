@@ -192,7 +192,8 @@ export async function handleComboProxy(
           kiroBody,
           db,
           kiroCursorRef,
-          stickyMap
+          stickyMap,
+          reqId
         );
         cursorRef.value = kiroCursorRef.value;
         // If we get here without throw, check status
@@ -238,7 +239,8 @@ export async function handleComboProxy(
           cbBody,
           db,
           cbCursorRef,
-          stickyMap
+          stickyMap,
+          reqId
         );
         cursorRef.value = cbCursorRef.value;
         if (
@@ -285,7 +287,8 @@ export async function handleComboProxy(
           pioBody,
           db,
           pioCursorRef,
-          stickyMap
+          stickyMap,
+          reqId
         );
         cursorRef.value = pioCursorRef.value;
         if (

@@ -15,6 +15,7 @@ import {
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getSettingT } from '../db/repos/settings.js';
+import { resolveModel } from '../providers/alias.js';
 import { executeCodeBuddy } from '../providers/codebuddy/index.js';
 import {
   aggregateOpenAISSE,
@@ -51,17 +52,41 @@ export async function handleCodeBuddyProxy(
   body: Record<string, unknown>,
   db: Database.Database,
   cursorRef: CursorRef,
-  stickyMap: Map<number, string>
+  stickyMap: Map<number, string>,
+  parentReqId?: string
 ): Promise<Response> {
   const clientKey = c.get('clientKey');
   const startMs = c.get('startTime');
   const originalText = JSON.stringify(body);
   const model = stringValue(body.model) || 'cb/claude-opus-4.6';
 
-  const reqId = genReqId();
-  c.set('reqId', reqId);
-  // biome-ignore format: long line
-  consoleBus.emit(buildStart(reqId, new Date().toISOString(), c.req.method, upstreamPath, 'codebuddy', 'codebuddy'));
+  // Resolve the requested model up-front so the console flow shows the real
+  // model/alias pair (e.g. `claude-opus > cb/claude-opus`) instead of the
+  // previous `codebuddy > codebuddy` placeholder.
+  let requestedModel: string | null = null;
+  let upstreamModel: string = 'codebuddy';
+  try {
+    const resolved = resolveModel(db, model, body);
+    requestedModel = resolved.requestedModel;
+    upstreamModel = resolved.upstreamModel;
+  } catch {
+    /* unknown/disabled model — keep placeholders; request surfaces error later */
+  }
+
+  // When delegated from a combo, reuse the combo's reqId so the console shows
+  // one thread per combo request instead of two disconnected ones.
+  const reqId = parentReqId ?? genReqId();
+  if (!parentReqId) c.set('reqId', reqId);
+  consoleBus.emit(
+    buildStart(
+      reqId,
+      new Date().toISOString(),
+      c.req.method,
+      upstreamPath,
+      upstreamModel,
+      requestedModel && requestedModel !== upstreamModel ? requestedModel : null
+    )
+  );
 
   // Get CodeBuddy accounts
   const allAccounts = listEnabledAccountsByProvider(db, 'codebuddy');
@@ -132,8 +157,8 @@ export async function handleCodeBuddyProxy(
       ({
         clientKeyId: clientKey.id,
         accountId: account.id,
-        model,
-        requestedModel: model,
+        model: upstreamModel,
+        requestedModel: requestedModel ?? model,
         endpoint: upstreamPath,
         format,
         promptTokens: 0,

@@ -76,6 +76,12 @@ export async function handleProxy(
   }
   let bodyDirty = false;
   markHotPath('proxy:body-parsed');
+  // Hoist reqId to the very top so every downstream emit (buildStart,
+  // buildAccount, buildError) and the outer catch share one stable id —
+  // matches kiro/codebuddy/pioneer/combo ordering and guarantees the catch
+  // never falls back to '----' if an early throw escapes a nested try.
+  const reqId = genReqId();
+  c.set('reqId', reqId);
   const allSettings = getAllSettings(db);
   // Combo/fallback chain: if the requested model matches a combo name, handle
   // it via the combo fallback loop (try each model in sequence).
@@ -260,8 +266,13 @@ export async function handleProxy(
   const requestedModel = resolved.requestedModel;
   markHotPath('proxy:model-resolved');
 
-  const reqId = genReqId();
-  c.set('reqId', reqId);
+  // Emit buildStart AFTER model resolution (so it carries the resolved
+  // upstream model, not a placeholder). minimax selects the account before
+  // resolving the model (unlike kiro), so buildAccount also fires here —
+  // both need reqId, which is now hoisted to the top. The key invariant vs.
+  // the old code: buildStart no longer lives after a gap where reqId could
+  // be unset if resolveModel threw; resolveModel's own throw returns early
+  // with a 400 and never reaches this emit.
   consoleBus.emit(
     buildStart(
       reqId,
@@ -336,6 +347,10 @@ export async function handleProxy(
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), resp.status, errBody.slice(0, 200))
       );
+      // Parity with CodeBuddy/Pioneer/Notion: log the failed request so it
+      // surfaces in the Request log. Tokens/cost are 0 — it's an error.
+      // biome-ignore format: long line
+      insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: account.id, model: resolved.upstreamModel, requestedModel, endpoint: upstreamPath, format: upstreamFormat, promptTokens: 0, completionTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, costUsd: 0, latencyMs: Date.now() - c.get('startTime'), statusCode: resp.status, baseRespCode: parsed.baseRespCode, stream: body.stream === true ? 1 : 0, rtkBytesSaved: rtkSaved, requestBody: text, responseBody: errBody, requestHeaders: c.req.raw.headers, responseHeaders: resp.headers, reqId }));
       return c.body(errBody, statusCode(resp.status), {
         'content-type': resp.headers.get('content-type') ?? 'application/json',
       });
@@ -456,8 +471,8 @@ export async function handleProxy(
   } catch (e: unknown) {
     const message = errorMessage(e);
     log.error({ err: message }, 'upstream unreachable');
-    const rid = c.get('reqId') ?? '----';
-    consoleBus.emit(buildError(rid, new Date().toISOString(), 502, message));
+    // reqId is hoisted to the top of handleProxy, so it is always in scope here.
+    consoleBus.emit(buildError(reqId, new Date().toISOString(), 502, message));
     return c.json({ error: `upstream unreachable: ${message}` }, 502);
   }
 }
