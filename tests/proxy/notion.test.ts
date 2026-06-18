@@ -325,7 +325,7 @@ describe('handleNotionProxy — integration', () => {
         'agent-inference',
       ]);
       expect(upstream.transcript[0].value.model).toBe('opal-quince-medium');
-      expect(captured!.headers.get('notion-client-version')).toBe('23.13.20260617.1538');
+      expect(captured!.headers.get('notion-client-version')).toBe('23.13.20260617.2303');
       expect(captured!.headers.get('accept')).toBe('application/x-ndjson');
       const cookie = captured!.headers.get('cookie')!;
       expect(cookie).toContain('token_v2=v03:abc');

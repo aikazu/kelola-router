@@ -1,7 +1,7 @@
 /**
  * Notion provider constants — endpoints, internal model IDs, version pin.
  *
- * Reverse-engineered from Notion desktop client v23.13.20260617.1538 traffic
+ * Reverse-engineered from Notion desktop client v23.13.20260617.2303 traffic
  * captured via mitmproxy. See docs/notion/wire-format.md for the full
  * protocol reference and docs/notion/capture-notes.md for raw findings.
  *
