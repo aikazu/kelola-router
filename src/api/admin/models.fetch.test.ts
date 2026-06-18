@@ -1,7 +1,7 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../db/index.js';
 import { createAccount } from '../../db/repos/accounts.js';
 import { app, resetDb } from '../../server.js';
@@ -13,6 +13,10 @@ beforeEach(() => {
 });
 
 describe('POST /api/admin/models/fetch/:provider', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('seeds minimax models from the first active minimax account', async () => {
     const db = openDb();
     createAccount(db, {
@@ -32,6 +36,11 @@ describe('POST /api/admin/models/fetch/:provider', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { added: number; total: number };
     expect(body.added).toBe(1);
+    const db2 = openDb();
+    const rows = db2
+      .prepare(`SELECT name FROM models WHERE provider = 'minimax'`)
+      .all() as { name: string }[];
+    expect(rows.map((r) => r.name)).toContain('MiniMax-M3');
   });
 
   it('seeds pioneer models (deduped) from the first active pioneer account', async () => {

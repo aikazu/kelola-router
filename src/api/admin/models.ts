@@ -161,17 +161,15 @@ modelRoutes.post('/fetch/:provider', async (c) => {
       if (!result.ok) {
         return c.json({ error: 'fetch_failed', message: result.error ?? 'upstream error' }, 502);
       }
-      const total = listModels(db).length;
+      const total = listModels(db, { includeDisabled: true }).length;
       return c.json({ added: result.added ?? 0, total });
     }
-    // pioneer: the seed function returns `total: entries.length` (pre-dedup). The
-    // dashboard wants post-seed row count, so read it from the table — mirrors
-    // the minimax branch above.
+    // pioneer: post-seed total row count (incl. disabled), mirrors minimax branch above.
     const result = await fetchAndSeedPioneerModels(db, first.api_key, first.base_url);
     if (!result.ok) {
       return c.json({ error: 'fetch_failed', message: result.error ?? 'upstream error' }, 502);
     }
-    const total = listModels(db).length;
+    const total = listModels(db, { includeDisabled: true }).length;
     return c.json({ added: result.added ?? 0, total });
   } catch (e) {
     return handleApiError(e);
