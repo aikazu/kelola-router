@@ -37,9 +37,9 @@ describe('POST /api/admin/models/fetch/:provider', () => {
     const body = (await res.json()) as { added: number; total: number };
     expect(body.added).toBe(1);
     const db2 = openDb();
-    const rows = db2
-      .prepare(`SELECT name FROM models WHERE provider = 'minimax'`)
-      .all() as { name: string }[];
+    const rows = db2.prepare(`SELECT name FROM models WHERE provider = 'minimax'`).all() as {
+      name: string;
+    }[];
     expect(rows.map((r) => r.name)).toContain('MiniMax-M3');
   });
 

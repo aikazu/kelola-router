@@ -37,11 +37,7 @@ describe('fetchAndSeedPioneerModels', () => {
     );
     expect(pioneer).toHaveLength(3);
     const names = pioneer.map((m) => m.name).sort();
-    expect(names).toEqual([
-      'pioneer/Qwen/Qwen3-32B',
-      'pioneer/claude-opus-4-8',
-      'pioneer/gpt-5.5',
-    ]);
+    expect(names).toEqual(['pioneer/Qwen/Qwen3-32B', 'pioneer/claude-opus-4-8', 'pioneer/gpt-5.5']);
     const gpt = pioneer.find((m) => m.name === 'pioneer/gpt-5.5')!;
     expect(gpt.upstream_model).toBe('gpt-5.5');
   });

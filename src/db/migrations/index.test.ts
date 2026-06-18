@@ -35,7 +35,13 @@ describe('migration 009 pioneer anthropic dedup', () => {
     ).run('pioneer/gpt-5.5', 'gpt-5.5', 'pioneer', 'fetched', 'pioneer');
     db.prepare(
       `INSERT INTO models (name, upstream_model, family, source, provider, enabled) VALUES (?, ?, ?, ?, ?, 1)`
-    ).run('pioneer/anthropic/pioneer/gpt-5.5', 'anthropic/pioneer/gpt-5.5', 'pioneer', 'fetched', 'pioneer');
+    ).run(
+      'pioneer/anthropic/pioneer/gpt-5.5',
+      'anthropic/pioneer/gpt-5.5',
+      'pioneer',
+      'fetched',
+      'pioneer'
+    );
     db.prepare(
       `INSERT INTO models (name, upstream_model, family, source, provider, enabled) VALUES (?, ?, ?, ?, ?, 1)`
     ).run('pioneer/claude-opus-4-8', 'claude-opus-4-8', 'pioneer', 'fetched', 'pioneer');
@@ -46,10 +52,7 @@ describe('migration 009 pioneer anthropic dedup', () => {
       .prepare(`SELECT name, upstream_model FROM models WHERE provider = 'pioneer' ORDER BY name`)
       .all() as { name: string; upstream_model: string }[];
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.name).sort()).toEqual([
-      'pioneer/claude-opus-4-8',
-      'pioneer/gpt-5.5',
-    ]);
+    expect(rows.map((r) => r.name).sort()).toEqual(['pioneer/claude-opus-4-8', 'pioneer/gpt-5.5']);
     expect(rows.every((r) => !r.upstream_model.startsWith('anthropic/pioneer/'))).toBe(true);
   });
 });
