@@ -7,6 +7,7 @@ interface PioneerModelEntry {
   id: string;
   display_name?: string | null;
   max_input_tokens?: number | null;
+  max_tokens?: number | null;
 }
 
 export interface SeedPioneerModelsResult {
@@ -80,6 +81,7 @@ export async function fetchAndSeedPioneerModels(
       display_name: `Pioneer ${m.display_name?.trim() || bareId}`,
       family: 'pioneer',
       context_window: m.max_input_tokens ?? null,
+      context_output: m.max_tokens ?? null,
       pricing_input: 0,
       pricing_output: 0,
       pricing_cache_read: 0,

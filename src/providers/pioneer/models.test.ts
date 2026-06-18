@@ -45,4 +45,20 @@ describe('fetchAndSeedPioneerModels', () => {
     const gpt = pioneer.find((m) => m.name === 'pioneer/gpt-5.5')!;
     expect(gpt.upstream_model).toBe('gpt-5.5');
   });
+
+  it('seeds context_output from max_tokens', async () => {
+    const db = openDb();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [{ id: 'gpt-5.5', max_input_tokens: 1000, max_tokens: 4096 }],
+        }),
+        { status: 200 }
+      )
+    );
+    await fetchAndSeedPioneerModels(db, 'pio_sk_test');
+    const m = listModels(db, { includeDisabled: true }).find((x) => x.provider === 'pioneer')!;
+    expect(m.context_window).toBe(1000);
+    expect(m.context_output).toBe(4096);
+  });
 });

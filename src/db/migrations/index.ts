@@ -8,6 +8,7 @@ import { migration_006 } from './006-transport-country.js';
 import { migration_007 } from './007-audit-log.js';
 import { migration_008 } from './008-pioneer-dedup.js';
 import { migration_009 } from './009-pioneer-anthropic-dedup.js';
+import { migration_010 } from './010-model-context-output.js';
 
 const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
   migration_001,
@@ -19,6 +20,7 @@ const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
   migration_007,
   migration_008,
   migration_009,
+  migration_010,
 ];
 
 export function migrate(db: Database.Database): void {
