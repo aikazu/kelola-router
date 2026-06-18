@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
 import { AddModelModal } from '../components/models/AddModelModal';
+import { EditModelModal } from '../components/models/EditModelModal';
 import { ProviderModelsSection } from '../components/models/ProviderModelsSection';
 import type { Model, Provider } from '../components/models/types';
 import { TableSkeleton } from '../components/Skeleton';
@@ -39,6 +40,7 @@ export function Models() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState<null | Provider>(null);
+  const [editTarget, setEditTarget] = useState<Model | null>(null);
 
   const clearSelection = () => setSelected(new Set());
 
@@ -134,35 +136,43 @@ export function Models() {
         <>
           <ProviderModelsSection
             title="MiniMax"
+            provider="minimax"
             models={filtered.filter((m) => m.provider === 'minimax')}
             selected={selected}
             onSelectChange={setSelected}
             shadowedNames={shadowedNames}
             onAddModel={() => setAddOpen('minimax')}
+            onEditModel={(m) => setEditTarget(m)}
           />
           <ProviderModelsSection
             title="Kiro"
+            provider="kiro"
             models={filtered.filter((m) => m.provider === 'kiro')}
             selected={selected}
             onSelectChange={setSelected}
             shadowedNames={shadowedNames}
             onAddModel={() => setAddOpen('kiro')}
+            onEditModel={(m) => setEditTarget(m)}
           />
           <ProviderModelsSection
             title="Pioneer"
+            provider="pioneer"
             models={filtered.filter((m) => m.provider === 'pioneer')}
             selected={selected}
             onSelectChange={setSelected}
             shadowedNames={shadowedNames}
             onAddModel={() => setAddOpen('pioneer')}
+            onEditModel={(m) => setEditTarget(m)}
           />
           <ProviderModelsSection
             title="CodeBuddy"
+            provider="codebuddy"
             models={filtered.filter((m) => m.provider === 'codebuddy')}
             selected={selected}
             onSelectChange={setSelected}
             shadowedNames={shadowedNames}
             onAddModel={() => setAddOpen('codebuddy')}
+            onEditModel={(m) => setEditTarget(m)}
           />
         </>
       )}
@@ -172,6 +182,7 @@ export function Models() {
         onClose={() => setAddOpen(null)}
         provider={addOpen ?? 'minimax'}
       />
+      <EditModelModal model={editTarget} onClose={() => setEditTarget(null)} />
     </>
   );
 }

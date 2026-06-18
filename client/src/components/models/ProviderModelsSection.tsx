@@ -1,42 +1,38 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { apiFetch } from '../../lib/api';
+import { callName, PROVIDERS_WITH_UPSTREAM_LIST } from '../../lib/providerPrefix';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import { confirmDialog } from '../Confirm';
 import { Switch } from '../Switch';
 import { useToast } from '../ToastProvider';
+import type { Provider } from './types';
 import { fmtContext, fmtPrice, type Model, type TestState } from './types';
 
 interface ProviderModelsSectionProps {
   title: string;
+  provider: Provider;
   models: Model[];
   selected: Set<string>;
   onSelectChange: (next: Set<string>) => void;
   shadowedNames: Set<string>;
   onAddModel: () => void;
+  onEditModel: (model: Model) => void;
 }
 
-/**
- * Per-provider models card (MiniMax / Kiro). Owns row-level interaction state
- * (per-row test results) and the toggle / fetch mutations. The parent supplies
- * the filtered list, the shared selection set (+ mutator), the shadowed-name
- * set, and an `onAddModel` callback to open the add modal.
- *
- * Extracted verbatim from the `providerCard` render helper in Models.tsx —
- * no behavior or className changes.
- */
 export function ProviderModelsSection({
   title,
+  provider,
   models,
   selected,
   onSelectChange,
   shadowedNames,
   onAddModel,
+  onEditModel,
 }: ProviderModelsSectionProps) {
   const qc = useQueryClient();
   const toast = useToast();
-
   const [testResults, setTestResults] = useState<Record<string, TestState>>({});
 
   const runTest = async (name: string) => {
@@ -71,7 +67,7 @@ export function ProviderModelsSection({
 
   const fetchMut = useMutation({
     mutationFn: () =>
-      apiFetch<{ added: number; updated: number; total: number }>('/api/admin/models/fetch', {
+      apiFetch<{ added: number; total: number }>(`/api/admin/models/fetch/${provider}`, {
         method: 'POST',
       }),
     onSuccess: (r) => {
@@ -81,14 +77,69 @@ export function ProviderModelsSection({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const copyCallName = async (m: Model) => {
+    const text = callName(provider, m.name);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    toast.success(`Copied ${text}`);
+  };
+
+  const deleteMut = useMutation({
+    mutationFn: (name: string) =>
+      apiFetch(`/api/admin/models/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['models'] });
+      toast.success('Model deleted');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const onDelete = async (m: Model) => {
+    let refs: { aliases: { aliasName: string }[]; combos: { comboName: string }[] };
+    try {
+      refs = await apiFetch(`/api/admin/models/${encodeURIComponent(m.name)}/refs`);
+    } catch (e) {
+      toast.error((e as Error).message);
+      return;
+    }
+    if (refs.aliases.length > 0 || refs.combos.length > 0) {
+      const aliasList = refs.aliases.map((a) => a.aliasName).join(', ');
+      const comboList = refs.combos.map((c) => c.comboName).join(', ');
+      toast.error(
+        `Blocked: referenced by alias [${aliasList}] / combo [${comboList}]. Remove them first.`
+      );
+      return;
+    }
+    const ok = await confirmDialog({
+      title: 'Delete model',
+      message: `Delete "${m.name}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    deleteMut.mutate(m.name);
+  };
+
+  const canFetch = PROVIDERS_WITH_UPSTREAM_LIST.has(provider);
+
   return (
     <Card
       title={title}
       actions={
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button size="sm" onClick={() => fetchMut.mutate()} disabled={fetchMut.isPending}>
-            {fetchMut.isPending ? 'Fetching…' : 'Fetch from upstream'}
-          </Button>
+          {canFetch && (
+            <Button size="sm" onClick={() => fetchMut.mutate()} disabled={fetchMut.isPending}>
+              {fetchMut.isPending ? 'Fetching…' : 'Fetch from upstream'}
+            </Button>
+          )}
           <Button size="sm" onClick={onAddModel}>
             + Add model
           </Button>
@@ -109,27 +160,27 @@ export function ProviderModelsSection({
                     onChange={() => {
                       if (models.every((m) => selected.has(m.name))) {
                         const next = new Set(selected);
-                        models.forEach((m) => {
-                          next.delete(m.name);
-                        });
+                        models.forEach((m) => next.delete(m.name));
                         onSelectChange(next);
                       } else {
                         const next = new Set(selected);
-                        models.forEach((m) => {
-                          next.add(m.name);
-                        });
+                        models.forEach((m) => next.add(m.name));
                         onSelectChange(next);
                       }
                     }}
                   />
                 </th>
+                <th>ID</th>
                 <th>Name</th>
-                <th>Context</th>
+                <th>Context In</th>
+                <th>Context Out</th>
                 <th class="num">In $/M</th>
                 <th class="num">Out $/M</th>
                 <th>Aliases</th>
+                <th>Combo</th>
                 <th>Status</th>
                 <th>Test</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -148,7 +199,7 @@ export function ProviderModelsSection({
                     />
                   </td>
                   <td class="mono">
-                    {m.name}
+                    {callName(provider, m.name)}
                     {shadowedNames.has(m.name) && (
                       <span
                         style={{
@@ -162,13 +213,24 @@ export function ProviderModelsSection({
                       </span>
                     )}
                   </td>
+                  <td>{m.displayName ?? m.name}</td>
                   <td class="mono">{fmtContext(m.contextWindow)}</td>
+                  <td class="mono">{fmtContext(m.contextOutput)}</td>
                   <td class="num mono">{fmtPrice(m.pricingInput)}</td>
                   <td class="num mono">{fmtPrice(m.pricingOutput)}</td>
                   <td>
                     {m.aliasCount > 0 ? (
                       <a href={`#/admin/aliases?target=${encodeURIComponent(m.name)}`}>
                         {m.aliasCount} alias{m.aliasCount === 1 ? '' : 'es'}
+                      </a>
+                    ) : (
+                      <span class="card-sub">—</span>
+                    )}
+                  </td>
+                  <td>
+                    {m.comboCount > 0 ? (
+                      <a href="#/admin/combos">
+                        {m.comboCount} combo{m.comboCount === 1 ? '' : 's'}
                       </a>
                     ) : (
                       <span class="card-sub">—</span>
@@ -209,11 +271,7 @@ export function ProviderModelsSection({
                         );
                       if (t?.state === 'fail')
                         return (
-                          <span
-                            class="mono"
-                            style={{ fontSize: 11, color: 'var(--alert)' }}
-                            title={t.error}
-                          >
+                          <span class="mono" style={{ fontSize: 11, color: 'var(--alert)' }} title={t.error}>
                             ✗ {t.error.slice(0, 24)}
                           </span>
                         );
@@ -223,6 +281,19 @@ export function ProviderModelsSection({
                         </Button>
                       );
                     })()}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Button size="sm" variant="ghost" onClick={() => copyCallName(m)}>
+                        Copy
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => onEditModel(m)}>
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="danger" onClick={() => onDelete(m)}>
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
