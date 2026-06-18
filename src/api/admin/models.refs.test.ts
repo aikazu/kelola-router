@@ -81,9 +81,13 @@ describe('DELETE /api/admin/models/:name', () => {
       headers: { 'x-admin-key': 'ak_test' },
     });
     expect(res.status).toBe(409);
-    const body = (await res.json()) as { error: string; refs: { aliases: unknown[] } };
+    const body = (await res.json()) as {
+      error: string;
+      refs: { aliases: unknown[]; combos: unknown[] };
+    };
     expect(body.error).toBe('has_refs');
     expect(body.refs.aliases).toHaveLength(1);
+    expect(body.refs.combos).toHaveLength(0);
     // Model still exists (not deleted).
     const row = db.prepare(`SELECT 1 FROM models WHERE name = 'pioneer/gpt-5.5'`).get();
     expect(row).toBeDefined();
@@ -103,5 +107,12 @@ describe('DELETE /api/admin/models/:name', () => {
       headers: { 'x-admin-key': 'ak_test' },
     });
     expect(res.status).toBe(409);
+    const body = (await res.json()) as {
+      error: string;
+      refs: { combos: unknown[]; aliases: unknown[] };
+    };
+    expect(body.error).toBe('has_refs');
+    expect(body.refs.combos).toHaveLength(1);
+    expect(body.refs.aliases).toHaveLength(0);
   });
 });

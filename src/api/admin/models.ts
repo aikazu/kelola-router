@@ -14,7 +14,7 @@ import {
 } from '../../db/repos/models.js';
 import { fetchModels } from '../../providers/listModels.js';
 import { fetchAndSeedPioneerModels } from '../../providers/pioneer/models.js';
-import { handleApiError } from './middleware.js';
+import { ApiError, handleApiError } from './middleware.js';
 import { testModelUpstream } from './modelHealth.js';
 
 export const modelRoutes = new Hono();
@@ -123,7 +123,7 @@ modelRoutes.get('/:name/refs', (c) => {
     const db = c.get('db') as Database.Database;
     const name = decodeURIComponent(c.req.param('name'));
     const model = getModel(db, name);
-    if (!model) return c.json({ error: 'not_found', message: 'Model tidak ditemukan' }, 404);
+    if (!model) throw new ApiError('not_found', 'Model tidak ditemukan', 404);
 
     const aliases = (
       listAliasesForTargets(db, [model.upstream_model])[model.upstream_model] ?? []
@@ -143,7 +143,7 @@ modelRoutes.delete('/:name', (c) => {
     const db = c.get('db') as Database.Database;
     const name = decodeURIComponent(c.req.param('name'));
     const model = getModel(db, name);
-    if (!model) return c.json({ error: 'not_found', message: 'Model tidak ditemukan' }, 404);
+    if (!model) throw new ApiError('not_found', 'Model tidak ditemukan', 404);
 
     const aliases = (
       listAliasesForTargets(db, [model.upstream_model])[model.upstream_model] ?? []
@@ -152,6 +152,8 @@ modelRoutes.delete('/:name', (c) => {
       .filter((combo) => combo.models.includes(name))
       .map((combo) => ({ id: combo.id, comboName: combo.name }));
 
+    // Inline response (not ApiError) — refs payload must reach the client; ApiError
+    // body shape is { error, message } with no room for structured refs.
     if (aliases.length > 0 || combos.length > 0) {
       return c.json({ error: 'has_refs', refs: { aliases, combos } }, 409);
     }
@@ -196,10 +198,7 @@ modelRoutes.post('/fetch/:provider', async (c) => {
     const accounts = listEnabledAccountsByProvider(db, p);
     const first = accounts[0];
     if (!first) {
-      return c.json(
-        { error: 'no_account', message: `no active ${p} account to fetch from` },
-        400
-      );
+      return c.json({ error: 'no_account', message: `no active ${p} account to fetch from` }, 400);
     }
 
     if (p === 'minimax') {
