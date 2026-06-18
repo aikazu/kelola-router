@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { apiFetch } from '../../lib/api';
 import { Button } from '../Button';
 import { Modal } from '../Modal';
@@ -27,6 +27,18 @@ export function EditModelModal({ model, onClose }: EditModelModalProps) {
   const [pricingOutput, setPricingOutput] = useState(
     model?.pricingOutput != null ? String(model.pricingOutput) : ''
   );
+
+  // Reset form when the target model changes (defensive — the parent passes a fresh
+  // object per open, but reset explicitly so the modal stays correct if the lifecycle
+  // ever stops unmounting it).
+  useEffect(() => {
+    if (!model) return;
+    setDisplayName(model.displayName ?? '');
+    setContextWindow(model.contextWindow != null ? String(model.contextWindow) : '');
+    setContextOutput(model.contextOutput != null ? String(model.contextOutput) : '');
+    setPricingInput(model.pricingInput != null ? String(model.pricingInput) : '');
+    setPricingOutput(model.pricingOutput != null ? String(model.pricingOutput) : '');
+  }, [model?.name]);
 
   const editMut = useMutation({
     mutationFn: () => {

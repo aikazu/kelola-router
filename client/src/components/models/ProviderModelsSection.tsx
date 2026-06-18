@@ -160,11 +160,15 @@ export function ProviderModelsSection({
                     onChange={() => {
                       if (models.every((m) => selected.has(m.name))) {
                         const next = new Set(selected);
-                        models.forEach((m) => next.delete(m.name));
+                        models.forEach((m) => {
+                          next.delete(m.name);
+                        });
                         onSelectChange(next);
                       } else {
                         const next = new Set(selected);
-                        models.forEach((m) => next.add(m.name));
+                        models.forEach((m) => {
+                          next.add(m.name);
+                        });
                         onSelectChange(next);
                       }
                     }}
