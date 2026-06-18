@@ -52,7 +52,8 @@ export async function handleCodeBuddyProxy(
   body: Record<string, unknown>,
   db: Database.Database,
   cursorRef: CursorRef,
-  stickyMap: Map<number, string>
+  stickyMap: Map<number, string>,
+  parentReqId?: string
 ): Promise<Response> {
   const clientKey = c.get('clientKey');
   const startMs = c.get('startTime');
@@ -72,8 +73,10 @@ export async function handleCodeBuddyProxy(
     /* unknown/disabled model — keep placeholders; request surfaces error later */
   }
 
-  const reqId = genReqId();
-  c.set('reqId', reqId);
+  // When delegated from a combo, reuse the combo's reqId so the console shows
+  // one thread per combo request instead of two disconnected ones.
+  const reqId = parentReqId ?? genReqId();
+  if (!parentReqId) c.set('reqId', reqId);
   consoleBus.emit(
     buildStart(
       reqId,

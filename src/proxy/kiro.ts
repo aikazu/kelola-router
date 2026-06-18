@@ -50,7 +50,8 @@ export async function handleKiroProxy(
   body: Record<string, unknown>,
   db: Database.Database,
   cursorRef: CursorRef,
-  stickyMap: Map<number, string>
+  stickyMap: Map<number, string>,
+  parentReqId?: string
 ): Promise<Response> {
   const clientKey = c.get('clientKey');
   const startMs = c.get('startTime');
@@ -74,8 +75,10 @@ export async function handleKiroProxy(
   const requestedModel = resolved.requestedModel;
   const modelName = resolved.upstreamModel;
 
-  const reqId = genReqId();
-  c.set('reqId', reqId);
+  // When delegated from a combo, reuse the combo's reqId so the console shows
+  // one thread per combo request instead of two disconnected ones.
+  const reqId = parentReqId ?? genReqId();
+  if (!parentReqId) c.set('reqId', reqId);
   consoleBus.emit(
     buildStart(
       reqId,
