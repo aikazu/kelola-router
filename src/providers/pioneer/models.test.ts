@@ -57,7 +57,7 @@ describe('fetchAndSeedPioneerModels', () => {
       )
     );
     await fetchAndSeedPioneerModels(db, 'pio_sk_test');
-    const m = listModels(db, { includeDisabled: true }).find((x) => x.provider === 'pioneer')!;
+    const m = listModels(db, { includeDisabled: true }).find((x) => x.name === 'pioneer/gpt-5.5')!;
     expect(m.context_window).toBe(1000);
     expect(m.context_output).toBe(4096);
   });
