@@ -34,10 +34,10 @@ afterEach(() => {
 
 describe('resolveModel — prefixed', () => {
   it('resolves a prefixed minimax model and keeps the full requestedModel', () => {
-    const r = resolveModel(db, 'mm/MiniMax-M3', {});
+    const r = resolveModel(db, 'mx/MiniMax-M3', {});
     expect(r.upstreamModel).toBe('MiniMax-M3');
     expect(r.provider).toBe('minimax');
-    expect(r.requestedModel).toBe('mm/MiniMax-M3');
+    expect(r.requestedModel).toBe('mx/MiniMax-M3');
   });
 
   it('resolves a prefixed kiro model', () => {
@@ -50,11 +50,11 @@ describe('resolveModel — prefixed', () => {
   it('does NOT expand aliases after a prefix', () => {
     upsertAlias(db, { aliasName: 'opus', upstreamModel: 'MiniMax-M3' });
     clearAliasCache();
-    expect(() => resolveModel(db, 'mm/opus', {})).toThrow(/unknown model/);
+    expect(() => resolveModel(db, 'mx/opus', {})).toThrow(/unknown model/);
   });
 
   it('throws on provider mismatch', () => {
-    expect(() => resolveModel(db, 'mm/kiro-claude', {})).toThrow(/provider/);
+    expect(() => resolveModel(db, 'mx/kiro-claude', {})).toThrow(/provider/);
   });
 
   it('resolves a clean prefix to a provider-namespaced row when the bare name clashes', () => {
@@ -84,7 +84,7 @@ describe('resolveModel — prefixed', () => {
 
   it('throws on a disabled prefixed model', () => {
     disableModel(db, 'MiniMax-M3');
-    expect(() => resolveModel(db, 'mm/MiniMax-M3', {})).toThrow(/model disabled/);
+    expect(() => resolveModel(db, 'mx/MiniMax-M3', {})).toThrow(/model disabled/);
   });
 });
 
@@ -136,14 +136,14 @@ describe('resolveModel — unknown prefix', () => {
 
 describe('resolveModel — bodyTransform', () => {
   it('injects adaptive thinking for known models when client omits thinking', () => {
-    const r = resolveModel(db, 'mm/MiniMax-M3', {});
+    const r = resolveModel(db, 'mx/MiniMax-M3', {});
     const body: Record<string, unknown> = {};
     r.bodyTransform(body);
     expect(body.thinking).toEqual({ type: 'adaptive' });
   });
 
   it('preserves client-supplied thinking', () => {
-    const r = resolveModel(db, 'mm/MiniMax-M3', {});
+    const r = resolveModel(db, 'mx/MiniMax-M3', {});
     const body: Record<string, unknown> = { thinking: { type: 'enabled' } };
     r.bodyTransform(body);
     expect(body.thinking).toEqual({ type: 'enabled' });

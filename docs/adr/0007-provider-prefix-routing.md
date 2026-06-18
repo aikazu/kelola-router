@@ -1,4 +1,4 @@
-# 0007. Provider prefix routing (mm/ kr/ cb/ on body.model)
+# 0007. Provider prefix routing (mx/ kr/ cb/ pio/ nt/ on body.model)
 
 Date: 2026-06-14
 
@@ -19,7 +19,7 @@ A prefix scheme was needed: explicit, validated at parse time, and requiring zer
 
 `src/providers/modelPrefix.ts` exports `parseModelPrefix(raw: string): ParsedModel`. The parser splits on the first `/`:
 
-- `mm/<name>` → `provider: 'minimax'`, `modelName: name`, `prefixed: true`
+- `mx/<name>` → `provider: 'minimax'`, `modelName: name`, `prefixed: true`
 - `kr/<name>` → `provider: 'kiro'`, same
 - `cb/<name>` → `provider: 'codebuddy'`, same
 - No slash → `provider: null`, `prefixed: false` (bare — resolved later via combos/aliases)
@@ -31,7 +31,7 @@ Enforcement is in `resolveModel` (`src/providers/alias.ts`):
 - **Bare path**: must resolve via alias (`resolveAlias`). If the alias lookup returns the input unchanged (no match), the name is rejected — bare raw model names are never accepted as-is.
 - Combo names are intercepted upstream in `handleProxy` before `resolveModel` is called, so combos work with bare names.
 
-Combo members must carry a prefix (e.g. `mm/MiniMax-M3`, `kr/claude-sonnet-4-5`). This is enforced in `createCombo` and documented in the dashboard.
+Combo members must carry a prefix (e.g. `mx/MiniMax-M3`, `kr/claude-sonnet-4-5`). This is enforced in `createCombo` and documented in the dashboard.
 
 ## Consequences
 
@@ -49,7 +49,7 @@ Combo members must carry a prefix (e.g. `mm/MiniMax-M3`, `kr/claude-sonnet-4-5`)
 
 ### Neutral
 
-- `requested_model` in `request_logs` stores the full prefixed string (e.g. `mm/MiniMax-M3`). Log queries that match on model name need to account for the prefix.
+- `requested_model` in `request_logs` stores the full prefixed string (e.g. `mx/MiniMax-M3`). Log queries that match on model name need to account for the prefix.
 
 ## Alternatives considered
 

@@ -45,7 +45,7 @@ describe('proxy uses parseError to surface windowResetMs', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M2.7',
+        model: 'mx/MiniMax-M2.7',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });
@@ -83,7 +83,7 @@ describe('proxy uses parseError to surface windowResetMs', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M2.7',
+        model: 'mx/MiniMax-M2.7',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });

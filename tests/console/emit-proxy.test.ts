@@ -60,7 +60,7 @@ describe('handleProxy emits flow events', () => {
         origin: 'http://localhost',
         host: 'localhost',
       },
-      body: JSON.stringify({ model: 'mm/MiniMax-M2', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({ model: 'mx/MiniMax-M2', messages: [{ role: 'user', content: 'hi' }] }),
     });
     const { flushDeferredLogs } = await import('../../src/db/repos/requestLogs.js');
     await flushDeferredLogs();

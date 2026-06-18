@@ -55,7 +55,7 @@ describe('account no-op write guard', () => {
     const res = await app.request('/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'mm/MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({ model: 'mx/MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
     });
     expect(res.status).toBe(200);
     expect(accountUpdates).toBe(0);
@@ -101,7 +101,7 @@ describe('account no-op write guard', () => {
     const res = await app.request('/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'mm/MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({ model: 'mx/MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
     });
     expect(res.status).toBe(200);
     expect(accountUpdates).toBe(1);

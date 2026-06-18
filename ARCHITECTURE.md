@@ -237,7 +237,7 @@ csrfGuard (admin only) → requireApiKey (proxy) / requireAdmin (admin)
 parseBody (c.req.json / c.req.parseBody)
   ↓
 model resolution
-  • parseModelPrefix(model): mm/|kr/|cb/ selects provider via literal,
+  • parseModelPrefix(model): mx/|kr/|cb/|pio/|nt/ selects provider via literal,
     provider-matched lookup; unprefixed resolves only via combos/aliases (strict)
   • aliasCache.lookup(model) → upstream_model
   • -thinking / -agentic suffix handling

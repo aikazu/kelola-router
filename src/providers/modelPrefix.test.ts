@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parseModelPrefix } from './modelPrefix.js';
 
 describe('parseModelPrefix', () => {
-  it('parses mm prefix to minimax', () => {
-    expect(parseModelPrefix('mm/MiniMax-M3')).toEqual({
+  it('parses mx prefix to minimax', () => {
+    expect(parseModelPrefix('mx/MiniMax-M3')).toEqual({
       provider: 'minimax',
       modelName: 'MiniMax-M3',
       prefixed: true,
@@ -63,7 +63,7 @@ describe('parseModelPrefix', () => {
   });
 
   it('passes through an empty tail after a known prefix (validated downstream)', () => {
-    expect(parseModelPrefix('mm/')).toEqual({
+    expect(parseModelPrefix('mx/')).toEqual({
       provider: 'minimax',
       modelName: '',
       prefixed: true,

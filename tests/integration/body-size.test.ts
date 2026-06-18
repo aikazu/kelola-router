@@ -53,7 +53,7 @@ describe('request body size cap', () => {
       method: 'POST',
       headers: { authorization: 'Bearer rk_bs', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M2.7',
+        model: 'mx/MiniMax-M2.7',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });

@@ -110,10 +110,11 @@ Requests select a provider by an explicit prefix on `body.model`:
 
 | Prefix | Provider    | Example                  |
 |--------|-------------|--------------------------|
-| `mm/`  | MiniMax     | `mm/MiniMax-M3`          |
+| `mx/`  | MiniMax     | `mx/MiniMax-M3`          |
 | `kr/`  | Kiro        | `kr/claude-sonnet-4-5`   |
 | `cb/`  | CodeBuddy   | `cb/<model>`             |
 | `pio/` | Pioneer     | `pio/claude-opus-4-8`    |
+| `nt/`  | Notion      | `nt/<model>`             |
 
 - Prefixed names are looked up **literally** (no alias expansion) and the model's `provider` column MUST match the prefix, else 400.
 - **Unprefixed** names resolve **only** as a combo name or an alias (strict). A bare raw model name is rejected with 400 — add an alias or use a prefix.

@@ -92,7 +92,7 @@ describe('handleProxy with auth + accounts', () => {
     const req = new Request('http://localhost/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'mm/MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({ model: 'mx/MiniMax-M3', messages: [{ role: 'user', content: 'hi' }] }),
     });
     const res = await app.request(req);
     expect(res.status).toBe(200);
@@ -115,7 +115,7 @@ describe('handleProxy with auth + accounts', () => {
           method: 'POST',
           headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'mm/MiniMax-M3',
+            model: 'mx/MiniMax-M3',
             messages: [{ role: 'user', content: 'hi' }],
           }),
         })
@@ -153,7 +153,7 @@ describe('model resolution in proxy', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M3',
+        model: 'mx/MiniMax-M3',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });
@@ -217,7 +217,7 @@ describe('request logging', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M2.7',
+        model: 'mx/MiniMax-M2.7',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });
@@ -260,7 +260,7 @@ describe('request logging', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M2.7',
+        model: 'mx/MiniMax-M2.7',
         stream: true,
         messages: [{ role: 'user', content: 'hi' }],
       }),
@@ -298,7 +298,7 @@ describe('augmentation in proxy', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M3',
+        model: 'mx/MiniMax-M3',
         max_tokens: 100,
         system: 'you are helpful',
         messages: [{ role: 'user', content: 'hi' }],
@@ -326,7 +326,7 @@ describe('augmentation in proxy', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M3',
+        model: 'mx/MiniMax-M3',
         max_tokens: 100,
         system: 'you are helpful',
         messages: [{ role: 'user', content: 'hi' }],
@@ -402,7 +402,7 @@ describe('cross-format proxy (OpenAI client → Anthropic upstream)', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M3',
+        model: 'mx/MiniMax-M3',
         messages: [{ role: 'user', content: 'weather in SF?' }],
         tools: [
           {
@@ -448,7 +448,7 @@ describe('OpenAI stream auto include_usage', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M3',
+        model: 'mx/MiniMax-M3',
         stream: true,
         messages: [{ role: 'user', content: 'hi' }],
       }),
@@ -486,7 +486,7 @@ describe('provider prefix routing', () => {
     resetDb();
   });
 
-  it('mm/<minimax model> → minimax path taken, 200', async () => {
+  it('mx/<minimax model> → minimax path taken, 200', async () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_pfx1' });
     createAccount(db, { id: 'acc_pfx1', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
@@ -508,7 +508,7 @@ describe('provider prefix routing', () => {
         method: 'POST',
         headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'mm/MiniMax-M3',
+          model: 'mx/MiniMax-M3',
           messages: [{ role: 'user', content: 'hi' }],
         }),
       })
@@ -555,7 +555,7 @@ describe('provider prefix routing', () => {
     expect(String(body.error)).toMatch(/kiro/i);
   });
 
-  it('mm/<kiro model> (provider mismatch) → 400 with error matching /provider/', async () => {
+  it('mx/<kiro model> (provider mismatch) → 400 with error matching /provider/', async () => {
     const db = openDb();
     const ck = createClientKey(db, { label: 'u', key: 'rk_pfx3' });
     createAccount(db, { id: 'acc_pfx3', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
@@ -571,7 +571,7 @@ describe('provider prefix routing', () => {
         method: 'POST',
         headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'mm/kiro-model-x',
+          model: 'mx/kiro-model-x',
           messages: [{ role: 'user', content: 'hi' }],
         }),
       })
