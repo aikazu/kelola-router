@@ -19,15 +19,18 @@ export const migration_009 = {
   id: 9,
   name: 'pioneer-anthropic-dedup',
   sql: `
+    -- Derive canonical bare id by stripping the leading anthropic/pioneer/ prefix.
     CREATE TEMP TABLE _pio_canon AS
       SELECT id, name, upstream_model,
         CASE WHEN upstream_model LIKE 'anthropic/pioneer/%'
+             -- 19 = 1 (SQLite substr is 1-based) + length('anthropic/pioneer/') = 18
              THEN substr(upstream_model, 19)
              ELSE upstream_model
         END AS canon
       FROM models
       WHERE provider = 'pioneer';
 
+    -- Pick survivor per canon: canonical (non-prefixed) upstream first, then shortest name, then lowest id.
     CREATE TEMP TABLE _pio_keep AS
       SELECT canon, id AS keep_id FROM (
         SELECT *,
@@ -41,6 +44,7 @@ export const migration_009 = {
         FROM _pio_canon
       ) WHERE rn = 1;
 
+    -- Delete non-survivors (the leaked anthropic/pioneer/ dup rows).
     DELETE FROM models
      WHERE id IN (SELECT id FROM _pio_canon)
        AND id NOT IN (SELECT keep_id FROM _pio_keep);
