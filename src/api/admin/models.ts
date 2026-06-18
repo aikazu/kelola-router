@@ -1,15 +1,21 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
+import { listEnabledAccountsByProvider } from '../../db/repos/accounts.js';
 import { listAliasesForTargets } from '../../db/repos/aliases.js';
+import { listCombos } from '../../db/repos/combos.js';
 import {
   bulkToggleModels,
+  deleteModel,
   disableModel,
   enableModel,
   getModel,
   listModels,
+  updateModel,
   upsertModel,
 } from '../../db/repos/models.js';
-import { handleApiError } from './middleware.js';
+import { fetchModels } from '../../providers/listModels.js';
+import { fetchAndSeedPioneerModels } from '../../providers/pioneer/models.js';
+import { ApiError, handleApiError } from './middleware.js';
 import { testModelUpstream } from './modelHealth.js';
 
 export const modelRoutes = new Hono();
@@ -20,18 +26,29 @@ modelRoutes.get('/', (c) => {
     const rows = listModels(db, { includeDisabled: true });
     const targets = [...new Set(rows.map((r) => r.upstream_model))];
     const aliasesByTarget = listAliasesForTargets(db, targets);
+
+    // Combo membership counts: combos.models is a JSON array of member names.
+    const comboCountByName = new Map<string, number>();
+    for (const combo of listCombos(db)) {
+      for (const memberName of combo.models) {
+        comboCountByName.set(memberName, (comboCountByName.get(memberName) ?? 0) + 1);
+      }
+    }
+
     return c.json(
       rows.map((m) => ({
         name: m.name,
         displayName: m.display_name,
         family: m.family,
         contextWindow: m.context_window,
+        contextOutput: m.context_output,
         provider: m.provider ?? 'minimax',
         pricingInput: m.pricing_input,
         pricingOutput: m.pricing_output,
         source: m.source,
         enabled: !!m.enabled,
         aliasCount: (aliasesByTarget[m.upstream_model] ?? []).length,
+        comboCount: comboCountByName.get(m.name) ?? 0,
       }))
     );
   } catch (e) {
@@ -113,6 +130,105 @@ modelRoutes.post('/:name/test', async (c) => {
   }
 });
 
+modelRoutes.get('/:name/refs', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const name = decodeURIComponent(c.req.param('name'));
+    const model = getModel(db, name);
+    if (!model) throw new ApiError('not_found', 'Model tidak ditemukan', 404);
+
+    const aliases = (
+      listAliasesForTargets(db, [model.upstream_model])[model.upstream_model] ?? []
+    ).map((a) => ({ aliasName: a.aliasName }));
+    const combos = listCombos(db)
+      .filter((combo) => combo.models.includes(name))
+      .map((combo) => ({ id: combo.id, comboName: combo.name }));
+
+    return c.json({ aliases, combos });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+modelRoutes.delete('/:name', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const name = decodeURIComponent(c.req.param('name'));
+    const model = getModel(db, name);
+    if (!model) throw new ApiError('not_found', 'Model tidak ditemukan', 404);
+
+    const aliases = (
+      listAliasesForTargets(db, [model.upstream_model])[model.upstream_model] ?? []
+    ).map((a) => ({ aliasName: a.aliasName }));
+    const combos = listCombos(db)
+      .filter((combo) => combo.models.includes(name))
+      .map((combo) => ({ id: combo.id, comboName: combo.name }));
+
+    // Inline response (not ApiError) — refs payload must reach the client; ApiError
+    // body shape is { error, message } with no room for structured refs.
+    if (aliases.length > 0 || combos.length > 0) {
+      return c.json({ error: 'has_refs', refs: { aliases, combos } }, 409);
+    }
+    deleteModel(db, name);
+    return c.json({ ok: true });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+modelRoutes.patch('/:name', async (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const name = decodeURIComponent(c.req.param('name'));
+    const model = getModel(db, name);
+    if (!model) throw new ApiError('not_found', 'Model tidak ditemukan', 404);
+
+    const body = await c.req.json<Record<string, unknown>>();
+
+    // Allow only the editable fields; reject unknown keys + wrong types.
+    const allowed: Array<
+      'displayName' | 'contextWindow' | 'contextOutput' | 'pricingInput' | 'pricingOutput'
+    > = ['displayName', 'contextWindow', 'contextOutput', 'pricingInput', 'pricingOutput'];
+    const patch: Record<string, string | number | null> = {};
+    for (const key of Object.keys(body)) {
+      if (!allowed.includes(key as (typeof allowed)[number])) {
+        throw new ApiError('invalid_input', `unknown field: ${key}`, 400);
+      }
+      const v = body[key];
+      if (v === null) {
+        patch[key] = null;
+        continue;
+      }
+      if (key === 'displayName') {
+        if (typeof v !== 'string') {
+          throw new ApiError('invalid_input', 'displayName must be a string', 400);
+        }
+        patch[key] = v;
+      } else {
+        if (typeof v !== 'number' || !Number.isFinite(v)) {
+          throw new ApiError('invalid_input', `${key} must be a number`, 400);
+        }
+        patch[key] = v;
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      throw new ApiError('invalid_input', 'no editable fields provided', 400);
+    }
+
+    updateModel(db, name, {
+      displayName: patch.displayName as string | null | undefined,
+      contextWindow: patch.contextWindow as number | null | undefined,
+      contextOutput: patch.contextOutput as number | null | undefined,
+      pricingInput: patch.pricingInput as number | null | undefined,
+      pricingOutput: patch.pricingOutput as number | null | undefined,
+    });
+    return c.json({ ok: true });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
 modelRoutes.post('/bulk-toggle', async (c) => {
   try {
     const db = c.get('db') as Database.Database;
@@ -130,12 +246,41 @@ modelRoutes.post('/bulk-toggle', async (c) => {
   }
 });
 
-modelRoutes.post('/fetch', (c) => {
+const FETCH_PROVIDERS = ['minimax', 'pioneer'] as const;
+type FetchProvider = (typeof FETCH_PROVIDERS)[number];
+
+modelRoutes.post('/fetch/:provider', async (c) => {
   try {
-    // Placeholder: actual upstream fetch is in src/server.ts. We just touch upsertModel to validate route.
     const db = c.get('db') as Database.Database;
-    const before = listModels(db).length;
-    return c.json({ added: 0, updated: 0, total: before });
+    const provider = c.req.param('provider');
+    if (!(FETCH_PROVIDERS as readonly string[]).includes(provider)) {
+      return c.json(
+        { error: 'no_upstream_list', message: `${provider} has no model-list endpoint` },
+        404
+      );
+    }
+    const p = provider as FetchProvider;
+    const accounts = listEnabledAccountsByProvider(db, p);
+    const first = accounts[0];
+    if (!first) {
+      return c.json({ error: 'no_account', message: `no active ${p} account to fetch from` }, 400);
+    }
+
+    if (p === 'minimax') {
+      const result = await fetchModels(db, first.api_key);
+      if (!result.ok) {
+        return c.json({ error: 'fetch_failed', message: result.error ?? 'upstream error' }, 502);
+      }
+      const total = listModels(db, { includeDisabled: true }).length;
+      return c.json({ added: result.added ?? 0, total });
+    }
+    // pioneer: post-seed total row count (incl. disabled), mirrors minimax branch above.
+    const result = await fetchAndSeedPioneerModels(db, first.api_key, first.base_url);
+    if (!result.ok) {
+      return c.json({ error: 'fetch_failed', message: result.error ?? 'upstream error' }, 502);
+    }
+    const total = listModels(db, { includeDisabled: true }).length;
+    return c.json({ added: result.added ?? 0, total });
   } catch (e) {
     return handleApiError(e);
   }

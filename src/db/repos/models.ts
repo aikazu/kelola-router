@@ -7,6 +7,7 @@ export interface Model {
   family: string | null;
   upstream_model: string;
   context_window: number | null;
+  context_output: number | null;
   pricing_input: number | null;
   pricing_output: number | null;
   pricing_cache_read: number | null;
@@ -47,15 +48,16 @@ export function upsertModel(db: Database.Database, m: ModelUpsert): void {
     db.prepare(`UPDATE models SET ${set} WHERE name = ?`).run(...vals, m.name);
   } else {
     db.prepare(`
-      INSERT INTO models (name, upstream_model, display_name, family, context_window,
+      INSERT INTO models (name, upstream_model, display_name, family, context_window, context_output,
                           pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, capabilities, source, enabled, provider)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       m.name,
       m.upstream_model,
       m.display_name ?? null,
       m.family ?? null,
       m.context_window ?? null,
+      m.context_output ?? null,
       m.pricing_input ?? null,
       m.pricing_output ?? null,
       m.pricing_cache_read ?? null,
@@ -84,4 +86,46 @@ export function bulkToggleModels(db: Database.Database, names: string[], enabled
     .prepare(`UPDATE models SET enabled = ? WHERE name IN (${placeholders})`)
     .run(enabled ? 1 : 0, ...names);
   return r.changes;
+}
+
+export function deleteModel(db: Database.Database, name: string): boolean {
+  const r = db.prepare(`DELETE FROM models WHERE name = ?`).run(name);
+  return r.changes > 0;
+}
+
+export interface ModelUpdate {
+  displayName?: string | null;
+  contextWindow?: number | null;
+  contextOutput?: number | null;
+  pricingInput?: number | null;
+  pricingOutput?: number | null;
+}
+
+export function updateModel(db: Database.Database, name: string, patch: ModelUpdate): boolean {
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  if (patch.displayName !== undefined) {
+    sets.push('display_name = ?');
+    vals.push(patch.displayName);
+  }
+  if (patch.contextWindow !== undefined) {
+    sets.push('context_window = ?');
+    vals.push(patch.contextWindow);
+  }
+  if (patch.contextOutput !== undefined) {
+    sets.push('context_output = ?');
+    vals.push(patch.contextOutput);
+  }
+  if (patch.pricingInput !== undefined) {
+    sets.push('pricing_input = ?');
+    vals.push(patch.pricingInput);
+  }
+  if (patch.pricingOutput !== undefined) {
+    sets.push('pricing_output = ?');
+    vals.push(patch.pricingOutput);
+  }
+  if (sets.length === 0) return false;
+  vals.push(name);
+  const r = db.prepare(`UPDATE models SET ${sets.join(', ')} WHERE name = ?`).run(...vals);
+  return r.changes > 0;
 }

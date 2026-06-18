@@ -32,24 +32,28 @@ const minimaxModels: Model[] = [
     displayName: 'M3',
     family: null,
     contextWindow: 1_000_000,
+    contextOutput: 64_000,
     provider: 'minimax',
     pricingInput: 1,
     pricingOutput: 2,
     source: 'builtin',
     enabled: true,
     aliasCount: 0,
+    comboCount: 0,
   },
   {
     name: 'MiniMax-M2',
     displayName: null,
     family: null,
     contextWindow: 245_000,
+    contextOutput: null,
     provider: 'minimax',
     pricingInput: null,
     pricingOutput: null,
     source: 'builtin',
     enabled: false,
     aliasCount: 3,
+    comboCount: 2,
   },
 ];
 
@@ -57,11 +61,13 @@ function renderSection(overrides: Partial<Parameters<typeof ProviderModelsSectio
   return wrap(
     <ProviderModelsSection
       title="MiniMax"
+      provider="minimax"
       models={minimaxModels}
       selected={new Set()}
       onSelectChange={vi.fn()}
       shadowedNames={new Set()}
       onAddModel={vi.fn()}
+      onEditModel={vi.fn()}
       {...overrides}
     />
   );
@@ -75,11 +81,14 @@ describe('ProviderModelsSection', () => {
 
   it('renders a row per model with name, context, and alias link', () => {
     renderSection();
-    expect(screen.getByText('MiniMax-M3')).toBeInTheDocument();
-    expect(screen.getByText('MiniMax-M2')).toBeInTheDocument();
+    // ID column shows the callName (prefix/dbName); name is shown in the Name column
+    expect(screen.getByText('mx/MiniMax-M3')).toBeInTheDocument();
+    expect(screen.getByText('mx/MiniMax-M2')).toBeInTheDocument();
     expect(screen.getByText('1M')).toBeInTheDocument(); // fmtContext(1_000_000)
     expect(screen.getByText('245K')).toBeInTheDocument(); // fmtContext(245_000)
+    expect(screen.getByText('64K')).toBeInTheDocument(); // fmtContext(64_000) — contextOutput for M3
     expect(screen.getByText('3 aliases')).toBeInTheDocument();
+    expect(screen.getByText('2 combos')).toBeInTheDocument();
     // null pricing renders as '—' (M2 has null input + output + M3 has 0 aliases → '—')
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
   });
@@ -102,17 +111,22 @@ describe('ProviderModelsSection', () => {
     expect(onAddModel).toHaveBeenCalledTimes(1);
   });
 
-  it('Fetch from upstream button hits POST /api/admin/models/fetch', async () => {
+  it('Fetch from upstream button hits POST /api/admin/models/fetch/:provider', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(jsonResponse({ added: 0, updated: 0, total: 5 }));
+      .mockResolvedValue(jsonResponse({ added: 0, total: 5 }));
     renderSection();
     fireEvent.click(screen.getByText('Fetch from upstream'));
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
     const calledFetch = fetchSpy.mock.calls.some((c) =>
-      String(c[0]).includes('/api/admin/models/fetch')
+      String(c[0]).includes('/api/admin/models/fetch/minimax')
     );
     expect(calledFetch).toBe(true);
+  });
+
+  it('hides the Fetch button when provider is not in PROVIDERS_WITH_UPSTREAM_LIST', () => {
+    renderSection({ provider: 'kiro' });
+    expect(screen.queryByText('Fetch from upstream')).not.toBeInTheDocument();
   });
 
   it('select-all checkbox selects every model in the section', () => {

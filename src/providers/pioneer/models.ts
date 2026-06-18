@@ -7,6 +7,7 @@ interface PioneerModelEntry {
   id: string;
   display_name?: string | null;
   max_input_tokens?: number | null;
+  max_tokens?: number | null;
 }
 
 export interface SeedPioneerModelsResult {
@@ -58,10 +59,13 @@ export async function fetchAndSeedPioneerModels(
   const seen = new Set<string>();
   for (const m of entries) {
     if (!m.id) continue;
-    // Some upstream catalogue entries already include a leading `pioneer/`
-    // (e.g. `pioneer/anthropic/pioneer/Qwen/...`). Strip any leading `pioneer/`
-    // so we never double-namespace and end up with `pioneer/pioneer/...`.
-    const bareId = m.id.replace(/^pioneer\//, '');
+    // Strip a leading `anthropic/pioneer/` (Anthropic-API-compat alias form) and/or
+    // `pioneer/` (self-namespaced form), including repeated wraps (e.g.
+    // `pioneer/anthropic/pioneer/<id>`), so each model collapses to one canonical
+    // row. Without the `anthropic/pioneer/` strip the upstream catalogue seeds
+    // the same model twice (e.g. `gpt-5.5` + `anthropic/pioneer/gpt-5.5`) and
+    // produces duplicate rows.
+    const bareId = m.id.replace(/^(?:anthropic\/pioneer\/|pioneer\/)+/, '');
     if (seen.has(bareId)) continue;
     seen.add(bareId);
     const name = `pioneer/${bareId}`;
@@ -77,6 +81,7 @@ export async function fetchAndSeedPioneerModels(
       display_name: `Pioneer ${m.display_name?.trim() || bareId}`,
       family: 'pioneer',
       context_window: m.max_input_tokens ?? null,
+      context_output: m.max_tokens ?? null,
       pricing_input: 0,
       pricing_output: 0,
       pricing_cache_read: 0,
