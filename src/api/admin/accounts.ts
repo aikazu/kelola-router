@@ -437,13 +437,19 @@ accountRoutes.delete('/:id/locks/:model', (c) => {
 // Step 1: validate email + send OTP (sends 6-char temp password to user's inbox)
 accountRoutes.post('/notion/request-otp', async (c) => {
   try {
-    const body = (await c.req.json()) as { email?: string };
+    const body = (await c.req.json()) as { email?: string; deviceId?: string };
     if (!body.email) {
       throw new ApiError('invalid_input', 'email required', 400);
     }
     try {
       const opts = await getLoginOptions(body.email);
-      return c.json({ status: 'otp_sent', hasAccount: opts.hasAccount });
+      if (!opts.hasAccount) {
+        throw new ApiError('no_account', `no Notion account for ${body.email}`, 404);
+      }
+      // Trigger the actual email send
+      const deviceId = body.deviceId ?? `dev-${Date.now()}`;
+      await sendTemporaryPassword(body.email, opts.loginOptionsToken, deviceId);
+      return c.json({ status: 'otp_sent', hasAccount: true });
     } catch (e) {
       if (e instanceof NotionAuthError) {
         throw new ApiError(e.code, e.message, e.code === 'no_account' ? 404 : 400);
