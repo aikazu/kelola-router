@@ -21,7 +21,7 @@ import {
   deleteAccount,
   disableAccount,
   enableAccount,
-  listEnabledAccounts,
+  listEnabledAccountsByProvider,
 } from './db/repos/accounts.js';
 import {
   createClientKey,
@@ -126,8 +126,10 @@ app.get('/api/admin/console/stream', requireAdmin, (c) =>
 );
 app.get('/v1/models', requireApiKey, async (c) => {
   const db = c.get('db');
-  const allAccounts = listEnabledAccounts(db);
-  if (allAccounts.length === 0) return c.json({ error: 'no upstream accounts configured' }, 503);
+  // /v1/models proxies MiniMax's model catalogue — use a MiniMax account,
+  // not whatever provider happens to be first in the accounts table.
+  const allAccounts = listEnabledAccountsByProvider(db, 'minimax');
+  if (allAccounts.length === 0) return c.json({ error: 'no minimax accounts configured' }, 503);
   const acc = allAccounts[0]!;
   const overrideRaw = getSettingT(db, 'minimax')?.upstreamFormat ?? 'auto';
   const upstreamFormat = getUpstreamFormat('openai', overrideRaw);
@@ -151,7 +153,8 @@ app.get('/v1/models', requireApiKey, async (c) => {
 
 app.post('/admin/models/fetch', requireAdmin, async (c) => {
   const db = c.get('db');
-  const firstActive = listEnabledAccounts(db)[0];
+  // fetchModels pulls MiniMax's model catalogue — pick a MiniMax account.
+  const firstActive = listEnabledAccountsByProvider(db, 'minimax')[0];
   if (!firstActive)
     return c.json({ error: 'no active account — add a MiniMax upstream key first' }, 400);
   const result = await fetchModels(db, firstActive.api_key);

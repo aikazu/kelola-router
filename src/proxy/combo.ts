@@ -14,7 +14,12 @@ import {
   buildTransportFail,
   genReqId,
 } from '../console/flow.js';
-import { disableAccount, listEnabledAccounts, updateAccount } from '../db/repos/accounts.js';
+import {
+  disableAccount,
+  listEnabledAccounts,
+  listEnabledAccountsByProvider,
+  updateAccount,
+} from '../db/repos/accounts.js';
 import type { Combo } from '../db/repos/combos.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getAllSettings, getSettingT } from '../db/repos/settings.js';
@@ -122,8 +127,28 @@ export async function handleComboProxy(
   for (let i = 0; i < combo.models.length; i++) {
     const modelName = combo.models[i]!;
 
-    // Re-select account each iteration so recently-backoffed accounts are skipped
-    const allAccounts = listEnabledAccounts(db);
+    // Resolve the provider for THIS combo member before selecting an account.
+    // A combo mixes providers (mm/, kr/, cb/, pio/). The per-provider branches
+    // (kiro/cb/pio) select their own accounts internally, but the MiniMax
+    // fall-through path below reuses `acc` from this selection — so we must
+    // filter to minimax-only accounts here to avoid a sticky-pinned Pioneer
+    // account leaking into a MiniMax upstream call.
+    let resolved;
+    try {
+      resolved = resolveModel(db, modelName, body);
+    } catch {
+      // Model not found/disabled — skip to next in chain
+      log.warn({ combo: combo.name, model: modelName }, 'combo: model not resolvable, skipping');
+      continue;
+    }
+
+    // Re-select account each iteration so recently-backoffed accounts are skipped.
+    // Non-minimax providers are handled by their dedicated branches below; only
+    // the MiniMax path actually consumes `acc` from this pool.
+    const allAccounts =
+      resolved.provider === 'minimax'
+        ? listEnabledAccountsByProvider(db, 'minimax')
+        : listEnabledAccounts(db);
     const accountStates = buildAccountStates(allAccounts);
     const { account, reason, nextCursor } = selectAccount(accountStates, {
       mode: sel.mode,
@@ -141,16 +166,8 @@ export async function handleComboProxy(
       continue;
     }
     const acc = allAccounts.find((a) => a.id === account.id)!;
-    if (i === 0) {
+    if (i === 0 && resolved.provider === 'minimax') {
       consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, reason));
-    }
-    let resolved;
-    try {
-      resolved = resolveModel(db, modelName, body);
-    } catch {
-      // Model not found/disabled — skip to next in chain
-      log.warn({ combo: combo.name, model: modelName }, 'combo: model not resolvable, skipping');
-      continue;
     }
     // Apply model body transform
     const attemptBody = { ...body };

@@ -16,7 +16,11 @@ import {
   buildTransportFail,
   genReqId,
 } from '../console/flow.js';
-import { disableAccount, listEnabledAccounts, updateAccount } from '../db/repos/accounts.js';
+import {
+  disableAccount,
+  listEnabledAccountsByProvider,
+  updateAccount,
+} from '../db/repos/accounts.js';
 import { getCombo } from '../db/repos/combos.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getAllSettings, getSettingT } from '../db/repos/settings.js';
@@ -206,10 +210,12 @@ export async function handleProxy(
     bodyDirty = true;
   }
 
-  // Pool: ALL enabled MiniMax accounts (shared across all client keys).
-  const allAccounts = listEnabledAccounts(db);
+  // Pool: only MiniMax accounts. The previous `listEnabledAccounts` returned
+  // every provider's rows, so a sticky-pinned Pioneer/Kiro account could be
+  // selected here and a MiniMax request sent upstream with a foreign key.
+  const allAccounts = listEnabledAccountsByProvider(db, 'minimax');
   if (allAccounts.length === 0) {
-    return c.json({ error: 'no upstream accounts configured' }, 503);
+    return c.json({ error: 'no minimax accounts configured' }, 503);
   }
   const accountStates = buildAccountStates(allAccounts);
   const sel = getSettingT(db, 'selection.minimax') ?? {
