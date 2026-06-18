@@ -58,10 +58,11 @@ export async function fetchAndSeedPioneerModels(
   const seen = new Set<string>();
   for (const m of entries) {
     if (!m.id) continue;
-    // Some upstream catalogue entries already include a leading `pioneer/`
-    // (e.g. `pioneer/anthropic/pioneer/Qwen/...`). Strip any leading `pioneer/`
-    // so we never double-namespace and end up with `pioneer/pioneer/...`.
-    const bareId = m.id.replace(/^pioneer\//, '');
+    // Strip BOTH a leading `anthropic/pioneer/` (Anthropic-API-compat alias form) and a
+    // leading `pioneer/` (self-namespaced form) so each model collapses to one canonical
+    // row. Without the `anthropic/pioneer/` strip the upstream catalogue seeds the same
+    // model twice (e.g. `gpt-5.5` + `anthropic/pioneer/gpt-5.5`) -> 64 phantom rows.
+    const bareId = m.id.replace(/^anthropic\/pioneer\//, '').replace(/^pioneer\//, '');
     if (seen.has(bareId)) continue;
     seen.add(bareId);
     const name = `pioneer/${bareId}`;
