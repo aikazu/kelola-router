@@ -10,6 +10,14 @@
  */
 import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
+import { consoleBus } from '../console/bus.js';
+import {
+  buildAccount,
+  buildDone,
+  buildError,
+  buildStart,
+  genReqId,
+} from '../console/flow.js';
 import type { Account } from '../db/repos/accounts.js';
 import { listEnabledAccountsByProvider } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
@@ -26,6 +34,7 @@ import { buildNotionPayload } from '../providers/notion/transform.js';
 import { log } from '../util/log.js';
 import { errorMessage, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';
+import { buildLogRow, type LogRowContext } from './pipeline.js';
 
 interface NotionProviderData {
   cookies?: Record<string, string>;
@@ -90,37 +99,99 @@ export async function handleNotionProxy(
 
   const clientKey = c.get('clientKey') as { id: number } | undefined;
   const startMs = Date.now();
-  const reqId = `notion-${startMs}-${Math.random().toString(36).slice(2, 8)}`;
+  const reqId = genReqId();
+  c.set('reqId', reqId);
+
+  // Resolve the requested model up-front so the console flow carries the real
+  // upstream id (and the alias when one is mapped). Unknown/disabled models
+  // are tolerated — peek.provider already routed us here.
+  let requestedModel: string | null = null;
+  let upstreamModel = 'notion';
+  try {
+    const resolved = resolveModel(db, stringValue(body.model), body);
+    requestedModel = resolved.requestedModel;
+    upstreamModel = resolved.upstreamModel;
+  } catch {
+    /* unknown/disabled — keep placeholder, request will surface a 400 later */
+  }
+  const aliasForFlow =
+    requestedModel && requestedModel !== upstreamModel ? requestedModel : null;
+  consoleBus.emit(
+    buildStart(
+      reqId,
+      new Date().toISOString(),
+      c.req.method,
+      upstreamPath,
+      upstreamModel,
+      aliasForFlow
+    )
+  );
+
+  // Shared helper — write a log row + emit error event, then return a JSON 4xx/5xx.
+  const failAndLog = (
+    statusCodeVal: number,
+    errorKey: 'no_account' | 'notion_reauth_required' | 'upstream_error',
+    message: string,
+    accountId: string
+  ): Response => {
+    consoleBus.emit(
+      buildError(reqId, new Date().toISOString(), statusCodeVal, message)
+    );
+    const ctx: LogRowContext = {
+      clientKeyId: clientKey?.id ?? 0,
+      accountId,
+      model: upstreamModel,
+      requestedModel: requestedModel ?? upstreamModel,
+      endpoint: upstreamPath,
+      format: 'openai',
+      promptTokens: 0,
+      completionTokens: 0,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+      totalTokens: 0,
+      costUsd: 0,
+      latencyMs: Date.now() - startMs,
+      statusCode: statusCodeVal,
+      baseRespCode: undefined,
+      stream: body.stream ? 1 : 0,
+      rtkBytesSaved: 0,
+      requestBody: JSON.stringify(body),
+      responseBody: message,
+      requestHeaders: c.req.raw.headers,
+      responseHeaders: new Headers(),
+      reqId,
+    };
+    insertRequestLogDeferred(db, buildLogRow(ctx));
+    return c.json(
+      { error: errorKey, message },
+      statusCodeVal as unknown as Parameters<typeof c.json>[1]
+    );
+  };
 
   const account = pickAccount(db);
   if (!account) {
-    return c.json({ error: 'no_account', message: 'no enabled notion account' }, 503);
+    return failAndLog(503, 'no_account', 'no enabled notion account', '0');
   }
 
   const providerData = readProviderData(account.provider_data);
   if (!providerData?.cookies || !hasAllRequiredCookies(providerData.cookies)) {
-    return c.json(
-      {
-        error: 'notion_reauth_required',
-        message: `notion account ${account.id} missing required cookies; re-run notion-add-account`,
-      },
-      401
-    );
+    const msg = `notion account ${account.id} missing required cookies; re-run notion-add-account`;
+    return failAndLog(401, 'notion_reauth_required', msg, account.id);
   }
 
   const spaceId = providerData.spaceId;
   if (!spaceId) {
-    return c.json(
-      {
-        error: 'notion_reauth_required',
-        message: `notion account ${account.id} missing spaceId; re-add account to refresh`,
-      },
-      401
-    );
+    const msg = `notion account ${account.id} missing spaceId; re-add account to refresh`;
+    return failAndLog(401, 'notion_reauth_required', msg, account.id);
   }
 
   const resolved = resolveModel(db, stringValue(body.model), body);
   const internalModelId = resolved.upstreamModel ?? stringValue(body.model);
+  upstreamModel = internalModelId;
+
+  consoleBus.emit(
+    buildAccount(reqId, new Date().toISOString(), account.label, 'round-robin')
+  );
 
   const openaiMessages = readOpenAIMessages(body);
   const { body: notionBody } = buildNotionPayload({
@@ -144,7 +215,7 @@ export async function handleNotionProxy(
   } catch (e) {
     const msg = `notion upstream network error: ${errorMessage(e)}`;
     log.warn({ reqId, accountId: account.id, err: errorMessage(e) }, msg);
-    return c.json({ error: 'upstream_error', message: msg }, 502);
+    return failAndLog(502, 'upstream_error', msg, account.id);
   }
 
   if (!upstream.ok) {
@@ -154,16 +225,11 @@ export async function handleNotionProxy(
       { reqId, accountId: account.id, status, fatal: isFatal },
       `notion upstream HTTP ${status}`
     );
+    const message = `notion HTTP ${status}`;
     if (status === 401 || status === 403) {
-      return c.json(
-        { error: 'notion_reauth_required', message: `notion HTTP ${status}` },
-        401 as unknown as Parameters<typeof c.json>[1]
-      );
+      return failAndLog(401, 'notion_reauth_required', message, account.id);
     }
-    return c.json(
-      { error: 'upstream_error', message: `notion HTTP ${status}` },
-      status as unknown as Parameters<typeof c.json>[1]
-    );
+    return failAndLog(status, 'upstream_error', message, account.id);
   }
 
   // Convert NDJSON stream → OpenAI SSE stream
@@ -237,36 +303,49 @@ export async function handleNotionProxy(
         if (!emittedDone) {
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         }
-        insertRequestLogDeferred(db, {
-          client_key_id: clientKey?.id ?? null,
-          account_id: account.id,
-          model: internalModelId,
-          requested_model: stringValue(body.model),
-          endpoint: upstreamPath,
-          format: 'openai',
-          prompt_tokens: 0,
-          completion_tokens: 0,
-          cache_creation_tokens: 0,
-          cache_read_tokens: 0,
-          total_tokens: 0,
-          cost_usd: 0,
-          latency_ms: Date.now() - startMs,
-          ttft_ms: null,
-          status_code: 200,
-          base_resp_code: null,
-          stream: 1,
-          relay_path: null,
-          proxy_path: null,
-          rtk_bytes_saved: 0,
-          caveman_level: null,
-          error_message: null,
-          request_body: null,
-          response_body: null,
-          request_headers: null,
-          response_headers: null,
-          error: null,
-          req_id: reqId,
-        });
+        insertRequestLogDeferred(
+          db,
+          buildLogRow({
+            clientKeyId: clientKey?.id ?? 0,
+            accountId: account.id,
+            model: internalModelId,
+            requestedModel: requestedModel ?? stringValue(body.model),
+            endpoint: upstreamPath,
+            format: 'openai',
+            promptTokens: 0,
+            completionTokens: 0,
+            cacheCreationTokens: 0,
+            cacheReadTokens: 0,
+            totalTokens: 0,
+            costUsd: 0,
+            latencyMs: Date.now() - startMs,
+            statusCode: 200,
+            baseRespCode: undefined,
+            stream: 1,
+            rtkBytesSaved: 0,
+            requestBody: JSON.stringify(body),
+            responseBody: null,
+            requestHeaders: c.req.raw.headers,
+            responseHeaders: new Headers(),
+            reqId,
+          })
+        );
+        // Notion's NDJSON stream does not surface token counts — log 0/0
+        // and cost 0. Keeps parity with Pioneer/Kiro happy-path emissions.
+        consoleBus.emit(
+          buildDone(
+            reqId,
+            new Date().toISOString(),
+            200,
+            null,
+            0,
+            0,
+            0,
+            0,
+            Date.now() - startMs,
+            0
+          )
+        );
         controller.close();
       } catch (e) {
         const msg = errorMessage(e);
