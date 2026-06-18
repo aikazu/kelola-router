@@ -1,7 +1,7 @@
 {
   "name": "kelola-router",
-  "version": "0.19.0",
-  "description": "Local-first API router for MiniMax + Kiro (AWS CodeWhisperer) + CodeBuddy — provider-prefix routing, multi-account pool, combo fallback, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in dashboard",
+  "version": "0.20.0",
+  "description": "Local-first API router for MiniMax + Kiro (AWS CodeWhisperer) + CodeBuddy + Notion — provider-prefix routing, multi-account pool, combo fallback, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in dashboard",
   "type": "module",
   "private": true,
   "engines": {
@@ -23,6 +23,8 @@
     "add-account": "tsx scripts/add-account.ts",
     "seed-models": "tsx scripts/seed-models.ts",
     "seed-kiro-models": "tsx scripts/seed-kiro-models.ts",
+    "notion-add-account": "tsx scripts/notion-add-account.ts",
+    "seed-notion-models": "tsx scripts/seed-notion-models.ts",
     "reset": "tsx scripts/reset.ts",
     "typecheck": "tsc --noEmit"
   },

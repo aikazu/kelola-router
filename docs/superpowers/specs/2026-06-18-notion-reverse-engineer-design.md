@@ -1,153 +1,241 @@
 # Notion Desktop AI Chat — Reverse Engineer & Router Integration
 
 **Date:** 2026-06-18
-**Status:** Draft (pending user review)
+**Status:** v3 REVISION — request body is single JSON `{traceId, spaceId, transcript, patches}` (not NDJSON). Image input via `attachment` record (v1: Notion-hosted URLs only). 11 cookies required for AI request. See `docs/notion/wire-format.md` for full protocol + `docs/notion/capture-notes.md` for RE findings.
 **Owner:** aikazu
-**Related:** mirrors `src/proxy/kiro.ts` + `src/proxy/codebuddy.ts` patterns
+**Related:** mirrors `src/providers/kiro/` + `src/proxy/kiro.ts` patterns
 
 ---
 
 ## Goal
 
-Reverse engineer the AI chat endpoints of the Notion desktop client, document the protocol, and integrate Notion as a new upstream provider in `kelola-router` — with OTP-based account auth, multi-account failover, and conversation continuity (same `conversation_id` sticks to the same account, with graceful migration on failure).
+Reverse engineer the AI chat endpoints of the Notion desktop client, document the protocol, and integrate Notion as a new upstream provider in `kelola-router` — with 3-step temp-password login, cookie-based session auth, JSON request / NDJSON response translation to/from OpenAI chat-completion format, image input (Notion-hosted), tool calls, and conversation continuity.
 
-**Non-goals:** WebSocket streaming (SSE first), multi-workspace routing, image/file upload, conversation history sync, publishing an official Notion SDK.
+**Non-goals (v1):** HTTPS/base64 image upload (v1 = Notion-hosted `attachment:` URLs only), function/tool calling (captured but implementation deferred — schema known), multi-workspace routing, image generation in response.
 
 ---
 
 ## Why
 
-The router currently fronts MiniMax, Kiro, CodeBuddy, and Pioneer. Notion AI is a popular subscription users already pay for; routing it through the router gives them a single OpenAI-compatible surface, key isolation, usage logs, and failover across multiple Notion accounts.
+The router currently fronts MiniMax, Kiro, CodeBuddy, and Pioneer. Notion AI is a popular subscription users already pay for; routing it through the router gives them a single OpenAI-compatible surface, key isolation, usage logs, and (future) failover across multiple Notion accounts.
 
 ---
 
 ## Architecture
 
 ```
-src/proxy/notion.ts          # selectAccount + upstreamFetch + applyAccountError + body format conversion
-src/auth/notion.ts           # requestOtp(email) + exchangeOtp(email, code) → { token, user_id, workspace_id }
-src/selection/notion.ts      # sticky / round-robin state machine (mirrors selection/kiro.ts)
-src/models/notion.ts         # model catalogue seeded on account-add (mirrors models/kiro.ts)
-src/db/migrations/00X-notion.ts  # CREATE TABLE conversation_routing
-scripts/notion-add-account.ts    # CLI: email → OTP prompt → token stored
-docs/notion/                 # captured HAR, endpoint table, request/response examples, ToS note
+src/providers/notion/
+  constants.ts            # endpoints, internal model IDs, header builders, version pin
+  auth.ts                 # getLoginOptions + sendTemporaryPassword + loginWithEmail + parseCookies + ensureNotionAuth
+  transform.ts            # buildNotionPayload(openaiBody, account) → JSON {traceId, spaceId, transcript, patches}
+  extract.ts              # NDJSON stream parser + JSON-Patch applicator + text-delta extractor
+  index.ts                # executeNotion() — entry point, cookies + headers, dispatch
+  *.test.ts
+src/proxy/notion.ts       # handleNotionProxy(c, format, upstreamPath) — mirror src/proxy/kiro.ts
+src/selection/notion.ts   # sticky/round-robin + conversation routing lookup/upsert
+src/models/notion/manifest.json  # model list from getAvailableModels
+src/db/migrations/008-notion-provider.ts  # notion_user_id, notion_space_id cols + conversation_routing table
+scripts/notion-add-account.ts   # CLI: 3-step login + cookie storage
+scripts/seed-notion-models.ts   # upsert from manifest
+client/src/pages/Accounts.tsx   # NotionCard
+client/src/components/NotionAuthForm.tsx + useNotionAuth.ts
+docs/notion/wire-format.md      # protocol reference (exists)
+docs/notion/capture-notes.md    # RE findings (exists)
+tests/fixtures/notion/sample-stream.har
+tests/fixtures/notion/login.har
 tests/proxy/notion.test.ts
-tests/auth/notion.test.ts
-tests/selection/notion.test.ts
-tests/fixtures/notion/*.har  # 1+ captured sessions
+tests/providers/notion/*.test.ts
 ```
-
-Mirror `src/proxy/kiro.ts` and `src/proxy/codebuddy.ts` 1:1. Only deviations: (a) OTP login instead of static refresh token, (b) `conversation_routing` table for chat continuity.
 
 ---
 
 ## Components
 
-### 1. Auth — `src/auth/notion.ts`
+### 1. Auth — `src/providers/notion/auth.ts`
+
+Three-step login (per `docs/notion/wire-format.md`):
 
 ```ts
-export async function requestOtp(email: string): Promise<void>
-export async function exchangeOtp(email: string, code: string): Promise<{
-  token: string
-  userId: string
-  workspaceId: string
-  refreshToken?: string   // discovered during RE — Notion may or may not issue one
+export async function getLoginOptions(email: string): Promise<{
+  loginOptionsToken: string
+  hasAccount: boolean
+  passwordSignIn: boolean
 }>
-// Token refresh: behaviour is RE-driven. Two scenarios:
-// (a) Notion issues a refresh_token at OTP exchange → background refresh before
-//     `token` expiry (token TTL discovered during RE).
-// (b) Notion issues only a short-lived token with no refresh path → on 401,
-//     proxy emits `code: 'notion_reauth_required'`, dashboard surfaces a
-//     "Re-authenticate" button that re-runs the OTP flow.
-// The RE phase MUST capture the token TTL, presence of refresh_token, and any
-// refresh/extend-session endpoint. Implementation lands whichever scenario the
-// capture confirms — same dual-mode pattern as Kiro's refresh vs re-auth.
+
+export async function sendTemporaryPassword(
+  email: string,
+  loginOptionsToken: string,
+  deviceId: string,
+): Promise<{ csrfState: string }>
+
+export async function loginWithEmail(
+  csrfState: string,
+  password: string,
+): Promise<{
+  cookies: Record<string, string>  // 8 cookies: token_v2, file_token, notion_user_id, notion_users, notion_sync_user_id, notion_locale, NEXT_LOCALE, p_sync_session
+  userId: string
+}>
+
+export async function ensureNotionAuth(
+  db: Database.Database,
+  account: Account,
+): Promise<{ cookies: Record<string, string>; userId: string; spaceId: string }>
+// Returns cached cookies from accounts.provider_data if fresh (< 1 hour old),
+// otherwise triggers re-login via stored email (re-asks password via dashboard).
 ```
 
-- Endpoints discovered via mitmproxy capture (placeholders until RE done):
-  - `POST https://api.notion.com/v1/login/sendOtp` body `{ email }`
-  - `POST https://api.notion.com/v1/login/verify` body `{ email, code }` → `{ token, user_id, workspace_id }`
-- Errors: invalid code → throw `NotionAuthError('invalid_code')`; expired → `'otp_expired'`.
-
-### 2. CLI — `scripts/notion-add-account.ts`
-
-```
-$ npm run notion-add-account -- --label personal --email user@x.com
-> Sending OTP to user@x.com...
-> Enter 6-digit code: 482910
-> ✓ Account 'personal' added (workspace_id=ws_abc123)
+Cookies stored in `accounts.provider_data` as JSON:
+```json
+{
+  "cookies": { "token_v2": "...", "file_token": "...", "notion_user_id": "...", ... },
+  "userId": "382d872b-...",
+  "deviceId": "<uuid>",
+  "cookiesFetchedAt": "2026-06-18T..."
+}
 ```
 
-- `readline` prompts for code after OTP request
-- On success: insert into `accounts` w/ `provider='notion'`, `access_token=token`, `email`, `workspace_id`
-- On failure: no partial row (transactional)
-- Trigger model seed: `seedModelsFor('notion')` (mirrors `seed-models` pattern)
+### 2. Transformer — `src/providers/notion/transform.ts`
 
-### 3. Proxy — `src/proxy/notion.ts`
+```ts
+export function buildNotionPayload(opts: {
+  openaiBody: ChatCompletionRequest
+  account: Account
+  internalModelId: string   // e.g. "oatmeal-cookie"
+  spaceId: string            // from account.notion_space_id
+  attachments?: Array<{ fileUrl: string; fileName: string; contentType: string; metadata: {...} }>
+}): {
+  body: string  // JSON.stringify'd body
+  traceId: string
+}
+```
 
-Implements the standard provider interface (same as Kiro):
-- `selectAccount({ mode, step })` — sticky or round-robin
-- `checkModelLock(accountId, model)` → returns locked-state
-- `upstreamFetch(account, body, signal)` — calls Notion AI endpoint w/ Bearer + client-version headers
-- `applyAccountError(account, response)` — backoff, model lock, disable
-- `bodyOpenAIToNotion(req)` / `responseNotionToOpenAI(sse)` — format conversion (TBD from capture)
-- `pipeWithUsage` for SSE (reuse from `streaming/pipeWithUsage.ts`)
+**Converts:**
+- `messages[]` → multiple `agent-inference` records in `transcript[]`, one per message (system role → content folded into first user message OR kept as separate `agent-inference` with role system)
+- `model` → `config.value.model` (internal ID, mapped from router alias)
+- `attachments` (from `messages[].content[].type: "image_url"`) → `attachment` records prepended to `transcript[]`
+- `stream` → `config.value.enableXxx` flags (always set `useWebSearch: true`, `enableAgentGenerateImage: true`)
+- `tools[]` → append as `agent-tool-result` records OR `config.value.availableConnectors` (v1: leave empty)
 
-### 4. Selection state — `src/selection/notion.ts`
+**Output JSON structure:**
+```json
+{
+  "traceId": "<uuid>",
+  "spaceId": "<workspace-uuid>",
+  "transcript": [
+    { "id": "<uuid>", "type": "config", "value": {...} },
+    { "id": "<uuid>", "type": "agent-instruction-state", "owner": "regular", "root": {"type": "none"}, "sources": [], "selectedSkillPageIds": [], "trackedInstructionTreePages": [] },
+    { "id": "<uuid>", "type": "agent-turn-full-record-map", "value": {} },
+    { "id": "<uuid>", "type": "attachment", ... },
+    { "id": "<uuid>", "type": "agent-inference", "value": [{"type": "text", "content": "..."}], "traceId": "<uuid>", "startedAt": <ms> }
+  ],
+  "patches": []
+}
+```
 
-Mirrors `selection/kiro.ts`:
-- `mode`: `sticky` (default) | `round-robin`
-- `step`: round-robin offset (default 1)
-- Skip rules: account in `backoff_until > now`, account `state` in `{locked, disabled}`, model explicitly locked
-- After successful response: clear backoff, bump `last_used_at`, decrement `error_count`
+### 3. Stream Extractor — `src/providers/notion/extract.ts`
 
-> **Implementation note:** the `accounts.state` enum and column names above are placeholders mirroring the existing Kiro selection module. The implementation plan must verify the actual schema in `src/db/schema.ts` (or equivalent) before writing migration code, and adjust this spec section if the names differ.
+```ts
+export interface TextDelta {
+  conversationId: string  // captured from first patch-start
+  delta: string
+  done: boolean
+  toolCall?: { id: string; name: string; arguments: string }
+}
 
-### 5. Conversation continuity — new table
+export async function* extractNotionStream(
+  response: Response,
+): AsyncIterable<TextDelta>
+```
 
+**Algorithm:**
+1. Initialize state from first `{"type":"patch-start"}` line
+2. For each subsequent line, apply patches to state using `fast-json-patch`
+3. Track each `agent-inference` record's `value[0].content`
+4. When content changes, emit `TextDelta { delta: <new_chars - old_chars> }`
+5. For `agent-tool-result` records, emit `TextDelta { toolCall: {...} }`
+6. On `{"type":"done"}`, emit `TextDelta { done: true }`
+
+### 4. Proxy — `src/proxy/notion.ts`
+
+Mirrors `src/proxy/kiro.ts`:
+- `handleNotionProxy(c, format, upstreamPath)`
+- Reads account from `accounts` table via model lookup
+- Calls `ensureNotionAuth()` for fresh cookies
+- Builds request via `buildNotionPayload()`
+- POSTs to `https://app.notion.com/api/v3/runInferenceTranscript` with cookies + `notion-client-version`
+- Pipes response via `extractNotionStream()` → OpenAI/Anthropic SSE chunks
+- Logs via `consoleBus` (`start`/`account`/`transport`/`done`/`error` events)
+- Error mapping: 401 → disable + `notion_reauth_required`, 429 → backoff + failover, 5xx → exp backoff
+
+### 5. Selection — `src/selection/notion.ts`
+
+```ts
+export interface NotionSelectionConfig {
+  mode: 'sticky' | 'round-robin'
+  step: number
+}
+
+export function selectNotionAccount(cfg: NotionSelectionConfig): Account | null
+```
+
+Mirror of `src/selection/kiro.ts`. Skip backoff/locked/disabled/model-locked accounts. Sticky default.
+
+### 6. Conversation Routing
+
+Schema (`src/db/migrations/008-notion-provider.ts`):
 ```sql
 CREATE TABLE conversation_routing (
   conversation_id TEXT PRIMARY KEY,
-  account_id      TEXT NOT NULL REFERENCES accounts(id),
+  account_id      TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   model           TEXT NOT NULL,
-  created_at      INTEGER NOT NULL,
-  last_used_at    INTEGER NOT NULL
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  last_used_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX idx_conv_routing_last_used ON conversation_routing(last_used_at);
 ```
 
-**Lookup flow** (in `selectAccount` for `notion`):
-1. Extract `conversation_id` from request body (OpenAI `messages` metadata or custom `x-notion-conversation` header — TBD from capture)
-2. If present in `conversation_routing` AND referenced account is healthy (not backoff/locked/disabled) → use that account (override selection mode)
-3. If present but referenced account unhealthy → **two-phase handling**:
-   - Phase A (probing): try the request against the next healthy account **without** sending the old `conversation_id` (omit it from the Notion body so the upstream creates a fresh conversation). This avoids Notion rejecting an unknown conversation_id from a foreign account.
-   - Phase B (post-response): the new conversation_id returned by Notion is a different value. Upsert routing row with the NEW id mapped to the new account. Set response header `X-Notion-Conversation-Migrated: true` AND echo the new id in response body so the client can update its local reference.
-4. If absent → fresh conversation, run normal `selectAccount`, insert routing row after upstream returns the conversation_id
+Plus `ALTER TABLE accounts ADD COLUMN notion_user_id TEXT` + `notion_space_id TEXT`.
 
-**Cleanup:** lazy check on lookup — if `last_used_at < now - 7d` → delete row, treat as absent.
+**Lookup:** `conversation_id` extracted from request body custom field `notion_conversation_id` or `X-Notion-Conversation-Id` header. If found + account healthy → pin. If found + account unhealthy → failover (omit conversation_id from new request, force fresh conversation on new account).
 
-**Concurrency:** routing table upsert uses SQLite `INSERT ... ON CONFLICT(conversation_id) DO UPDATE` for atomicity. No explicit lock — SQLite WAL serializes writers, and a stale concurrent lookup that just lost the upsert race will see the updated row on its next request. Acceptable for v1; revisit if collision rate becomes a metric.
+**v1 simplification:** capture evidence shows each request is stateless (full transcript sent each time). No need for cross-turn conversation continuity in router. **Skip conversation_routing table for v1** — just select a healthy account per request.
 
-### 6. Models — `src/models/notion.ts`
+### 7. Models
 
-Catalogue seeded on `account-add`. The exact list of models Notion AI exposes via its chat endpoints is **not known until capture is done**; the seed module reads the model list from a JSON manifest at `src/models/notion/manifest.json`, which is populated during RE phase from the captured response that lists available models. The manifest shape:
-
+`src/providers/notion/manifest.json`:
 ```json
 {
   "provider": "notion",
   "models": [
-    {
-      "id": "<notion-internal-model-id>",
-      "alias": "<router-facing-alias>",
-      "thinking": { "supported": false },
-      "maxCompletionTokens": <number>,
-      "pricing": { "inputPerMillion": <usd>, "outputPerMillion": <usd> }
-    }
+    { "id": "oatmeal-cookie", "alias": "nt/notion-gpt-5.2", "displayName": "GPT-5.2", "family": "openai", "maxCompletionTokens": 8192, "pricing": { "input": 0, "output": 0 } },
+    { "id": "oval-kumquat-medium", "alias": "nt/notion-gpt-5.4", "displayName": "GPT-5.4", "family": "openai", "maxCompletionTokens": 8192, "pricing": { "input": 0, "output": 0 } },
+    { "id": "opal-quince-medium", "alias": "nt/notion-gpt-5.5", "displayName": "GPT-5.5", "family": "openai", "maxCompletionTokens": 8192, "pricing": { "input": 0, "output": 0 } },
+    { "id": "vertex-gemini-2.5-flash", "alias": "nt/notion-gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "family": "gemini", "maxCompletionTokens": 8192, "pricing": { "input": 0, "output": 0 } },
+    { "id": "vertex-gemini-3.5-flash", "alias": "nt/notion-gemini-3.5-flash", "displayName": "Gemini 3.5 Flash", "family": "gemini", "maxCompletionTokens": 8192, "pricing": { "input": 0, "output": 0 } },
+    { "id": "almond-croissant-low", "alias": "nt/notion-sonnet-4.6", "displayName": "Sonnet 4.6", "family": "anthropic", "maxCompletionTokens": 8192, "pricing": { "input": 0, "output": 0 } }
   ]
 }
 ```
 
-If capture cannot extract a model list (e.g., Notion returns models only inside the request UI), the manifest starts empty and grows as users report working model ids in issues — manual mode, no auto-discovery. Either way, the seed step is idempotent and re-runnable via `npm run seed-notion-models` (mirrors `seed-kiro-models`).
+(`acai-budino` excluded — restricted trial.)
+
+`pricing: 0` because Notion AI is subscription-based, not per-token. Router can compute "API-equivalent" cost later.
+
+### 8. CLI — `scripts/notion-add-account.ts`
+
+```
+$ npm run notion-add-account -- --label personal --email attila@kcmon.id
+> Checking Notion account...
+> ✓ Account exists (no password required)
+> Sending temporary password to attila@kcmon.id...
+> Enter 6-character password from email: hdqiGs
+> Fetching available models...
+> ✓ Account 'personal' added (user_id=382d872b-...)
+```
+
+### 9. Dashboard
+
+`client/src/pages/Accounts.tsx`: add `<NotionCard />` parallel to `<KiroCard />`.
+`client/src/components/NotionAuthForm.tsx` + `useNotionAuth.ts`: 3-step login flow with email + password fields.
 
 ---
 
@@ -156,19 +244,15 @@ If capture cannot extract a model list (e.g., Notion returns models only inside 
 | Notion status | Class | Action | Failover? |
 |---|---|---|---|
 | 200 | success | sticky, clear backoff | — |
-| 401 | fatal | disable account, surface to client | NO |
-| 403 | fatal | disable account, surface to client | NO |
-| 404 | fatal (unknown conversation) | return 404, suggest new conversation | NO |
+| 401 | fatal | disable account, surface `notion_reauth_required` to client | NO |
+| 403 | fatal | disable account | NO |
+| 404 | fatal (unknown conversation/record) | return 404, suggest new conversation | NO |
 | 429 | retryable | backoff 60s, model lock if `Retry-After` per-model | YES |
 | 500/502/503 | retryable | exp backoff 1s→2s→4s, max 3 attempts | YES |
 | network/timeout | retryable | failover immediately | YES |
-| OTP wrong/expired | fatal | no partial DB row, CLI exits non-zero | — |
-
-Config (mirroring Kiro settings):
-- `settings.notion.selection.mode` default `sticky`
-- `settings.notion.selection.step` default `1`
-- `settings.notion.maxFailoverAttempts` default `3`
-- `settings.notion.conversationTtlDays` default `7`
+| `hasAccount: false` | fatal | CLI rejects email, no DB row | — |
+| `passwordSignIn: true` | unsupported | CLI rejects, "account requires password, not supported" | — |
+| `getAIUsageEligibility.isEligible: false` | fatal | reject at account-add time | — |
 
 ---
 
@@ -177,24 +261,16 @@ Config (mirroring Kiro settings):
 ```
 Client (OpenAI format)
   → POST /v1/chat/completions w/ Bearer client_key
-  → parseBody + model alias resolution
-  → selectAccount('notion')
-      ├─ extract conversation_id from body/header
-      ├─ if in conversation_routing + healthy → return that account, send conversation_id as-is to Notion
-      ├─ if in routing + unhealthy → return next healthy account, OMIT conversation_id from Notion body
-      │   (force fresh upstream conversation; capture returned id for upsert + client echo)
-      └─ else → run sticky/round-robin selection (no conversation_id from client)
+  → parseBody + model alias resolution (router-facing → internal ID via manifest)
+  → selectAccount('notion') — sticky/round-robin
   → checkModelLock → 429 if locked
-  → augment system prompt + cache breakpoints
-  → bodyOpenAIToNotion(req) — strips/keeps conversation_id per branch above
-  → upstreamFetch (Bearer + Notion-Client-Version headers)
-      └─ SSE pipe via pipeWithUsage
-  → responseNotionToOpenAI → extract new conversation_id from first chunk metadata
-      ├─ if migration branch → set X-Notion-Conversation-Migrated: true, echo new id in body
-      └─ if normal branch → echo id as-is
-  → upsert conversation_routing(conversation_id=NEW, account_id, model)
-      ON CONFLICT DO UPDATE (atomic; see Concurrency note)
-  → insertRequestLog(cost, tokens, latency, account_id, requested_model, conversation_id)
+  → augment system prompt
+  → buildNotionPayload({openaiBody, account, internalModelId, spaceId, attachments})
+      → returns {body: JSON, traceId}
+  → upstreamFetch (cookies + notion-client-version header, NO Authorization)
+      ├─ POST runInferenceTranscript with JSON body
+      └─ pipeNotionStream → for each TextDelta, emit OpenAI chunk via pipeWithUsage
+  → on success: insertRequestLog(cost=0, tokens, latency, account_id, model, conversation_id)
   → applyAccountError (clear on success, backoff/lock on failure)
 ```
 
@@ -202,29 +278,41 @@ Client (OpenAI format)
 
 ## Testing (TDD red-green per CLAUDE.md)
 
-**`tests/auth/notion.test.ts`**
-- `requestOtp` posts email, no partial DB row on failure
-- `exchangeOtp` invalid code → throws `NotionAuthError('invalid_code')`, no row inserted
-- `exchangeOtp` success → row inserted w/ token, email, workspace_id, `provider='notion'`
+**`tests/providers/notion/auth.test.ts`** — mock fetch:
+- `getLoginOptions` parses response
+- `sendTemporaryPassword` posts correct body
+- `loginWithEmail` extracts 8 cookies from Set-Cookie header (correct domain filtering)
+- `ensureNotionAuth` returns cached cookies if fresh, re-auths on 401
+- No DB row inserted on partial login failure
 
-**`tests/proxy/notion.test.ts`**
-- Format conversion: OpenAI request → Notion body (asserts field mapping: `messages` → Notion `conversation.messages`, `model` → Notion `model_id`, system prompt handling, tool messages if any). Then Notion SSE chunk → OpenAI `chat.completion.chunk` (asserts role/content/tool_calls delta mapping, finish_reason translation). Tests assert on each direction separately, not a roundtrip, because Notion's response shape is upstream-controlled and may drift.
-- SSE chunk assembly produces valid OpenAI streaming chunks
+**`tests/providers/notion/transform.test.ts`**:
+- `buildNotionPayload` returns valid JSON with required top-level keys
+- Empty messages → minimal transcript (just config + instruction-state + turn-map)
+- 1 user message → produces 1 `agent-inference` record
+- System message + user message → 2 `agent-inference` records OR folded (TBD)
+- Image URL `attachment:...` → produces `attachment` record
+- Model alias → correct internal ID
+- `stream: true` → config has streaming-compatible flags
+
+**`tests/providers/notion/extract.test.ts`**:
+- Empty stream → no deltas
+- `patch-start` → state initialized
+- `patch` adds inference → content captured
+- Subsequent `patch` updates content → delta emitted with diff
+- `agent-tool-result` → toolCall emitted
+- `done` → final TextDelta with done=true
+
+**`tests/proxy/notion.test.ts`** (integration):
 - 401 → account disabled, NO failover attempted
-- 429 → backoff set, failover to next account attempted
-- 5xx → exp backoff, max 3 attempts, then return error to client
-- `conversation_id` present + account healthy → uses that account, routing row unchanged, response echoes the same id
-- `conversation_id` present + account unhealthy → omits the old id from the Notion body, gets fresh id back, upserts routing row with NEW id, `X-Notion-Conversation-Migrated: true` header set, response body contains new id
-- `conversation_id` absent → fresh selection, routing row upserted after upstream response returns the new id
+- 429 → backoff set, failover attempted
+- 5xx → exp backoff, max 3 attempts
+- Successful stream → OpenAI SSE chunks emitted in correct order
 
-**`tests/selection/notion.test.ts`**
-- Sticky mode: 5 sequential requests → same account
-- Round-robin w/ step=1, 3 accounts → each used 2x across 6 requests
-- Skip rules: account in backoff / locked / disabled / model-locked all excluded
-- After successful response → backoff cleared, `last_used_at` bumped
-
-**`tests/fixtures/notion/`**
-- 1+ captured HAR files for parser regression (single chat completion + 1 streaming)
+**Fixtures:**
+- `tests/fixtures/notion/sample-stream.har` (exists)
+- `tests/fixtures/notion/login.har` (3 login entries, extract from main capture)
+- `tests/fixtures/notion/chat-request.json` (full extracted request body)
+- `tests/fixtures/notion/chat-response.ndjson` (full extracted NDJSON response)
 
 ---
 
@@ -232,42 +320,38 @@ Client (OpenAI format)
 
 | Risk | Mitigation |
 |---|---|
-| Notion ToS prohibits third-party AI chat clients | Document in `docs/notion/README.md`, mark feature `experimental`, require user acceptance on CLI add |
-| Endpoint drift (Notion can change internal API) | Pin `Notion-Client-Version` header from capture; alert on error spike; model catalogue re-seed script |
-| OTP UX friction (every session needs new code) | `notion-add-account` is one-time; token reused until 401, then re-OTP flow exposed via dashboard |
-| Subscription gating server-side (token valid but no AI access) | Detect via 402 Payment Required in capture; emit clear error to client |
-
----
-
-## Open Questions (capture-driven, will resolve during RE)
-
-1. Exact OTP endpoint URL — desktop may use internal subdomain, not `api.notion.com`
-2. SSE chunk format — Anthropic-style events vs proprietary JSON lines
-3. Which model IDs are available + their thinking params
-4. Whether conversation_id is in body metadata or custom header
-5. Whether Notion AI requires active subscription (gating signal beyond token)
-6. **Token refresh: does Notion issue a `refresh_token` at OTP exchange? If so, what is the access-token TTL and the refresh/extend-session endpoint?** Critical — drives whether `auth/notion.ts` implements background refresh (Kiro-style) or only re-auth-on-401 (OTP-flow). Capture MUST log every auth-related response header and body field.
+| Notion ToS prohibits third-party AI chat clients | Document experimental, require user acknowledgment on CLI |
+| Endpoint / patch format drift | Pin `notion-client-version`, alert on 4xx error spike |
+| Cookie theft → account compromise | SQLCipher encrypts cookies at rest, redact `token_v2` in logs |
+| 3-step login breaks when user closes window | CLI re-asks password on 401, dashboard surfaces re-auth button |
+| Image upload endpoint not captured | v1 only supports Notion-hosted `attachment:` URLs |
+| Subscription gating (402 / `isEligible: false`) | Check at account-add time, reject account |
 
 ---
 
 ## Out of Scope (YAGNI)
 
-- WebSocket streaming (HTTP SSE only for v1)
-- Multi-workspace routing per account (1 workspace = 1 account)
-- Image/file upload endpoints (chat-only)
-- Conversation history sync (each chat request is stateless from router's view)
+- HTTPS / base64 image upload (v1: Notion-hosted URLs only)
+- Function/tool calling UI in dashboard (router passes through but no model definition UI)
+- Multi-workspace routing
+- WebSocket streaming (NDJSON + HTTP/1.1 is sufficient for v1)
+- Cross-turn conversation continuity (each request is stateless from router's view)
 - Publishing an official Notion SDK
 
 ---
 
 ## Implementation Order
 
-1. RE phase: mitmproxy + Notion desktop → capture HAR, document endpoints, fill open questions
-2. DB migration: `conversation_routing` table
-3. Auth module + CLI script + tests (TDD)
-4. Proxy module + format conversion + tests (TDD, driven by captured fixtures)
-5. Selection module + failover tests (TDD)
-6. Model catalogue seed + integration test
-7. `sync-docs` skill to update README + CHANGELOG
+1. Migration + enum extension (Tasks 1-2)
+2. Auth module + CLI (Tasks 3)
+3. Transformer (Task 4) — pure function, easy to test
+4. Stream extractor (Task 5) — pure function, easy to test
+5. Proxy + dispatch wiring (Task 6)
+6. Selection (Task 7)
+7. Models manifest + seed (Task 8)
+8. CLI scripts (Task 9)
+9. Tool call wire-up (Task 10) — defer if needed
+10. Dashboard (Task 11)
+11. Tests + docs (Tasks 12-13)
 
 Each step: red test → green impl → commit (conventional commits, ~300 LOC max per commit).

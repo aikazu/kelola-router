@@ -2,6 +2,7 @@ import { Button } from '../Button';
 import { KiroAutoImportForm } from '../KiroAutoImportForm';
 import { KiroDeviceFlowForm } from '../KiroDeviceFlowForm';
 import { Modal } from '../Modal';
+import { NotionAuthForm } from '../NotionAuthForm';
 import { useKiroAutoImport } from '../../hooks/useKiroAutoImport';
 import { useKiroDeviceFlow } from '../../hooks/useKiroDeviceFlow';
 
@@ -26,10 +27,15 @@ export interface PioneerForm {
   api_key: string;
 }
 
+export interface NotionForm {
+  email: string;
+  label: string;
+}
+
 export interface AddAccountModalProps {
   open: boolean;
   onClose: () => void;
-  provider: 'minimax' | 'kiro' | 'pioneer';
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion';
   // Minimax form state (owned by parent so resetForms can clear it).
   form: MinimaxForm;
   onFormChange: (next: MinimaxForm) => void;
@@ -41,6 +47,10 @@ export interface AddAccountModalProps {
   // Pioneer form state (owned by parent for the same reason).
   pioneerForm: PioneerForm;
   onPioneerFormChange: (next: PioneerForm) => void;
+  // Notion form state (owned by parent for resetForms closure).
+  notionForm: NotionForm;
+  onNotionFormChange: (next: NotionForm) => void;
+  notionSuccess: () => void;
   // Pre-resolved hook returns — the parent owns these so their onSuccess
   // callbacks can close the modal + reset forms from one place.
   autoImport: ReturnType<typeof useKiroAutoImport>;
@@ -70,6 +80,9 @@ export function AddAccountModal({
   onKiroFormChange,
   pioneerForm,
   onPioneerFormChange,
+  notionForm,
+  onNotionFormChange,
+  notionSuccess,
   autoImport,
   deviceFlow,
   onCreate,
@@ -77,6 +90,7 @@ export function AddAccountModal({
 }: AddAccountModalProps) {
   const showFooter =
     provider === 'minimax' || provider === 'pioneer' || (provider === 'kiro' && kiroMethod === 'token');
+  // Notion auth form carries its own action button — no footer needed.
 
   return (
     <Modal
@@ -157,6 +171,14 @@ export function AddAccountModal({
               />
             </label>
           </>
+        ) : provider === 'notion' ? (
+          <NotionAuthForm
+            email={notionForm.email}
+            onEmailChange={(email) => onNotionFormChange({ ...notionForm, email })}
+            label={notionForm.label}
+            onLabelChange={(label) => onNotionFormChange({ ...notionForm, label })}
+            onSuccess={notionSuccess}
+          />
         ) : (
           <>
             {/* Kiro method selector */}

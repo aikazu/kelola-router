@@ -38,7 +38,7 @@ describe('balance error (1008) disables account', () => {
       method: 'POST',
       headers: { authorization: 'Bearer rk_bal', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M2.7',
+        model: 'mx/MiniMax-M2.7',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });

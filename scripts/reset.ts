@@ -16,7 +16,15 @@ function defaultDbPath(): string {
 }
 
 const args = process.argv.slice(2);
-const yes = args.includes('--yes') || args.includes('-y');
+// npm swallows `--yes` when run via `npm run reset --yes` because it isn't
+// passed after a `--` separator. Accept the equivalent env var that npm sets
+// when users run `npm_config_yes=1 npm run reset` (or `--yes` is forwarded by
+// a wrapper that knows the npm quirk).
+const yes =
+  args.includes('--yes') ||
+  args.includes('-y') ||
+  process.env.npm_config_yes === '1' ||
+  process.env.npm_config_yes === 'true';
 const dbPath = defaultDbPath();
 
 // Open (and immediately close) the DB handle to honor ROUTER_DB_KEY.
@@ -44,6 +52,7 @@ if (!yes) {
     console.error(`  ${p}  (${size} bytes)`);
   }
   console.error('Run with --yes to confirm.');
+  console.error('Tip: `npm run reset` eats the flag — use `npm run reset -- --yes` instead.');
   process.exit(1);
 }
 

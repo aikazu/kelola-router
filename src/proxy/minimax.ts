@@ -16,7 +16,11 @@ import {
   buildTransportFail,
   genReqId,
 } from '../console/flow.js';
-import { disableAccount, listEnabledAccounts, updateAccount } from '../db/repos/accounts.js';
+import {
+  disableAccount,
+  listEnabledAccountsByProvider,
+  updateAccount,
+} from '../db/repos/accounts.js';
 import { getCombo } from '../db/repos/combos.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getAllSettings, getSettingT } from '../db/repos/settings.js';
@@ -43,6 +47,7 @@ import { handleCodeBuddyProxy } from './codebuddy.js';
 import { handleComboProxy } from './combo.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import { type CursorRef, handleKiroProxy } from './kiro.js';
+import { handleNotionProxy } from './notion.js';
 import { handlePioneerProxy } from './pioneer.js';
 import type { Db } from './pipeline.js';
 import { applyErrorState, buildAccountStates, buildLogRow, clearErrorState } from './pipeline.js';
@@ -139,6 +144,20 @@ export async function handleProxy(
       rrCursorRef.value = pioCursorRef.value;
       return pioResp;
     }
+    if (peek.provider === 'notion') {
+      const notionCursorRef: CursorRef = { value: rrCursorRef.value };
+      const notionResp = await handleNotionProxy(
+        c,
+        format,
+        upstreamPath,
+        body,
+        db,
+        notionCursorRef,
+        stickyMap
+      );
+      rrCursorRef.value = notionCursorRef.value;
+      return notionResp;
+    }
   } catch {
     /* unknown model — defer to the MiniMax path for the canonical error */
   }
@@ -191,10 +210,12 @@ export async function handleProxy(
     bodyDirty = true;
   }
 
-  // Pool: ALL enabled MiniMax accounts (shared across all client keys).
-  const allAccounts = listEnabledAccounts(db);
+  // Pool: only MiniMax accounts. The previous `listEnabledAccounts` returned
+  // every provider's rows, so a sticky-pinned Pioneer/Kiro account could be
+  // selected here and a MiniMax request sent upstream with a foreign key.
+  const allAccounts = listEnabledAccountsByProvider(db, 'minimax');
   if (allAccounts.length === 0) {
-    return c.json({ error: 'no upstream accounts configured' }, 503);
+    return c.json({ error: 'no minimax accounts configured' }, 503);
   }
   const accountStates = buildAccountStates(allAccounts);
   const sel = getSettingT(db, 'selection.minimax') ?? {

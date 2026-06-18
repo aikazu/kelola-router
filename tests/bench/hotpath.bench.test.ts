@@ -98,7 +98,7 @@ describe('hot-path benchmark', () => {
         method: 'POST',
         headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
         body: JSON.stringify({
-          model: 'mm/MiniMax-M3',
+          model: 'mx/MiniMax-M3',
           messages: [{ role: 'user', content: 'hi' }],
         }),
       });

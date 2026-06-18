@@ -30,17 +30,19 @@ export function Accounts() {
   });
   const kiroAccounts = accounts.filter((a) => a.provider === 'kiro');
   const pioneerAccounts = accounts.filter((a) => a.provider === 'pioneer');
+  const notionAccounts = accounts.filter((a) => a.provider === 'notion');
   const minimaxAccounts = accounts.filter((a) => {
     const p = a.provider ?? 'minimax';
-    return p !== 'kiro' && p !== 'pioneer';
+    return p !== 'kiro' && p !== 'pioneer' && p !== 'notion';
   });
 
   // Add-account modal state.
   const [open, setOpen] = useState(false);
-  const [provider, setProvider] = useState<'minimax' | 'kiro' | 'pioneer'>('minimax');
+  const [provider, setProvider] = useState<'minimax' | 'kiro' | 'pioneer' | 'notion'>('minimax');
   const [form, setForm] = useState<MinimaxForm>({ label: '', credit_type: 'payg', api_key: '' });
   const [kiroMethod, setKiroMethod] = useState<KiroMethod>('builder-id');
   const [pioneerForm, setPioneerForm] = useState<PioneerForm>({ label: '', api_key: '' });
+  const [notionForm, setNotionForm] = useState<{ email: string; label: string }>({ email: '', label: '' });
   const [kiroForm, setKiroForm] = useState<KiroForm>({
     label: '',
     credentialJson: '',
@@ -267,6 +269,18 @@ export function Accounts() {
               onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
               onDelete={handleDelete}
             />
+            <ProviderAccountSection
+              title="Notion"
+              provider="notion"
+              accounts={notionAccounts}
+              transports={transports}
+              onAdd={() => { setProvider('notion'); setOpen(true); }}
+              onUsage={setUsageAccount}
+              onEdit={(a, editFormInitialState) => { setEditing(a); setEditForm(editFormInitialState); }}
+              onLoadTransportState={loadTransportState}
+              onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+              onDelete={handleDelete}
+            />
           </>
         )}
       </Card>
@@ -279,6 +293,9 @@ export function Accounts() {
         onFormChange={setForm}
         kiroMethod={kiroMethod}
         onKiroMethodChange={setKiroMethod}
+        notionForm={notionForm}
+        onNotionFormChange={setNotionForm}
+        notionSuccess={() => { setOpen(false); resetForms(); refetch(); }}
         kiroForm={kiroForm}
         onKiroFormChange={setKiroForm}
         pioneerForm={pioneerForm}

@@ -48,9 +48,9 @@ describe('fast-path passthrough', () => {
     // Pre-set the fields bodyTransform would inject for M3, so the transform is a no-op
     // and the fast path engages. stream is unset, so bodyAddsOpenAIStreamUsage injects nothing and the body
     // stays clean → fast path forwards the raw text unchanged.
-    // The upstream receives the model WITHOUT the prefix (mm/ is stripped).
+    // The upstream receives the model WITHOUT the prefix (mx/ is stripped).
     const clientBody = {
-      model: 'mm/MiniMax-M3',
+      model: 'mx/MiniMax-M3',
       messages: [{ role: 'user', content: 'hello world' }],
       temperature: 0.5,
       thinking: { type: 'adaptive' },
@@ -90,7 +90,7 @@ describe('fast-path passthrough', () => {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M3',
+        model: 'mx/MiniMax-M3',
         messages: [{ role: 'user', content: 'hi' }],
         stream: true,
         thinking: { type: 'adaptive' },
@@ -125,7 +125,7 @@ describe('fast-path passthrough', () => {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M3',
+        model: 'mx/MiniMax-M3',
         messages: [{ role: 'user', content: 'hi' }],
         thinking: { type: 'adaptive' },
         max_completion_tokens: 131072,

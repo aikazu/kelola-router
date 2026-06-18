@@ -17,9 +17,11 @@ describe('migration 007 — audit_log table', () => {
     expect(row?.name).toBe('audit_log');
   });
 
-  it('bumps user_version to 7', () => {
+  it('bumps user_version to at least 7', () => {
     const db = openDb();
-    expect(Number(db.pragma('user_version', { simple: true }))).toBe(7);
+    // Migration 008 (pioneer-dedup) also ran in this fresh-DB run, so the
+    // version is at least 7 — never assert an exact value here.
+    expect(Number(db.pragma('user_version', { simple: true }))).toBeGreaterThanOrEqual(7);
   });
 
   it('creates the event + key indexes', () => {

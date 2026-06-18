@@ -37,8 +37,9 @@
 - 🟣 **Kiro upstream (AWS CodeWhisperer / Amazon Q)** — second provider alongside MiniMax, routed by model. **OAuth Device Code Flow** for AWS Builder ID / IAM Identity Center (one-click login from dashboard), auto-import from Kiro IDE (`~/.aws/sso/cache`), or manual token paste. AWS event-stream binary protocol translated to OpenAI **and native Anthropic SSE** (streaming for Claude Code + hermes-agent). Auto token refresh + caching
 - 🟦 **CodeBuddy provider** — third upstream alongside MiniMax & Kiro, routed by `cb/` model prefix. Bridges OpenAI-format upstream to client format (OpenAI SSE → Anthropic SSE assembler).
 - 🟢 **Pioneer upstream (`pio/` prefix)** — fourth provider, OpenAI Chat Completions wire format with `X-API-Key` auth, reuses the CodeBuddy SSE bridge to serve both client formats. Models namespaced under `pioneer/` (name + upstream_model) to dodge global-unique id collisions; client uses `pio/<id>` verbatim.
+- 🌸 **Notion upstream (`nt/` prefix)** — fifth provider, reverse-engineered from Notion desktop's AI chat. Cookie-based session (11 cookies required), 3-step temp-password login (email + 6-char temp password), CRDT-style JSON request body + NDJSON patch-stream response, converted to OpenAI streaming at the edge. See [`docs/notion/wire-format.md`](docs/notion/wire-format.md) for protocol details.
 - 🔒 **Security hardening** — SQLCipher encryption-at-rest via `ROUTER_DB_KEY`, re-auth gate + audit log on client-key reveal, `GET /api/admin/security/status` with a security-status banner in the dashboard.
-- 🎯 **Provider prefix routing (`mm/` / `kr/` / `cb/` / `pio/`)** — explicit provider selection by model prefix. Unprefixed names resolve only as combo or alias (strict); prefixed requests validate provider agreement.
+- 🎯 **Provider prefix routing (`mx/` / `kr/` / `cb/` / `pio/` / `nt/`)** — explicit provider selection by model prefix. Unprefixed names resolve only as combo or alias (strict); prefixed requests validate provider agreement.
 - 🔄 **Combo fallback chains** — ordered cross-provider member walk, auto-retry on 401/402/403 + 502/503/504.
 - 🛠️ **Tool use passthrough with cross-format conversion** — `tools` / `tool_use` / `tool_calls` flow correctly between client + upstream regardless of which SDK you use (Anthropic SDK ↔ OpenAI SDK ↔ MiniMax upstream)
 - 🔀 **Cross-format routing** — set `upstreamFormat` in `settings.minimax` (or `ROUTER_UPSTREAM_FORMAT` env) to route OpenAI clients to Anthropic upstream or vice versa; body + non-stream response converted automatically
@@ -89,7 +90,7 @@ Open the dashboard at <http://localhost:20137/>. From there:
 2. Create a client key for each app at `/admin/client-keys` (label) — copy the bearer
 3. Optional: lock the dashboard at `/admin/settings` ("Set password")
 
-Models now seed automatically when a provider's first account is added (MiniMax/Pioneer live-fetch `/v1/models`, Kiro/CodeBuddy builtin lists) — a fresh DB starts empty. The CLI scripts (`npm run add-client-key`, `add-account`, `seed-models`, `reset`) remain available as power-user shortcuts.
+Models now seed automatically when a provider's first account is added (MiniMax/Pioneer live-fetch `/v1/models`, Kiro/CodeBuddy/Notion builtin lists) — a fresh DB starts empty. The CLI scripts (`npm run add-client-key`, `add-account`, `seed-models`, `reset`) remain available as power-user shortcuts.
 
 ### Run the server
 
@@ -293,6 +294,12 @@ npx tsx scripts/seed-models.ts   # power-user shortcut: re-upsert MiniMax models
 # Kiro (AWS CodeWhisperer) upstream
 npx tsx scripts/seed-kiro-models.ts                                   # builtin Kiro/Claude models
 npm run add-account -- --provider kiro --label kiro1 --refresh-token eyJ...  # + optional --client-id/--client-secret/--region/--profile-arn
+
+# Notion AI upstream
+npm run notion-add-account -- --label personal --email user@example.com  # 3-step OTP login
+npm run seed-notion-models                                                # 20 builtin Notion models
+# (auto-fetches workspaceId on first chat, or pass --space-id <uuid>)
+
 npx tsx scripts/reset.ts --yes   # delete db + WAL/SHM sidecars
 ```
 

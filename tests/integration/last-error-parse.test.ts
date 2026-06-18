@@ -46,7 +46,7 @@ describe('proxy handles corrupted last_error safely', () => {
       method: 'POST',
       headers: { authorization: 'Bearer rk_le', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'mm/MiniMax-M2.7',
+        model: 'mx/MiniMax-M2.7',
         messages: [{ role: 'user', content: 'hi' }],
       }),
     });

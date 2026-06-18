@@ -2,6 +2,21 @@
 
 > Newest first. The latest shipped version sits at the top under its version heading.
 
+## v0.20 — Unreleased
+
+**Notion upstream provider.**
+- **Reverse-engineered Notion desktop AI chat.** `app.notion.com/api/v3/runInferenceTranscript` plus the surrounding auth + model-catalog endpoints. Captured traffic from desktop v23.13.20260617.1538 via mitmproxy (HAR + flow files in `docs/notion/`, gitignored).
+- **3-step temp-password login.** `getLoginOptions` → `sendTemporaryPassword` (sends 6-char temp password to email) → `loginWithEmail` → 8 cookies captured from `Set-Cookie`. Stored in `accounts.provider_data` JSON (same pattern as Kiro's `provider_data`).
+- **Cookie-based session.** 11 cookies required per AI request. Cloudflare `__cf_bm` / `_cfuvid` ignored (infra, set by browser).
+- **Wire format translation.** Single-JSON request body (`{traceId, spaceId, transcript[], patches}`). NDJSON response of JSON-Patch operations. `extract.ts` applies patches, emits text + tool-call deltas as OpenAI SSE.
+- **Tool calls.** `agent-tool-result` records surfaced as OpenAI `tool_calls` deltas. 7 modular tools observed: `fs-module`, `notion-module`, `web-module`, `mcpServer-module`, `search-module`, `helpdocs-module`, `system-module`.
+- **20 builtin models** seeded from manifest: GPT-5.2/5.4/5.5 (+ Mini/Nano), Opus 4.6/4.7/4.8, Sonnet 4.6, Haiku 4.5, Fable 5, Gemini 2.5/3.5/3 Flash + 3.1 Pro, Grok 4.3 + Build 0.1, Kimi K2.6, DeepSeek V4 Pro, GLM 5.2.
+- **Provider enum extended to `notion`**, `nt` prefix registered, `selection.notion` setting added, dispatch branch in `handleProxy`. **No schema migration** — uses existing `accounts.provider_data` JSON.
+- **CLI**: `npm run notion-add-account` (3-step), `npm run seed-notion-models`.
+- **v1 limitations**: no failover, no Anthropic-format pass-through, no image-upload endpoint (Notion-hosted `attachment:` URLs only).
+- **Wire format docs**: `docs/notion/wire-format.md`, `docs/notion/capture-notes.md`.
+- **Tests**: 19 unit + 5 integration.
+
 ## v0.19 — 2026-06-17
 
 **Security hardening, the Pioneer upstream, and seed-on-account-add.**
@@ -20,7 +35,7 @@
 
 **CodeBuddy as a third upstream provider.** The router now supports MiniMax, Kiro, and CodeBuddy as parallel upstreams, selected by `body.model` prefix.
 - **CodeBuddy provider (`cb/`).** `src/proxy/codebuddy.ts` handles requests routed via the `cb/` prefix. Bridges a CodeBuddy OpenAI-format upstream to the client's chosen wire format: OpenAI SSE → Anthropic SSE assembler, SSE wrapper + non-stream aggregator, forced `stream_options.include_usage`, guaranteed system message insertion, and mid-stream SSE error propagation. `pullQuota` is provider-aware and no-ops for CodeBuddy (no quota API). Live-verified seed model list (`npm run seed-codebuddy-models`). Bare model names stored; `cb/` prefix resolved at routing time.
-- **Provider prefix routing (`mm/` / `kr/` / `cb/`).** `src/providers/modelPrefix.ts` parses the `body.model` string: a known prefix asserts the provider, the model name is looked up literally (no alias expansion), and the stored `models.provider` must agree — else 400. Unprefixed names resolve only via combos or aliases; a bare raw model name is rejected with 400. An unknown prefix (`xx/...`) → 400 (`unknown model prefix`). Combo members must carry a prefix.
+- **Provider prefix routing (`mx/` / `kr/` / `cb/` / `pio/` / `nt/`).** `src/providers/modelPrefix.ts` parses the `body.model` string: a known prefix asserts the provider, the model name is looked up literally (no alias expansion), and the stored `models.provider` must agree — else 400. Unprefixed names resolve only via combos or aliases; a bare raw model name is rejected with 400. An unknown prefix (`xx/...`) → 400 (`unknown model prefix`). Combo members must carry a prefix.
 - **Combo fallback chains.** New `combos` table (`migration 005`): `id`, `name`, `models` (JSON array), timestamps. CRUD repository (`src/db/repos/combos.ts`) + admin API + dashboard Combos page (CRUD modal, sidebar nav). The proxy (`src/proxy/combo.ts`) walks the ordered member list with cross-provider fallback, re-selecting an account per iteration to skip freshly backoffed accounts. Retries on `401/402/403` (auth/payment) and `502/503/504` (transient upstream). Combo names are validated against existing aliases on creation to prevent shadowing.
 - **Per-provider account selection.** `selection.<provider>` settings key per provider (e.g. `selection.minimax`, `selection.kiro`). Each carries its own `mode` (`lowest-backoff` | `round-robin` | `sticky`) and `step` for round-robin cursor. Dashboard splits Accounts and Models into per-provider cards with inline selection controls and a health-test button. Manual model-add + model health-check endpoints added.
 - **Transport upgrades.** GeoIP country probe via `ipapi.co` on transport add (`src/transport/geoip.ts`, migration `006-transport-country`; advisory, non-blocking). LRU + SOCKS dispatcher cache invalidated on transport CRUD. Proxy failure mode (`direct` | `block`) toggle surfaced in the Console. Bulk transport import modal; "Used by" column on the Transports page.

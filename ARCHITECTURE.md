@@ -41,6 +41,7 @@ A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview +
 │  • Kiro      (CodeWhisperer / Amazon Q)  AWS event-stream    │
 │  • CodeBuddy (codebuddy.ai)  OpenAI-compatible HTTP-JSON     │
 │  • Pioneer  (api.pioneer.ai)  OpenAI-compatible HTTP-JSON    │
+│  • Notion    (app.notion.com) cookie auth + JSON/NDJSON       │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -140,7 +141,7 @@ src/
 │   │                         SQLCipher via better-sqlite3-multiple-ciphers when ROUTER_DB_KEY set
 │   │                         (key applied via pragma('key') BEFORE any other PRAGMA;
 │   │                         refuses to start if key set on a plaintext DB — fresh-deploy only)
-│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country, 007-audit-log
+│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country, 007-audit-log (Notion: provider_data JSON carries cookies + spaceId, no schema migration)
 │   └── repos/                One file per table: accounts, client_keys, models,
 │                             aliases, combos, requestLogs, quotaSnapshots,
 │                             transports, settings (1s cache)
@@ -236,7 +237,7 @@ csrfGuard (admin only) → requireApiKey (proxy) / requireAdmin (admin)
 parseBody (c.req.json / c.req.parseBody)
   ↓
 model resolution
-  • parseModelPrefix(model): mm/|kr/|cb/ selects provider via literal,
+  • parseModelPrefix(model): mx/|kr/|cb/|pio/|nt/ selects provider via literal,
     provider-matched lookup; unprefixed resolves only via combos/aliases (strict)
   • aliasCache.lookup(model) → upstream_model
   • -thinking / -agentic suffix handling

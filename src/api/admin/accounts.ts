@@ -17,6 +17,12 @@ import {
 } from '../../providers/kiro/accountImport.js';
 import { autoImportFromSsoCache } from '../../providers/kiro/autoImport.js';
 import { pollDeviceToken, startDeviceCodeFlow } from '../../providers/kiro/deviceCode.js';
+import {
+  getLoginOptions,
+  loginWithEmail,
+  NotionAuthError,
+  sendTemporaryPassword,
+} from '../../providers/notion/auth.js';
 import { ApiError, handleApiError } from './middleware.js';
 
 export const accountRoutes = new Hono();
@@ -69,7 +75,7 @@ accountRoutes.get('/', (c) => {
   }
 });
 
-const PROVIDER_ALLOWLIST = ['minimax', 'kiro', 'codebuddy', 'pioneer'] as const;
+const PROVIDER_ALLOWLIST = ['minimax', 'kiro', 'codebuddy', 'pioneer', 'notion'] as const;
 type ManualProvider = (typeof PROVIDER_ALLOWLIST)[number];
 
 accountRoutes.post('/', (c) => {
@@ -421,6 +427,109 @@ accountRoutes.delete('/:id/locks/:model', (c) => {
       c.req.param('model')
     );
     return new Response(null, { status: 204 });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+// ── Notion (3-step temp-password login) ──────────────────────────────────
+
+// Step 1: validate email + send OTP (sends 6-char temp password to user's inbox)
+accountRoutes.post('/notion/request-otp', async (c) => {
+  try {
+    const body = (await c.req.json()) as { email?: string; deviceId?: string };
+    if (!body.email) {
+      throw new ApiError('invalid_input', 'email required', 400);
+    }
+    try {
+      const opts = await getLoginOptions(body.email);
+      if (!opts.hasAccount) {
+        throw new ApiError('no_account', `no Notion account for ${body.email}`, 404);
+      }
+      // Trigger the actual email send
+      const deviceId = body.deviceId ?? `dev-${Date.now()}`;
+      await sendTemporaryPassword(body.email, opts.loginOptionsToken, deviceId);
+      return c.json({ status: 'otp_sent', hasAccount: true });
+    } catch (e) {
+      if (e instanceof NotionAuthError) {
+        throw new ApiError(e.code, e.message, e.code === 'no_account' ? 404 : 400);
+      }
+      throw e;
+    }
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+// Step 2: verify OTP code + create account with cookies
+accountRoutes.post('/notion/verify-otp', async (c) => {
+  try {
+    const body = (await c.req.json()) as {
+      email?: string;
+      code?: string;
+      label?: string;
+      deviceId?: string;
+    };
+    if (!body.email || !body.code || !body.label) {
+      throw new ApiError('invalid_input', 'email, code, label required', 400);
+    }
+
+    const db = c.get('db') as Database.Database;
+    // Step 1 re-fetch loginOptionsToken
+    const opts = await getLoginOptions(body.email);
+    const deviceId = body.deviceId ?? `dev-${Date.now()}`;
+    const { csrfState } = await sendTemporaryPassword(body.email, opts.loginOptionsToken, deviceId);
+    const { cookies, userId } = await loginWithEmail(csrfState, body.code);
+
+    // Build account
+    const id = ulid();
+    const providerData = JSON.stringify({
+      cookies,
+      userId,
+      deviceId,
+      spaceId: null, // will be populated on first chat (TBD from response)
+      cookiesFetchedAt: new Date().toISOString(),
+    });
+
+    const acc = createAccount(db, {
+      id,
+      label: body.label,
+      credit_type: 'token-plan',
+      api_key: userId, // Notion has no API key; use userId
+      enabled: true,
+      provider: 'notion',
+      provider_data: providerData,
+    });
+
+    const modelsSeeded = await seedModelsForProviderBestEffort(db, 'notion');
+    return c.json({
+      status: 'success',
+      id: acc.id,
+      label: acc.label,
+      provider: 'notion',
+      userId,
+      cookiesCount: Object.keys(cookies).length,
+      modelsSeeded,
+    });
+  } catch (e) {
+    if (e instanceof NotionAuthError) {
+      const status = e.code === 'wrong_password' ? 401 : 400;
+      return c.json({ error: e.code, message: e.message }, status);
+    }
+    return handleApiError(e);
+  }
+});
+
+// Re-auth helper: emit notion_reauth_required signal to dashboard
+accountRoutes.get('/notion/reauth-required', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const accounts = db
+      .prepare(
+        `SELECT id, label, last_error FROM accounts WHERE provider = 'notion' AND status = 'error'`
+      )
+      .all() as Array<{ id: string; label: string; last_error: string | null }>;
+    return c.json({ accounts });
   } catch (e) {
     return handleApiError(e);
   }
