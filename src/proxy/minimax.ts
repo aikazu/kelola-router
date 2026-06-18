@@ -336,6 +336,10 @@ export async function handleProxy(
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), resp.status, errBody.slice(0, 200))
       );
+      // Parity with CodeBuddy/Pioneer/Notion: log the failed request so it
+      // surfaces in the Request log. Tokens/cost are 0 — it's an error.
+      // biome-ignore format: long line
+      insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: account.id, model: resolved.upstreamModel, requestedModel, endpoint: upstreamPath, format: upstreamFormat, promptTokens: 0, completionTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, costUsd: 0, latencyMs: Date.now() - c.get('startTime'), statusCode: resp.status, baseRespCode: parsed.baseRespCode, stream: body.stream === true ? 1 : 0, rtkBytesSaved: rtkSaved, requestBody: text, responseBody: errBody, requestHeaders: c.req.raw.headers, responseHeaders: resp.headers, reqId }));
       return c.body(errBody, statusCode(resp.status), {
         'content-type': resp.headers.get('content-type') ?? 'application/json',
       });

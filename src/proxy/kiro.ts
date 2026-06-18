@@ -182,6 +182,10 @@ export async function handleKiroProxy(
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), result.status, errBody.slice(0, 200))
       );
+      // Parity with CodeBuddy/Pioneer/Notion/minimax: log the failed request so
+      // it surfaces in the Request log. Tokens/cost are 0 — it's an error.
+      // biome-ignore format: long line
+      insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel, endpoint: upstreamPath, format, promptTokens: 0, completionTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, costUsd: 0, latencyMs: Date.now() - startMs, statusCode: result.status, baseRespCode: undefined, stream: upstreamStream ? 1 : 0, rtkBytesSaved: 0, requestBody: JSON.stringify(body), responseBody: errBody, requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId }));
       return c.body(
         errBody || JSON.stringify({ error: 'kiro upstream error' }),
         statusCode(result.status),
