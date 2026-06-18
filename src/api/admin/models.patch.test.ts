@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../db/index.js';
-import { getModel, upsertModel } from '../../db/repos/models.js';
 import { createCombo } from '../../db/repos/combos.js';
+import { getModel, upsertModel } from '../../db/repos/models.js';
 import { app, resetDb } from '../../server.js';
 
 beforeEach(() => {
@@ -46,6 +46,58 @@ describe('PATCH /api/admin/models/:name', () => {
       body: JSON.stringify({ pricingInput: 5 }),
     });
     expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('not_found');
+  });
+
+  it('rejects an empty patch with 400', async () => {
+    const db = openDb();
+    upsertModel(db, {
+      name: 'pioneer/gpt-5.5',
+      upstream_model: 'gpt-5.5',
+      provider: 'pioneer',
+      source: 'fetched',
+    });
+    const res = await app.request('/api/admin/models/pioneer%2Fgpt-5.5', {
+      method: 'PATCH',
+      headers: { 'x-admin-key': 'ak_test', 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects invalid field types with 400', async () => {
+    const db = openDb();
+    upsertModel(db, {
+      name: 'pioneer/gpt-5.5',
+      upstream_model: 'gpt-5.5',
+      provider: 'pioneer',
+      source: 'fetched',
+    });
+    const res = await app.request('/api/admin/models/pioneer%2Fgpt-5.5', {
+      method: 'PATCH',
+      headers: { 'x-admin-key': 'ak_test', 'content-type': 'application/json' },
+      body: JSON.stringify({ pricingInput: 'not-a-number' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects unknown fields with 400', async () => {
+    const db = openDb();
+    upsertModel(db, {
+      name: 'pioneer/gpt-5.5',
+      upstream_model: 'gpt-5.5',
+      provider: 'pioneer',
+      source: 'fetched',
+    });
+    const res = await app.request('/api/admin/models/pioneer%2Fgpt-5.5', {
+      method: 'PATCH',
+      headers: { 'x-admin-key': 'ak_test', 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'pioneer/hacked' }),
+    });
+    expect(res.status).toBe(400);
+    const m = getModel(db, 'pioneer/gpt-5.5');
+    expect(m?.name).toBe('pioneer/gpt-5.5'); // immutable — not renamed
   });
 });
 

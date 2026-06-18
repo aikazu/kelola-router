@@ -183,19 +183,45 @@ modelRoutes.patch('/:name', async (c) => {
     const model = getModel(db, name);
     if (!model) throw new ApiError('not_found', 'Model tidak ditemukan', 404);
 
-    const body = await c.req.json<{
-      displayName?: string | null;
-      contextWindow?: number | null;
-      contextOutput?: number | null;
-      pricingInput?: number | null;
-      pricingOutput?: number | null;
-    }>();
+    const body = await c.req.json<Record<string, unknown>>();
+
+    // Allow only the editable fields; reject unknown keys + wrong types.
+    const allowed: Array<
+      'displayName' | 'contextWindow' | 'contextOutput' | 'pricingInput' | 'pricingOutput'
+    > = ['displayName', 'contextWindow', 'contextOutput', 'pricingInput', 'pricingOutput'];
+    const patch: Record<string, string | number | null> = {};
+    for (const key of Object.keys(body)) {
+      if (!allowed.includes(key as (typeof allowed)[number])) {
+        throw new ApiError('invalid_input', `unknown field: ${key}`, 400);
+      }
+      const v = body[key];
+      if (v === null) {
+        patch[key] = null;
+        continue;
+      }
+      if (key === 'displayName') {
+        if (typeof v !== 'string') {
+          throw new ApiError('invalid_input', 'displayName must be a string', 400);
+        }
+        patch[key] = v;
+      } else {
+        if (typeof v !== 'number' || !Number.isFinite(v)) {
+          throw new ApiError('invalid_input', `${key} must be a number`, 400);
+        }
+        patch[key] = v;
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      throw new ApiError('invalid_input', 'no editable fields provided', 400);
+    }
+
     updateModel(db, name, {
-      displayName: body.displayName,
-      contextWindow: body.contextWindow,
-      contextOutput: body.contextOutput,
-      pricingInput: body.pricingInput,
-      pricingOutput: body.pricingOutput,
+      displayName: patch.displayName as string | null | undefined,
+      contextWindow: patch.contextWindow as number | null | undefined,
+      contextOutput: patch.contextOutput as number | null | undefined,
+      pricingInput: patch.pricingInput as number | null | undefined,
+      pricingOutput: patch.pricingOutput as number | null | undefined,
     });
     return c.json({ ok: true });
   } catch (e) {
