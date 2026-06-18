@@ -13,11 +13,14 @@
  *
  * See docs/notion/wire-format.md §1 for full protocol details.
  */
-import { NOTION_BASE, NOTION_CLIENT_VERSION } from './constants.js';
+import { NOTION_AUDIT_LOG_PLATFORM, NOTION_BASE, NOTION_CLIENT_VERSION } from './constants.js';
 
 const JSON_HEADERS = {
   'notion-client-version': NOTION_CLIENT_VERSION,
+  'notion-audit-log-platform': NOTION_AUDIT_LOG_PLATFORM,
   'content-type': 'application/json',
+  origin: 'https://app.notion.com',
+  referer: 'https://app.notion.com/login',
 } as const;
 
 export class NotionAuthError extends Error {

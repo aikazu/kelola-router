@@ -14,7 +14,10 @@ export const NOTION_FILE_BASE = 'https://file.notion.com';
 export const NOTION_S3_UPLOAD = 'https://prod-files-secure.s3.us-west-2.amazonaws.com/';
 
 /** Pinned client version. Update only after re-capturing from real desktop. */
-export const NOTION_CLIENT_VERSION = '23.13.20260617.1538';
+export const NOTION_CLIENT_VERSION = '23.13.20260617.2303';
+
+/** Platform fingerprint — sent on every API request. 'web' matches browser login flow. */
+export const NOTION_AUDIT_LOG_PLATFORM = 'web';
 
 /** Conversation routing: idempotent chat. Each request carries full transcript. */
 export const NOTION_DEFAULT_MAX_COMPLETION_TOKENS = 8192;
