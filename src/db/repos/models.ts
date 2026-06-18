@@ -87,3 +87,8 @@ export function bulkToggleModels(db: Database.Database, names: string[], enabled
     .run(enabled ? 1 : 0, ...names);
   return r.changes;
 }
+
+export function deleteModel(db: Database.Database, name: string): boolean {
+  const r = db.prepare(`DELETE FROM models WHERE name = ?`).run(name);
+  return r.changes > 0;
+}

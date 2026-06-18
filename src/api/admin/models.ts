@@ -2,8 +2,10 @@ import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { listEnabledAccountsByProvider } from '../../db/repos/accounts.js';
 import { listAliasesForTargets } from '../../db/repos/aliases.js';
+import { listCombos } from '../../db/repos/combos.js';
 import {
   bulkToggleModels,
+  deleteModel,
   disableModel,
   enableModel,
   getModel,
@@ -111,6 +113,50 @@ modelRoutes.post('/:name/test', async (c) => {
     if (!model) return c.json({ error: 'not_found', message: 'Model tidak ditemukan' }, 404);
     const result = await testModelUpstream(db, model);
     return c.json(result);
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+modelRoutes.get('/:name/refs', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const name = decodeURIComponent(c.req.param('name'));
+    const model = getModel(db, name);
+    if (!model) return c.json({ error: 'not_found', message: 'Model tidak ditemukan' }, 404);
+
+    const aliases = (
+      listAliasesForTargets(db, [model.upstream_model])[model.upstream_model] ?? []
+    ).map((a) => ({ aliasName: a.aliasName }));
+    const combos = listCombos(db)
+      .filter((combo) => combo.models.includes(name))
+      .map((combo) => ({ id: combo.id, comboName: combo.name }));
+
+    return c.json({ aliases, combos });
+  } catch (e) {
+    return handleApiError(e);
+  }
+});
+
+modelRoutes.delete('/:name', (c) => {
+  try {
+    const db = c.get('db') as Database.Database;
+    const name = decodeURIComponent(c.req.param('name'));
+    const model = getModel(db, name);
+    if (!model) return c.json({ error: 'not_found', message: 'Model tidak ditemukan' }, 404);
+
+    const aliases = (
+      listAliasesForTargets(db, [model.upstream_model])[model.upstream_model] ?? []
+    ).map((a) => ({ aliasName: a.aliasName }));
+    const combos = listCombos(db)
+      .filter((combo) => combo.models.includes(name))
+      .map((combo) => ({ id: combo.id, comboName: combo.name }));
+
+    if (aliases.length > 0 || combos.length > 0) {
+      return c.json({ error: 'has_refs', refs: { aliases, combos } }, 409);
+    }
+    deleteModel(db, name);
+    return c.json({ ok: true });
   } catch (e) {
     return handleApiError(e);
   }
