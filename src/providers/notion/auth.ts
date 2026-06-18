@@ -21,6 +21,13 @@ const JSON_HEADERS = {
   'content-type': 'application/json',
   origin: 'https://app.notion.com',
   referer: 'https://app.notion.com/login',
+  baggage:
+    'sentry-environment=production,sentry-release=' +
+    NOTION_CLIENT_VERSION +
+    ',sentry-public_key=704fe3b1898d4ccda1d05fe1ee79a1f7,sentry-org_id=324374',
+  'sec-fetch-dest': 'empty',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-site': 'same-origin',
 } as const;
 
 export class NotionAuthError extends Error {
