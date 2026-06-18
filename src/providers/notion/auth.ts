@@ -70,13 +70,15 @@ export async function getLoginOptions(email: string): Promise<LoginOptions> {
 export async function sendTemporaryPassword(
   email: string,
   loginOptionsToken: string,
-  deviceId: string
+  deviceId: string,
+  redirectURL?: string
 ): Promise<{ csrfState: string }> {
   const res = await fetch(`${NOTION_BASE}/api/v3/sendTemporaryPassword`, {
     method: 'POST',
     headers: JSON_HEADERS,
     body: JSON.stringify({
       email,
+      redirectURL: redirectURL ?? '/',
       disableLoginLink: false,
       native: true,
       isSignup: false,

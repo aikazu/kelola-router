@@ -91,6 +91,7 @@ describe('notion auth — login flow', () => {
       appSource: 'notion',
       isSignup: false,
       native: true,
+      redirectURL: '/', // Notion requires this field or silently ignores email send
     });
   });
 
