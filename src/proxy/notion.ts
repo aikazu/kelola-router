@@ -107,10 +107,12 @@ export async function handleNotionProxy(
   // are tolerated — peek.provider already routed us here.
   let requestedModel: string | null = null;
   let upstreamModel = 'notion';
+  let internalModelId = 'notion';
   try {
     const resolved = resolveModel(db, stringValue(body.model), body);
     requestedModel = resolved.requestedModel;
     upstreamModel = resolved.upstreamModel;
+    internalModelId = resolved.upstreamModel;
   } catch {
     /* unknown/disabled — keep placeholder, request will surface a 400 later */
   }
@@ -184,10 +186,6 @@ export async function handleNotionProxy(
     const msg = `notion account ${account.id} missing spaceId; re-add account to refresh`;
     return failAndLog(401, 'notion_reauth_required', msg, account.id);
   }
-
-  const resolved = resolveModel(db, stringValue(body.model), body);
-  const internalModelId = resolved.upstreamModel ?? stringValue(body.model);
-  upstreamModel = internalModelId;
 
   consoleBus.emit(
     buildAccount(reqId, new Date().toISOString(), account.label, 'round-robin')
@@ -350,6 +348,34 @@ export async function handleNotionProxy(
       } catch (e) {
         const msg = errorMessage(e);
         log.error({ reqId, err: msg }, 'notion stream error');
+        consoleBus.emit(buildError(reqId, new Date().toISOString(), 502, msg));
+        insertRequestLogDeferred(
+          db,
+          buildLogRow({
+            clientKeyId: clientKey?.id ?? 0,
+            accountId: account.id,
+            model: internalModelId,
+            requestedModel: requestedModel ?? stringValue(body.model),
+            endpoint: upstreamPath,
+            format: 'openai',
+            promptTokens: 0,
+            completionTokens: 0,
+            cacheCreationTokens: 0,
+            cacheReadTokens: 0,
+            totalTokens: 0,
+            costUsd: 0,
+            latencyMs: Date.now() - startMs,
+            statusCode: 502,
+            baseRespCode: undefined,
+            stream: body.stream ? 1 : 0,
+            rtkBytesSaved: 0,
+            requestBody: JSON.stringify(body),
+            responseBody: msg,
+            requestHeaders: c.req.raw.headers,
+            responseHeaders: new Headers(),
+            reqId,
+          })
+        );
         controller.error(e);
       }
     },
