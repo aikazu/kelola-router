@@ -167,8 +167,8 @@ describe('SPA admin API endpoints', () => {
   it('/api/admin/quota returns list', async () => {
     const res = await app.request('/api/admin/quota');
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(Array.isArray(body)).toBe(true);
+    const body = (await res.json()) as { accounts: unknown[] };
+    expect(Array.isArray(body.accounts)).toBe(true);
   });
 
   it('/api/admin/quota excludes legacy NULL-model snapshots', async () => {
@@ -192,11 +192,13 @@ describe('SPA admin API endpoints', () => {
 
     const res = await app.request('/api/admin/quota');
     expect(res.status).toBe(200);
-    const body = (await res.json()) as Array<{
-      accountId: string;
-      windows: Array<{ modelName: string }>;
-    }>;
-    const acctRow = body.find((q) => q.accountId === acct.id);
+    const body = (await res.json()) as {
+      accounts: Array<{
+        accountId: string;
+        windows: Array<{ modelName: string }>;
+      }>;
+    };
+    const acctRow = body.accounts.find((q) => q.accountId === acct.id);
     expect(acctRow).toBeDefined();
     // Only the two named windows survive — no NULL-derived duplicate "general" pair.
     expect(acctRow?.windows.length).toBe(2);

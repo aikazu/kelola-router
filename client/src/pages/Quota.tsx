@@ -8,24 +8,16 @@ import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
 import { forwardDuration, relativeTime } from '../lib/relativeTime';
+import type { QuotaWindow } from '../lib/types';
 
-interface QuotaWindow {
-  modelName: string;
-  windowType: string;
-  usedCount: number;
-  totalCount: number;
-  remainingCount: number;
-  remainingPercent: number | null;
-  remainsTime: number | null;
-  windowEnd: string | null;
-  fetchedAt: string;
-}
 interface AccountQuota {
   accountId: string;
   label: string;
   creditType: string;
   enabled: boolean;
+  ok: boolean;
   windows: QuotaWindow[];
+  error?: string;
 }
 
 const WINDOW_LABEL: Record<string, string> = { '5h': '5h', weekly: 'wk', monthly: 'mo' };
@@ -110,39 +102,45 @@ function AccountRow({ q, expanded, onToggle }: { q: AccountQuota; expanded: bool
     ? q.windows.reduce((a, b) => (a.fetchedAt > b.fetchedAt ? a : b)).fetchedAt
     : null;
   const warnHealth = worst < 20;
+  const hasError = q.ok === false;
 
   return (
     <>
-      <tr onClick={onToggle} style={{ cursor: 'pointer' }} title={lastFetched ? `Last fetched ${relativeTime(lastFetched)}` : undefined}>
+      <tr onClick={onToggle} style={{ cursor: 'pointer' }} title={hasError ? `Error: ${q.error}` : lastFetched ? `Last fetched ${relativeTime(lastFetched)}` : undefined}>
         <td style={{ width: 24, color: 'var(--text-3)' }}>{expanded ? '▾' : '▸'}</td>
         <td style={{ fontWeight: 500 }}>
           {q.label}
           {!q.enabled && <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>disabled</span>}
+          {hasError && <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>error</span>}
         </td>
-        <td><Badge variant={q.creditType === 'token-plan' ? 'warn' : 'active'}>{q.creditType}</Badge></td>
+        <td><Badge variant={q.creditType === 'token-plan' ? 'warn' : hasError ? 'error' : 'active'}>{q.creditType}</Badge></td>
         <td>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div class="quota-bar-track" style={{ width: 60 }}>
               <div class={`quota-bar-fill${warnHealth ? ' warn' : ''}`} style={{ width: `${worst}%` }} />
             </div>
-            <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: warnHealth ? 'var(--alert)' : 'var(--text-2)' }}>{worst}%</span>
+            <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: warnHealth ? 'var(--alert)' : 'var(--text-2)' }}>{hasError ? '—' : `${worst}%`}</span>
           </div>
         </td>
-        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{fiveHPct != null ? `${fiveHPct}%` : '—'}</td>
-        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{weeklyPct != null ? `${weeklyPct}%` : '—'}</td>
-        <td style={{ fontSize: 11, fontFamily: 'var(--font-mono)' }}>{reset != null ? forwardDuration(reset) : '—'}</td>
+        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{hasError ? '—' : fiveHPct != null ? `${fiveHPct}%` : '—'}</td>
+        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{hasError ? '—' : weeklyPct != null ? `${weeklyPct}%` : '—'}</td>
+        <td style={{ fontSize: 11, fontFamily: 'var(--font-mono)' }}>{hasError ? '—' : reset != null ? forwardDuration(reset) : '—'}</td>
       </tr>
       {expanded && (
         <tr>
           <td colSpan={7} style={{ padding: '12px 16px', background: 'var(--surface-2, rgba(255,255,255,0.02))' }}>
-            {grouped.length === 0 ? (
+            {hasError ? (
+              <p class="card-sub" style={{ color: 'var(--alert)' }}>
+                Failed to load quota: {q.error ?? 'unknown error'}
+              </p>
+            ) : grouped.length === 0 ? (
               <p class="card-sub">No quota data yet — puller refreshes every 5 min.</p>
             ) : (
               grouped.map(([model, windows], i) => (
                 <ModelBlock key={model} windows={windows} delay={i * 70} />
               ))
             )}
-            {lastFetched && (
+            {lastFetched && !hasError && (
               <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 14 }}>
                 Last fetched {relativeTime(lastFetched)}
               </p>
@@ -166,7 +164,7 @@ export function Quota() {
   const toast = useToast();
 
   const {
-    data: quotas = [],
+    data: quotaResponse,
     isLoading,
     isError,
     error,
@@ -174,10 +172,11 @@ export function Quota() {
     isFetching,
   } = useQuery({
     queryKey: ['quota'],
-    queryFn: () => apiFetch<AccountQuota[]>('/api/admin/quota'),
+    queryFn: () => apiFetch<{ accounts: AccountQuota[] }>('/api/admin/quota'),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
+  const quotas = quotaResponse?.accounts ?? [];
 
   const pullMut = useMutation({
     mutationFn: () => apiFetch('/api/admin/quota/pull', { method: 'POST' }),

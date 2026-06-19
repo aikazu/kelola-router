@@ -54,3 +54,17 @@ export interface DeviceCodeData {
   authMethod: string;
   startUrl: string;
 }
+
+// Shape produced by GET /api/admin/quota. Kept in sync with QuotaWindow in
+// src/api/admin/quota.ts (no cross-bundle import to keep client/server bundles separate).
+export interface QuotaWindow {
+  modelName: string;
+  windowType: string;
+  usedCount: number;
+  totalCount: number;
+  remainingCount: number;
+  remainingPercent: number | null;
+  remainsTime: number | null;
+  windowEnd: string | null;
+  fetchedAt: string;
+}
