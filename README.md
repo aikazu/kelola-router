@@ -323,6 +323,39 @@ docker compose logs -f
 
 Listens on `http://127.0.0.1:20137` by default (bind to localhost for safety; remove `127.0.0.1:` in `docker-compose.yml` to expose publicly).
 
+The container bind-mounts `./data/` from the host → `/data/` inside the container, so `data/router.db` is shared between the two. CLI scripts on the host (`npm run seed-*`, `npm run add-account`) default to writing this same file — no env var needed when `data/` exists in the repo root.
+
+### ⚠️ Don't run host CLI scripts while the container is writing
+
+Both processes would open `data/router.db` simultaneously. SQLite's WAL can handle concurrent readers but **two writers** (host tsx + container) race on the WAL header and corrupt the file → "database disk image is malformed" on next open. The safe sequence:
+
+```bash
+# 1. Stop the container (releases the write lock)
+docker compose stop router
+
+# 2. Run host CLI scripts — they own the DB exclusively
+ROUTER_DB_PATH=./data/router.db npm run seed-zai-models
+npm run add-account -- --provider zai --api-key <key>
+
+# 3. Restart the container
+docker compose up -d
+```
+
+Or skip the host CLI entirely and let the dashboard handle it: open `http://127.0.0.1:20137/admin/accounts`, click "+ Add" on the Z.AI card, paste the key. Models auto-seed on account add (via `seedModelsForProviderBestEffort`).
+
+### Recovery after a WAL race / corrupt DB
+
+```bash
+docker compose stop router
+# If better-sqlite3 can still open it, checkpoint + integrity-check first:
+npx tsx scripts/recover-db.ts
+# Otherwise just rebuild — default `openDb()` runs all migrations from scratch:
+rm data/router.db data/router.db-wal data/router.db-shm
+docker compose up -d   # container applies migrations + creates a fresh schema
+# Then re-add accounts via dashboard or CLI:
+ROUTER_DB_PATH=./data/router.db npm run seed-zai-models
+```
+
 ## 🌐 VPS Deploy (Hetzner / OVH / DigitalOcean)
 
 1. SSH into VPS, install Docker + Caddy
