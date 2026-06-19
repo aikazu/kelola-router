@@ -1,468 +1,452 @@
-# 🛰️ Kelola Router
+# Kelola Router
 
-> Local-first API router — MiniMax, Kiro (AWS CodeWhisperer), and CodeBuddy upstreams, multi-account, intelligent fallback, prompt caching, RTK + Caveman compression, and a built-in dashboard.
+> Local-first API router for **MiniMax**, **Kiro (AWS CodeWhisperer / Amazon Q)**, **CodeBuddy**, **Pioneer**, **Notion**, and **Z.AI** — provider-prefix routing, multi-account pool, combo fallback, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in Preact dashboard.
 
-[![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/typescript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
-[![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.21](https://img.shields.io/badge/release-v0.21-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.21)
-[![Tests](https://img.shields.io/badge/tests-906-success?logo=vitest&logoColor=white)](#-development)
-[![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
+[![Node >=20](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript 5.x](https://img.shields.io/badge/typescript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Hono](https://img.shields.io/badge/hono-server-E36002?logo=hono&logoColor=white)](https://hono.dev)
+[![SQLite (WAL)](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/wal.html)
+[![License MIT](https://img.shields.io/badge/license-MIT-c9a352)](#license)
+[![Release v0.22.0](https://img.shields.io/badge/release-v0.22.0-c9a352?logo=github)](https://github.com/aikazu/kelola-router/releases/tag/v0.22.0)
+[![Tests 1000+](https://img.shields.io/badge/tests-1000%2B-22c55e)](./tests)
+[![UI Obsidian Gold](https://img.shields.io/badge/ui-obsidian%20gold-c9a352)](#dashboard)
 
-```text
-┌──────────┐     ┌──────────────────────────────┐     ┌────────────────────┐
-│  client  │     │        Kelola Router         │ ──▶ │  MiniMax (intl/cn) │
-│ (curl,   │ ──▶ │                              │     └────────────────────┘
-│  SDK,    │     │  auth → augment → compress   │     ┌────────────────────┐
-│  IDE,    │ ◀── │  → resolve → select → proxy  │ ──▶ │  Kiro (AWS Code-   │
-│  Claude) │     │       (routed by model)      │     │  Whisperer / Q)    │
-└──────────┘     └──────────────────────────────┘     └────────────────────┘
-                           │                           ┌────────────────────┐
-                           │                       ──▶ │  CodeBuddy (cb/)   │
-                           │                           └────────────────────┘
-                           │                           ┌────────────────────┐
-                           │                       ──▶ │  Pioneer (pio/)    │
-                           ▼                           └────────────────────┘
-                   ┌───────────────┐
-                   │  SQLite (WAL) │
-                   │  + dashboard  │
-                   └───────────────┘
+`#c9a352` is the accent gold used across the dashboard, badges, and log highlights.
+
+---
+
+## Architecture at a glance
+
+```
+                          +---------------------+
+   OpenAI / Anthropic --> |   Hono proxy        | <-- /v1/chat/completions
+   /v1/messages client    |   (src/server.ts)   |     /v1/messages
+                          +----------+----------+
+                                     |
+        +--------------+-------------+----------------+---------------+
+        |              |             |                |               |
+        v              v             v                v               v
+  +-----------+  +-----------+ +-----------+   +-----------+   +-----------+
+  | provider  |  | account   | | transport |   | streaming |   | RTK +     |
+  | selection |  | state +   | | (proxy/   |   | SSE pipe  |   | Caveman   |
+  | (sticky,  |  | backoff + | | relay/    |   | + usage   |   | compress  |
+  | round-    |  | locks)    | | direct)   |   | extractor |   | filters   |
+  | robin)    |  |           | |           |   |           |   |           |
+  +-----------+  +-----------+ +-----------+   +-----------+   +-----------+
+        |              |             |                |               |
+        +------+-------+-------------+-----+----------+-------+
+               |                                 |
+               v                                 v
+        +---------------+                +----------------+
+        | format/       |                | upstream       |
+        | transform +   |                | HTTP via       |
+        | negotiate     |                | proxyAwareFetch|
+        | (OpenAI<->    |                |                |
+        |  Anthropic)   |                +-------+--------+
+        +---------------+                        |
+                                                 v
+                            +----------------------------------+
+                            |   Upstream providers (6)         |
+                            |                                  |
+                            |   🟧 MiniMax        (mm/, mx/)   |
+                            |   🟣 Kiro (AWS Q)   (kr/)        |
+                            |   🟦 CodeBuddy      (cb/)        |
+                            |   🟢 Pioneer        (pio/)       |
+                            |   🌸 Notion         (nt/)        |
+                            |   ⚪  Z.AI          (zai/)       |
+                            +----------------------------------+
 ```
 
-## ✨ Features
+All six upstreams live behind a single OpenAI-compatible or Anthropic-compatible endpoint. Account selection, transport, prompt caching, RTK + Caveman compression, and live request-flow events are handled inside the router.
 
-- 🔌 **Drop-in OpenAI + Anthropic compatibility** — `/v1/chat/completions`, `/v1/messages`, `/v1/messages/count_tokens`, `/v1/models`
-- 🟣 **Kiro upstream (AWS CodeWhisperer / Amazon Q)** — second provider alongside MiniMax, routed by model. **OAuth Device Code Flow** for AWS Builder ID / IAM Identity Center (one-click login from dashboard), auto-import from Kiro IDE (`~/.aws/sso/cache`), or manual token paste. AWS event-stream binary protocol translated to OpenAI **and native Anthropic SSE** (streaming for Claude Code + hermes-agent). Auto token refresh + caching
-- 🟦 **CodeBuddy provider** — third upstream alongside MiniMax & Kiro, routed by `cb/` model prefix. Bridges OpenAI-format upstream to client format (OpenAI SSE → Anthropic SSE assembler).
-- 🟢 **Pioneer upstream (`pio/` prefix)** — fourth provider, OpenAI Chat Completions wire format with `X-API-Key` auth, reuses the CodeBuddy SSE bridge to serve both client formats. Models namespaced under `pioneer/` (name + upstream_model) to dodge global-unique id collisions; client uses `pio/<id>` verbatim.
-- 🌸 **Notion upstream (`nt/` prefix)** — fifth provider, reverse-engineered from Notion desktop's AI chat. Cookie-based session (11 cookies required), 3-step temp-password login (email + 6-char temp password), CRDT-style JSON request body + NDJSON patch-stream response, converted to OpenAI streaming at the edge. See [`docs/notion/wire-format.md`](docs/notion/wire-format.md) for protocol details.
-- ⚪ **Z.AI upstream (`zai/` prefix)** — sixth provider, single Bearer API-key auth (no OAuth, no migration). Two parallel APIs picked by client body format: Anthropic Messages (`/api/anthropic`, Claude-Code-compatible) and OpenAI Chat Completions (`/api/coding/paas/v4`, GLM Coding Plan). See [`docs/zai/wire-format.md`](docs/zai/wire-format.md) + [`docs/zai/auth.md`](docs/zai/auth.md).
-- 🔒 **Security hardening** — SQLCipher encryption-at-rest via `ROUTER_DB_KEY`, re-auth gate + audit log on client-key reveal, `GET /api/admin/security/status` with a security-status banner in the dashboard.
-- 🎯 **Provider prefix routing (`mx/` / `kr/` / `cb/` / `pio/` / `nt/` / `zai/`)** — explicit provider selection by model prefix. Unprefixed names resolve only as combo or alias (strict); prefixed requests validate provider agreement.
-- 🔄 **Combo fallback chains** — ordered cross-provider member walk, auto-retry on 401/402/403 + 502/503/504.
-- 🛠️ **Tool use passthrough with cross-format conversion** — `tools` / `tool_use` / `tool_calls` flow correctly between client + upstream regardless of which SDK you use (Anthropic SDK ↔ OpenAI SDK ↔ MiniMax upstream)
-- 🔀 **Cross-format routing** — set `upstreamFormat` in `settings.minimax` (or `ROUTER_UPSTREAM_FORMAT` env) to route OpenAI clients to Anthropic upstream or vice versa; body + non-stream response converted automatically
-- 📺 **OpenAI `stream_options.include_usage` auto-injected** — accurate per-client cost tracking even if the client forgets to set it
-- 💡 **`reasoning_split` default** — when set, MiniMax-M3 always returns structured `reasoning_content` + `reasoning_details` (no `<think>` tags in `content`)
-- 🔐 **Two-tier auth** — separate `api_key` for proxy traffic, `admin_key` for management routes
-- 🧠 **Multi-account state machine** — sticky + round-robin selection, exponential backoff, per-model locks, automatic cooldown on 429/5xx
-- 🌍 **Region-aware** — `MINIMAX_REGION=intl|cn` switch
-- 🗃️ **SQLite-WAL storage** — zero-config persistence with idempotent migrations
-- 🔤 **Model aliases** — user-defined model-name → upstream-model mapping; CRUD via `/admin/aliases`, in-memory cache with TTL, `requested_model` logged per request, `?target=<model>` deep link from Models page, `aliasCount` per model in `/api/admin/models`
-- 📊 **Per-request telemetry** — token usage, latency, cache hits, account attribution
-- 🖥️ **Live Console** — dashboard page streaming per-request flow events (start → account → transport → done/error) over SSE from a ring-buffered in-process bus, with Pause / Clear / auto-scroll, live/reconnecting indicator, and matching colored lines on server stdout (gated by `CONSOLE_FLOW=0` to silence)
-- 👥 **Client keys with per-key usage** — one bearer = one client identity; admin can see per-key breakdown on `/admin/usage`
-- 🔁 **Pool fallback across upstream MiniMax keys** — admin adds N MiniMax keys; router fans out + backoffs + locks per-model
-- 🪶 **RTK compression + Caveman mode + dual cache injection** — per-setting toggles in dashboard
-- 🌊 **SSE stream pass-through** — OpenAI + Anthropic streaming with usage extraction on flush
-- ✏️ **Inline CRUD on every page** — enable/disable/delete accounts, client keys, and models without the CLI. Reveal/hide bearer keys in the UI
-- 🔐 **Optional dashboard password** — set via `/admin/settings` to lock the dashboard behind a login. Open mode by default for local use
-- 🛡️ **Login rate-limit + CSRF** — 5 failed attempts per 15min per IP, cross-origin POSTs blocked
-- 🌐 **Fetch from upstream** — `/admin/models` can pull MiniMax's current model list; 404 fallback shows a clear message
-- 🎨 **Obsidian Gold dashboard** — Preact SPA (`client/`) with a dark-canvas + single-gold-accent theme, Fraunces/Inter/JetBrains Mono type stack, command palette (`⌘K`), keyboard nav (`g` then key), and live request telemetry
-- 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 906 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+---
 
-## 🚀 Quick Start
+## Features
+
+- 🛰️ **Six upstream providers** — MiniMax, Kiro (AWS CodeWhisperer / Amazon Q), CodeBuddy, Pioneer, Notion, and Z.AI behind a single URL.
+- 🔀 **Provider-prefix routing** — `mm/MiniMax-M3`, `kr/claude-sonnet-4.5`, `cb/gpt-5`, `pio/...`, `nt/...`, `zai/...`. Aliases and combos translate user-facing model names to any of the six upstreams.
+- 🧠 **Multi-account pool with state machine** — sticky + round-robin selection per provider, exponential backoff (1s → 4min cap), per-(account, model) cooldown locks, and error rules for 429 / 2056 / 2061 / 5xx cascades.
+- 🧬 **OpenAI ↔ Anthropic wire-format negotiation** — clients speak either protocol; the router translates per upstream (Kiro EventStream binary, Notion CRDT NDJSON, Z.AI dual API).
+- 🗜️ **RTK compression pipeline** — `compressMessages` with `dedupLog` + `smartTruncate` filters, runtime registry, autodetect, and per-request RTK log surfaced in the console.
+- 🦴 **Caveman terse system-prompt injection** — optional off / light / strong prompt mutation per request.
+- ⚡ **Dual cache_control + auto-breakpoints** — Anthropic-style prompt caching, automatic breakpoint insertion when callers omit markers, respects caller-provided markers.
+- 📊 **Live request-flow console** — every step (selection, transport, upstream, error) emits a flow event you can tail in the dashboard or via `CONSOLE_FLOW=stdout`.
+- 🧭 **Scheduler / quota puller** — periodic `POST /v1/token_plan/remains` for Kiro-style quota tracking, persisted in `quota_snapshots`.
+- 🛡️ **Auth + security** — scrypt password hashing + session cookies, CSRF, 5-fail-per-15min rate limit, optional SQLCipher encryption-at-rest, admin audit log, security banner.
+- 🎛️ **Built-in Preact dashboard** — Obsidian-Gold-themed SPA (Vite) with Overview, Usage, Client keys, Upstream accounts, Models, Aliases, Combos, Quota, Transports, Console, and Settings.
+- 🔌 **Transport flexibility** — direct / SOCKS proxy / HTTP proxy / upstream relay, per-account assignment with geoip-aware defaulting, dispatcher cache.
+- 🐳 **Docker-ready** — multi-stage Dockerfile, `docker-compose.yml`, bind-mount friendly, `recover-db.ts` for WAL race recovery.
+- 🧪 **1000+ tests** across server (Vitest, 154 files), client (Vitest, 78 tests), and the audit-fixes suite (14 new tests).
+- 🆕 **Audit-fixes v0.22.0** — quota uses `Promise.allSettled` for parallel per-account fetch with per-account error shape, settings GET returns `null` for missing keys (client merges UI defaults), admin cache 250ms TTL with explicit `bumpAdminCacheVersion` invalidation from `flushDb`, combo/alias name uniqueness enforced both directions (`checkComboConflict` exported), and `upsertAlias` UPDATE branch now sets `source`.
+
+---
+
+## Quick start
 
 ### Prerequisites
 
-- **Node.js ≥ 20**
-- At least one upstream: MiniMax API key, Kiro (AWS) account, or CodeBuddy API key
+- Node.js >= 20
+- A SQLite build (libsqlite3) — bundled via `better-sqlite3`
+- Accounts for at least one upstream:
+  - **MiniMax** — MiniMax API key
+  - **Kiro (AWS CodeWhisperer / Amazon Q)** — Social auth or IdC, Kiro refresh token
+  - **CodeBuddy** — CodeBuddy bearer cookie
+  - **Pioneer** — Pioneer API key (Anthropic-compatible)
+  - **Notion** — Notion internal integration token
+  - **Z.AI** — Z.AI API key (OpenAI-compatible)
 
-### Install
+### Bootstrap
 
 ```bash
 git clone https://github.com/aikazu/kelola-router.git
 cd kelola-router
 npm install
-
 cp .env.example .env
-# edit .env: set MINIMAX_API_KEY + region
+npm run dev          # starts Hono server + Vite dashboard in parallel
 ```
 
-### Bootstrap (no CLI required)
+Open the dashboard at `http://localhost:5173`, set the admin password on first run, and add at least one account per provider you plan to use:
 
-Open the dashboard at <http://localhost:20137/>. From there:
+- `Upstream -> Accounts -> + Add` (MiniMax / CodeBuddy / Pioneer / Z.AI)
+- `Upstream -> Accounts -> + Add (Kiro)` for Kiro social or device-flow
+- `Upstream -> Accounts -> + Add (Notion)` for Notion internal integration
 
-1. Add an upstream account (MiniMax, Kiro, or CodeBuddy) at `/admin/accounts` (label, API key or OAuth)
-2. Create a client key for each app at `/admin/client-keys` (label) — copy the bearer
-3. Optional: lock the dashboard at `/admin/settings` ("Set password")
-
-Models now seed automatically when a provider's first account is added (MiniMax/Pioneer live-fetch `/v1/models`, Kiro/CodeBuddy/Notion builtin lists) — a fresh DB starts empty. The CLI scripts (`npm run add-client-key`, `add-account`, `seed-models`, `reset`) remain available as power-user shortcuts.
-
-### Run the server
+### Send a request
 
 ```bash
-npm run dev          # runs Hono + Vite dev server (concurrently)
-# or
-npm run build && npm start
-```
-
-The dev server runs:
-- **API + proxy** on `http://127.0.0.1:20137` (Hono)
-- **Dashboard SPA** on `http://127.0.0.1:5173` (Vite) — proxies `/api`, `/v1`, `/login`, `/logout` to the server
-
-In production (`npm start`), the server serves the static SPA from `client/dist/` on port 20137.
-
-### Make a request
-
-```bash
-# health
-curl http://127.0.0.1:20137/health
-
-# chat completion (using the client_key from add-client-key)
-curl -X POST http://127.0.0.1:20137/v1/chat/completions \
-  -H "Authorization: Bearer rk_your_api_key" \
+curl http://localhost:8787/v1/chat/completions \
+  -H "Authorization: Bearer <client_key>" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "MiniMax-M3",
-    "messages": [{"role":"user","content":"hello"}]
+    "model": "mm/MiniMax-M3",
+    "messages": [{"role": "user", "content": "Hello!"}]
   }'
 ```
 
-## 🏗️ Architecture
-
-### Per-request pipeline
-
-```
-1. requireApiKey / requireAdmin        → 401/403
-2. parse JSON body, resolve model
-3. selectAccount(state machine)        → 503 if all unavailable
-4. check per-model lock                → 429 if locked for this model
-5. augment (caveman + cache injection) → mutate body in place
-6. compress messages (RTK) if enabled  → log byte savings
-7. resolve upstream model + body transform
-8. upstreamFetch(url, body)            → stream (pipeWithUsage) or buffered
-9. record telemetry to request_logs    → cost, tokens, latency
-10. update account state               → backoff / reset / model lock
-```
-
-### Directory layout
-
-```
-src/
-├── server.ts                 # Hono app + listener
-├── auth.ts                   # client_key + admin_key middleware
-├── util/
-│   ├── env.ts                # typed env getters (HOST, PORT, REGION, DB_PATH, LOG_LEVEL)
-│   └── log.ts                # pino instance
-├── accounts/                 # state machine + selection
-│   ├── types.ts
-│   ├── backoff.ts            # exponential cooldown (1s → 4min cap)
-│   ├── errorRules.ts         # 429/2056/2061/5xx cascade
-│   ├── state.ts              # apply/reset/filter/lock-checks
-│   ├── selection.ts          # sticky + round-robin
-│   └── locks.ts              # per-(account, model) cooldown CRUD
-├── db/
-│   ├── index.ts              # openDb (WAL, FK, busy_timeout)
-│   ├── migrations/           # 001-initial (single consolidated schema) + index runner
-│   └── repos/                # client_keys, accounts, models, aliases, requestLogs, quotaSnapshots, settings
-├── providers/                # provider-specific behavior
-│   ├── minimax.ts            # PROVIDER const, upstreamUrl/Headers helpers
-│   ├── baseUrl.ts            # intl vs cn base URL
-│   ├── headers.ts            # OpenAI Bearer vs Anthropic x-api-key
-│   ├── alias.ts              # model alias + thinking + M3 max_completion_tokens + reasoning_split
-│   ├── listModels.ts         # /v1/models fetch + merge
-│   ├── pricing.ts            # per-token cost calc (incl cache)
-│   ├── parseError.ts         # base_resp.status_code extraction
-│   ├── quota.ts              # token-plan quota parser
-│   ├── upstreamFetch.ts      # JSON POST wrapper over proxyAwareFetch
-│   └── format/               # cross-format body + response conversion
-│       ├── transform.ts      # tools/tool_choice/tool_use/tool_calls between OpenAI↔Anthropic
-│       └── negotiate.ts      # decide upstream format from client + override
-│   └── kiro/                 # Kiro (AWS CodeWhisperer) provider
-│       ├── constants.ts      # endpoints, -thinking/-agentic resolution, thinking-mode prompt
-│       ├── transform.ts      # OpenAI → CodeWhisperer conversationState
-│       ├── eventstream.ts    # AWS event-stream binary frame decoder
-│       ├── assembler.ts      # events → OpenAI SSE chunks + buffered JSON
-│       ├── anthropicSse.ts   # events → native Anthropic Messages SSE
-│       ├── tokenRefresh.ts   # AWS SSO OIDC / Kiro social refresh
-│       ├── auth.ts           # ensureAccessToken (DB-cached, auto-refresh)
-│       ├── deviceCode.ts     # OAuth Device Code Flow (register + device auth + poll)
-│       ├── autoImport.ts     # auto-import from ~/.aws/sso/cache
-│       ├── accountImport.ts  # paste JSON / Builder ID / IDC / social
-│       └── index.ts          # executeKiro
-│   └── codebuddy/             # CodeBuddy provider
-├── rtk/                      # RTK compression pipeline
-│   ├── index.ts              # compressMessages + formatRtkLog
-│   ├── applyFilter.ts        # generic filter runner
-│   ├── autodetect.ts         # choose filters by content
-│   ├── registry.ts           # filter registry
-│   ├── constants.ts
-│   ├── types.ts
-│   └── filters/              # dedupLog, smartTruncate
-├── caveman/                  # terse system-prompt injection
-│   ├── index.ts
-│   └── prompts.ts
-├── cache-injection.ts        # dual cache_control + auto-breakpoints
-├── streaming/
-│   ├── extractUsage.ts       # parse SSE → usage (OpenAI + Anthropic)
-│   └── pipeWithUsage.ts      # tee upstream SSE + capture usage on flush
-├── transport/                # proxy / relay resolution
-│   ├── proxyFetch.ts         # direct | http | socks5 | relay
-│   ├── dispatcherCache.ts
-│   ├── socksLoader.ts
-│   └── types.ts
-└── scheduler/
-    └── quotaPull.ts          # periodic /v1/token_plan/remains puller
-
-# (the dashboard SPA lives in client/ and is served as static files by server.ts)
-
-client/                       # Preact SPA dashboard (Vite) — see "Dashboard" below
-├── src/
-│   ├── pages/                # overview, usage, client-keys, accounts, aliases, models, combos, quota, settings, transports, login, request-detail, console, not-found
-│   ├── components/           # Card, Stat, Badge, Button, Modal, Toast, CommandPalette, …
-│   ├── layout/               # AppShell, Sidebar, TopBar
-│   ├── styles/               # base.css (tokens+fonts), components.css, animations.css
-│   └── lib/                  # api.ts (fetch wrapper), queryClient, relativeTime
-└── public/                   # favicon.svg
-
-scripts/                      # CLI: add-client-key, add-account, seed-models, reset
-tests/                        # mirror src/
-```
-
-### Lint
-
-```bash
-npm run lint          # check (server + client via root config)
-npm run lint:fix      # auto-fix
-cd client && npm run lint      # client only
-cd client && npm run lint:fix  # client auto-fix
-```
-
-Biome is the single lint+format tool. Configs at `biome.json` (root) and `client/biome.json` (`"root": false` nested config). Strict rules are `warn` for v0.12 baseline — see [docs/roadmap.md](docs/roadmap.md) for the v0.12 entry.
-
-## 🎨 Dashboard
-
-The dashboard is a standalone **Preact SPA** in `client/` (Vite + preact-router + @tanstack/react-query). The Hono server exposes a JSON API under `/api/admin/*`; in production the built SPA is served as static files from `client/dist/` on port `20137`.
-
-**Theme — Obsidian Gold.** Dark obsidian canvas (`#0A0A0A`) with a single restrained gold accent (`#C9A352`). Type stack: **Fraunces** (display headings, one italic-gold accent word each) · **Inter** (body) · **JetBrains Mono** (labels, metadata, eyebrows). Signature details: a 2px gold-line on the top edge of every card, mono uppercase eyebrows above each title, spec-sheet metadata blocks, and an asymmetric Overview hero. Green (`#6CC3A6`) marks OK status; terracotta (`#D27A6E`) marks errors.
-
-| Page | Path | What it does |
-|------|------|--------------|
-| Overview | `#/admin` | Hero spend figure, pool status, by-model + recent requests; range selector (1 / 7 / 30 / 90 days / all, default 1 day) |
-| Usage | `#/admin/usage` | Filterable, sortable, paginated request log with deltas; range selector (1 / 7 / 30 / 90 days / all, default 1 day) |
-| Client keys | `#/admin/client-keys` | Create / enable / disable / delete bearer credentials; copy full key per row |
-| Upstream | `#/admin/accounts` | Manage MiniMax + Kiro accounts (OAuth device code, auto-import, manual) |
-| Models | `#/admin/models` | Catalog, aliases, fetch-from-upstream |
-| Quota | `#/admin/quota` | Token-plan balance windows |
-| Settings | `#/admin/settings` | Toggles, password, format override |
-
-Shortcuts: `⌘K` / `Ctrl K` opens the command palette; `g` then a key jumps between pages; `?` shows help.
-
-**Iterating on the UI:** run the Vite dev server for instant hot-reload against the live backend —
-
-```bash
-cd client && npm run dev    # http://localhost:5173, proxies /api /v1 /login /logout → :20137
-```
-
-> ⚠️ The dashboard on **:20137** is served from the build baked into the Docker image. Changes under `client/src` only appear there after a rebuild:
-> ```bash
-> docker compose build && docker compose up -d
-> ```
-
-## ⚙️ Configuration
-
-All settings live in the `settings` table and are editable via the dashboard at `/admin/settings`. The `getSetting(db, key)` helper caches values for 1s.
-
-`GET /api/admin/settings` returns the four toggle keys plus the build version: `{ caveman, caching, rtk, minimax, version }`. Unset keys return `null`; the dashboard merges UI defaults client-side (see `client/src/pages/Settings.tsx`).
-
-| Key | Default (UI) | Purpose |
-|-----|--------------|---------|
-| `rtk` | `{enabled:true}` | RTK compression toggle (v0.4) |
-| `caveman` | `{level:"off"}` | Caveman prompt mode (v0.4) |
-| `caching` | `{autoBreakpoints:true}` | Dual cache_control (v0.4) |
-| `minimax` | `{}` | Cross-format routing override — empty = auto-detect (v0.7) |
-| `transport` | (not in GET response) | Upstream transport (v0.6) — edit `transports` table or per-account row |
-| `build` | `{version:"<auto>"}` | Self-describe (auto-synced from package.json on startup; surfaced as `version` in GET response) |
-
-Per-user setting `user_settings.account_mode` controls selection: `sticky` (session-pinned) or `round-robin` (default). Sticky key is read from header `x-router-key`. *(deprecated in v0.7 — single-user model)*
-
-## 🧑‍💻 Development
-
-```bash
-npm test              # vitest run (server: 906+ tests, client: 78+ tests)
-npm run test:watch    # watch mode
-npm run typecheck     # strict type check
-npm run dev           # tsx watch src/server.ts
-
-# CLI scripts
-npm run add-client-key -- --label myapp
-npm run add-account -- --label "main" --credit-type payg --api-key mm_xxx
-npx tsx scripts/seed-models.ts   # power-user shortcut: re-upsert MiniMax models (auto-seeded on first account add)
-
-# Kiro (AWS CodeWhisperer) upstream
-npx tsx scripts/seed-kiro-models.ts                                   # builtin Kiro/Claude models
-npm run add-account -- --provider kiro --label kiro1 --refresh-token eyJ...  # + optional --client-id/--client-secret/--region/--profile-arn
-
-# Notion AI upstream
-npm run notion-add-account -- --label personal --email user@example.com  # 3-step OTP login
-npm run seed-notion-models                                                # 20 builtin Notion models
-# (auto-fetches workspaceId on first chat, or pass --space-id <uuid>)
-
-npx tsx scripts/reset.ts --yes   # delete db + WAL/SHM sidecars
-```
-
-### Commit conventions
-
-- `feat:` new feature
-- `fix:` bug fix
-- `chore:` tooling, deps, non-code
-- `test:` test-only changes
-- `docs:` documentation
-- `refactor:` internal restructure, no behavior change
-
-TDD discipline: red test → green impl → commit. No "add tests later".
-
-## 🐳 Docker
-
-```bash
-docker compose up -d
-docker compose logs -f
-```
-
-Listens on `http://127.0.0.1:20137` by default (bind to localhost for safety; remove `127.0.0.1:` in `docker-compose.yml` to expose publicly).
-
-The container bind-mounts `./data/` from the host → `/data/` inside the container, so `data/router.db` is shared between the two. CLI scripts on the host (`npm run seed-*`, `npm run add-account`) default to writing this same file — no env var needed when `data/` exists in the repo root.
-
-### ⚠️ Don't run host CLI scripts while the container is writing
-
-Both processes would open `data/router.db` simultaneously. SQLite's WAL can handle concurrent readers but **two writers** (host tsx + container) race on the WAL header and corrupt the file → "database disk image is malformed" on next open. The safe sequence:
-
-```bash
-# 1. Stop the container (releases the write lock)
-docker compose stop router
-
-# 2. Run host CLI scripts — they own the DB exclusively
-ROUTER_DB_PATH=./data/router.db npm run seed-zai-models
-npm run add-account -- --provider zai --api-key <key>
-
-# 3. Restart the container
-docker compose up -d
-```
-
-Or skip the host CLI entirely and let the dashboard handle it: open `http://127.0.0.1:20137/admin/accounts`, click "+ Add" on the Z.AI card, paste the key. Models auto-seed on account add (via `seedModelsForProviderBestEffort`).
-
-### Recovery after a WAL race / corrupt DB
-
-```bash
-docker compose stop router
-# If better-sqlite3 can still open it, checkpoint + integrity-check first:
-npx tsx scripts/recover-db.ts
-# Otherwise just rebuild — default `openDb()` runs all migrations from scratch:
-rm data/router.db data/router.db-wal data/router.db-shm
-docker compose up -d   # container applies migrations + creates a fresh schema
-# Then re-add accounts via dashboard or CLI:
-ROUTER_DB_PATH=./data/router.db npm run seed-zai-models
-```
-
-## 🌐 VPS Deploy (Hetzner / OVH / DigitalOcean)
-
-1. SSH into VPS, install Docker + Caddy
-2. `git clone https://github.com/aikazu/kelola-router.git && cd kelola-router`
-3. Edit `Caddyfile` — replace `router.example.com` with your domain
-4. `docker compose up -d`
-5. `caddy reload` — auto-TLS via Let's Encrypt
-6. Visit `https://router.example.com/admin` and use your admin_key
-
-## 🚇 Transport
-
-The router supports 4 transport modes, in priority order:
-
-1. **Direct** (default) — no config
-2. **HTTP/HTTPS proxy** — set `HTTPS_PROXY=http://host:port` env
-3. **SOCKS5 proxy** — set `HTTPS_PROXY=socks5://host:port` env
-4. **Relay** (Vercel/Cloudflare) — set `transport.relay` row in `settings` table:
-   ```sql
-   UPDATE settings SET value = '{"relay":{"kind":"vercel","url":"https://your-relay.vercel.app/api/relay"}}' WHERE key = 'transport';
-   ```
-
-Use `NO_PROXY=localhost,127.0.0.1` to bypass for local targets.
-
-## 🔒 Security
-
-Kelola Router is a self-hosted single-tenant proxy. The server-side attack surface is the dashboard, the SQLite file, and the `audit_log` table. The mitigations below ship out of the box.
-
-### Open mode (default)
-
-No admin password is set. Every request to `/api/admin/*` is allowed. The server prints a structured warning at startup and the dashboard shows a gold banner above the sidebar. Open mode is fine for `127.0.0.1` development. For any host reachable from another machine, set a password.
-
-### Password mode
-
-Set a password from the dashboard at `/admin/settings` (Dashboard access card). Once set, the server boots in password mode: every admin route goes through `requireAdminJson`, which accepts the password (scrypt-hashed in the `settings.admin_password` row) or a session cookie. Revealing a client key's bearer (`GET /api/admin/client-keys/:id/key`) is additionally gated by a 60-second step-up cookie (`kelola_reauth=verified`, `HttpOnly`, `SameSite=Strict`, `Path=/api/admin`, `Secure` on HTTPS) — set by `POST /api/admin/reauth/verify` after a fresh password confirmation. *(commit `e9bef69`)*
-
-### Encryption at rest
-
-Set `ROUTER_DB_KEY=<secret>` in the environment to enable SQLCipher (AES-256) via the `better-sqlite3-multiple-ciphers` fork. With the key set, the SQLite file is created and read through the cipher handle; without it, the file is plain SQLite (default, backward compatible). *(commit `33a3d98`)*
-
-**Fresh-deploy only.** Setting `ROUTER_DB_KEY` against an existing plaintext database causes the server to refuse to start with the exact message:
-
-> Database file at `<path>` is unencrypted but `ROUTER_DB_KEY` is set. Either remove `ROUTER_DB_KEY` (downgrade to plaintext) or delete the DB file and re-deploy fresh. Automatic migration is intentionally not supported.
-
-There is no `--rekey` flag and no in-place migration. Export your data, wipe the file, redeploy, and re-import.
-
-### Audit log
-
-Every successful client-key reveal writes one row to the `audit_log` table: *(commit `e768797`)*
-
-```sql
-CREATE TABLE audit_log (
-  id INTEGER PK AUTOINCREMENT,
-  event TEXT NOT NULL,              -- 'client_key.reveal'
-  client_key_id INTEGER,            -- FK client_keys(id) ON DELETE SET NULL
-  ip TEXT,                          -- left-most x-forwarded-for | 'unknown'
-  user_agent TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-```
-
-`client_key_id` is nullable with `ON DELETE SET NULL` so the audit trail survives deletion of the audited key. Failed reveals (404, 401) do not write rows. The insert runs synchronously inside the request; a `pino` warning is logged on failure so audit-write problems never block the response.
-
-### Banner
-
-The dashboard's `<SecurityBanner>` (mounted in `AppShell`, sticky at the top) calls `GET /api/admin/security/status` on load and re-queries it after every password change. It shows when either posture is off: open mode (gold stripe) or unencrypted DB (muted gold stripe). *(commit `795c21a`)*
-
-### Self-host monitoring
-
-`GET /api/admin/security/status` returns `{ adminPasswordSet: boolean, dbEncrypted: boolean }` and is gated by the same admin auth as the rest of `/api/admin/*`. Self-host operators can poll it from uptime checks or wire it into Grafana / Alertmanager — any non-`true` value is a posture violation worth alerting on.
-
-## 🛣️ Roadmap
-
-| Phase | Version | Status | Scope |
-|------:|:--------|:------:|:------|
-| 19 | **v0.19** | ✅ shipped | **Security hardening + Pioneer provider + seed-on-account-add.** SQLCipher encryption-at-rest (ROUTER_DB_KEY, better-sqlite3-multiple-ciphers); re-auth gate on client-key reveal with audit_log (migration 007-audit-log, user_version 7); GET /api/admin/security/status + SecurityBanner; startup open-mode/unencrypted warnings. Typed settings reader getSettingT<K>() (valibot). SseAssemblerBase template-method refactor (Kiro + CodeBuddy assemblers). Oversized client pages split (Transports/Accounts/Models). Unified add-account CLI across providers. **Pioneer upstream (pio/)** — OpenAI Chat Completions + X-API-Key, reuses CodeBuddy SSE bridge, models namespaced under pioneer/ to dodge global-unique id collisions, full dashboard card. **Seed-on-account-add** — dropped startup pre-seed; each provider's catalogue seeds when its first account is added (MiniMax/Pioneer live-fetch, Kiro/CodeBuddy builtin); fresh DB starts empty. 855 backend + 77 client tests |
-| 18 | **v0.18** | ✅ shipped | **CodeBuddy provider + provider-prefix routing.** Third upstream (CodeBuddy, `cb/` prefix) bridging an OpenAI upstream to client format (OpenAI SSE → Anthropic SSE assembler, forced `include_usage`, mid-stream error propagation, Python browser-automation sidecar). Explicit provider prefixes `mm/` / `kr/` / `cb/` on `body.model` (`src/providers/modelPrefix.ts`): prefixed → literal lookup with `provider` agreement, unprefixed → combo/alias only (strict), bare names rejected. **Combo fallback chains** — `combos` table + CRUD + dashboard page, ordered cross-provider member walk retrying `401/402/403` + `5xx`. **Per-provider account selection** (`selection.<provider>`: lowest-backoff / round-robin+step / sticky), Accounts + Models split into per-provider cards with health test + manual add. **Transport** geoip country probe, LRU + SOCKS dispatcher cache, proxy failure mode (`direct`\|`block`). Console per-request detail, filter bar, relative timestamps, RTK bytes-saved; `request_logs` retention pruning. Broad hot-path perf hardening (DB prepared-stmt cache + indexes + PRAGMAs, Kiro buffer reuse, client re-render scoping) |
-| 17 | **v0.17** | ✅ shipped | **Live Console** — in-process flow event bus + SSE stream + dashboard page. `src/console/` modules: `bus.ts` (200-event ring buffer + throwing-subscriber isolation), `format.ts` (pure ANSI renderer with `stripAnsi` / `fmtTokens`), `flow.ts` (5 event builders + `genReqId`), `sink.ts` (env-gated stdout writer, `CONSOLE_FLOW=0` to silence). Both proxy paths (`handleProxy` MiniMax + `handleKiroProxy`) emit `start` / `account` / `transport` / `done` / `error` events with a shared `reqId`; log inserts carry the same `reqId`. `GET /api/admin/console/stream` (Hono `streamSSE`) backfills recent + live + 15s heartbeat. Migration `004-reqid` adds nullable `req_id` on `request_logs` (additive; `user_version = 4`). Dashboard `Console` page (`/admin/console`, hotkey `g n`, palette entry) — `EventSource` → grouped blocks by `reqId` (start / account / transport / done / error lines), Pause / Clear / auto-scroll-stick, live dot. +19 tests: 4 `bus`, 7 `format`, 5 `flow`, 2 `sink`, 1 `sse` (backfill), 1 `migration-004`, 1 `requestlog-reqid` roundtrip, 1 `emit-proxy` integration, 1 `emit-kiro` smoke; 423 → 484 server tests, 19 → 21 client tests. Server stdout gets the same lines colored (gold reqid, green ✓, red ✗) by default |
-| 16 | **v0.16** | ✅ shipped | Kiro (AWS CodeWhisperer / Amazon Q) as a second upstream provider, routed by model `provider`. Additive migration `002-kiro` (`provider`/`access_token`/`token_expires_at`/`provider_data` on accounts, `provider` on models). New `src/providers/kiro/` modules: CodeWhisperer request transform, AWS event-stream binary decoder, OpenAI SSE + **native Anthropic Messages SSE** assemblers (Claude Code/hermes streaming), token refresh (AWS SSO OIDC / Kiro social) with DB-cached auto-refresh. Account import — paste credential JSON / AWS Builder ID / AWS IAM Identity Center / refresh token — via `POST /api/admin/accounts/kiro` + dashboard form. **OAuth Device Code Flow** for AWS Builder ID / IAM Identity Center (one-click login from dashboard): `POST /kiro/device-code` + `POST /kiro/poll`. **Auto-import** from Kiro IDE (`~/.aws/sso/cache`): `GET /kiro/auto-import`. `seed-kiro-models` + `add-kiro-account` CLI. **Switchable per-account persona** — `ide` (legacy, default; `codewhisperer.*.amazonaws.com` + KiroIDE fingerprint) ⇄ `cli` (experimental; `runtime.*.kiro.dev` mirroring the real kiro-cli wire format, verified against captured traffic) toggled from the dashboard or `PATCH /accounts/:id {persona}`, with CLI model-id dotting + automatic `profileArn` discovery via `ListAvailableProfiles`. **Live-verified** against real AWS/Kiro endpoints. 18 unit tests + end-to-end proxy integration test (mocked binary upstream) |
-| 15 | **v0.15** | ✅ shipped | Quota duplicate-block fix: puller now skips `model_remains[]` items with no `model_name` and the admin query filters `model_name IS NOT NULL`, so legacy NULL-model rows can no longer render as a phantom 0% block. Schema consolidation: migrations 002–008 folded into a single `001-initial` (full schema, `user_version = 1`); legacy upgrade stubs + dead `repos/users.ts` removed — fresh-deploy only |
-| 14 | **v0.14** | ✅ shipped | Usage all-time range (`days=0`, null deltas) + 1-day default; per-row Copy full client key (`GET /client-keys/:id/key`, list stays masked). Quota flow fix + redesign: parse real MiniMax nested `model_remains[]` shape (old parser read a flat shape → "no data"), fix used/remaining semantic swap (`used_count = usage_count`, `remaining_count = total − usage`), store `remaining_percent` + `remains_time` (consolidated into the single `001-initial` schema in v0.15); admin API groups latest snapshots per `(model_name, window_type)`; Quota page redesigned as per-model percent bars (general/video) with reset countdown, status dot, count detail when metered |
-| 13 | **v0.13** | ✅ shipped | Hot-path latency cuts (warm SQLite statement executions per request 8 → 5): batched settings read, skip no-op account writes, throttled lock cleanup, client-key lookup cache, deferred request-log insert (off the response path via `setImmediate`), fast-path raw-body passthrough when no transform applies; fixed `stream_options.include_usage` injection (return value was discarded), `adminApi` per-request db handle, `resetDb` closing the handle |
-| 12 | **v0.12** | ✅ shipped | Model aliases (CRUD, cache, `requested_model` log); Biome linter (root + client, `lint`/`lint:fix` scripts); roadmap → `docs/roadmap.md` |
-| 11 | **v0.11** | ✅ shipped | Adaptive thinking: collapse `-thinking` built-ins into base models via allowlist, `thinking.type: "adaptive"` auto-inject, `reasoning_split` follows thinking presence, drop `thinking_enabled`/`thinking_budget` columns, legacy `-thinking` aliases still resolve |
-| 10 | **v0.10** | ✅ shipped | Dashboard rebuilt as a Preact SPA (`client/`) with the Obsidian Gold theme: gold-line cards, eyebrow labels, asymmetric Overview hero, monogram favicon |
-| 9 | **v0.9** | ✅ shipped | Inline dashboard CRUD, login + rate-limit + CSRF, fetch-models 404 fallback, usage account labels |
-| 8 | **v0.8** | ✅ shipped | Cross-format tool conversion (OpenAI↔Anthropic), `stream_options.include_usage` auto-injection, MiniMax `base_resp` status code mapping, `/v1/embeddings` → 501, `reasoning_split` toggle |
-| 7 | **v0.7** | ✅ shipped | Drop multi-tenant: client_keys vs accounts split, per-key usage, single-user self-host model |
-| 6 | **v0.6** | ✅ shipped | Full transport (relay + http/socks + env), Dockerfile, Caddyfile, VPS docs |
-| 5 | **v0.5** | ✅ shipped | Quota scheduler, dashboard UI (7 pages), SSE stream usage extraction |
-| 4 | **v0.4** | ✅ shipped | RTK compression, Caveman mode, dual cache injection |
-| 3 | **v0.3** | ✅ shipped | Model registry, alias resolution, tiered pricing, live fetch |
-| 2 | **v0.2** | ✅ shipped | SQLite, auth, multi-account state machine, CLI |
-| 1 | **v0.1** | ✅ shipped | Hono passthrough, 5 routes, smoke test |
-
-For the full release history including upcoming ideas, see [docs/roadmap.md](docs/roadmap.md).
-
-## 📜 License
-
-MIT © 2026 aikazu
+Swap `mm/` for `kr/`, `cb/`, `pio/`, `nt/`, or `zai/` to target a different upstream.
 
 ---
 
-<p align="center">
-  <sub>Built with 🛠️ <a href="https://hono.dev">Hono</a> · ⚛️ <a href="https://preactjs.com">Preact</a> · 💾 <a href="https://github.com/WiseLibs/better-sqlite3">better-sqlite3</a> · 🔒 TypeScript strict mode</sub>
-  <br/>
-  <sub>🎨 Dashboard theme: <b>Obsidian Gold</b> — dark canvas, single gold accent</sub>
-</p>
+## Request pipeline (per request)
+
+1. **Auth** — `client_key` middleware validates the bearer token; `admin_key` is reserved for `/api/admin/*`.
+2. **CSRF** — same-origin guard for state-changing admin requests.
+3. **Rate limit** — 5 failed auth attempts per IP per 15 minutes.
+4. **Model resolution** — `modelPrefix.ts` parses `<provider>/<model>`; aliases and combos are resolved through `providers/alias.ts` + `providers/aliasCache.ts`.
+5. **Account selection** — `accounts/selection.ts` chooses per `(provider, model)` with sticky or round-robin strategy, respecting `accounts/locks.ts` cooldowns.
+6. **Transport resolution** — `transport/resolve.ts` picks proxy / relay / direct via `dispatcherCache.ts`; geoip defaults to intl/cn per `providers/baseUrl.ts`.
+7. **Caveman + RTK** — optional terse system-prompt injection and message compression through `caveman/` and `rtk/`.
+8. **Format transform** — `format/transform.ts` + `format/negotiate.ts` convert OpenAI<->Anthropic to whatever the upstream expects (Kiro uses EventStream binary framing, Notion uses an internal JSON shape, etc.).
+9. **Upstream call** — `providers/upstreamFetch.ts` POSTs JSON via `proxyAwareFetch`, with streaming SSE assembled per-provider (Kiro uses `providers/kiro/assembler.ts`, CodeBuddy uses `providers/codebuddy/streamConvert.ts`).
+10. **Streaming + usage** — `streaming/pipeWithUsage.ts` tees the SSE upstream response back to the client while `streaming/extractUsage.ts` parses token usage; `tailBuffer.ts` buffers partial lines.
+
+Every step emits a `console/` flow event for the dashboard Console page and the `request_logs` table.
+
+---
+
+## Directory layout
+
+```
+src/
+├── server.ts                     # Hono app + listener bootstrap
+├── auth/                         # client_key + admin_key + CSRF + rate-limit
+│   ├── password.ts               # scrypt hashing + session cookie
+│   ├── rateLimit.ts              # 5 fails / 15min per IP
+│   └── csrf.ts                   # same-origin guard
+├── util/
+│   ├── env.ts                    # typed env getters
+│   └── log.ts                    # pino instance
+├── accounts/                     # state machine + selection
+│   ├── backoff.ts                # exponential cooldown (1s -> 4min cap)
+│   ├── errorRules.ts             # 429/2056/2061/5xx cascade
+│   ├── state.ts                  # apply/reset/filter/lock-checks
+│   ├── selection.ts              # sticky + round-robin per provider
+│   ├── locks.ts                  # per-(account, model) cooldown CRUD
+│   └── types.ts
+├── db/
+│   ├── index.ts                  # openDb (WAL, FK, busy_timeout, optional SQLCipher)
+│   ├── hooks.ts                  # bumpAdminCacheVersion re-export
+│   ├── migrations/               # 001-initial ... 010-model-context-output
+│   └── repos/                    # accounts, aliases, auditLog, client_keys,
+│                                 #   combos, models, quotaSnapshots,
+│                                 #   requestLogs, requestLogsQueue, settings,
+│                                 #   transports (+ settings.types.ts)
+├── providers/
+│   ├── minimax.ts                # PROVIDER const, upstreamUrl/Headers
+│   ├── baseUrl.ts                # intl vs cn
+│   ├── headers.ts                # OpenAI Bearer vs Anthropic x-api-key
+│   ├── alias.ts + aliasCache.ts
+│   ├── listModels.ts             # /v1/models fetch + merge
+│   ├── modelPrefix.ts            # mm/kr/cb/pio/nt/zai parser
+│   ├── pricing.ts                # per-token cost calc (incl cache)
+│   ├── parseError.ts             # base_resp.status_code extraction
+│   ├── quota.ts                  # token-plan quota parser
+│   ├── upstreamFetch.ts          # JSON POST wrapper over proxyAwareFetch
+│   ├── common/                   # SseAssemblerBase.ts template-method
+│   ├── format/                   # transform.ts + negotiate.ts + messageTypes.ts
+│   ├── kiro/                     # AWS CodeWhisperer / Amazon Q
+│   ├── codebuddy/                # index, transform, streamConvert
+│   ├── notion/                   # auth, constants, extract, transform, manifest.json
+│   ├── pioneer/                  # index, models, transform
+│   └── zai/                      # index, transform
+├── proxy/                        # per-provider request proxies
+│   ├── minimax.ts, kiro.ts, codebuddy.ts, pioneer.ts, notion.ts, zai.ts
+├── rtk/                          # RTK compression pipeline
+│   ├── index.ts, applyFilter.ts, autodetect.ts, registry.ts, constants.ts, types.ts
+│   └── filters/                  # dedupLog, smartTruncate
+├── caveman/                      # terse system-prompt injection
+├── cache-injection.ts            # dual cache_control + auto-breakpoints
+├── streaming/
+│   ├── extractUsage.ts           # parse SSE -> usage
+│   ├── pipeWithUsage.ts          # tee upstream SSE
+│   └── tailBuffer.ts             # SSE partial-line buffering
+├── transport/                    # proxy / relay resolution
+│   ├── proxyFetch.ts, dispatcherCache.ts, socksLoader.ts, types.ts
+│   ├── geoip.ts                  # ipapi.co country probe
+│   ├── resolve.ts                # resolveTransportForAccount
+│   └── resolvedCache.ts
+├── scheduler/
+│   └── quotaPull.ts              # periodic /v1/token_plan/remains puller
+├── console/                      # flow event bus
+└── security/status.ts            # GET /api/admin/security/status
+
+client/                           # Preact SPA dashboard (Vite)
+├── src/
+│   ├── App.tsx, main.tsx
+│   ├── __tests__/                # 11 test files + setup
+│   ├── components/               # Card, Stat, Badge, Button, Modal, Toast,
+│   │                             #   CommandPalette, Icon, Pagination, Progress,
+│   │                             #   SelectionControls, SecurityBanner,
+│   │                             #   TransportAssignment, ToastProvider
+│   ├── components/accounts/      # AddAccountModal, EditAccountModal, KiroUsageModal,
+│   │                             #   ProviderAccountSection, AccountsTable,
+│   │                             #   NotionAuthForm, KiroAutoImportForm,
+│   │                             #   KiroDeviceFlowForm
+│   ├── components/models/        # AddModelModal, EditModelModal, ProviderModelsSection
+│   ├── components/transports/    # AddTransportModal, BulkImportModal,
+│   │                             #   EditTransportModal, FailureModeCard,
+│   │                             #   TransportsTable
+│   ├── hooks/                    # useKiroAutoImport, useKiroDeviceFlow, useNotionAuth
+│   ├── layout/                   # AppShell, Sidebar, TopBar
+│   ├── lib/                      # api.ts (fetch wrapper), queryClient,
+│   │                             #   relativeTime, types, providerPrefix
+│   ├── pages/                    # 15 pages (see Dashboard below)
+│   └── styles/                   # base.css (tokens+fonts), components.css, animations.css
+
+scripts/                          # CLI scripts
+├── add-account.ts + add-account.cliArgs.ts
+├── add-client-key.ts
+├── notion-add-account.ts
+├── recover-db.ts                 # WAL race recovery
+├── reset.ts
+├── seed-models.ts                # base models
+├── seed-kiro-models.ts
+├── seed-codebuddy-models.ts
+├── seed-notion-models.ts
+└── seed-zai-models.ts
+
+tests/                            # integration + API + console + DB + provider + proxy + bench
+docker-compose.yml, Dockerfile, Caddyfile, .env.example
+docs/roadmap.md, docs/zai/, docs/notion/
+```
+
+---
+
+## Dashboard
+
+Built-in Preact SPA (Vite). Sidebar order is fixed; pages route via the hash router. Theme accent: `#c9a352` (Obsidian Gold).
+
+| Page              | Route                  | Purpose                                                                      |
+| ----------------- | ---------------------- | ---------------------------------------------------------------------------- |
+| Login             | `#/login`              | Admin password + session cookie bootstrap                                    |
+| Overview          | `#/`                   | Counts, health, recent request log                                           |
+| Usage             | `#/usage`              | Per-model token + cost rollups                                               |
+| Client keys       | `#/client-keys`        | Issue / rotate bearer tokens for downstream callers                          |
+| Upstream          | `#/accounts`           | Add / edit / disable accounts per provider (incl. Kiro auth flows)          |
+| Models            | `#/models`             | Catalog + custom model registry, `family` field (audit-fix A4)              |
+| Aliases           | `#/aliases`            | User-facing name -> upstream model (e.g. `mm-fast` -> `mm/MiniMax-M3`)      |
+| Combos            | `#/combos`             | Ordered fallback lists across providers (symmetric uniqueness, audit-fix B1) |
+| Quota             | `#/quota`              | Kiro / per-account quota snapshots + per-account error shape (audit-fix A5) |
+| Proxies           | `#/transports`         | Manage transports (direct / SOCKS / HTTP / relay), bulk import              |
+| Console           | `#/console`            | Live request-flow event stream                                               |
+| Settings          | `#/settings`           | caveman / caching / rtk / minimax / version + per-provider selection        |
+| RequestDetail     | `#/request/:id`        | Drill-in for a single request (prompt, upstream, usage, RTK log)            |
+| Placeholder       | `#/...`                | Catch-all for unimplemented sections                                         |
+| 404               | `#/404`                | Not-found page                                                               |
+
+---
+
+## Configuration
+
+`GET /api/admin/settings` returns the current settings object. Missing keys return `null`; the dashboard merges UI defaults over the response (audit-fix A7). Seeded defaults come from migration `001-initial`.
+
+```jsonc
+{
+  "caveman":  { "level": "off" },                                 // "off" | "light" | "strong"
+  "caching":  { "autoBreakpoints": true, "respectCallerMarkers": true },
+  "rtk":      {
+    "enabled": true,
+    "minCompressSize": 500,
+    "rawCap": 10485760,
+    "filters": ["dedupLog", "smartTruncate"]
+  },
+  "minimax":  { "upstreamFormat": "auto", "m3DefaultMaxCompletionTokens": 131072 },
+  "version":  "<auto>"
+}
+```
+
+### Per-provider selection
+
+`settings.selection.<provider>` controls account-pick strategy per provider.
+
+| Provider   | Default mode | Notes                                                              |
+| ---------- | ------------ | ------------------------------------------------------------------ |
+| `minimax`  | sticky       | Round-robin opt-in via `{mode: "round-robin", step: N}`            |
+| `kiro`     | sticky       | Same shape; Kiro accounts carry their own quota snapshot           |
+| `codebuddy`| sticky       | Round-robin available                                              |
+| `pioneer`  | sticky       | Round-robin available                                              |
+| `notion`   | sticky       | Notion internal integration only; no rotation across workspaces    |
+| `zai`      | sticky       | Round-robin available                                              |
+
+### Environment variables (selected)
+
+| Var                              | Purpose                                                              |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `HOST` / `PORT`                  | Bind address (default `0.0.0.0:8787`)                                |
+| `REGION`                         | `intl` vs `cn` for `providers/baseUrl.ts`                            |
+| `DB_PATH`                        | SQLite file path (default `./data/router.db`)                        |
+| `ROUTER_DB_KEY`                  | SQLCipher encryption key (optional)                                  |
+| `LOG_LEVEL`                      | pino level (`debug` / `info` / `warn` / `error`)                     |
+| `ROUTER_UPSTREAM_FORMAT`         | Force `openai` or `anthropic` wire format                            |
+| `CONSOLE_FLOW`                   | `stdout` to mirror flow events to terminal                           |
+
+---
+
+## Development
+
+```bash
+npm run dev                # server + client in parallel
+npm run dev:server         # Hono on :8787 only
+npm run dev:client         # Vite on :5173 only
+npm run build              # tsc + Vite build
+npm run start              # node dist/server.js
+npm run lint               # biome check .
+npm run lint:fix
+npm run typecheck
+npm run test               # server Vitest
+npm run test:client        # client Vitest
+npm run test:watch
+```
+
+### CLI scripts
+
+Each script has a `:docker` variant that runs the same command inside the compose container.
+
+| Command                       | Purpose                                              |
+| ----------------------------- | ---------------------------------------------------- |
+| `npm run add-account`         | Interactive account add (provider picked at prompt)  |
+| `npm run add-client-key`      | Mint a new client_key                                |
+| `npm run seed-models`         | Seed the base model catalog                          |
+| `npm run seed-kiro-models`    | Seed Kiro-specific models                            |
+| `npm run seed-codebuddy-models` | Seed CodeBuddy models                             |
+| `npm run seed-zai-models`     | Seed Z.AI models                                     |
+| `npm run seed-notion-models`  | Seed Notion models                                   |
+| `npm run seed-all`            | Run every `seed-*` script                            |
+| `npm run reset`               | Wipe DB and reseed (destructive)                     |
+| `npm run recover-db`          | Recover from a WAL race or interrupted checkpoint    |
+| `npx tsx scripts/notion-add-account.ts` | Notion-specific add (device code path)    |
+
+### Commit conventions
+
+Conventional Commits, one logical unit per commit. Examples:
+
+- `feat(minimax): add round-robin selection step`
+- `fix(aliases): enforce combo-name uniqueness on insert`
+- `chore(release): v0.22.0`
+- `docs: sync with v0.21.0 (zai provider)`
+
+WIP commits are prefixed `wip:`. Never force-push or rewrite published history.
+
+---
+
+## Docker
+
+```bash
+docker compose up -d --build
+docker compose logs -f router
+```
+
+- The container expects `/data` to be bind-mounted. The SQLite file lives at `/data/router.db`.
+- **WAL race warning** — if the container was killed mid-write you may see `database disk image is malformed` on next start. Run `npm run recover-db` (or `docker compose run --rm router npm run recover-db`) to checkpoint and reattach.
+- The Caddyfile is provided as a reference for TLS termination; it is not started automatically by `docker-compose.yml`.
+- `.env.example` lists every env var the server reads at boot.
+
+---
+
+## VPS deploy
+
+1. Provision a small VPS (1 vCPU / 1 GB is enough for personal use).
+2. Clone the repo and `cp .env.example .env`. Fill in `HOST`, `PORT`, `DB_PATH`, `LOG_LEVEL`, and `ROUTER_DB_KEY` (if encrypting at rest).
+3. `npm ci && npm run build`.
+4. On first boot, open the dashboard at `http://<vps>:8787` and **enter the dashboard password you set** (password mode + session cookie — the legacy open-mode `admin_key` flow is gone). The password is hashed with scrypt and stored in `settings`.
+5. Put Caddy (or your reverse proxy of choice) in front of port `8787` for TLS, then point your local OpenAI/Anthropic client at `https://router.example.com`.
+
+If you ever forget the password, the only recovery is to wipe `settings` from the DB and re-bootstrap — there is no backdoor.
+
+---
+
+## Transport
+
+`/api/admin/transports` lets you assign one transport per upstream account. Four modes:
+
+| Mode     | Settings key                          | Env override  | Notes                                                |
+| -------- | ------------------------------------- | ------------- | ---------------------------------------------------- |
+| Direct   | `transport.proxy = null`              | —             | Default; uses local NIC                              |
+| SOCKS    | `transport.proxy = "socks5h://..."`   | `ALL_PROXY`   | Lazy-loaded via `transport/socksLoader.ts`           |
+| HTTP     | `transport.proxy = "http://..."`      | `HTTP_PROXY`  | Standard HTTP CONNECT                                |
+| Relay    | `transport.relay = "https://relay.example.com"` | —    | Hand-off to a remote proxy that fans out to upstreams |
+
+`resolveTransportForAccount` caches the resolved dispatcher per account in `transport/resolvedCache.ts`. Geoip defaults to `intl` vs `cn` via `transport/geoip.ts` (ipapi.co country probe) and `providers/baseUrl.ts`.
+
+---
+
+## Security
+
+- **Open mode (default, dev-only)** — no admin auth. Set a dashboard password before exposing the service.
+- **Password mode** — scrypt-hashed admin password, session cookie with CSRF guard. This is the production default after first boot.
+- **Encryption-at-rest** — set `ROUTER_DB_KEY` and the SQLite file is opened via SQLCipher. Losing the key loses the DB.
+- **Rate limit** — 5 failed auth attempts per IP per 15 minutes (`auth/rateLimit.ts`).
+- **Audit log** — every admin mutation is appended to `audit_log` (repos in `db/repos/auditLog.ts`); readable on the Settings page.
+- **Security banner** — top-of-dashboard warning when running in open mode or with no DB encryption (`components/SecurityBanner`).
+- **Security status endpoint** — `GET /api/admin/security/status` (`security/status.ts`) reports mode, key presence, and last audit entries.
+
+---
+
+## Roadmap
+
+| Version  | Theme                                                                                          | Status   |
+| -------- | ---------------------------------------------------------------------------------------------- | -------- |
+| v0.22.0  | Audit-fixes batch: quota parallel + per-account errors, settings null + client merge, admin cache TTL + explicit invalidation, combo/alias symmetry, upsertAlias source tracking | Shipped  |
+| v0.21.0  | Z.AI provider + provider-prefix model routing (`mm/`, `kr/`, `cb/`, `pio/`, `nt/`, `zai/`)    | Shipped  |
+| v0.20.0  | Pioneer provider, combo cross-provider fallback, Kiro quota snapshots                           | Shipped  |
+| v0.19.0  | Notion provider, request-flow console, RTK log surfacing                                       | Shipped  |
+| v0.18.x  | Kiro (AWS CodeWhisperer) provider, device-flow import                                          | Shipped  |
+| v0.17.x  | CodeBuddy provider, OpenAI<->Anthropic negotiation                                            | Shipped  |
+| v0.16.x  | RTK pipeline + Caveman terse-prompt injection                                                  | Shipped  |
+| v0.15.x  | Built-in Preact dashboard (Obsidian Gold)                                                      | Shipped  |
+| v0.14.x  | SQLite + WAL + SQLCipher optional encryption                                                   | Shipped  |
+| v0.13.x  | Multi-account pool, exponential backoff, per-model locks                                      | Shipped  |
+| v0.12.x  | Transport layer (proxy / relay / direct)                                                       | Shipped  |
+| v0.11.x  | Initial MiniMax proxy + client_key auth                                                        | Shipped  |
+
+See `docs/roadmap.md` for upcoming ideas and `CHANGELOG.md` for the full per-version list.
+
+---
+
+## License
+
+MIT — see `LICENSE` for the full text.
+
+---
+
+<sub>Built with Hono, Preact, better-sqlite3, pino, and an unreasonable amount of provider-specific wire-format glue. Gold accent `#c9a352`. Stay sticky, stay cached, stay on a healthy cooldown.</sub>
