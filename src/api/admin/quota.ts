@@ -49,7 +49,17 @@ function baseResult(
 }
 
 function fallbackKiro(a: Account, error: string): QuotaFailure {
-  return { ...baseResult(a, 'kiro', 'kiro'), ok: false, windows: [], error };
+  const base = baseResult(a, 'kiro', 'kiro');
+  return {
+    accountId: base.accountId,
+    label: base.label,
+    creditType: base.creditType,
+    enabled: base.enabled,
+    provider: base.provider,
+    ok: false,
+    windows: [],
+    error,
+  };
 }
 
 async function fetchKiroAccount(a: Account, db: Database.Database): Promise<QuotaAccountResult> {
