@@ -376,5 +376,9 @@ export async function seedModelsForProviderBestEffort(
     log.warn({ provider, err: result.error }, `${provider}: model auto-seed failed on account add`);
     return 0;
   }
+  log.info(
+    { provider, added: result.added },
+    `${provider}: model auto-seed succeeded on account add`
+  );
   return result.added;
 }
