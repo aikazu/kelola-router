@@ -83,6 +83,13 @@ function openDatabase(path: string): Database.Database {
 
 function defaultDbPath(): string {
   if (process.env.ROUTER_DB_PATH) return process.env.ROUTER_DB_PATH;
+  // Prefer the repo-local `./data/router.db` when available so host-side
+  // tooling (seed/add-account) and the docker container (which bind-mounts
+  // ./data → /data) share one file. Falls back to the OS-conventional
+  // user-data dir when the repo data dir does not exist (e.g. fresh clone
+  // before `npm run dev` ever ran).
+  const repoData = join(process.cwd(), 'data', 'router.db');
+  if (existsSync(dirname(repoData))) return repoData;
   const home = homedir();
   if (process.platform === 'darwin') {
     return join(home, 'Library/Application Support/kelola-router/router.db');
