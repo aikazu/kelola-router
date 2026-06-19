@@ -42,6 +42,22 @@ describe('parseModelPrefix', () => {
     });
   });
 
+  it('parses zai prefix to zai', () => {
+    expect(parseModelPrefix('zai/glm-5.2')).toEqual({
+      provider: 'zai',
+      modelName: 'glm-5.2',
+      prefixed: true,
+    });
+  });
+
+  it('parses zai/glm-5.2[1m] preserving the suffix as part of the model name', () => {
+    expect(parseModelPrefix('zai/glm-5.2[1m]')).toEqual({
+      provider: 'zai',
+      modelName: 'glm-5.2[1m]',
+      prefixed: true,
+    });
+  });
+
   it('treats a string with no slash as bare', () => {
     expect(parseModelPrefix('claude-opus-4-8')).toEqual({
       provider: null,

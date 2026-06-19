@@ -31,17 +31,25 @@ export function Accounts() {
   const kiroAccounts = accounts.filter((a) => a.provider === 'kiro');
   const pioneerAccounts = accounts.filter((a) => a.provider === 'pioneer');
   const notionAccounts = accounts.filter((a) => a.provider === 'notion');
+  const zaiAccounts = accounts.filter((a) => a.provider === 'zai');
   const minimaxAccounts = accounts.filter((a) => {
     const p = a.provider ?? 'minimax';
-    return p !== 'kiro' && p !== 'pioneer' && p !== 'notion';
+    return p !== 'kiro' && p !== 'pioneer' && p !== 'notion' && p !== 'zai';
   });
 
   // Add-account modal state.
   const [open, setOpen] = useState(false);
-  const [provider, setProvider] = useState<'minimax' | 'kiro' | 'pioneer' | 'notion'>('minimax');
+  const [provider, setProvider] = useState<'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai'>(
+    'minimax'
+  );
   const [form, setForm] = useState<MinimaxForm>({ label: '', credit_type: 'payg', api_key: '' });
   const [kiroMethod, setKiroMethod] = useState<KiroMethod>('builder-id');
   const [pioneerForm, setPioneerForm] = useState<PioneerForm>({ label: '', api_key: '' });
+  const [zaiForm, setZaiForm] = useState<{ label: string; api_key: string; base_url: string }>({
+    label: '',
+    api_key: '',
+    base_url: '',
+  });
   const [notionForm, setNotionForm] = useState<{ email: string; label: string }>({ email: '', label: '' });
   const [kiroForm, setKiroForm] = useState<KiroForm>({
     label: '',
@@ -117,6 +125,7 @@ export function Accounts() {
     setProvider('minimax');
     setForm({ label: '', credit_type: 'payg', api_key: '' });
     setPioneerForm({ label: '', api_key: '' });
+    setZaiForm({ label: '', api_key: '', base_url: '' });
     setKiroMethod('builder-id');
     setKiroForm({ label: '', credentialJson: '', refreshToken: '', region: '', startUrl: '' });
     autoImport.reset();
@@ -141,7 +150,18 @@ export function Accounts() {
                 provider: 'pioneer',
               },
             })
-          : apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', { method: 'POST', json: form }),
+          : provider === 'zai'
+            ? apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', {
+                method: 'POST',
+                json: {
+                  label: zaiForm.label,
+                  credit_type: 'payg',
+                  api_key: zaiForm.api_key,
+                  provider: 'zai',
+                  ...(zaiForm.base_url ? { base_url: zaiForm.base_url } : {}),
+                },
+              })
+            : apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', { method: 'POST', json: form }),
     onSuccess: (res) => {
       setOpen(false);
       resetForms();
@@ -281,6 +301,18 @@ export function Accounts() {
               onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
               onDelete={handleDelete}
             />
+            <ProviderAccountSection
+              title="Z.AI"
+              provider="zai"
+              accounts={zaiAccounts}
+              transports={transports}
+              onAdd={() => { setProvider('zai'); setOpen(true); }}
+              onUsage={setUsageAccount}
+              onEdit={(a, editFormInitialState) => { setEditing(a); setEditForm(editFormInitialState); }}
+              onLoadTransportState={loadTransportState}
+              onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+              onDelete={handleDelete}
+            />
           </>
         )}
       </Card>
@@ -300,6 +332,8 @@ export function Accounts() {
         onKiroFormChange={setKiroForm}
         pioneerForm={pioneerForm}
         onPioneerFormChange={setPioneerForm}
+        zaiForm={zaiForm}
+        onZaiFormChange={setZaiForm}
         autoImport={autoImport}
         deviceFlow={deviceFlow}
         onCreate={() => createMut.mutate()}

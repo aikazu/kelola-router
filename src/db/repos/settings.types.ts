@@ -160,6 +160,7 @@ export const SETTINGS_SCHEMAS = {
   'selection.codebuddy': selectionSchema,
   'selection.pioneer': selectionSchema,
   'selection.notion': selectionSchema,
+  'selection.zai': selectionSchema,
 } as const satisfies Record<string, v.GenericSchema>;
 
 /**

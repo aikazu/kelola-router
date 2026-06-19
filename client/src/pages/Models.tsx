@@ -174,6 +174,16 @@ export function Models() {
             onAddModel={() => setAddOpen('codebuddy')}
             onEditModel={(m) => setEditTarget(m)}
           />
+          <ProviderModelsSection
+            title="Z.AI"
+            provider="zai"
+            models={filtered.filter((m) => m.provider === 'zai')}
+            selected={selected}
+            onSelectChange={setSelected}
+            shadowedNames={shadowedNames}
+            onAddModel={() => setAddOpen('zai')}
+            onEditModel={(m) => setEditTarget(m)}
+          />
         </>
       )}
 

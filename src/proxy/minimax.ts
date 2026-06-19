@@ -51,6 +51,7 @@ import { handleNotionProxy } from './notion.js';
 import { handlePioneerProxy } from './pioneer.js';
 import type { Db } from './pipeline.js';
 import { applyErrorState, buildAccountStates, buildLogRow, clearErrorState } from './pipeline.js';
+import { handleZaiProxy } from './zai.js';
 
 export async function handleProxy(
   c: Context,
@@ -163,6 +164,20 @@ export async function handleProxy(
       );
       rrCursorRef.value = notionCursorRef.value;
       return notionResp;
+    }
+    if (peek.provider === 'zai') {
+      const zaiCursorRef: CursorRef = { value: rrCursorRef.value };
+      const zaiResp = await handleZaiProxy(
+        c,
+        format,
+        upstreamPath,
+        body,
+        db,
+        zaiCursorRef,
+        stickyMap
+      );
+      rrCursorRef.value = zaiCursorRef.value;
+      return zaiResp;
     }
   } catch {
     /* unknown model — defer to the MiniMax path for the canonical error */

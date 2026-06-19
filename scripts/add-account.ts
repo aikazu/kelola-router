@@ -47,6 +47,7 @@ import {
   type MinimaxArgs,
   type PioneerArgs,
   parseArgs,
+  type ZaiArgs,
 } from './add-account.cliArgs.js';
 
 // ---------------------------------------------------------------------------
@@ -179,6 +180,35 @@ export function runPioneer(db: Database.Database, args: PioneerArgs): Account {
   return account;
 }
 
+/**
+ * Z.AI runner — Bearer API key auth. Defaults to the dual base URLs defined
+ * in `src/providers/zai/index.ts` (Anthropic Messages + OpenAI Chat
+ * Completions) but a custom `--base-url` lets users point at a private
+ * gateway or alternate region.
+ */
+export function runZai(db: Database.Database, args: ZaiArgs): Account {
+  const id = `acc_${ulid()}`;
+  const label = args.label ?? `zai-${id.slice(4, 12).toLowerCase()}`;
+  const baseUrl = args.baseUrl ?? null; // null lets executeZai fall back to provider defaults per clientFormat
+
+  const account = createAccount(db, {
+    id,
+    label,
+    credit_type: 'payg',
+    api_key: args.apiKey,
+    base_url: baseUrl,
+    provider: 'zai',
+    enabled: true,
+  });
+
+  console.log(`✓ Added Z.AI account: ${label} (${id})`);
+  console.log(
+    `  Routes: Anthropic Messages → ${baseUrl ? `${baseUrl}/v1/messages` : 'https://api.z.ai/api/anthropic/v1/messages'}, OpenAI Chat → ${baseUrl ? `${baseUrl}/chat/completions` : 'https://api.z.ai/api/coding/paas/v4/chat/completions'}`
+  );
+  console.log('  Z.AI is a flat-rate subscription; pricing in the dashboard is seeded at zero.');
+  return account;
+}
+
 export async function dispatch(db: Database.Database, args: AddAccountArgs): Promise<Account> {
   let account: Account;
   let apiKey: string | undefined;
@@ -197,6 +227,11 @@ export async function dispatch(db: Database.Database, args: AddAccountArgs): Pro
       break;
     case 'pioneer':
       account = runPioneer(db, args);
+      apiKey = args.apiKey;
+      baseUrl = args.baseUrl;
+      break;
+    case 'zai':
+      account = runZai(db, args);
       apiKey = args.apiKey;
       baseUrl = args.baseUrl;
       break;
@@ -223,6 +258,8 @@ const USAGE_CODEBUDDY =
   '  codebuddy: add-account --provider codebuddy --api-key <k> [--label <l>] [--base-url <u>]';
 const USAGE_PIONEER =
   '  pioneer:   add-account --provider pioneer --api-key <k> [--label <l>] [--base-url <u>]';
+const USAGE_ZAI =
+  '  zai:       add-account --provider zai --api-key <k> [--label <l>] [--base-url <u>]';
 
 export async function main(argv: string[]): Promise<void> {
   let args: AddAccountArgs;
@@ -240,6 +277,7 @@ export async function main(argv: string[]): Promise<void> {
       console.error(USAGE_KIRO);
       console.error(USAGE_CODEBUDDY);
       console.error(USAGE_PIONEER);
+      console.error(USAGE_ZAI);
     } else {
       console.error('Unexpected error parsing arguments:', err);
     }

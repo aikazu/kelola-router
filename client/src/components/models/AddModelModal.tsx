@@ -66,7 +66,9 @@ export function AddModelModal({ open, onClose, provider }: AddModelModalProps) {
             ? 'Pioneer'
             : provider === 'codebuddy'
               ? 'CodeBuddy'
-              : 'MiniMax'
+              : provider === 'zai'
+                ? 'Z.AI'
+                : 'MiniMax'
       } model`}
       footer={
         <>

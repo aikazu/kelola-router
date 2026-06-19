@@ -27,6 +27,12 @@ export interface PioneerForm {
   api_key: string;
 }
 
+export interface ZaiForm {
+  label: string;
+  api_key: string;
+  base_url: string;
+}
+
 export interface NotionForm {
   email: string;
   label: string;
@@ -35,7 +41,7 @@ export interface NotionForm {
 export interface AddAccountModalProps {
   open: boolean;
   onClose: () => void;
-  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion';
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai';
   // Minimax form state (owned by parent so resetForms can clear it).
   form: MinimaxForm;
   onFormChange: (next: MinimaxForm) => void;
@@ -47,6 +53,9 @@ export interface AddAccountModalProps {
   // Pioneer form state (owned by parent for the same reason).
   pioneerForm: PioneerForm;
   onPioneerFormChange: (next: PioneerForm) => void;
+  // Z.AI form state (owned by parent for resetForms closure).
+  zaiForm: ZaiForm;
+  onZaiFormChange: (next: ZaiForm) => void;
   // Notion form state (owned by parent for resetForms closure).
   notionForm: NotionForm;
   onNotionFormChange: (next: NotionForm) => void;
@@ -80,6 +89,8 @@ export function AddAccountModal({
   onKiroFormChange,
   pioneerForm,
   onPioneerFormChange,
+  zaiForm,
+  onZaiFormChange,
   notionForm,
   onNotionFormChange,
   notionSuccess,
@@ -89,7 +100,10 @@ export function AddAccountModal({
   isCreating,
 }: AddAccountModalProps) {
   const showFooter =
-    provider === 'minimax' || provider === 'pioneer' || (provider === 'kiro' && kiroMethod === 'token');
+    provider === 'minimax' ||
+    provider === 'pioneer' ||
+    provider === 'zai' ||
+    (provider === 'kiro' && kiroMethod === 'token');
   // Notion auth form carries its own action button — no footer needed.
 
   return (
@@ -107,7 +121,9 @@ export function AddAccountModal({
                 ? !form.label || !form.api_key
                 : provider === 'pioneer'
                   ? !pioneerForm.label || !pioneerForm.api_key
-                  : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
+                  : provider === 'zai'
+                    ? !zaiForm.label || !zaiForm.api_key
+                    : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
             }
           >
             {isCreating ? 'Adding…' : 'Add'}
@@ -179,6 +195,44 @@ export function AddAccountModal({
             onLabelChange={(label) => onNotionFormChange({ ...notionForm, label })}
             onSuccess={notionSuccess}
           />
+        ) : provider === 'zai' ? (
+          <>
+            <label>
+              Label{' '}
+              <input
+                value={zaiForm.label}
+                onInput={(e) => onZaiFormChange({ ...zaiForm, label: (e.target as HTMLInputElement).value })}
+                class="input"
+                aria-required="true"
+              />
+            </label>
+            <label>
+              Z.AI API key{' '}
+              <input
+                value={zaiForm.api_key}
+                onInput={(e) =>
+                  onZaiFormChange({ ...zaiForm, api_key: (e.target as HTMLInputElement).value })
+                }
+                placeholder="zai_sk_xxxxxxxx"
+                class="input"
+                aria-required="true"
+              />
+            </label>
+            <label>
+              Base URL (optional){' '}
+              <input
+                value={zaiForm.base_url}
+                onInput={(e) =>
+                  onZaiFormChange({ ...zaiForm, base_url: (e.target as HTMLInputElement).value })
+                }
+                placeholder="leave blank for api.z.ai"
+                class="input"
+              />
+              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
+                Defaults to api.z.ai: Anthropic Messages at <code>/v1/messages</code>, OpenAI Chat at <code>/chat/completions</code>.
+              </span>
+            </label>
+          </>
         ) : (
           <>
             {/* Kiro method selector */}

@@ -75,7 +75,7 @@ accountRoutes.get('/', (c) => {
   }
 });
 
-const PROVIDER_ALLOWLIST = ['minimax', 'kiro', 'codebuddy', 'pioneer', 'notion'] as const;
+const PROVIDER_ALLOWLIST = ['minimax', 'kiro', 'codebuddy', 'pioneer', 'notion', 'zai'] as const;
 type ManualProvider = (typeof PROVIDER_ALLOWLIST)[number];
 
 accountRoutes.post('/', (c) => {

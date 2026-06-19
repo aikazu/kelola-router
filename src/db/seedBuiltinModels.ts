@@ -183,9 +183,65 @@ export function seedCodebuddyBuiltins(db: Database.Database): SeedResult {
   return { added: current - previous, total: models.length };
 }
 
+// ── Z.AI built-in models ───────────────────────────────────────────────────
+
+interface ZaiModel {
+  upstream: string;
+  display: string;
+  context: number;
+}
+
+/**
+ * Catalogue mirrored from docs.z.ai/api-reference/llm/chat-completion.md. The
+ * GLM-5.2 `[1m]` suffix enables 1M context per the same docs — see
+ * `docs/zai/wire-format.md`. Pricing is zero: z.ai is a flat-rate subscription.
+ */
+const ZAI_MODELS: ZaiModel[] = [
+  { upstream: 'glm-5.2', display: 'GLM-5.2', context: 200000 },
+  { upstream: 'glm-5.2[1m]', display: 'GLM-5.2 (1M context)', context: 1000000 },
+  { upstream: 'glm-5.1', display: 'GLM-5.1', context: 200000 },
+  { upstream: 'glm-5-turbo', display: 'GLM-5 Turbo', context: 200000 },
+  { upstream: 'glm-5', display: 'GLM-5', context: 200000 },
+  { upstream: 'glm-4.7', display: 'GLM-4.7', context: 200000 },
+  { upstream: 'glm-4.7-flash', display: 'GLM-4.7 Flash', context: 200000 },
+  { upstream: 'glm-4.7-flashx', display: 'GLM-4.7 FlashX', context: 200000 },
+  { upstream: 'glm-4.6', display: 'GLM-4.6', context: 200000 },
+  { upstream: 'glm-4.5', display: 'GLM-4.5', context: 200000 },
+  { upstream: 'glm-4.5-air', display: 'GLM-4.5 Air', context: 200000 },
+  { upstream: 'glm-4.5-x', display: 'GLM-4.5 X', context: 200000 },
+  { upstream: 'glm-4.5-airx', display: 'GLM-4.5 AirX', context: 200000 },
+  { upstream: 'glm-4.5-flash', display: 'GLM-4.5 Flash', context: 200000 },
+  { upstream: 'glm-4-32b-0414-128k', display: 'GLM-4 32B (128K)', context: 128000 },
+];
+
+/**
+ * Seed the Z.AI built-in model list. Idempotent: re-running only upserts rows.
+ * Names are stored BARE (no `zai/` prefix); clients route via the prefix which
+ * the proxy strips before calling upstream.
+ */
+export function seedZaiBuiltins(db: Database.Database): SeedResult {
+  const models: ModelUpsert[] = ZAI_MODELS.map((m) => ({
+    name: m.upstream,
+    upstream_model: m.upstream,
+    display_name: `Z.AI ${m.display}`,
+    family: 'zai',
+    context_window: m.context,
+    pricing_input: 0,
+    pricing_output: 0,
+    pricing_cache_read: 0,
+    pricing_cache_write: 0,
+    source: 'builtin',
+    provider: 'zai',
+  }));
+  const previous = countPreexistingRows(db, models);
+  for (const m of models) upsertModel(db, m);
+  const current = countPreexistingRows(db, models);
+  return { added: current - previous, total: models.length };
+}
+
 // ── Dispatcher ─────────────────────────────────────────────────────────────
 
-export type SeedableProvider = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer' | 'notion';
+export type SeedableProvider = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer' | 'notion' | 'zai';
 
 export interface SeedProviderOptions {
   apiKey?: string;
@@ -235,7 +291,12 @@ export async function seedModelsForProvider(
     return { ok: true, added: result.added };
   }
 
-  const result = seedCodebuddyBuiltins(db);
+  if (provider === 'codebuddy') {
+    const result = seedCodebuddyBuiltins(db);
+    return { ok: true, added: result.added };
+  }
+
+  const result = seedZaiBuiltins(db);
   return { ok: true, added: result.added };
 }
 

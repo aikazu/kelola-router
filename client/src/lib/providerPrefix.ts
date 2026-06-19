@@ -7,6 +7,7 @@ export const PREFIX_BY_PROVIDER: Record<string, string> = {
   codebuddy: 'cb',
   pioneer: 'pio',
   notion: 'nt',
+  zai: 'zai',
 };
 
 /** Providers whose upstream exposes a /v1/models list endpoint. */

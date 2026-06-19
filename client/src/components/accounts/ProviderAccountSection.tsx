@@ -6,7 +6,7 @@ import type { Account, Transport } from '../../lib/types';
 
 export interface ProviderAccountSectionProps {
   title: string;
-  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion';
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai';
   accounts: Account[];
   transports: Transport[];
   onAdd: () => void;
