@@ -4,6 +4,27 @@ All notable changes to **kelola-router** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] — 2026-06-19
+
+### Fixed
+
+- **A4 — manual POST `/api/admin/models` now persists `family`.** The manual model-insert path was dropping the `family` column, so any admin-created row had `family = NULL`. That broke `ADAPTIVE_THINKING_MODELS` matching and per-family dashboard grouping. The POST handler now reads `family` from the request body, trims it, and persists it on the row alongside the existing fields. Whitespace-only or omitted family defaults to `null`, mirroring the existing `displayName` normalization. (`src/api/admin/models.ts`, new `src/api/admin/models.test.ts` with 3 cases.)
+- **A5 — quota endpoint parallelises per-account fetch via `Promise.allSettled`.** `GET /api/admin/quota` previously awaited `ensureAccessToken` + `fetchKiroUsage` sequentially per Kiro account — with N accounts, a single broken refresh token 502s the whole endpoint and hides the healthy accounts. The Kiro branch now fans out across accounts in parallel and reports per-account `ok: boolean` + optional `error: string`. The MiniMax branch is unchanged (local SQLite query, already fast). Response shape changed from a top-level array to `{ accounts: QuotaAccountResult[] }` — `QuotaAccountResult` is a true discriminated union (`{ ok: true, windows: QuotaWindow[] }` | `{ ok: false, windows: [], error: string }`); per-account error state is rendered inline in the dashboard Quota page. New `src/api/admin/quota.test.ts`. The two existing quota assertions in `src/api/admin/index.test.ts` were updated to read `body.accounts`.
+- **A6 — admin cache TTL drops 1000ms → 250ms + explicit invalidation hook.** The admin overview / usage / quota endpoints cached for 1s, hiding writes from the dashboard within that window. The TTL is now 250ms AND a new `bumpAdminCacheVersion()` hook invalidates the entire cache immediately. The hook fires from the `requestLogs.ts` deferred-queue flush — successful batched writes invalidate the cache; failed writes do not. The hook lives in `src/db/hooks.ts` (a 3-line re-export module) to break the circular import between `src/db/repos/requestLogs.ts` and `src/api/admin/cache.ts`. New `src/api/admin/cache.test.ts` with 3 cases (TTL boundary, bump invalidates, deferred flush triggers bump).
+- **A7 — settings GET returns `null` for un-written keys; client merges UI defaults.** `GET /api/admin/settings` was inlining server-side defaults (`caveman → { level: 'off' }`, `caching → { autoBreakpoints: true }`, etc.), making it impossible to distinguish "user set the default value" from "key never written" — auditing required hitting the DB. The GET handler now returns `null` for un-set keys. `client/src/pages/Settings.tsx` merges the UI defaults client-side so user-facing behaviour is unchanged. The `SettingsData` type was tightened to match the server-side valibot picklists (`CavemanLevel = 'off' | 'terse' | 'ultra'`, `UpstreamFormat = 'auto' | 'openai' | 'anthropic'`). New `src/api/admin/settings.test.ts` with 2 cases. `README.md` Configuration section updated to reflect the new shape.
+- **B1 — combo / alias name uniqueness enforced in both directions.** The bare-namespace invariant (per ADR 0008) was checked only when a combo was inserted or renamed (`checkAliasConflict` in `combos.ts`), but `upsertAlias` never checked the reverse direction — an alias could shadow a combo. Added exported `checkComboConflict` in `src/db/repos/combos.ts` (mirror of `checkAliasConflict`) and call it at the top of `upsertAlias` so both INSERT and UPDATE paths reject with a `combo_conflict:` error. New `src/db/repos/aliases.test.ts` with 4 cases covering INSERT-blocked, UPDATE-blocked, free-name, and multi-combo scenarios. All existing call sites of `upsertAlias` were audited (admin POST, provider alias cache, integration tests) — 46/46 pass, no regressions.
+- **B2 — `upsertAlias` now updates `source` on existing rows.** The UPDATE branch only set `upstream_model` and `label`, so a row originally inserted with `source: 'seed'` stayed seed-tagged after a user edit (audit noise). The UPDATE now also sets `source = ?` with `args.source ?? existing.source` as the fallback — callers can opt into a new source by passing one, but the original tag is preserved on partial updates. New test case added to `aliases.test.ts`.
+
+### Verification
+
+- All 6 audit findings from `docs/superpowers/specs/2026-06-19-audit-fixes-design.md` addressed (A4, A5, A6, A7, B1, B2). A1/A2/A3 were already remediated in earlier commits.
+- 14 new tests added across `models.test.ts` (3), `quota.test.ts` (1 + mock setup), `cache.test.ts` (3), `settings.test.ts` (2), `aliases.test.ts` (5). 154 server test files green; 1 pre-existing failure in `src/api/admin/models.fetch.test.ts` (returns 404 vs 200 for an unsupported provider) is out of scope and predates this release.
+- 78 client tests pass.
+- `npx tsc --noEmit` clean on both server and client.
+- `npx biome check` clean on all changed files.
+- Docker image rebuilt; `curl http://127.0.0.1:20137/healthz` returns HTTP 200.
+- 8 atomic conventional commits (`fix(api):`, `fix(quota):`, `fix(cache):`, `fix(settings):`, `fix(aliases):`, plus quality-fix fallout), each independently verified by its own test subset.
+
 ## [Unreleased]
 
 ### Added
