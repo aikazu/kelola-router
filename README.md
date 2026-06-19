@@ -267,21 +267,23 @@ cd client && npm run dev    # http://localhost:5173, proxies /api /v1 /login /lo
 
 All settings live in the `settings` table and are editable via the dashboard at `/admin/settings`. The `getSetting(db, key)` helper caches values for 1s.
 
-| Key | Default | Purpose |
-|-----|---------|---------|
-| `rtk` | `{enabled:true,minCompressSize:500,rawCap:10485760}` | RTK compression config (v0.4) |
+`GET /api/admin/settings` returns the four toggle keys plus the build version: `{ caveman, caching, rtk, minimax, version }`. Unset keys return `null`; the dashboard merges UI defaults client-side (see `client/src/pages/Settings.tsx`).
+
+| Key | Default (UI) | Purpose |
+|-----|--------------|---------|
+| `rtk` | `{enabled:true}` | RTK compression toggle (v0.4) |
 | `caveman` | `{level:"off"}` | Caveman prompt mode (v0.4) |
-| `caching` | `{autoBreakpoints:true,respectCallerMarkers:true}` | Dual cache_control (v0.4) |
-| `minimax` | `{upstreamFormat:"auto",m3DefaultMaxCompletionTokens:131072}` | Cross-format routing + M3 defaults (v0.7, simplified v0.11) |
-| `transport` | `{relay:null,proxy:null}` | Upstream transport (v0.6) |
-| `build` | `{version:"0.21.0"}` | Self-describe (auto-synced from package.json on startup) |
+| `caching` | `{autoBreakpoints:true}` | Dual cache_control (v0.4) |
+| `minimax` | `{}` | Cross-format routing override — empty = auto-detect (v0.7) |
+| `transport` | (not in GET response) | Upstream transport (v0.6) — edit `transports` table or per-account row |
+| `build` | `{version:"<auto>"}` | Self-describe (auto-synced from package.json on startup; surfaced as `version` in GET response) |
 
 Per-user setting `user_settings.account_mode` controls selection: `sticky` (session-pinned) or `round-robin` (default). Sticky key is read from header `x-router-key`. *(deprecated in v0.7 — single-user model)*
 
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (906 tests)
+npm test              # vitest run (server: 906+ tests, client: 78+ tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts
