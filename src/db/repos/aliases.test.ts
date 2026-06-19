@@ -55,3 +55,12 @@ describe('aliases repo — combo name conflict (B1)', () => {
     ).toThrow(/^combo_conflict:/);
   });
 });
+
+describe('aliases repo — source field on upsert (B2)', () => {
+  it('upsertAlias updates source on existing rows', () => {
+    upsertAlias(db, { aliasName: 'a', upstreamModel: 'MiniMax-M3', source: 'seed' });
+    upsertAlias(db, { aliasName: 'a', upstreamModel: 'MiniMax-M3', source: 'user' });
+    const row = getAlias(db, 'a');
+    expect(row?.source).toBe('user');
+  });
+});

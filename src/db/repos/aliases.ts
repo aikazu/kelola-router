@@ -53,9 +53,9 @@ export function upsertAlias(db: Database.Database, args: UpsertAliasArgs): Model
   if (existing) {
     db.prepare(`
       UPDATE model_aliases
-         SET upstream_model = ?, label = ?
+         SET upstream_model = ?, label = ?, source = ?
        WHERE alias_name = ?
-    `).run(args.upstreamModel, args.label ?? null, name);
+    `).run(args.upstreamModel, args.label ?? null, args.source ?? existing.source, name);
   } else {
     db.prepare(`
       INSERT INTO model_aliases (alias_name, upstream_model, label, source)
