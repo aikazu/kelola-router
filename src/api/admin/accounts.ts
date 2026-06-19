@@ -103,7 +103,9 @@ accountRoutes.post('/', (c) => {
           }
           const db = c.get('db') as Database.Database;
           const creditType = (body.credit_type ??
-            (provider === 'pioneer' ? 'payg' : 'token-plan')) as 'payg' | 'token-plan';
+            (provider === 'pioneer' || provider === 'zai' ? 'payg' : 'token-plan')) as
+            | 'payg'
+            | 'token-plan';
           const acc = createAccount(db, {
             id: ulid(),
             label: body.label,
