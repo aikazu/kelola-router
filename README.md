@@ -7,8 +7,8 @@
 [![Hono](https://img.shields.io/badge/hono-4.x-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![v0.19](https://img.shields.io/badge/release-v0.19-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.19)
-[![Tests](https://img.shields.io/badge/tests-855-success?logo=vitest&logoColor=white)](#-development)
+[![v0.21](https://img.shields.io/badge/release-v0.21-success)](https://github.com/aikazu/kelola-router/releases/tag/v0.21)
+[![Tests](https://img.shields.io/badge/tests-906-success?logo=vitest&logoColor=white)](#-development)
 [![UI](https://img.shields.io/badge/dashboard-Obsidian%20Gold-C9A352)](#-dashboard)
 
 ```text
@@ -62,7 +62,7 @@
 - 🌐 **Fetch from upstream** — `/admin/models` can pull MiniMax's current model list; 404 fallback shows a clear message
 - 🎨 **Obsidian Gold dashboard** — Preact SPA (`client/`) with a dark-canvas + single-gold-accent theme, Fraunces/Inter/JetBrains Mono type stack, command palette (`⌘K`), keyboard nav (`g` then key), and live request telemetry
 - 🛠️ **CLI scripts** — `add-client-key`, `add-account`, `seed-models`, `reset`
-- 🧪 **Strict TDD** — 855 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
+- 🧪 **Strict TDD** — 906 tests, `no any`, every commit verified by `vitest` + `tsc --noEmit`
 
 ## 🚀 Quick Start
 
@@ -212,7 +212,7 @@ src/
 
 client/                       # Preact SPA dashboard (Vite) — see "Dashboard" below
 ├── src/
-│   ├── pages/                # overview, usage, client-keys, accounts, models, quota, settings, login
+│   ├── pages/                # overview, usage, client-keys, accounts, aliases, models, combos, quota, settings, transports, login, request-detail, console, not-found
 │   ├── components/           # Card, Stat, Badge, Button, Modal, Toast, CommandPalette, …
 │   ├── layout/               # AppShell, Sidebar, TopBar
 │   ├── styles/               # base.css (tokens+fonts), components.css, animations.css
@@ -274,14 +274,14 @@ All settings live in the `settings` table and are editable via the dashboard at 
 | `caching` | `{autoBreakpoints:true,respectCallerMarkers:true}` | Dual cache_control (v0.4) |
 | `minimax` | `{upstreamFormat:"auto",m3DefaultMaxCompletionTokens:131072}` | Cross-format routing + M3 defaults (v0.7, simplified v0.11) |
 | `transport` | `{relay:null,proxy:null}` | Upstream transport (v0.6) |
-| `build` | `{version:"0.19.0"}` | Self-describe (auto-synced from package.json on startup) |
+| `build` | `{version:"0.21.0"}` | Self-describe (auto-synced from package.json on startup) |
 
 Per-user setting `user_settings.account_mode` controls selection: `sticky` (session-pinned) or `round-robin` (default). Sticky key is read from header `x-router-key`. *(deprecated in v0.7 — single-user model)*
 
 ## 🧑‍💻 Development
 
 ```bash
-npm test              # vitest run (855 tests)
+npm test              # vitest run (906 tests)
 npm run test:watch    # watch mode
 npm run typecheck     # strict type check
 npm run dev           # tsx watch src/server.ts

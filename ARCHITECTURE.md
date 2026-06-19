@@ -141,7 +141,7 @@ src/
 │   │                         SQLCipher via better-sqlite3-multiple-ciphers when ROUTER_DB_KEY set
 │   │                         (key applied via pragma('key') BEFORE any other PRAGMA;
 │   │                         refuses to start if key set on a plaintext DB — fresh-deploy only)
-│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country, 007-audit-log (Notion: provider_data JSON carries cookies + spaceId, no schema migration)
+│   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country, 007-audit-log, 008-pioneer-dedup, 009-pioneer-anthropic-dedup, 010-model-context-output (Notion: provider_data JSON carries cookies + spaceId, no schema migration)
 │   └── repos/                One file per table: accounts, client_keys, models,
 │                             aliases, combos, requestLogs, quotaSnapshots,
 │                             transports, settings (1s cache)
@@ -279,6 +279,8 @@ on error: applyAccountError → emit('error')
 HTTP out
 ```
 
+The `emit('start' | 'done' | 'error')` lines above are conceptual; the actual builders are `buildStart` / `buildAccount` / `buildDone` / `buildError` in `src/console/flow.ts` — every provider handler emits start → account → done/error with a `request_log` row on every terminal path, and combo requests share one `reqId` across delegated legs (combo delegates via `parentReqId`, so one combo request is one console thread; minimax emits `buildStart` after model resolution + before `buildAccount`).
+
 ## Two-tier auth
 
 | Layer | Token | Source | Where it travels |
@@ -290,7 +292,7 @@ HTTP out
 
 ## Storage
 
-`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Migrations tracked via `PRAGMA user_version` (current = 7). All migrations live in `src/db/migrations/`; one file per migration, additive ALTERs when possible (e.g. `002-kiro` adds `provider` / `access_token` etc. without rewriting rows).
+`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Migrations tracked via `PRAGMA user_version` (current = 10). All migrations live in `src/db/migrations/`; one file per migration, additive ALTERs when possible (e.g. `002-kiro` adds `provider` / `access_token` etc. without rewriting rows).
 
 **Optional encryption-at-rest** via `ROUTER_DB_KEY` (read by `getDbKey()` in `src/util/env.ts`). When set, `openDb()` swaps to `better-sqlite3-multiple-ciphers` and issues `PRAGMA key = '...'` as the FIRST statement on the fresh handle (SQLCipher requires the key before any other PRAGMA). The cipher fork is structurally identical to `better-sqlite3` at runtime — repos see the same `Database` type via a single cast at the `openDatabase()` boundary, no repo changes anywhere else.
 

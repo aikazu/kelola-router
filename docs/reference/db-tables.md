@@ -1,6 +1,6 @@
 # DB Tables
 
-Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/00{1,2,3,4,5,6,7}-*.ts`. Migrations tracked via `PRAGMA user_version` (current = 7). All migrations are additive (`ALTER TABLE ADD COLUMN` or `CREATE TABLE`) after `001-initial`.
+Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/00{1,2,3,4,5,6,7,8,9,10}-*.ts`. Migrations tracked via `PRAGMA user_version` (current = 10). All migrations are additive (`ALTER TABLE ADD COLUMN` or `CREATE TABLE`) after `001-initial`.
 
 ## `accounts` (`001-initial` + 4 ALTERs)
 
@@ -68,7 +68,7 @@ Per-account quota poll results. Columns: `id`, `account_id` (FK CASCADE), `sourc
 
 Latest snapshot per `(model_name, window_type)` is what the Quota page renders.
 
-## `models` (`001-initial` + 1 ALTER)
+## `models` (`001-initial` + 2 ALTERs)
 
 Catalog of upstream models + pricing.
 
@@ -90,6 +90,7 @@ Catalog of upstream models + pricing.
 | `enabled` | INT NOT NULL DEFAULT 1 | |
 | `created_at` | TEXT NOT NULL DEFAULT `(datetime('now'))` | |
 | `provider` | TEXT NOT NULL DEFAULT `minimax` (`002-kiro`) | |
+| `context_output` | INT NULL (`010-model-context-output`) | max output tokens |
 
 ## `model_aliases` (`001-initial`)
 
@@ -180,5 +181,8 @@ Generic key-value store for all runtime config. Columns: `key` (PK), `value` (TE
 | 5 | `005-combos.ts` | `combos` table |
 | 6 | `006-transport-country.ts` | `country` column on `transports` |
 | 7 | `007-audit-log.ts` | `audit_log` table |
+| 8 | `008-pioneer-dedup.ts` | dedup Pioneer `pioneer/anthropic/pioneer/...` triple-nested rows |
+| 9 | `009-pioneer-anthropic-dedup.ts` | collapse `anthropic/pioneer/<x>` dup rows onto canonical |
+| 10 | `010-model-context-output.ts` | `context_output` column on `models` |
 
-Current `user_version` = 7. Each migration is additive (no schema rewrites); existing rows survive upgrade.
+Current `user_version` = 10. Each migration is additive (no schema rewrites); existing rows survive upgrade.

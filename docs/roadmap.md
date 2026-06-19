@@ -2,7 +2,17 @@
 
 > Newest first. The latest shipped version sits at the top under its version heading.
 
-## v0.20 — Unreleased
+## v0.21.0 — 2026-06-19
+
+**Models dashboard rewrite, the Models admin API, and console-flow parity.**
+- **Models dashboard rewrite (`/admin/models`).** Card table now surfaces the client call string — new **ID** column renders `callName(provider, name)` (`mx/MiniMax-M3`, `pio/claude-opus-4-8`, `kr/…`, `cb/…`, `nt/…`) via a client-side `client/src/lib/providerPrefix.ts` (`PREFIX_BY_PROVIDER`, provider→prefix, the inverse of the server's `PREFIX_TO_PROVIDER`). Columns reworked to **ID / Name / Context In / Context Out / In $/M / Out $/M / Aliases / Combo / Status / Test / Actions**. Row actions: **Toggle**, **Copy** (clipboard with `execCommand` fallback), **Test** (existing), **Edit**, **Delete**. **Per-card Fetch from upstream** now calls `POST /api/admin/models/fetch/:provider` and is hidden on providers without an upstream list endpoint (Kiro, CodeBuddy, Notion). New `EditModelModal` PATCHes editable fields. The shared `Model` client type carries the new `contextOutput` + `comboCount` fields.
+- **Models admin API.** New JSON routes on `modelRoutes` (`src/api/admin/models.ts`): `POST /api/admin/models/fetch/:provider` (minimax + pioneer only; 404 for others; 400 when no active account; 502 on upstream failure), `GET /api/admin/models/:name/refs` (alias + combo references), `DELETE /api/admin/models/:name` (409 `has_refs` when referenced by an alias or combo, else delete), `PATCH /api/admin/models/:name` (rejects unknown fields, wrong types, empty patches; name + upstream_model immutable). `GET /api/admin/models` list response now includes `contextOutput` and `comboCount` per row. Repo helpers `updateModel(db, name, patch)` + `deleteModel(db, name)` added.
+- **`context_output` column (migration 010).** Additive `ALTER TABLE models ADD COLUMN context_output INTEGER`; `user_version = 10`. Pioneer seeder seeds `context_output` from the upstream catalogue's `max_tokens`; `max_input_tokens` continues to populate `context_window`.
+- **Pioneer dedup migration (009).** `user_version = 9`. Collapses the 64 leaked `anthropic/pioneer/<x>` duplicate rows onto their canonical `pioneer/<x>` survivor (139 → 75 exact, 0 survivors with a leaked prefix; idempotent).
+- **Console flow parity across all 5 providers.** `handleNotionProxy` was silent (hand-rolled `reqId`, no `c.set`, no `buildStart`/`buildAccount`/`buildDone`/`buildError`, no log row on any error path) — now at parity with Pioneer. **CodeBuddy**: `buildStart` carries the resolved upstream model (was hardcoded `'codebuddy'`); log row uses `resolved.upstreamModel` + `resolved.requestedModel`. **MiniMax + Kiro**: error-path `!resp.ok` / `!result.ok` branches now write a `request_logs` row alongside `buildError`. **MiniMax**: `genReqId` + `c.set('reqId')` hoisted to the top of `handleProxy`; `buildStart` moved to after model resolution.
+- **Combo console thread.** `handleCodeBuddyProxy` / `handlePioneerProxy` / `handleKiroProxy` accept an optional `parentReqId?: string` last param; `handleComboProxy` passes its own `reqId` at all three delegation legs so a combo request is one console thread.
+
+## v0.20.0 — 2026-06-18
 
 **Notion upstream provider.**
 - **Reverse-engineered Notion desktop AI chat.** `app.notion.com/api/v3/runInferenceTranscript` plus the surrounding auth + model-catalog endpoints. Captured traffic from desktop v23.13.20260617.1538 via mitmproxy (HAR + flow files in `docs/notion/`, gitignored).
