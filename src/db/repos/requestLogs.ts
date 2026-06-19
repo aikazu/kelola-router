@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import type { Statement } from 'better-sqlite3';
 import { log } from '../../util/log.js';
+import { bumpAdminCacheVersion } from '../hooks.js';
 
 export interface RequestLog {
   id: number;
@@ -215,6 +216,7 @@ function flushDb(db: Database.Database): void {
           );
       });
       tx(batch);
+      bumpAdminCacheVersion();
     } catch (err) {
       log.warn({ err: (err as Error).message }, 'batched request-log insert failed');
     }
