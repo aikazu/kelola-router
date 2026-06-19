@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { apiFetch } from '../../lib/api';
-import { callName, PROVIDERS_WITH_UPSTREAM_LIST } from '../../lib/providerPrefix';
+import { callName, PROVIDERS_WITH_FETCH } from '../../lib/providerPrefix';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import { confirmDialog } from '../Confirm';
@@ -128,7 +128,7 @@ export function ProviderModelsSection({
     deleteMut.mutate(m.name);
   };
 
-  const canFetch = PROVIDERS_WITH_UPSTREAM_LIST.has(provider);
+  const canFetch = PROVIDERS_WITH_FETCH.has(provider);
 
   return (
     <Card

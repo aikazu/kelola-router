@@ -10,8 +10,20 @@ export const PREFIX_BY_PROVIDER: Record<string, string> = {
   zai: 'zai',
 };
 
-/** Providers whose upstream exposes a /v1/models list endpoint. */
-export const PROVIDERS_WITH_UPSTREAM_LIST = new Set(['minimax', 'pioneer']);
+/**
+ * Providers that the dashboard's "Fetch from upstream" / "Reseed" button
+ * works against. For `minimax` + `pioneer` it hits the upstream `/v1/models`
+ * endpoint; for the rest it re-runs the builtin seed (idempotent upsert).
+ * Mirrors `FETCH_PROVIDERS` in src/api/admin/models.ts.
+ */
+export const PROVIDERS_WITH_FETCH = new Set([
+  'minimax',
+  'pioneer',
+  'kiro',
+  'codebuddy',
+  'zai',
+  'notion',
+]);
 
 /**
  * Client call string for a model row, e.g. `pio/claude-opus-4-8`.

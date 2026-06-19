@@ -124,9 +124,9 @@ describe('ProviderModelsSection', () => {
     expect(calledFetch).toBe(true);
   });
 
-  it('hides the Fetch button when provider is not in PROVIDERS_WITH_UPSTREAM_LIST', () => {
+  it('shows the Fetch / Reseed button for builtin providers like kiro', () => {
     renderSection({ provider: 'kiro' });
-    expect(screen.queryByText('Fetch from upstream')).not.toBeInTheDocument();
+    expect(screen.getByText('Fetch from upstream')).toBeInTheDocument();
   });
 
   it('select-all checkbox selects every model in the section', () => {
