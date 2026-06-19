@@ -378,7 +378,16 @@ export interface UsageAggregate {
 
 export function aggregateUsage(
   db: Database.Database,
-  filter: { clientKeyId?: number; days: number }
+  filter: {
+    clientKeyId?: number;
+    accountId?: string;
+    model?: string;
+    statusCode?: number;
+    search?: string;
+    fromIso?: string;
+    toIso?: string;
+    days: number;
+  }
 ): UsageAggregate {
   const where: string[] = [];
   const params: (string | number)[] = [];

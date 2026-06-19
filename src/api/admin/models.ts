@@ -13,6 +13,7 @@ import {
   updateModel,
   upsertModel,
 } from '../../db/repos/models.js';
+import { seedModelsForProvider } from '../../db/seedBuiltinModels.js';
 import { fetchModels } from '../../providers/listModels.js';
 import { fetchAndSeedPioneerModels } from '../../providers/pioneer/models.js';
 import { ApiError, handleApiError } from './middleware.js';
@@ -246,7 +247,7 @@ modelRoutes.post('/bulk-toggle', async (c) => {
   }
 });
 
-const FETCH_PROVIDERS = ['minimax', 'pioneer'] as const;
+const FETCH_PROVIDERS = ['minimax', 'pioneer', 'kiro', 'codebuddy', 'zai', 'notion'] as const;
 type FetchProvider = (typeof FETCH_PROVIDERS)[number];
 
 modelRoutes.post('/fetch/:provider', async (c) => {
@@ -260,6 +261,20 @@ modelRoutes.post('/fetch/:provider', async (c) => {
       );
     }
     const p = provider as FetchProvider;
+
+    // Builtin providers: re-run the static seed (no upstream call, no account
+    // needed). Kiro/CodeBuddy/Z.AI/Notion all use `seedXxxBuiltins` which is
+    // idempotent and only touches rows for that provider.
+    if (p === 'kiro' || p === 'codebuddy' || p === 'zai' || p === 'notion') {
+      const result = await seedModelsForProvider(db, p);
+      if (!result.ok) {
+        return c.json({ error: 'reseed_failed', message: result.error ?? 'seed error' }, 500);
+      }
+      const total = listModels(db, { includeDisabled: true, provider: p }).length;
+      return c.json({ added: result.added, total });
+    }
+
+    // Upstream-fetch providers: require at least one active account.
     const accounts = listEnabledAccountsByProvider(db, p);
     const first = accounts[0];
     if (!first) {
@@ -271,15 +286,15 @@ modelRoutes.post('/fetch/:provider', async (c) => {
       if (!result.ok) {
         return c.json({ error: 'fetch_failed', message: result.error ?? 'upstream error' }, 502);
       }
-      const total = listModels(db, { includeDisabled: true }).length;
+      const total = listModels(db, { includeDisabled: true, provider: 'minimax' }).length;
       return c.json({ added: result.added ?? 0, total });
     }
-    // pioneer: post-seed total row count (incl. disabled), mirrors minimax branch above.
+    // pioneer: post-seed total row count for pioneer rows (incl. disabled).
     const result = await fetchAndSeedPioneerModels(db, first.api_key, first.base_url);
     if (!result.ok) {
       return c.json({ error: 'fetch_failed', message: result.error ?? 'upstream error' }, 502);
     }
-    const total = listModels(db, { includeDisabled: true }).length;
+    const total = listModels(db, { includeDisabled: true, provider: 'pioneer' }).length;
     return c.json({ added: result.added ?? 0, total });
   } catch (e) {
     return handleApiError(e);

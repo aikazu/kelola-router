@@ -67,29 +67,42 @@ usageRoutes.get('/usage', (c) => {
     const accounts = listAccounts(db);
     const accountLabelMap = new Map(accounts.map((a) => [a.id, a.label]));
 
-    // summary on full window (days=0 => all-time inside aggregateUsage)
-    const cur = aggregateUsage(db, { clientKeyId, days });
+    // summary: apply the FULL filter set (account/model/status/search/etc) so
+    // the totals match the rows the user is viewing.
+    const cur = aggregateUsage(db, {
+      clientKeyId,
+      accountId,
+      model,
+      statusCode,
+      search,
+      fromIso: filter.fromIso,
+      toIso: filter.toIso,
+      days,
+    });
 
     // Period 2: same window length immediately before, for delta.
-    // All-time has no previous period, so deltas are null.
+    // All-time has no previous period, so deltas are null. The previous-period
+    // query MUST apply the same filter set as the current period — otherwise
+    // the delta % is meaningless.
     const deltaPct = (a: number, b: number) => (b === 0 ? null : ((a - b) / b) * 100);
     let deltaCostPct: number | null = null;
     let deltaRequestsPct: number | null = null;
     let deltaTokensPct: number | null = null;
     if (!allTime && since) {
       const prevSince = new Date(Date.now() - 2 * days * 86_400_000).toISOString();
-      const prevRow = db
-        .prepare(`
-        SELECT COALESCE(SUM(cost_usd),0) as cost, COUNT(*) as reqs, COALESCE(SUM(total_tokens),0) as toks
-        FROM request_logs
-        WHERE created_at >= ? AND created_at < ? ${clientKeyId !== undefined ? 'AND client_key_id = ?' : ''}
-      `)
-        .get(
-          ...(clientKeyId !== undefined ? [prevSince, since, clientKeyId] : [prevSince, since])
-        ) as { cost: number; reqs: number; toks: number };
-      deltaCostPct = deltaPct(cur.total_cost, prevRow.cost);
-      deltaRequestsPct = deltaPct(cur.total_requests, prevRow.reqs);
-      deltaTokensPct = deltaPct(cur.total_tokens, prevRow.toks);
+      const prev = aggregateUsage(db, {
+        clientKeyId,
+        accountId,
+        model,
+        statusCode,
+        search,
+        fromIso: prevSince,
+        toIso: since,
+        days: 0, // explicit window above overrides
+      });
+      deltaCostPct = deltaPct(cur.total_cost, prev.total_cost);
+      deltaRequestsPct = deltaPct(cur.total_requests, prev.total_requests);
+      deltaTokensPct = deltaPct(cur.total_tokens, prev.total_tokens);
     }
 
     const payload = {
