@@ -198,7 +198,16 @@ describe('AddAccountModal', () => {
         deviceFlow,
       });
       const select = screen.getByRole('combobox') as HTMLSelectElement;
-      fireEvent.change(select, { target: { value: 'token' } });
+      // fireEvent.change on a Preact-controlled <select> does not fire the
+      // onChange handler under @testing-library/preact 3.2.4 + preact 10.29 +
+      // happy-dom when the component tree also mounts an inactive (never-
+      // rendered) <NotionAuthForm> branch — the synthetic change event is
+      // swallowed by Preact's event-delegation diff for the surrounding
+      // conditional subtree. Reproduce the user gesture instead: set the
+      // selected option's value then dispatch a native `change` event, which
+      // Preact's delegated listener picks up and forwards to onChange.
+      select.value = 'token';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
       expect(onKiroMethodChange).toHaveBeenCalledWith('token');
       expect(autoImport.reset).toHaveBeenCalled();
       expect(deviceFlow.reset).toHaveBeenCalled();
