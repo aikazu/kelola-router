@@ -7,6 +7,7 @@ import {
   seedCodebuddyBuiltins,
   seedKiroBuiltins,
   seedModelsForProvider,
+  seedZaiBuiltins,
 } from './seedBuiltinModels.js';
 
 beforeEach(() => {
@@ -92,6 +93,55 @@ describe('seedModelsForProvider', () => {
     const result = await seedModelsForProvider(db, 'codebuddy');
     expect(result.ok).toBe(true);
     expect(result.added).toBeGreaterThan(0);
+  });
+
+  it('returns ok:true for zai always', async () => {
+    const db = openDb();
+    const result = await seedModelsForProvider(db, 'zai');
+    expect(result.ok).toBe(true);
+    expect(result.added).toBeGreaterThan(0);
+  });
+});
+
+describe('seedZaiBuiltins', () => {
+  it('inserts zai builtins with provider=zai and real pricing', () => {
+    const db = openDb();
+    const result = seedZaiBuiltins(db);
+    expect(result.total).toBeGreaterThan(0);
+    expect(result.added).toBe(result.total);
+
+    const rows = db
+      .prepare(
+        'SELECT name, provider, pricing_input, pricing_output, pricing_cache_read, context_window FROM models'
+      )
+      .all() as Array<{
+      name: string;
+      provider: string;
+      pricing_input: number;
+      pricing_output: number;
+      pricing_cache_read: number;
+      context_window: number;
+    }>;
+    const byName = Object.fromEntries(rows.map((r) => [r.name, r]));
+    // Text flagship
+    expect(byName['glm-5.2']?.provider).toBe('zai');
+    expect(byName['glm-5.2']?.pricing_input).toBe(1.4);
+    expect(byName['glm-5.2']?.pricing_output).toBe(4.4);
+    expect(byName['glm-5.2']?.context_window).toBe(1000000);
+    // Vision flagship
+    expect(byName['glm-5v-turbo']?.provider).toBe('zai');
+    expect(byName['glm-5v-turbo']?.pricing_input).toBe(1.2);
+    expect(byName['glm-5v-turbo']?.context_window).toBe(200000);
+    // Free Flash variant
+    expect(byName['glm-4.7-flash']?.pricing_input).toBe(0);
+    expect(byName['glm-4.7-flash']?.pricing_output).toBe(0);
+  });
+
+  it('is idempotent on second call', () => {
+    const db = openDb();
+    seedZaiBuiltins(db);
+    const second = seedZaiBuiltins(db);
+    expect(second.added).toBe(0);
   });
 
   it('fetches and upserts minimax models with a mocked upstream', async () => {

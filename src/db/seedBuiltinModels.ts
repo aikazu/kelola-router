@@ -189,29 +189,98 @@ interface ZaiModel {
   upstream: string;
   display: string;
   context: number;
+  pricing: {
+    input: number;
+    output: number;
+    cacheRead: number;
+  };
 }
 
 /**
- * Catalogue mirrored from docs.z.ai/api-reference/llm/chat-completion.md. The
- * GLM-5.2 `[1m]` suffix enables 1M context per the same docs — see
- * `docs/zai/wire-format.md`. Pricing is zero: z.ai is a flat-rate subscription.
+ * Curated catalogue — only the flagship + current-generation models. Pricing
+ * from docs.z.ai/guides/overview/pricing (USD per 1M tokens). Context from the
+ * per-model guide pages (glm-5.2 / glm-5.1 / glm-5 / glm-5-turbo / glm-4.7 /
+ * glm-5v-turbo / glm-4.6v). The GLM-5.2 `[1m]` suffix enables 1M context per
+ * the same docs — see `docs/zai/wire-format.md`. Flash variants are free per
+ * the pricing page (0 across the row).
  */
 const ZAI_MODELS: ZaiModel[] = [
-  { upstream: 'glm-5.2', display: 'GLM-5.2', context: 200000 },
-  { upstream: 'glm-5.2[1m]', display: 'GLM-5.2 (1M context)', context: 1000000 },
-  { upstream: 'glm-5.1', display: 'GLM-5.1', context: 200000 },
-  { upstream: 'glm-5-turbo', display: 'GLM-5 Turbo', context: 200000 },
-  { upstream: 'glm-5', display: 'GLM-5', context: 200000 },
-  { upstream: 'glm-4.7', display: 'GLM-4.7', context: 200000 },
-  { upstream: 'glm-4.7-flash', display: 'GLM-4.7 Flash', context: 200000 },
-  { upstream: 'glm-4.7-flashx', display: 'GLM-4.7 FlashX', context: 200000 },
-  { upstream: 'glm-4.6', display: 'GLM-4.6', context: 200000 },
-  { upstream: 'glm-4.5', display: 'GLM-4.5', context: 200000 },
-  { upstream: 'glm-4.5-air', display: 'GLM-4.5 Air', context: 200000 },
-  { upstream: 'glm-4.5-x', display: 'GLM-4.5 X', context: 200000 },
-  { upstream: 'glm-4.5-airx', display: 'GLM-4.5 AirX', context: 200000 },
-  { upstream: 'glm-4.5-flash', display: 'GLM-4.5 Flash', context: 200000 },
-  { upstream: 'glm-4-32b-0414-128k', display: 'GLM-4 32B (128K)', context: 128000 },
+  // Text: GLM-4.7 family
+  {
+    upstream: 'glm-4.7',
+    display: 'GLM-4.7',
+    context: 200000,
+    pricing: { input: 0.6, output: 2.2, cacheRead: 0.11 },
+  },
+  {
+    upstream: 'glm-4.7-flash',
+    display: 'GLM-4.7 Flash',
+    context: 200000,
+    pricing: { input: 0, output: 0, cacheRead: 0 },
+  },
+  {
+    upstream: 'glm-4.7-flashx',
+    display: 'GLM-4.7 FlashX',
+    context: 200000,
+    pricing: { input: 0.07, output: 0.4, cacheRead: 0.01 },
+  },
+  // Text: GLM-5 family
+  {
+    upstream: 'glm-5',
+    display: 'GLM-5',
+    context: 200000,
+    pricing: { input: 1, output: 3.2, cacheRead: 0.2 },
+  },
+  {
+    upstream: 'glm-5-turbo',
+    display: 'GLM-5 Turbo',
+    context: 200000,
+    pricing: { input: 1.2, output: 4.0, cacheRead: 0.24 },
+  },
+  {
+    upstream: 'glm-5.1',
+    display: 'GLM-5.1',
+    context: 200000,
+    pricing: { input: 1.4, output: 4.4, cacheRead: 0.26 },
+  },
+  {
+    upstream: 'glm-5.2',
+    display: 'GLM-5.2',
+    context: 1000000,
+    pricing: { input: 1.4, output: 4.4, cacheRead: 0.26 },
+  },
+  {
+    upstream: 'glm-5.2[1m]',
+    display: 'GLM-5.2 (1M context)',
+    context: 1000000,
+    pricing: { input: 1.4, output: 4.4, cacheRead: 0.26 },
+  },
+  // Vision: GLM-4.6V family
+  {
+    upstream: 'glm-4.6v',
+    display: 'GLM-4.6V',
+    context: 128000,
+    pricing: { input: 0.3, output: 0.9, cacheRead: 0.05 },
+  },
+  {
+    upstream: 'glm-4.6v-flash',
+    display: 'GLM-4.6V Flash',
+    context: 128000,
+    pricing: { input: 0, output: 0, cacheRead: 0 },
+  },
+  {
+    upstream: 'glm-4.6v-flashx',
+    display: 'GLM-4.6V FlashX',
+    context: 128000,
+    pricing: { input: 0.04, output: 0.4, cacheRead: 0.004 },
+  },
+  // Vision: GLM-5V family
+  {
+    upstream: 'glm-5v-turbo',
+    display: 'GLM-5V Turbo',
+    context: 200000,
+    pricing: { input: 1.2, output: 4.0, cacheRead: 0.24 },
+  },
 ];
 
 /**
@@ -226,9 +295,9 @@ export function seedZaiBuiltins(db: Database.Database): SeedResult {
     display_name: `Z.AI ${m.display}`,
     family: 'zai',
     context_window: m.context,
-    pricing_input: 0,
-    pricing_output: 0,
-    pricing_cache_read: 0,
+    pricing_input: m.pricing.input,
+    pricing_output: m.pricing.output,
+    pricing_cache_read: m.pricing.cacheRead,
     pricing_cache_write: 0,
     source: 'builtin',
     provider: 'zai',

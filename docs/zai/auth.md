@@ -52,10 +52,18 @@ catalogue under the "Z.AI" section.
 
 ## Quota / billing model
 
-Z.AI is a **flat-rate subscription** (the "GLM Coding Plan" per
-<https://docs.z.ai/devpack/overview>). There is no per-token bill — pricing
-columns in the `models` table are seeded at zero for all Z.AI rows and the
-dashboard surfaces request counts only.
+Z.AI exposes two billing surfaces:
+
+1. **Pay-as-you-go API** — every model in the curated catalogue has
+   per-token pricing (see `docs/zai/wire-format.md`). The router stores
+   `pricing_input`, `pricing_output`, and `pricing_cache_read` on each
+   `models` row so the dashboard can estimate per-request cost.
+2. **GLM Coding Plan subscription** — flat-rate monthly plans starting at
+   $18/mo per <https://docs.z.ai/devpack/overview>. Best-effort, intended
+   for use inside Claude Code / Cline / OpenCode / Kilo Code.
+
+The same API key works for both billing modes — `credit_type='payg'` on the
+account row is the default.
 
 The Coding Plan uses 5-hour + weekly rolling windows. GLM-5.2 and
 GLM-5-Turbo are billed at 1× off-peak and 2-3× peak (14:00–18:00 UTC+8) per

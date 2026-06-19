@@ -36,19 +36,53 @@ introduction page).
 
 ## Model catalogue
 
-All public GLM model ids are listed in
-<https://docs.z.ai/api-reference/llm/chat-completion.md>. The seed list
-(`src/db/seedBuiltinModels.ts`) mirrors the current enum. Highlights:
+The router ships with a curated seed list at
+`src/db/seedBuiltinModels.ts → seedZaiBuiltins`. All entries carry real
+per-token pricing (USD / 1M tokens) sourced from
+<https://docs.z.ai/guides/overview/pricing>. Pricing-free Flash variants
+have zero rows.
 
-- `glm-5.2` — flagship; comparable to Claude Opus per the docs
-- `glm-5.2[1m]` — same model with the `[1m]` suffix enabling 1M-token context
-  (requires `CLAUDE_CODE_AUTO_COMPACT_WINDOW: 1000000` per the docs)
-- `glm-5.1`, `glm-5-turbo`, `glm-5` — alternates in the 5.x line
-- `glm-4.7`, `glm-4.7-flash`, `glm-4.7-flashx` — 4.x flagship + variants
-- `glm-4.6`, `glm-4.6v`, `glm-4.5*`, `glm-4-32b-0414-128k` — older + vision
+### Text models
 
-Pricing is **zero** across the board — Z.AI is a flat-rate subscription,
-not per-token. The dashboard surfaces request counts only.
+| Model id            | Display            | Context | Input $/M | Output $/M | Cache read $/M |
+|---------------------|--------------------|---------|-----------|------------|----------------|
+| `glm-4.7`           | GLM-4.7            | 200K    | 0.6       | 2.2        | 0.11           |
+| `glm-4.7-flash`     | GLM-4.7 Flash      | 200K    | free      | free       | free           |
+| `glm-4.7-flashx`    | GLM-4.7 FlashX     | 200K    | 0.07      | 0.4        | 0.01           |
+| `glm-5`             | GLM-5              | 200K    | 1.0       | 3.2        | 0.2            |
+| `glm-5-turbo`       | GLM-5 Turbo        | 200K    | 1.2       | 4.0        | 0.24           |
+| `glm-5.1`           | GLM-5.1            | 200K    | 1.4       | 4.4        | 0.26           |
+| `glm-5.2`           | GLM-5.2            | 1M      | 1.4       | 4.4        | 0.26           |
+| `glm-5.2[1m]`       | GLM-5.2 (1M)       | 1M      | 1.4       | 4.4        | 0.26           |
+
+`glm-5.2` ships with a true 1M-token context (per the dedicated
+[glm-5.2 model guide](https://docs.z.ai/guides/llm/glm-5.2)). The
+`[1m]` suffix is preserved verbatim and selects the same upstream model;
+pair it with `CLAUDE_CODE_AUTO_COMPACT_WINDOW: 1000000` in
+`~/.claude/settings.json` per the docs.
+
+### Vision models
+
+| Model id              | Display         | Context | Input $/M | Output $/M | Cache read $/M |
+|-----------------------|-----------------|---------|-----------|------------|----------------|
+| `glm-4.6v`            | GLM-4.6V        | 128K    | 0.3       | 0.9        | 0.05           |
+| `glm-4.6v-flash`      | GLM-4.6V Flash  | 128K    | free      | free       | free           |
+| `glm-4.6v-flashx`     | GLM-4.6V FlashX | 128K    | 0.04      | 0.4        | 0.004          |
+| `glm-5v-turbo`        | GLM-5V Turbo    | 200K    | 1.2       | 4.0        | 0.24           |
+
+`glm-5v-turbo` is Z.AI's first multimodal coding foundation model — image,
+video, text, and file input → text output. See the
+[glm-5v-turbo guide](https://docs.z.ai/guides/vlm/glm-5v-turbo) and
+[glm-4.6v guide](https://docs.z.ai/guides/vlm/glm-4.6v) for capability
+matrices.
+
+### Out-of-seed models
+
+Anything in the upstream enum
+(<https://docs.z.ai/api-reference/llm/chat-completion.md>) but not in the
+curated list can be added manually via the dashboard's Models page → "+ Add
+model" — the upstream `model` field accepts the bare id exactly as the docs
+spell it (e.g. `glm-4.5-x`, `glm-4.5-air`, `glm-4-32b-0414-128k`).
 
 ## Request shape (OpenAI endpoint)
 
