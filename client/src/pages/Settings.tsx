@@ -9,13 +9,29 @@ import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
 
+// Mirrors the valibot picklists in src/db/repos/settings.types.ts so the
+// client surfaces drift immediately: if the server schema widens beyond
+// these unions, the dropdown cannot silently render a blank/disabled row.
+type CavemanLevel = 'off' | 'terse' | 'ultra';
+type UpstreamFormat = 'auto' | 'openai' | 'anthropic';
+
 interface SettingsData {
-  caveman: { level: string };
-  caching: { autoBreakpoints: boolean };
-  rtk: { enabled: boolean };
-  minimax: { upstreamFormat?: string };
+  caveman: { level: CavemanLevel } | null;
+  caching: { autoBreakpoints: boolean } | null;
+  rtk: { enabled: boolean } | null;
+  minimax: { upstreamFormat?: UpstreamFormat } | null;
   version: string | null;
 }
+
+// Server returns null for never-written keys (audit/debuggability — see
+// A7 in the 2026-06-19 audit plan). Merge client-side so UI behaves identically
+// regardless of whether the row is seeded or user-saved.
+const SETTINGS_DEFAULTS = {
+  caveman: { level: 'off' },
+  caching: { autoBreakpoints: true },
+  rtk: { enabled: true },
+  minimax: {} as { upstreamFormat?: UpstreamFormat },
+} as const;
 
 function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
   const [pw, setPw] = useState('');
@@ -145,6 +161,14 @@ export function Settings() {
       </>
     );
 
+  // Server returns null for never-written keys; merge with client defaults.
+  const merged = {
+    caveman: data.caveman ?? SETTINGS_DEFAULTS.caveman,
+    caching: data.caching ?? SETTINGS_DEFAULTS.caching,
+    rtk: data.rtk ?? SETTINGS_DEFAULTS.rtk,
+    minimax: data.minimax ?? SETTINGS_DEFAULTS.minimax,
+  };
+
   return (
     <>
       <TopBar
@@ -176,7 +200,7 @@ export function Settings() {
       </Card>
       <Card title="Caveman mode" sub="Injects a terse system prompt to force concise output.">
         <select
-          value={data.caveman.level}
+          value={merged.caveman.level}
           onChange={(e) => cavemanMut.mutate((e.target as HTMLSelectElement).value)}
           class="input"
           disabled={cavemanMut.isPending}
@@ -188,9 +212,9 @@ export function Settings() {
       </Card>
       <Card title="RTK compression" sub="Token-saving compression on messages before forwarding.">
         <Switch
-          checked={data.rtk.enabled}
+          checked={merged.rtk.enabled}
           onChange={(v) => rtkMut.mutate(v)}
-          label={data.rtk.enabled ? 'Enabled' : 'Disabled'}
+          label={merged.rtk.enabled ? 'Enabled' : 'Disabled'}
         />
       </Card>
       <Card
@@ -198,16 +222,16 @@ export function Settings() {
         sub="Auto-inject dual cache_control breakpoints on Anthropic system prompts."
       >
         <Switch
-          checked={data.caching.autoBreakpoints}
+          checked={merged.caching.autoBreakpoints}
           onChange={(v) => cachingMut.mutate(v)}
-          label={data.caching.autoBreakpoints ? 'Enabled' : 'Disabled'}
+          label={merged.caching.autoBreakpoints ? 'Enabled' : 'Disabled'}
         />
       </Card>
       <Card title="MiniMax provider" sub="Cross-format routing + M3 defaults.">
         <label>
           Upstream format override
           <select
-            value={data.minimax.upstreamFormat ?? 'auto'}
+            value={merged.minimax.upstreamFormat ?? 'auto'}
             onChange={(e) =>
               minimaxMut.mutate({ upstreamFormat: (e.target as HTMLSelectElement).value })
             }

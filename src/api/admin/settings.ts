@@ -11,10 +11,10 @@ settingsRoutes.get('/', (c) => {
     const db = c.get('db') as Database.Database;
     const build = getSettingT(db, 'build');
     return c.json({
-      caveman: getSettingT(db, 'caveman') ?? { level: 'off' },
-      caching: getSettingT(db, 'caching') ?? { autoBreakpoints: true },
-      rtk: getSettingT(db, 'rtk') ?? { enabled: true },
-      minimax: getSettingT(db, 'minimax') ?? {},
+      caveman: getSettingT(db, 'caveman'),
+      caching: getSettingT(db, 'caching'),
+      rtk: getSettingT(db, 'rtk'),
+      minimax: getSettingT(db, 'minimax'),
       version: build?.version ?? null,
     });
   } catch (e) {
