@@ -67,6 +67,7 @@ modelRoutes.post('/', async (c) => {
       contextWindow?: number;
       pricingInput?: number;
       pricingOutput?: number;
+      family?: string;
     }>();
     if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
       return c.json({ error: 'invalid_body', message: 'Nama model wajib diisi' }, 400);
@@ -94,6 +95,7 @@ modelRoutes.post('/', async (c) => {
       pricing_output: typeof body.pricingOutput === 'number' ? body.pricingOutput : null,
       provider: body.provider as (typeof ALLOWED_PROVIDERS)[number],
       source: 'manual',
+      family: body.family?.trim() || null,
     });
     return c.json({ ok: true }, 201);
   } catch (e) {
