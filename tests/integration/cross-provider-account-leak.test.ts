@@ -93,7 +93,8 @@ const okOpenAI = () =>
 describe('cross-provider account leak (sticky)', () => {
   it('uses the minimax account for a minimax model after a pioneer request', async () => {
     const seenKeys: string[] = [];
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      void _url;
       // Capture the Authorization header (MiniMax) or X-API-Key (Pioneer).
       const headers =
         init?.headers instanceof Headers
@@ -142,6 +143,7 @@ describe('cross-provider account leak (sticky)', () => {
   it('uses the pioneer account for a pioneer model after a minimax request', async () => {
     const seenKeys: string[] = [];
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      void _url;
       const headers =
         init?.headers instanceof Headers
           ? init.headers

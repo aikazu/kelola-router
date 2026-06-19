@@ -11,14 +11,8 @@ import {
  * Helper: build a minimal Response-like mock. Real `Response` exposes
  * `headers.get(name)` but vitest mocks often omit it. Provide a Headers instance.
  */
-function mockResponse(opts: {
-  status?: number;
-  ok?: boolean;
-  body?: string;
-  setCookie?: string;
-}): Response {
+function mockResponse(opts: { status?: number; body?: string; setCookie?: string }): Response {
   const status = opts.status ?? 200;
-  const ok = opts.ok ?? (status >= 200 && status < 300);
   const body = opts.body ?? '';
   const headers = new Headers();
   if (opts.setCookie) headers.set('set-cookie', opts.setCookie);
@@ -120,7 +114,6 @@ describe('notion auth — login flow', () => {
     const fetchMock = vi.fn().mockResolvedValue(
       mockResponse({
         status: 401,
-        ok: false,
         body: '{"code":"wrong_password"}',
       })
     );
