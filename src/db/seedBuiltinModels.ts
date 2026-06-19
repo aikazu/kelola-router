@@ -200,9 +200,8 @@ interface ZaiModel {
  * Curated catalogue — only the flagship + current-generation models. Pricing
  * from docs.z.ai/guides/overview/pricing (USD per 1M tokens). Context from the
  * per-model guide pages (glm-5.2 / glm-5.1 / glm-5 / glm-5-turbo / glm-4.7 /
- * glm-5v-turbo / glm-4.6v). The GLM-5.2 `[1m]` suffix enables 1M context per
- * the same docs — see `docs/zai/wire-format.md`. Flash variants are free per
- * the pricing page (0 across the row).
+ * glm-5v-turbo / glm-4.6v). Flash variants are free per the pricing page
+ * (0 across the row).
  */
 const ZAI_MODELS: ZaiModel[] = [
   // Text: GLM-4.7 family
@@ -246,12 +245,6 @@ const ZAI_MODELS: ZaiModel[] = [
   {
     upstream: 'glm-5.2',
     display: 'GLM-5.2',
-    context: 1000000,
-    pricing: { input: 1.4, output: 4.4, cacheRead: 0.26 },
-  },
-  {
-    upstream: 'glm-5.2[1m]',
-    display: 'GLM-5.2 (1M context)',
     context: 1000000,
     pricing: { input: 1.4, output: 4.4, cacheRead: 0.26 },
   },
