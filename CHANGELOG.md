@@ -4,6 +4,29 @@ All notable changes to **kelola-router** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] — 2026-06-19
+
+### Added
+
+- **Models dashboard rewrite (`/admin/models`).** The card table now surfaces the client call string — a new **ID** column renders `callName(provider, name)` (`mx/MiniMax-M3`, `pio/claude-opus-4-8`, `kr/…`, `cb/…`, `nt/…`) via a client-side mirror `client/src/lib/providerPrefix.ts` of the server's `PREFIX_TO_PROVIDER` map. Columns reworked to **ID / Name / Context In / Context Out / In $/M / Out $/M / Aliases / Combo / Status / Test / Actions**. Row actions: **Toggle**, **Copy** (clipboard with `execCommand` fallback), **Test** (existing), **Edit**, **Delete**. **Per-card Fetch from upstream** now calls `POST /api/admin/models/fetch/:provider` and is hidden on providers without an upstream list endpoint (Kiro, CodeBuddy, Notion). New `EditModelModal` PATCHes editable fields. The shared `Model` client type carries the new `contextOutput` + `comboCount` fields.
+- **Models admin API.** New JSON routes on `modelRoutes` (`src/api/admin/models.ts`): `POST /api/admin/models/fetch/:provider` (minimax + pioneer only; 404 for others; 400 when no active account; 502 on upstream failure), `GET /api/admin/models/:name/refs` (alias + combo references), `DELETE /api/admin/models/:name` (409 `has_refs` when referenced by an alias or combo, else delete), `PATCH /api/admin/models/:name` (validates body — rejects unknown fields, wrong types, empty patches; name + upstream_model immutable). `GET /api/admin/models` list response now includes `contextOutput` and `comboCount` per row. Repo helpers `updateModel(db, name, patch)` + `deleteModel(db, name)` added. Convention: `ApiError` + `handleApiError` for the 404s; the 409-with-refs response stays inline because `handleApiError`'s `{ error, message }` shape has no room for the `refs` payload.
+- **`context_output` column (migration 010).** Additive `ALTER TABLE models ADD COLUMN context_output INTEGER`; `user_version = 10`. The Pioneer seeder seeds `context_output` from the upstream catalogue's `max_tokens`; `max_input_tokens` continues to populate `context_window`. The `Model` repo type + `upsertModel` INSERT carry the new column.
+- **Pioneer dedup migration (009).** `user_version = 9`. Collapses the 64 leaked `anthropic/pioneer/<x>` duplicate rows (name `pioneer/anthropic/pioneer/<x>`, upstream_model `anthropic/pioneer/<x>`) onto their canonical `pioneer/<x>` survivor. Survivor selection: canonical upstream first, ties by shortest name then lowest id. Validated against a real dirty DB — 139 → 75 exact, 0 survivors with a leaked prefix; idempotent.
+- **Console flow `parentReqId`.** `handleCodeBuddyProxy` / `handlePioneerProxy` / `handleKiroProxy` accept an optional `parentReqId?: string` last param; `handleComboProxy` passes its own `reqId` at all three delegation legs so a combo request is one console thread (the delegated leg reuses the parent id; direct calls still generate their own).
+
+### Fixed
+
+- **Pioneer seeder dedup.** `fetchAndSeedPioneerModels` now strips a leading `anthropic/pioneer/` (and `pioneer/`) before deduping the bare id — the upstream `/v1/models` catalogue returns each model id in both a canonical form (`gpt-5.5`) and an Anthropic-API-compat alias (`anthropic/pioneer/gpt-5.5`); the old seeder only stripped `pioneer/`, leaking 64 phantom rows (139 instead of 75).
+- **Notion console flow.** `handleNotionProxy` was silent in the live Console (hand-rolled `reqId`, no `c.set`, no `buildStart`/`buildAccount`/`buildDone`/`buildError`, no log row on any error path). Now at parity with Pioneer: `genReqId` + `c.set` at the top, `buildStart` with the resolved model, `buildAccount` after the account is validated, a shared `failAndLog` helper emits `buildError` + writes a `request_logs` row on every terminal error branch (no account, missing cookies, missing spaceId, network error, upstream !ok, **stream parse error** — the `ReadableStream` catch gap is closed), and `buildDone` on the success stream. One `resolveModel` call (was duplicated, the second un-wrapped).
+- **CodeBuddy console flow.** `buildStart` now carries the resolved upstream model (was the hardcoded `'codebuddy'` placeholder); the log row uses `resolved.upstreamModel` + `resolved.requestedModel` (was the raw `body.model`). Raw `body.model` preserved for SSE echoes.
+- **MiniMax + Kiro error-path log row.** The `!resp.ok` / `!result.ok` branches now write a `request_logs` row alongside `buildError` (parity with CodeBuddy/Pioneer/Notion); tokens + cost are 0 on the error. Cost is 0.
+- **MiniMax reqId + buildStart timing.** `genReqId` + `c.set('reqId')` hoisted to the top of `handleProxy` (was after account selection + model resolution); the outer `catch` references the in-scope `reqId` directly (no `c.get('reqId') ?? '----'` fallback). `buildStart` emitted after model resolution (carries the resolved model), before `buildAccount`. `buildAccount` stays after account selection.
+- **AddAccountModal kiro method test.** Pre-existing harness failure (since the Notion refactor at v0.20.0): `fireEvent.change` on the kiro method `<select>` did not trigger `onKiroMethodChange` under `@testing-library/preact` + `happy-dom` when the inactive NotionAuthForm branch shared the tree. Fixed by dispatching a native `change` event; the component contract (method change notifies parent + resets both sub-flows) is preserved.
+
+### Verification
+
+- 906 server tests (vitest, `--pool=forks`), 78 client tests, `tsc --noEmit` (root + client), biome check, and `vite build` all green. 24/24 Notion tests passing. No push without maintainer confirmation.
+
 ## [0.20.0] — 2026-06-18
 
 ### Added
@@ -209,6 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Foundation.** OpenAI + Anthropic compatibility, multi-account pool with sticky + round-robin selection, prompt caching (cache_control dual breakpoints), RTK + Caveman compression, built-in dashboard, SQLite-WAL, Hono on Node 20+. Six-phase plan: `docs/superpowers/plans/2026-06-01-minimax-router*.md`.
 
+[0.21.0]: https://github.com/aikazu/kelola-router/compare/v0.20.0...v0.21.0
+[0.20.0]: https://github.com/aikazu/kelola-router/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/aikazu/kelola-router/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/aikazu/kelola-router/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/aikazu/kelola-router/compare/v0.16.0...v0.17.0
