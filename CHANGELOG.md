@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker image rebuilt; `curl http://127.0.0.1:20137/healthz` returns HTTP 200.
 - 8 atomic conventional commits (`fix(api):`, `fix(quota):`, `fix(cache):`, `fix(settings):`, `fix(aliases):`, plus quality-fix fallout), each independently verified by its own test subset.
 
-## [Unreleased]
+## [0.21.0] — 2026-06-18
 
 ### Added
 

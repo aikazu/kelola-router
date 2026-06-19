@@ -19,7 +19,7 @@ A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview +
     │  /v1/chat/completions | /v1/messages | /v1/messages/count_tokens | /v1/models
     ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ handleProxy (minimax.ts + kiro/cb/pioneer/combo helpers)     │
+│ handleProxy (minimax.ts + kiro/cb/pioneer/zai/combo helpers) │
 │                                                              │
 │  1. parseBody                                                │
 │  2. resolve model: alias → upstream_model                    │
@@ -42,6 +42,7 @@ A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview +
 │  • CodeBuddy (codebuddy.ai)  OpenAI-compatible HTTP-JSON     │
 │  • Pioneer  (api.pioneer.ai)  OpenAI-compatible HTTP-JSON    │
 │  • Notion    (app.notion.com) cookie auth + JSON/NDJSON       │
+│  • Z.AI      (api.z.ai) Bearer + Anthropic/OpenAI HTTP-JSON  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,6 +78,7 @@ src/
 │   ├── kiro.ts               handleKiroProxy — Kiro pipeline (~270 LOC)
 │   ├── codebuddy.ts          handleCodeBuddyProxy — CodeBuddy pipeline
 │   ├── pioneer.ts            handlePioneerProxy — Pioneer pipeline
+│   ├── zai.ts                handleZaiProxy — Z.AI pipeline
 │   └── combo.ts              handleComboProxy — combo routing (~470 LOC)
 ├── accounts/                 Account selection state machine
 │   ├── selection.ts          sticky / round-robin / lowest-backoff picker
@@ -110,6 +112,11 @@ src/
 │   │   ├── index.ts          execute orchestrator
 │   │   ├── transform.ts      client → OpenAI upstream body
 │   │   └── models.ts         pioneer/ namespaced model catalogue
+│   ├── zai/                  Z.AI protocol (Anthropic Messages + OpenAI CC;
+│   │                         Bearer API key, single key per account)
+│   │   ├── index.ts          execute orchestrator
+│   │   ├── transform.ts      client → upstream body (Anthropic or OpenAI)
+│   │   └── models.ts         zai/ namespaced model catalogue
 │   ├── baseUrl.ts            MiniMax region switch (intl/cn)
 │   ├── parseError.ts         base_resp.status_code extractor
 │   ├── pricing.ts            per-model USD pricing
@@ -237,7 +244,7 @@ csrfGuard (admin only) → requireApiKey (proxy) / requireAdmin (admin)
 parseBody (c.req.json / c.req.parseBody)
   ↓
 model resolution
-  • parseModelPrefix(model): mx/|kr/|cb/|pio/|nt/ selects provider via literal,
+  • parseModelPrefix(model): mx/|kr/|cb/|pio/|nt/|zai/ selects provider via literal,
     provider-matched lookup; unprefixed resolves only via combos/aliases (strict)
   • aliasCache.lookup(model) → upstream_model
   • -thinking / -agentic suffix handling
@@ -248,6 +255,7 @@ provider routing (resolved.provider)
   • 'kiro'          → handleKiroProxy
   • 'codebuddy'     → handleCodeBuddyProxy
   • 'pioneer'       → handlePioneerProxy
+  • 'zai'           → handleZaiProxy
   • else (minimax)  → continue MiniMax path
   ↓
 consoleBus.emit('start', { reqId, model, endpoint })

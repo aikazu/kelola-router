@@ -88,6 +88,7 @@ Deep-dive (module map, state machines, data flow): see [`ARCHITECTURE.md`](ARCHI
 - **CodeBuddy** (CodeBuddy.ai) — OpenAI-compatible upstream, API-key bearer. Client request bridged to OpenAI stream and back (OpenAI SSE → Anthropic SSE assembler). Routed via cb/ prefix. See src/proxy/codebuddy.ts + src/providers/codebuddy/.
 - **Pioneer** (api.pioneer.ai) — OpenAI-compatible Chat Completions, X-API-Key bearer. Reuses CodeBuddy's OpenAI→Anthropic SSE bridge. Routed via pio/ prefix; models namespaced under pioneer/ to avoid global-unique id collisions. See src/proxy/pioneer.ts + src/providers/pioneer/.
 - **Notion** (app.notion.com) — reverse-engineered Notion desktop AI chat. 3-step temp-password login (email + 6-char temp password emailed), cookie-based session (11 cookies required), CRDT-style JSON request body + NDJSON patch-stream response. Routed via nt/ prefix; OpenAI streaming format. See src/proxy/notion.ts + src/providers/notion/ + docs/notion/wire-format.md.
+- **Z.AI** (api.z.ai) — sixth upstream provider. Single Bearer API-key auth (no OAuth, no migration). Two parallel APIs picked by client body format: Anthropic Messages at `https://api.z.ai/api/anthropic` (Claude-Code-compatible) and OpenAI Chat Completions at `https://api.z.ai/api/coding/paas/v4` (GLM Coding Plan). Routed via zai/ prefix. See src/proxy/zai.ts + src/providers/zai/ + docs/zai/{wire-format,auth}.md.
 
 ## Two-tier separation
 
@@ -115,6 +116,7 @@ Requests select a provider by an explicit prefix on `body.model`:
 | `cb/`  | CodeBuddy   | `cb/<model>`             |
 | `pio/` | Pioneer     | `pio/claude-opus-4-8`    |
 | `nt/`  | Notion      | `nt/<model>`             |
+| `zai/` | Z.AI        | `zai/<model>`            |
 
 - Prefixed names are looked up **literally** (no alias expansion) and the model's `provider` column MUST match the prefix, else 400.
 - **Unprefixed** names resolve **only** as a combo name or an alias (strict). A bare raw model name is rejected with 400 — add an alias or use a prefix.
