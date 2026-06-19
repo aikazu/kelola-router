@@ -30,22 +30,61 @@ export function getModel(db: Database.Database, name: string): Model | null {
 
 export function listModels(
   db: Database.Database,
-  opts: { includeDisabled?: boolean } = {}
+  opts: { includeDisabled?: boolean; provider?: string } = {}
 ): Model[] {
-  const sql = opts.includeDisabled
-    ? `SELECT * FROM models ORDER BY family, name`
-    : `SELECT * FROM models WHERE enabled = 1 ORDER BY family, name`;
-  return db.prepare(sql).all() as Model[];
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (!opts.includeDisabled) where.push('enabled = 1');
+  if (opts.provider) {
+    where.push('provider = ?');
+    params.push(opts.provider);
+  }
+  const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+  return db
+    .prepare(`SELECT * FROM models ${whereClause} ORDER BY family, name`)
+    .all(...params) as Model[];
 }
+
+/**
+ * Columns that the upsert is allowed to overwrite on an existing row. The
+ * `provider` column is deliberately excluded: a row's provider is decided at
+ * INSERT time and never changes on update (otherwise a single `name` could
+ * silently flip between providers, breaking routing + per-provider counts).
+ * `name` and `created_at` are excluded as primary-key / audit fields.
+ */
+const UPSERTABLE_COLUMNS = new Set([
+  'upstream_model',
+  'display_name',
+  'family',
+  'context_window',
+  'context_output',
+  'pricing_input',
+  'pricing_output',
+  'pricing_cache_read',
+  'pricing_cache_write',
+  'pricing_tiers',
+  'capabilities',
+  'source',
+  'enabled',
+]);
 
 export function upsertModel(db: Database.Database, m: ModelUpsert): void {
   const existing = getModel(db, m.name);
   if (existing) {
-    const keys = Object.keys(m).filter((k) => k !== 'name' && k !== 'id' && k !== 'created_at');
-    if (keys.length === 0) return;
-    const set = keys.map((k) => `${k} = ?`).join(', ');
-    const vals = keys.map((k) => (m as Record<string, unknown>)[k]);
-    db.prepare(`UPDATE models SET ${set} WHERE name = ?`).run(...vals, m.name);
+    // Only UPDATE columns explicitly listed in UPSERTABLE_COLUMNS — passing
+    // `provider` or `name` is silently ignored to prevent accidental cross-
+    // provider renames. `undefined` values are also skipped so a partial
+    // upsert doesn't overwrite real data with NULL.
+    const updates: string[] = [];
+    const vals: unknown[] = [];
+    for (const [k, v] of Object.entries(m)) {
+      if (!UPSERTABLE_COLUMNS.has(k)) continue;
+      if (v === undefined) continue;
+      updates.push(`${k} = ?`);
+      vals.push(v);
+    }
+    if (updates.length === 0) return;
+    db.prepare(`UPDATE models SET ${updates.join(', ')} WHERE name = ?`).run(...vals, m.name);
   } else {
     db.prepare(`
       INSERT INTO models (name, upstream_model, display_name, family, context_window, context_output,
