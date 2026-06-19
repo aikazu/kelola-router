@@ -40,6 +40,21 @@ function checkAliasConflict(db: Database.Database, name: string): void {
   }
 }
 
+/**
+ * Reverse-direction guard (B1 audit fix): an alias must not steal a name that
+ * a combo already owns. ADR 0008 says names are unique across the bare
+ * namespace — the existing `checkAliasConflict` enforces this from the combo
+ * side, but `upsertAlias` had no symmetric check. Exported so the aliases
+ * repo can call it; intentionally NOT exported as a general utility because
+ * the throw-site lives in the combos module's domain.
+ */
+export function checkComboConflict(db: Database.Database, name: string): void {
+  const row = db.prepare('SELECT 1 FROM combos WHERE name = ? LIMIT 1').get(name);
+  if (row) {
+    throw new Error(`combo_conflict: alias name '${name}' is already used as a combo`);
+  }
+}
+
 export function listCombos(db: Database.Database): Combo[] {
   const rows = db.prepare(`SELECT * FROM combos ORDER BY created_at`).all() as ComboRow[];
   return rows.map(rowToCombo);

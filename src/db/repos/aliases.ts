@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { checkComboConflict } from './combos.js';
 import { getModel } from './models.js';
 
 export interface ModelAlias {
@@ -46,6 +47,8 @@ export function isAliasShadowing(db: Database.Database, aliasName: string): bool
 
 export function upsertAlias(db: Database.Database, args: UpsertAliasArgs): ModelAlias {
   const name = args.aliasName;
+  // B1: reject when a combo already owns this name (both INSERT and UPDATE paths).
+  checkComboConflict(db, name);
   const existing = getAlias(db, name);
   if (existing) {
     db.prepare(`
