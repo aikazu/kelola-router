@@ -61,6 +61,19 @@ beforeEach(() => {
     api_key: 'cb_key',
     provider: 'codebuddy',
   });
+  upsertModel(db, {
+    name: 'pioneer/claude-opus',
+    upstream_model: 'pioneer/claude-opus',
+    provider: 'pioneer',
+  });
+  enableModel(db, 'pioneer/claude-opus');
+  createAccount(db, {
+    id: 'pio1',
+    label: 'pio',
+    credit_type: 'payg',
+    api_key: 'pio_key',
+    provider: 'pioneer',
+  });
   db.close();
 });
 afterEach(async () => {
@@ -143,5 +156,28 @@ describe('transport-throw logging (codebuddy)', () => {
     const row = logs.find((l) => l.account_id === 'cb1');
     expect(row?.status_code).toBe(502);
     expect(row?.model).toBe('codebuddy/claude-opus');
+  });
+});
+
+describe('transport-throw logging (pioneer)', () => {
+  it('writes a 502 request_log row when pioneer fetch throws', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('ETIMEDOUT pioneer-upstream');
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'pio/claude-opus',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+    });
+    expect(res.status).toBe(502);
+    await flushDeferredLogs();
+    const db = openDb();
+    const logs = recentLogs(db, { limit: 10 });
+    db.close();
+    const row = logs.find((l) => l.account_id === 'pio1');
+    expect(row?.status_code).toBe(502);
   });
 });
