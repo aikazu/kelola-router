@@ -99,9 +99,10 @@ export function TransportsTable({
       setTestResults((r) => ({ ...r, [id]: res }));
       if (res.ok) toast.success(`Reachable · ${res.latencyMs}ms (HTTP ${res.status})`);
       else toast.error(`Failed: ${res.error}`);
-    } catch (e: any) {
-      setTestResults((r) => ({ ...r, [id]: { ok: false, latencyMs: 0, error: e.message } }));
-      toast.error(e.message);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setTestResults((r) => ({ ...r, [id]: { ok: false, latencyMs: 0, error: msg } }));
+      toast.error(msg);
     }
   }
 

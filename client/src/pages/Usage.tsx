@@ -87,9 +87,11 @@ export function Usage() {
       if (p.get('page')) setPage(Math.max(1, Number(p.get('page'))));
       if (p.get('client_key')) setClientKeyId(Number(p.get('client_key')));
       if (p.get('days')) setDays(Number(p.get('days')));
-      if (p.get('q')) setSearch(p.get('q')!);
+      const q = p.get('q');
+      if (q) setSearch(q);
       if (p.get('status')) setStatusFilter(p.get('status') as 'all' | '2xx' | '4xx' | '5xx');
-      if (p.get('account_id')) setAccountFilter(p.get('account_id')!);
+      const accountId = p.get('account_id');
+      if (accountId) setAccountFilter(accountId);
     };
     onHash();
     window.addEventListener('hashchange', onHash);

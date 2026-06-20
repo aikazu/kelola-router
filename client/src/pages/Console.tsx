@@ -125,7 +125,13 @@ function groupBlocks(events: FlowEvent[]): Block[] {
     else if (e.phase === 'done') b.done = e;
     else if (e.phase === 'error') b.error = e;
   }
-  return order.map((id) => map.get(id)!);
+  return order.map((id) => {
+    const b = map.get(id);
+    // groupBlocks only inserts into `map` before pushing the id onto `order`,
+    // so by construction every id in `order` resolves to a defined block.
+    if (!b) throw new Error(`internal: missing block for reqId ${id}`);
+    return b;
+  });
 }
 
 /** Signature for collapsing visually-identical consecutive blocks. */

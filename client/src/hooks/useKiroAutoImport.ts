@@ -35,8 +35,8 @@ export function useKiroAutoImport({ label, onLabelChange, onSuccess }: UseKiroAu
         setError(res.error || 'No token found');
         setStatus('error');
       }
-    } catch (e: any) {
-      setError(e.message || 'Auto-import failed');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Auto-import failed');
       setStatus('error');
     }
   }, [apiFetch]);

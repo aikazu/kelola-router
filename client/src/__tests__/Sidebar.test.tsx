@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/preact';
+import type { ComponentChildren } from 'preact';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from '../layout/Sidebar';
 
-function wrap(ui: any) {
+function wrap(ui: ComponentChildren) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
@@ -36,7 +37,7 @@ describe('Sidebar', () => {
       new Response(JSON.stringify({ authed: true, passwordSet: false }), { status: 200 })
     );
     wrap(<Sidebar current="usage" />);
-    const usageLink = screen.getByText('Usage').closest('a')!;
-    expect(usageLink.className).toContain('active');
+    const usageLink = screen.getByText('Usage').closest('a');
+    expect(usageLink?.className).toContain('active');
   });
 });

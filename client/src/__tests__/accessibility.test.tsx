@@ -51,7 +51,7 @@ describe('Modal accessibility', () => {
     const dialog = screen.getByRole('dialog');
     const labelId = dialog.getAttribute('aria-labelledby');
     expect(labelId).toBeTruthy();
-    const titleEl = document.getElementById(labelId!);
+    const titleEl = labelId ? document.getElementById(labelId) : null;
     expect(titleEl?.textContent).toBe('My Title');
   });
 

@@ -14,7 +14,7 @@ interface KiroAutoImportFormProps {
 
 export function KiroAutoImportForm({
   status,
-  token,
+  token: _token,
   source,
   error,
   label,

@@ -53,8 +53,8 @@ export function useKiroDeviceFlow({
       });
       setDeviceData(data);
       setDeviceStep('code');
-    } catch (e: any) {
-      setDeviceError(e.message || 'Failed to start device code flow');
+    } catch (e) {
+      setDeviceError(e instanceof Error ? e.message : 'Failed to start device code flow');
       setDeviceStep('error');
     }
   }, [kiroMethod, region, startUrl]);
@@ -106,7 +106,7 @@ export function useKiroDeviceFlow({
           setDeviceStep('error');
         }
         // status === 'pending' → keep polling
-      } catch (_e: any) {
+      } catch {
         // Network errors → keep polling (transient)
       }
     }, interval);
