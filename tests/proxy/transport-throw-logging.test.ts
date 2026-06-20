@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +10,9 @@ import { flushDeferredLogs, recentLogs } from '../../src/db/repos/requestLogs.js
 import { setSetting } from '../../src/db/repos/settings.js';
 import { app, resetDb } from '../../src/server.js';
 
+// Shared per-test scratch state. Per-provider describes (e.g. A2-A5 for kiro/zai/etc.)
+// may append additional `beforeEach` blocks scoped to their own describe to add provider-specific
+// accounts/models without fighting over `key` / `dir`.
 let key: string;
 let dir: string;
 
@@ -33,6 +36,7 @@ afterEach(async () => {
   await flushDeferredLogs();
   vi.restoreAllMocks();
   resetDb();
+  rmSync(dir, { recursive: true, force: true });
   delete process.env.ROUTER_DB_PATH;
 });
 
@@ -54,7 +58,9 @@ describe('transport-throw logging (minimax)', () => {
     });
     expect(res.status).toBe(502);
     await flushDeferredLogs();
-    const logs = recentLogs(openDb(), { limit: 1 });
+    const db = openDb();
+    const logs = recentLogs(db, { limit: 1 });
+    db.close();
     expect(logs[0]?.status_code).toBe(502);
     expect(logs[0]?.model).toBe('MiniMax-M3');
     expect(logs[0]?.prompt_tokens).toBe(0);
