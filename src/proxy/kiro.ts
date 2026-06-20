@@ -164,6 +164,7 @@ export async function handleKiroProxy(
       stream: upstreamStream,
       transport,
       proxyOpts,
+      signal: c.req.raw.signal,
     });
 
     if (!result.ok) {
@@ -200,9 +201,14 @@ export async function handleKiroProxy(
         format === 'anthropic'
           ? kiroResponseToAnthropicSSE(result.rawStreamResponse, modelName)
           : kiroResponseToOpenAISSE(result.rawStreamResponse, modelName);
-      return await pipeWithUsage(sse, format, (usage, raw) => {
-        recordKiroUsage(usage, true, result.status, raw);
-      });
+      return await pipeWithUsage(
+        sse,
+        format,
+        (usage, raw) => {
+          recordKiroUsage(usage, true, result.status, raw);
+        },
+        c.req.raw.signal
+      );
     }
 
     const completion = result.json!;
