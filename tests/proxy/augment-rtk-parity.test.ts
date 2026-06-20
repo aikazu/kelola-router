@@ -75,6 +75,42 @@ beforeEach(() => {
     access_token: 'at_fresh',
     token_expires_at: new Date(Date.now() + 3600_000).toISOString(),
   });
+  // Notion: seed model + account with the full NOTION_AI_COOKIE_NAMES set
+  // (11 cookies, see src/providers/notion/constants.ts). Without all 11 the
+  // handler short-circuits to a 401 'notion_reauth_required' before augment.
+  // Model name is namespaced as `notion/notion` so resolveModel's namespaced
+  // fallback finds it when the client requests `nt/notion`.
+  upsertModel(db, {
+    name: 'notion/notion',
+    upstream_model: 'notion',
+    provider: 'notion',
+  });
+  enableModel(db, 'notion/notion');
+  createAccount(db, {
+    id: 'notion1',
+    label: 'notion',
+    credit_type: 'payg',
+    api_key: 'notion_key',
+    provider: 'notion',
+    provider_data: JSON.stringify({
+      cookies: Object.fromEntries(
+        [
+          'device_id',
+          'notion_browser_id',
+          'notion_check_cookie_consent',
+          'notion_user_id',
+          'notion_sync_user_id',
+          'NEXT_LOCALE',
+          'p_sync_session',
+          '_cioid',
+          'notion_locale',
+          'notion_users',
+          'token_v2',
+        ].map((n) => [n, 'val'])
+      ),
+      spaceId: 'sp1',
+    }),
+  });
   key = genClientKey();
   createClientKey(db, { label: 'app', key });
   db.close();
@@ -219,5 +255,38 @@ describe('augment/RTK parity (kiro)', () => {
     expect(res.status).toBe(200);
     await res.text();
     expect(sentBody).toContain('Be concise.');
+  });
+});
+
+describe('augment/RTK parity (notion)', () => {
+  it('runs caveman augment on the notion-bound messages', async () => {
+    const db = openDb();
+    setSetting(db, 'caveman', { level: 'terse' });
+    setSetting(db, 'caching', { autoBreakpoints: false });
+    setSetting(db, 'rtk', { enabled: false });
+    db.close();
+    // Spy BEFORE the request so the call is observed. Notion's wire payload
+    // shape is opaque NDJSON, so we cannot assert on body strings here —
+    // augmentRequest being called is the canonical signal.
+    const cacheMod = await import('../../src/cache-injection.js');
+    const augSpy = vi.spyOn(cacheMod, 'augmentRequest');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response('data: {"text":"hi"}\n', {
+          status: 200,
+          headers: { 'content-type': 'application/x-ndjson' },
+        })
+    );
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'nt/notion',
+        messages: [{ role: 'user', content: 'hello' }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(augSpy).toHaveBeenCalled();
   });
 });

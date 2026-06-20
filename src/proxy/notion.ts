@@ -11,11 +11,13 @@
 import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
 import type { AccountState } from '../accounts/types.js';
+import { augmentRequest } from '../cache-injection.js';
 import { consoleBus } from '../console/bus.js';
 import { buildAccount, buildDone, buildError, buildStart, genReqId } from '../console/flow.js';
 import type { Account } from '../db/repos/accounts.js';
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
+import { getAllSettings } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import {
   NOTION_AI_COOKIE_NAMES,
@@ -26,6 +28,7 @@ import {
 } from '../providers/notion/constants.js';
 import { extractNotionStream } from '../providers/notion/extract.js';
 import { buildNotionPayload } from '../providers/notion/transform.js';
+import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
 import { log } from '../util/log.js';
 import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
 import { errorMessage, stringValue } from './helpers.js';
@@ -123,6 +126,27 @@ export async function handleNotionProxy(
   } catch {
     /* unknown/disabled — keep placeholder, request will surface a 400 later */
   }
+  // augment (caveman + cache_control) + RTK parity — notion branches before
+  // the dispatcher's augment/RTK block. bodyTransform is a no-op for notion
+  // (NDJSON wire format; ADAPTIVE_THINKING won't match).
+  const allSettings = getAllSettings(db);
+  const caveman = allSettings.caveman as { level: string } | undefined;
+  const caching = allSettings.caching as
+    | { autoBreakpoints: boolean; respectCallerMarkers: boolean }
+    | undefined;
+  const rtkSetting = allSettings.rtk as { enabled: boolean } | undefined;
+  const cavemanOn = !!caveman?.level && caveman.level !== 'off';
+  const cachingOn = !!caching?.autoBreakpoints;
+  if (cavemanOn || cachingOn) {
+    await augmentRequest(
+      body as Parameters<typeof augmentRequest>[0],
+      allSettings as Parameters<typeof augmentRequest>[1]
+    );
+  }
+  let rtkSaved = 0;
+  if (rtkSetting?.enabled) {
+    rtkSaved = rtkBytesSaved(compressMessages(body, true));
+  }
   const aliasForFlow = requestedModel && requestedModel !== upstreamModel ? requestedModel : null;
   consoleBus.emit(
     buildStart(
@@ -160,7 +184,7 @@ export async function handleNotionProxy(
       statusCode: statusCodeVal,
       baseRespCode: undefined,
       stream: body.stream ? 1 : 0,
-      rtkBytesSaved: 0,
+      rtkBytesSaved: rtkSaved,
       requestBody: JSON.stringify(body),
       responseBody: message,
       requestHeaders: c.req.raw.headers,
@@ -357,7 +381,7 @@ export async function handleNotionProxy(
             statusCode: 200,
             baseRespCode: undefined,
             stream: 1,
-            rtkBytesSaved: 0,
+            rtkBytesSaved: rtkSaved,
             requestBody: JSON.stringify(body),
             responseBody: null,
             requestHeaders: c.req.raw.headers,
@@ -394,7 +418,7 @@ export async function handleNotionProxy(
             statusCode: 502,
             baseRespCode: undefined,
             stream: body.stream ? 1 : 0,
-            rtkBytesSaved: 0,
+            rtkBytesSaved: rtkSaved,
             requestBody: JSON.stringify(body),
             responseBody: msg,
             requestHeaders: c.req.raw.headers,
