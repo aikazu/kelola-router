@@ -44,6 +44,19 @@ beforeEach(() => {
     api_key: 'pio_key',
     provider: 'pioneer',
   });
+  upsertModel(db, {
+    name: 'zai/glm-5.2',
+    upstream_model: 'zai/glm-5.2',
+    provider: 'zai',
+  });
+  enableModel(db, 'zai/glm-5.2');
+  createAccount(db, {
+    id: 'zai1',
+    label: 'zai',
+    credit_type: 'payg',
+    api_key: 'zai_key',
+    provider: 'zai',
+  });
   key = genClientKey();
   createClientKey(db, { label: 'app', key });
   db.close();
@@ -120,6 +133,38 @@ describe('augment/RTK parity (pioneer)', () => {
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         model: 'pio/claude-opus',
+        messages: [{ role: 'user', content: 'hello' }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(sentBody).toContain('Be concise.');
+  });
+});
+
+describe('augment/RTK parity (zai)', () => {
+  it('applies caveman augment before calling the zai upstream', async () => {
+    const db = openDb();
+    setSetting(db, 'caveman', { level: 'terse' });
+    setSetting(db, 'caching', { autoBreakpoints: false });
+    setSetting(db, 'rtk', { enabled: false });
+    db.close();
+    let sentBody = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts) => {
+      sentBody = (opts?.body as string) ?? '';
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      );
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'zai/glm-5.2',
         messages: [{ role: 'user', content: 'hello' }],
       }),
     });
