@@ -87,6 +87,38 @@ beforeEach(() => {
     api_key: 'zai_key',
     provider: 'zai',
   });
+  upsertModel(db, {
+    name: 'notion-gpt-5.5',
+    upstream_model: 'opal-quince-medium',
+    provider: 'notion',
+  });
+  enableModel(db, 'notion-gpt-5.5');
+  createAccount(db, {
+    id: 'notion1',
+    label: 'notion',
+    credit_type: 'payg',
+    api_key: 'notion_key',
+    provider: 'notion',
+    provider_data: JSON.stringify({
+      cookies: Object.fromEntries(
+        [
+          'device_id',
+          'notion_browser_id',
+          'notion_check_cookie_consent',
+          'notion_user_id',
+          'notion_sync_user_id',
+          'NEXT_LOCALE',
+          'p_sync_session',
+          '_cioid',
+          'notion_locale',
+          'notion_users',
+          'token_v2',
+        ].map((n) => [n, 'val'])
+      ),
+      spaceId: 'sp1',
+      userId: 'u1',
+    }),
+  });
   db.close();
 });
 afterEach(async () => {
@@ -356,5 +388,35 @@ describe('AbortSignal threading (zai openai stream)', () => {
     expect(res.status).toBe(200);
     await res.text();
     expect(seen.signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe('notion streaming observability (regression guard)', () => {
+  it('writes a request_log row with statusCode 200 after a notion stream completes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response('data: {"text":"hi"}\n', {
+          status: 200,
+          headers: { 'content-type': 'application/x-ndjson' },
+        })
+    );
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'nt/notion-gpt-5.5',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: true,
+      }),
+    });
+    expect(res.status).toBe(200);
+    await res.text();
+    await flushDeferredLogs();
+    const db = openDb();
+    const logs = recentLogs(db, { limit: 10 });
+    db.close();
+    const row = logs.find((l) => l.account_id === 'notion1');
+    expect(row?.status_code).toBe(200);
+    expect(row?.stream).toBe(1);
   });
 });
