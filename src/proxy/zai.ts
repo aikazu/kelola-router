@@ -16,11 +16,7 @@ import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accoun
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { getSettingT } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
-import {
-  aggregateOpenAISSE,
-  openaiSSEToAnthropicSSE,
-} from '../providers/codebuddy/streamConvert.js';
-import { responseOpenAIToAnthropic } from '../providers/format/transform.js';
+import { aggregateOpenAISSE } from '../providers/codebuddy/streamConvert.js';
 import { calculateCost } from '../providers/pricing.js';
 import { executeZai } from '../providers/zai/index.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
@@ -244,8 +240,17 @@ export async function handleZaiProxy(
 
     if (body.stream === true) {
       if (format === 'anthropic') {
-        return openaiSSEToAnthropicSSE(resp, upstreamModel ?? model, (u) =>
-          recordUsage(u.prompt_tokens, u.completion_tokens, u.cache_read, true, '[anthropic-sse]')
+        // Upstream returned Anthropic Messages SSE — use the anthropic parser.
+        // pipeWithUsage(format='anthropic') extracts input_tokens/output_tokens
+        // from message_delta events and passes real tail text to onUsage.
+        return pipeWithUsage(resp, 'anthropic', (usage, raw) =>
+          recordUsage(
+            usage?.prompt_tokens ?? 0,
+            usage?.completion_tokens ?? 0,
+            usage?.cache_read_tokens ?? 0,
+            true,
+            raw
+          )
         );
       }
       return pipeWithUsage(resp, 'openai', (usage, raw) =>
@@ -259,6 +264,30 @@ export async function handleZaiProxy(
       );
     }
 
+    // Non-stream: Z.AI returns Anthropic Messages JSON for anthropic clients,
+    // and OpenAI Chat Completions JSON for openai clients.
+    if (format === 'anthropic') {
+      // Anthropic Messages JSON: usage fields are input_tokens / output_tokens.
+      const anthropicResp = (await resp.json()) as {
+        usage?: {
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_creation_input_tokens?: number;
+          cache_read_input_tokens?: number;
+        };
+        [key: string]: unknown;
+      };
+      const au = anthropicResp.usage ?? {};
+      recordUsage(
+        au.input_tokens ?? 0,
+        au.output_tokens ?? 0,
+        au.cache_read_input_tokens ?? 0,
+        false,
+        JSON.stringify(anthropicResp).slice(0, 2000)
+      );
+      return c.json(anthropicResp);
+    }
+    // OpenAI format: upstream also returned OpenAI JSON.
     const aggregated = await aggregateOpenAISSE(resp);
     const u = aggregated.usage;
     recordUsage(
@@ -268,7 +297,6 @@ export async function handleZaiProxy(
       false,
       JSON.stringify(aggregated).slice(0, 2000)
     );
-    if (format === 'anthropic') return c.json(responseOpenAIToAnthropic(aggregated));
     return c.json(aggregated);
   } catch (e: unknown) {
     const message = errorMessage(e);
