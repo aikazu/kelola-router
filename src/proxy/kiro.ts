@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
 import { selectAccount } from '../accounts/selection.js';
 import type { SelectionMode } from '../accounts/types.js';
+import { augmentRequest } from '../cache-injection.js';
 import { consoleBus } from '../console/bus.js';
 import {
   buildAccount,
@@ -14,13 +15,14 @@ import {
 } from '../console/flow.js';
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
-import { getSettingT } from '../db/repos/settings.js';
+import { getAllSettings, getSettingT } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import { bodyAnthropicToOpenAI, responseOpenAIToAnthropic } from '../providers/format/transform.js';
 import { kiroResponseToAnthropicSSE } from '../providers/kiro/anthropicSse.js';
 import { kiroResponseToOpenAISSE } from '../providers/kiro/assembler.js';
 import { executeKiro } from '../providers/kiro/index.js';
 import { calculateCost } from '../providers/pricing.js';
+import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
@@ -68,6 +70,29 @@ export async function handleKiroProxy(
   }
   const requestedModel = resolved.requestedModel;
   const modelName = resolved.upstreamModel;
+
+  // Pattern #7 parity: augment + RTK + bodyTransform (kiro branches before the
+  // dispatcher's augment/RTK block in minimax.ts:186-207). Apply to `body` BEFORE
+  // the bodyAnthropicToOpenAI merge so cache_control markers survive into the
+  // converted body.
+  const allSettings = getAllSettings(db);
+  const caveman = allSettings.caveman as { level: string } | undefined;
+  // biome-ignore format: long line
+  const caching = allSettings.caching as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | undefined;
+  const rtkSetting = allSettings.rtk as { enabled: boolean } | undefined;
+  const cavemanOn = !!caveman?.level && caveman.level !== 'off';
+  const cachingOn = !!caching?.autoBreakpoints;
+  if (cavemanOn || cachingOn) {
+    await augmentRequest(
+      body as Parameters<typeof augmentRequest>[0],
+      allSettings as Parameters<typeof augmentRequest>[1]
+    );
+  }
+  let rtkSaved = 0;
+  if (rtkSetting?.enabled) {
+    rtkSaved = rtkBytesSaved(compressMessages(body, true));
+  }
+  resolved.bodyTransform(body);
 
   // When delegated from a combo, reuse the combo's reqId so the console shows
   // one thread per combo request instead of two disconnected ones.
@@ -138,7 +163,8 @@ export async function handleKiroProxy(
     usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null,
     isStream: boolean,
     statusCodeVal: number,
-    responseBody: string
+    responseBody: string,
+    rtkSavedArg: number
   ): void => {
     const prompt = usage?.prompt_tokens ?? 0;
     const completion = usage?.completion_tokens ?? 0;
@@ -150,9 +176,9 @@ export async function handleKiroProxy(
     });
     const latency = Date.now() - startMs;
     // biome-ignore format: long line
-    insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel, endpoint: upstreamPath, format, promptTokens: prompt, completionTokens: completion, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: usage?.total_tokens ?? prompt + completion, costUsd: cost, latencyMs: latency, statusCode: statusCodeVal, baseRespCode: undefined, stream: isStream ? 1 : 0, rtkBytesSaved: 0, requestBody: JSON.stringify(body), responseBody, requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId }));
+    insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel, endpoint: upstreamPath, format, promptTokens: prompt, completionTokens: completion, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: usage?.total_tokens ?? prompt + completion, costUsd: cost, latencyMs: latency, statusCode: statusCodeVal, baseRespCode: undefined, stream: isStream ? 1 : 0, rtkBytesSaved: rtkSavedArg, requestBody: JSON.stringify(body), responseBody, requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId }));
     // biome-ignore format: long line
-    consoleBus.emit(buildDone(reqId, new Date().toISOString(), statusCodeVal, null, prompt, completion, 0, cost, latency, 0));
+    consoleBus.emit(buildDone(reqId, new Date().toISOString(), statusCodeVal, null, prompt, completion, 0, cost, latency, rtkSavedArg));
   };
 
   try {
@@ -205,7 +231,7 @@ export async function handleKiroProxy(
         sse,
         format,
         (usage, raw) => {
-          recordKiroUsage(usage, true, result.status, raw);
+          recordKiroUsage(usage, true, result.status, raw, rtkSaved);
         },
         c.req.raw.signal
       );
@@ -220,7 +246,7 @@ export async function handleKiroProxy(
             )
           )
         : JSON.stringify(completion);
-    recordKiroUsage(completion.usage, false, result.status, respBody);
+    recordKiroUsage(completion.usage, false, result.status, respBody, rtkSaved);
     return c.body(respBody, statusCode(result.status), { 'content-type': 'application/json' });
   } catch (e: unknown) {
     const message = errorMessage(e);

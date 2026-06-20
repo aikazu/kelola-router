@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../src/db/index.js';
-import { createAccount } from '../../src/db/repos/accounts.js';
+import { createAccount, updateAccount } from '../../src/db/repos/accounts.js';
 import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
 import { enableModel, upsertModel } from '../../src/db/repos/models.js';
 import { flushDeferredLogs } from '../../src/db/repos/requestLogs.js';
@@ -56,6 +56,24 @@ beforeEach(() => {
     credit_type: 'payg',
     api_key: 'zai_key',
     provider: 'zai',
+  });
+  upsertModel(db, {
+    name: 'claude-sonnet-4-5',
+    upstream_model: 'claude-sonnet-4-5',
+    provider: 'kiro',
+  });
+  enableModel(db, 'claude-sonnet-4-5');
+  createAccount(db, {
+    id: 'kiro1',
+    label: 'k',
+    credit_type: 'payg',
+    api_key: 'refresh_tok',
+    provider: 'kiro',
+    provider_data: JSON.stringify({ authMethod: 'social' }),
+  });
+  updateAccount(db, 'kiro1', {
+    access_token: 'at_fresh',
+    token_expires_at: new Date(Date.now() + 3600_000).toISOString(),
   });
   key = genClientKey();
   createClientKey(db, { label: 'app', key });
@@ -169,6 +187,37 @@ describe('augment/RTK parity (zai)', () => {
       }),
     });
     expect(res.status).toBe(200);
+    expect(sentBody).toContain('Be concise.');
+  });
+});
+
+describe('augment/RTK parity (kiro)', () => {
+  it('applies caveman augment before calling the kiro upstream', async () => {
+    const db = openDb();
+    setSetting(db, 'caveman', { level: 'terse' });
+    setSetting(db, 'caching', { autoBreakpoints: false });
+    setSetting(db, 'rtk', { enabled: false });
+    db.close();
+    let sentBody = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts) => {
+      sentBody = opts.body as string;
+      return Promise.resolve(
+        new Response('data: [DONE]\n\n', {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      );
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'kr/claude-sonnet-4-5',
+        messages: [{ role: 'user', content: 'hello' }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    await res.text();
     expect(sentBody).toContain('Be concise.');
   });
 });
