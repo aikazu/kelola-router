@@ -10,7 +10,8 @@ export async function upstreamFetch(
   body: unknown,
   extraHeaders: Record<string, string> = {},
   transport: TransportConfig | null = null,
-  opts?: ProxyFetchOpts
+  opts?: ProxyFetchOpts,
+  signal?: AbortSignal
 ): Promise<Response> {
   return proxyAwareFetch(
     url,
@@ -18,6 +19,7 @@ export async function upstreamFetch(
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...extraHeaders },
       body: typeof body === 'string' ? body : JSON.stringify(body),
+      ...(signal ? { signal } : {}),
     },
     transport,
     opts

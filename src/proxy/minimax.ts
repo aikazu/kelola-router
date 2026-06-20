@@ -339,7 +339,14 @@ export async function handleProxy(
   try {
     const upstreamBody = bodyDirty ? body : text || '{}';
     markHotPath('proxy:upstream-fetch-start');
-    const resp = await upstreamFetch(url, upstreamBody, headers, transport, proxyOpts);
+    const resp = await upstreamFetch(
+      url,
+      upstreamBody,
+      headers,
+      transport,
+      proxyOpts,
+      c.req.raw.signal
+    );
     markHotPath('proxy:upstream-fetch-response');
     if (!resp.ok) {
       const errBody = await resp.text();
@@ -375,35 +382,40 @@ export async function handleProxy(
     if (body.stream === true) {
       const startMs = c.get('startTime');
       const modelName = stringValue(body.model);
-      const piped = await pipeWithUsage(resp, format, (usage, raw) => {
-        const prompt = usage?.prompt_tokens ?? 0;
-        const completion = usage?.completion_tokens ?? 0;
-        const cacheCreate = usage?.cache_creation_tokens ?? 0;
-        const cacheRead = usage?.cache_read_tokens ?? 0;
-        const total = usage?.total_tokens ?? prompt + completion;
-        const cost = calculateCost(db, modelName, {
-          prompt_tokens: prompt,
-          completion_tokens: completion,
-          cache_creation_tokens: cacheCreate,
-          cache_read_tokens: cacheRead,
-        });
-        // biome-ignore format: long line
-        insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: account.id, model: modelName, requestedModel, endpoint: upstreamPath, format: upstreamFormat, promptTokens: prompt, completionTokens: completion, cacheCreationTokens: cacheCreate, cacheReadTokens: cacheRead, totalTokens: total, costUsd: cost, latencyMs: Date.now() - startMs, statusCode: resp.status, baseRespCode: undefined, stream: 1, rtkBytesSaved: rtkSaved, requestBody: text, responseBody: raw, requestHeaders: c.req.raw.headers, responseHeaders: resp.headers, reqId }));
-        consoleBus.emit(
-          buildDone(
-            reqId,
-            new Date().toISOString(),
-            resp.status,
-            null,
-            prompt,
-            completion,
-            cacheRead,
-            cost,
-            Date.now() - startMs,
-            rtkSaved
-          )
-        );
-      });
+      const piped = await pipeWithUsage(
+        resp,
+        format,
+        (usage, raw) => {
+          const prompt = usage?.prompt_tokens ?? 0;
+          const completion = usage?.completion_tokens ?? 0;
+          const cacheCreate = usage?.cache_creation_tokens ?? 0;
+          const cacheRead = usage?.cache_read_tokens ?? 0;
+          const total = usage?.total_tokens ?? prompt + completion;
+          const cost = calculateCost(db, modelName, {
+            prompt_tokens: prompt,
+            completion_tokens: completion,
+            cache_creation_tokens: cacheCreate,
+            cache_read_tokens: cacheRead,
+          });
+          // biome-ignore format: long line
+          insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: account.id, model: modelName, requestedModel, endpoint: upstreamPath, format: upstreamFormat, promptTokens: prompt, completionTokens: completion, cacheCreationTokens: cacheCreate, cacheReadTokens: cacheRead, totalTokens: total, costUsd: cost, latencyMs: Date.now() - startMs, statusCode: resp.status, baseRespCode: undefined, stream: 1, rtkBytesSaved: rtkSaved, requestBody: text, responseBody: raw, requestHeaders: c.req.raw.headers, responseHeaders: resp.headers, reqId }));
+          consoleBus.emit(
+            buildDone(
+              reqId,
+              new Date().toISOString(),
+              resp.status,
+              null,
+              prompt,
+              completion,
+              cacheRead,
+              cost,
+              Date.now() - startMs,
+              rtkSaved
+            )
+          );
+        },
+        c.req.raw.signal
+      );
       return piped;
     }
 

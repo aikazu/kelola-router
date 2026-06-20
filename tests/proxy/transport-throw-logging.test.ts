@@ -217,3 +217,33 @@ describe('transport-throw logging (zai)', () => {
     expect(row?.status_code).toBe(502);
   });
 });
+
+describe('AbortSignal threading (minimax stream)', () => {
+  it('forwards c.req.raw.signal to the upstream fetch on a streaming request', async () => {
+    const seen: { signal?: AbortSignal } = {};
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts) => {
+      seen.signal = (opts as RequestInit).signal;
+      return Promise.resolve(
+        new Response('data: {"choices":[]}\n\ndata: [DONE]\n\n', {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      );
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'mx/MiniMax-M3',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: true,
+        thinking: { type: 'adaptive' },
+        max_completion_tokens: 131072,
+        reasoning_split: true,
+      }),
+    });
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(seen.signal).toBeInstanceOf(AbortSignal);
+  });
+});
