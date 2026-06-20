@@ -292,6 +292,35 @@ export async function handleCodeBuddyProxy(
     const message = errorMessage(e);
     log.warn({ provider: 'codebuddy', err: message }, 'codebuddy: upstream error');
     consoleBus.emit(buildError(reqId, new Date().toISOString(), 502, message));
+    // transport throw (DNS/refused/timeout) previously wrote no request_log row. logCtxBase
+    // depends on resp (absent here), so build a raw zeros row.
+    insertRequestLogDeferred(
+      db,
+      buildLogRow({
+        clientKeyId: clientKey.id,
+        accountId: account.id,
+        model: upstreamModel,
+        requestedModel: requestedModel ?? model,
+        endpoint: upstreamPath,
+        format,
+        promptTokens: 0,
+        completionTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+        latencyMs: Date.now() - startMs,
+        statusCode: 502,
+        baseRespCode: undefined,
+        stream: body.stream ? 1 : 0,
+        rtkBytesSaved: 0,
+        requestBody: originalText,
+        responseBody: message,
+        requestHeaders: c.req.raw.headers,
+        responseHeaders: new Headers(),
+        reqId,
+      })
+    );
     return c.json({ error: { message: `upstream unreachable: ${message}` } }, 502);
   }
 }

@@ -48,6 +48,19 @@ beforeEach(() => {
     access_token: 'at_fresh',
     token_expires_at: new Date(Date.now() + 3600_000).toISOString(),
   });
+  upsertModel(db, {
+    name: 'codebuddy/claude-opus',
+    upstream_model: 'codebuddy/claude-opus',
+    provider: 'codebuddy',
+  });
+  enableModel(db, 'codebuddy/claude-opus');
+  createAccount(db, {
+    id: 'cb1',
+    label: 'cb',
+    credit_type: 'payg',
+    api_key: 'cb_key',
+    provider: 'codebuddy',
+  });
   db.close();
 });
 afterEach(async () => {
@@ -106,5 +119,29 @@ describe('transport-throw logging (kiro)', () => {
     const row = logs.find((l) => l.account_id === 'kiro1');
     expect(row?.status_code).toBe(502);
     expect(row?.model).toBe('claude-sonnet-4-5');
+  });
+});
+
+describe('transport-throw logging (codebuddy)', () => {
+  it('writes a 502 request_log row when codebuddy fetch throws', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('ECONNRESET codebuddy-upstream');
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'cb/claude-opus',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+    });
+    expect(res.status).toBe(502);
+    await flushDeferredLogs();
+    const db = openDb();
+    const logs = recentLogs(db, { limit: 10 });
+    db.close();
+    const row = logs.find((l) => l.account_id === 'cb1');
+    expect(row?.status_code).toBe(502);
+    expect(row?.model).toBe('codebuddy/claude-opus');
   });
 });
