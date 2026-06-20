@@ -65,9 +65,13 @@ export async function handlePioneerProxy(
   // the previous `pioneer > pioneer` placeholder.
   let requestedModel: string | null = null;
   let upstreamModel: string | undefined;
+  // pricingModel = DB key for calculateCost (e.g. "pioneer/claude-opus-4-8").
+  // upstreamModel = bare id sent to Pioneer API (e.g. "claude-opus-4-8").
+  let pricingModel: string = model;
   try {
     const resolved = resolveModel(db, model, body);
     requestedModel = resolved.requestedModel;
+    pricingModel = resolved.upstreamModel; // DB key, used for cost lookup
     const raw = resolved.upstreamModel;
     upstreamModel = raw.startsWith('pioneer/') ? raw.slice('pioneer/'.length) : raw;
   } catch {
@@ -157,7 +161,7 @@ export async function handlePioneerProxy(
       ({
         clientKeyId: clientKey.id,
         accountId: account.id,
-        model,
+        model: pricingModel,
         requestedModel: model,
         endpoint: upstreamPath,
         format,
@@ -229,7 +233,7 @@ export async function handlePioneerProxy(
       isStream: boolean,
       rawResp: string
     ): void => {
-      const cost = calculateCost(db, model, {
+      const cost = calculateCost(db, pricingModel, {
         prompt_tokens: prompt,
         completion_tokens: completion,
         cache_creation_tokens: 0,
