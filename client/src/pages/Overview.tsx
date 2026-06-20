@@ -82,8 +82,8 @@ export function Overview() {
         actions={
           <select
             aria-label="Select date range"
-            value={String(days)}
-            onInput={(e) => setDays(Number((e.target as HTMLSelectElement).value))}
+            value={days}
+            onChange={(e) => setDays(Number((e.target as HTMLSelectElement).value))}
           >
             {[1, 7, 30, 90].map((n) => (
               <option key={n} value={n}>
