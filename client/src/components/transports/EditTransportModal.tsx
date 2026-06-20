@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { Button } from '../Button';
+import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { useToast } from '../ToastProvider';
 import { apiFetch } from '../../lib/api';
@@ -58,10 +59,14 @@ export function EditTransportModal({ transport, onClose }: EditTransportModalPro
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <label>
-          Label
-          <input name="label" autocomplete="off" value={editForm.label} onInput={(e) => setEditForm({ ...editForm, label: (e.target as HTMLInputElement).value })} class="input" />
-        </label>
+        <Field
+          id="edit-transport-label"
+          label="Label"
+          name="label"
+          autocomplete="off"
+          value={editForm.label}
+          onInput={(v) => setEditForm({ ...editForm, label: v })}
+        />
         <label>
           Kind
           <select name="kind" value={editForm.kind} onChange={(e) => setEditForm({ ...editForm, kind: (e.target as HTMLSelectElement).value })} class="input">
@@ -71,10 +76,15 @@ export function EditTransportModal({ transport, onClose }: EditTransportModalPro
             <option value="cloudflare">Cloudflare</option>
           </select>
         </label>
-        <label>
-          URL
-          <input name="url" autocomplete="off" value={editForm.url} onInput={(e) => setEditForm({ ...editForm, url: (e.target as HTMLInputElement).value })} class="input" placeholder="http://user:pass@ip:port…" />
-        </label>
+        <Field
+          id="edit-transport-url"
+          label="URL"
+          name="url"
+          autocomplete="off"
+          value={editForm.url}
+          onInput={(v) => setEditForm({ ...editForm, url: v })}
+          placeholder="http://user:pass@ip:port…"
+        />
       </div>
     </Modal>
   );

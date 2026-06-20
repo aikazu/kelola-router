@@ -1,4 +1,5 @@
 import { Button } from '../Button';
+import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { TransportAssignment } from '../TransportAssignment';
 import { relativeTime } from '../../lib/relativeTime';
@@ -89,29 +90,23 @@ export function EditAccountModal({
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <label htmlFor="edit-label">
-          Label
-          <input
-            id="edit-label"
-            name="label"
-            value={editForm.label}
-            onInput={(e) => onEditFormChange({ ...editForm, label: (e.target as HTMLInputElement).value })}
-            class="input"
-            autocomplete="off"
-          />
-        </label>
-        <label htmlFor="edit-api-key">
-          New API key (leave empty to keep current)
-          <input
-            id="edit-api-key"
-            name="api-key"
-            value={editForm.api_key}
-            onInput={(e) => onEditFormChange({ ...editForm, api_key: (e.target as HTMLInputElement).value })}
-            placeholder="mm_…"
-            class="input"
-            autocomplete="off"
-          />
-        </label>
+        <Field
+          id="edit-label"
+          label="Label"
+          name="label"
+          value={editForm.label}
+          onInput={(v) => onEditFormChange({ ...editForm, label: v })}
+          autocomplete="off"
+        />
+        <Field
+          id="edit-api-key"
+          label="New API key (leave empty to keep current)"
+          name="api-key"
+          value={editForm.api_key}
+          onInput={(v) => onEditFormChange({ ...editForm, api_key: v })}
+          placeholder="mm_…"
+          autocomplete="off"
+        />
         {editing?.provider === 'kiro' && (
           <label>
             Persona (upstream identity)

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
+import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { useToast } from '../ToastProvider';
 import { apiFetch } from '../../lib/api';
@@ -104,17 +105,15 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
             <option value="socks5">socks5</option>
           </select>
         </label>
-        <label>
-          Label prefix
-          <input
-            name="prefix"
-            value={bulkPrefix}
-            onInput={(e) => setBulkPrefix((e.target as HTMLInputElement).value)}
-            placeholder="proxy…"
-            autocomplete="off"
-            class="input"
-          />
-        </label>
+        <Field
+          id="bulk-prefix"
+          label="Label prefix"
+          name="prefix"
+          value={bulkPrefix}
+          onInput={(v) => setBulkPrefix(v)}
+          placeholder="proxy…"
+          autocomplete="off"
+        />
         <label>
           Proxy list {parseBulkLines().length > 0 && <Badge variant="active">{parseBulkLines().length}</Badge>}
           <textarea

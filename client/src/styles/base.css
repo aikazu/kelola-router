@@ -182,6 +182,21 @@ kbd {
   outline: none;
 }
 
+/* Screen-reader-only: visually hidden but exposed to assistive tech.
+   Used for <label> elements that name a control which already has a
+   visible context, so the label must not render visibly. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* --- Skip link --- */
 .skip-link {
   position: absolute;

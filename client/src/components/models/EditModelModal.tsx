@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'preact/hooks';
 import { apiFetch } from '../../lib/api';
 import { Button } from '../Button';
+import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { useToast } from '../ToastProvider';
 import type { Model } from './types';
@@ -81,42 +82,33 @@ export function EditModelModal({ model, onClose }: EditModelModalProps) {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <label htmlFor="edit-model-display-name">
-          Display name
-          <input
-            id="edit-model-display-name"
-            class="input"
-            type="text"
-            name="displayName"
-            autoComplete="off"
-            value={displayName}
-            onInput={(e) => setDisplayName((e.target as HTMLInputElement).value)}
-          />
-        </label>
-        <label htmlFor="edit-model-context-window">
-          Context window (in)
-          <input
-            id="edit-model-context-window"
-            class="input"
-            type="number"
-            name="contextWindow"
-            autoComplete="off"
-            value={contextWindow}
-            onInput={(e) => setContextWindow((e.target as HTMLInputElement).value)}
-          />
-        </label>
-        <label htmlFor="edit-model-context-output">
-          Context output (out)
-          <input
-            id="edit-model-context-output"
-            class="input"
-            type="number"
-            name="contextOutput"
-            autoComplete="off"
-            value={contextOutput}
-            onInput={(e) => setContextOutput((e.target as HTMLInputElement).value)}
-          />
-        </label>
+        <Field
+          id="edit-model-display-name"
+          label="Display name"
+          type="text"
+          name="displayName"
+          autocomplete="off"
+          value={displayName}
+          onInput={(v) => setDisplayName(v)}
+        />
+        <Field
+          id="edit-model-context-window"
+          label="Context window (in)"
+          type="number"
+          name="contextWindow"
+          autocomplete="off"
+          value={contextWindow}
+          onInput={(v) => setContextWindow(v)}
+        />
+        <Field
+          id="edit-model-context-output"
+          label="Context output (out)"
+          type="number"
+          name="contextOutput"
+          autocomplete="off"
+          value={contextOutput}
+          onInput={(v) => setContextOutput(v)}
+        />
         <div style={{ display: 'flex', gap: 10 }}>
           <label htmlFor="edit-model-pricing-input" style={{ flex: 1 }}>
             Pricing in $/M

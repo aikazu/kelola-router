@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { Button } from '../Button';
+import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { useToast } from '../ToastProvider';
 import { apiFetch } from '../../lib/api';
@@ -88,17 +89,15 @@ export function AddTransportModal({ open, onClose }: AddTransportModalProps) {
             ))}
           </select>
         </label>
-        <label>
-          Label
-          <input
-            name="label"
-            value={form.label}
-            onInput={(e) => setForm({ ...form, label: (e.target as HTMLInputElement).value })}
-            placeholder={form.type === 'proxy' ? 'home socks…' : 'vercel edge…'}
-            autocomplete="off"
-            class="input"
-          />
-        </label>
+        <Field
+          id="add-transport-label"
+          label="Label"
+          name="label"
+          value={form.label}
+          onInput={(v) => setForm({ ...form, label: v })}
+          placeholder={form.type === 'proxy' ? 'home socks…' : 'vercel edge…'}
+          autocomplete="off"
+        />
         <label>
           URL
           <input
