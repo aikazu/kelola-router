@@ -11,7 +11,6 @@
       "*.js",
       "!dist",
       "!node_modules",
-      "!client",
       "!data"
     ]
   },

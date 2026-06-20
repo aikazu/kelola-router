@@ -1,9 +1,9 @@
+import { relativeTime } from '../../lib/relativeTime';
+import type { Account, ModelLock, Transport, TransportState } from '../../lib/types';
 import { Button } from '../Button';
 import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { TransportAssignment } from '../TransportAssignment';
-import { relativeTime } from '../../lib/relativeTime';
-import type { Account, ModelLock, Transport, TransportState } from '../../lib/types';
 
 /** Shape of a partial account update sent to PATCH /api/admin/accounts/:id. */
 export interface EditPayload {
@@ -112,7 +112,9 @@ export function EditAccountModal({
             Persona (upstream identity)
             <select
               value={editForm.persona}
-              onChange={(e) => onEditFormChange({ ...editForm, persona: (e.target as HTMLSelectElement).value })}
+              onChange={(e) =>
+                onEditFormChange({ ...editForm, persona: (e.target as HTMLSelectElement).value })
+              }
               class="input"
             >
               <option value="ide">IDE (legacy · stable · codewhisperer.amazonaws.com)</option>
@@ -120,18 +122,26 @@ export function EditAccountModal({
             </select>
             <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
               IDE mimics the Kiro IDE wire format (default, battle-tested). CLI mimics the real
-              kiro-cli (aws-sdk-rust / AmazonQ-For-CLI). Switch only this account; others stay on IDE.
+              kiro-cli (aws-sdk-rust / AmazonQ-For-CLI). Switch only this account; others stay on
+              IDE.
             </span>
           </label>
         )}
 
         {/* --- Transport (proxy / relay) assignment --- */}
-        <TransportAssignment tpState={tpState} setTpState={onTpStateChange} proxies={proxies} relays={relays} />
+        <TransportAssignment
+          tpState={tpState}
+          setTpState={onTpStateChange}
+          proxies={proxies}
+          relays={relays}
+        />
 
         {/* --- Model Locks --- */}
         {locks.length > 0 && (
           <div style={{ borderTop: '1px solid var(--ink-3)', paddingTop: 12, marginTop: 4 }}>
-            <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>🔒 Locked models</span>
+            <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>
+              🔒 Locked models
+            </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
               {locks.map((l) => (
                 <div
@@ -153,7 +163,12 @@ export function EditAccountModal({
                       until {relativeTime(l.locked_until)}
                     </span>
                   </div>
-                  <Button size="sm" variant="danger" onClick={() => onUnlock(l.model)} disabled={isUnlocking}>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => onUnlock(l.model)}
+                    disabled={isUnlocking}
+                  >
                     Unlock
                   </Button>
                 </div>
@@ -176,7 +191,7 @@ export function EditAccountModal({
 export function buildEditPayload(
   editing: Account,
   editForm: EditForm,
-  tpState: TransportState,
+  tpState: TransportState
 ): EditPayload {
   const payload: EditPayload = { id: editing.id };
   if (editForm.label) payload.label = editForm.label;

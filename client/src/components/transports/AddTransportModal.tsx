@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
+import { apiFetch } from '../../lib/api';
 import { Button } from '../Button';
 import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { useToast } from '../ToastProvider';
-import { apiFetch } from '../../lib/api';
 import { PROXY_KINDS, RELAY_KINDS } from './types';
 
 interface AddTransportModalProps {
@@ -16,7 +16,12 @@ interface AddTransportModalProps {
 export function AddTransportModal({ open, onClose }: AddTransportModalProps) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [form, setForm] = useState<{ label: string; type: 'proxy' | 'relay'; kind: string; url: string }>({
+  const [form, setForm] = useState<{
+    label: string;
+    type: 'proxy' | 'relay';
+    kind: string;
+    url: string;
+  }>({
     label: '',
     type: 'proxy',
     kind: 'http',
@@ -69,7 +74,9 @@ export function AddTransportModal({ open, onClose }: AddTransportModalProps) {
           <select
             name="type"
             value={form.type}
-            onChange={(e) => onTypeChange((e.target as HTMLSelectElement).value as 'proxy' | 'relay')}
+            onChange={(e) =>
+              onTypeChange((e.target as HTMLSelectElement).value as 'proxy' | 'relay')
+            }
             class="input"
           >
             <option value="proxy">Proxy (HTTP / SOCKS5)</option>
@@ -85,7 +92,9 @@ export function AddTransportModal({ open, onClose }: AddTransportModalProps) {
             class="input"
           >
             {kindOptions.map((k) => (
-              <option key={k} value={k}>{k}</option>
+              <option key={k} value={k}>
+                {k}
+              </option>
             ))}
           </select>
         </label>
@@ -104,9 +113,16 @@ export function AddTransportModal({ open, onClose }: AddTransportModalProps) {
             name="url"
             value={form.url}
             onInput={(e) => setForm({ ...form, url: (e.target as HTMLInputElement).value })}
-            placeholder={form.type === 'proxy' ? (form.kind === 'socks5' ? 'socks5://127.0.0.1:1080…' : 'http://user:pass@host:8080…') : 'https://your-relay.vercel.app/api…'}
+            placeholder={
+              form.type === 'proxy'
+                ? form.kind === 'socks5'
+                  ? 'socks5://127.0.0.1:1080…'
+                  : 'http://user:pass@host:8080…'
+                : 'https://your-relay.vercel.app/api…'
+            }
             autocomplete="off"
-            class="input" style={{ fontFamily: 'var(--font-mono, monospace)' }}
+            class="input"
+            style={{ fontFamily: 'var(--font-mono, monospace)' }}
           />
           <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
             {form.type === 'relay'

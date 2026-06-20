@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiFetch } from '../../lib/api';
 import { Card } from '../Card';
 import { useToast } from '../ToastProvider';
-import { apiFetch } from '../../lib/api';
 
 /** "On proxy failure" control card. Self-contained: owns its query + mutation. */
 export function FailureModeCard() {
@@ -18,7 +18,9 @@ export function FailureModeCard() {
     onSuccess: (_d, mode) => {
       qc.invalidateQueries({ queryKey: ['proxy-failure-mode'] });
       toast.success(
-        mode === 'block' ? 'On proxy failure: requests will be blocked' : 'On proxy failure: fallback to direct connection'
+        mode === 'block'
+          ? 'On proxy failure: requests will be blocked'
+          : 'On proxy failure: fallback to direct connection'
       );
     },
     onError: (e: Error) => toast.error(e.message),
@@ -26,7 +28,15 @@ export function FailureModeCard() {
 
   return (
     <Card>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <div>
           <h3 style={{ margin: '0 0 2px' }}>On proxy failure</h3>
           <p class="card-sub" style={{ margin: 0 }}>

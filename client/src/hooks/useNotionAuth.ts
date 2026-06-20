@@ -54,10 +54,10 @@ export function useNotionAuth(opts: UseNotionAuthOpts): UseNotionAuthReturn {
     setError(null);
     setStep('verifying');
     try {
-      await apiFetch<{ status: string; id: string }>(
-        '/api/admin/accounts/notion/verify-otp',
-        { method: 'POST', json: { email: opts.email, code, label: opts.label } }
-      );
+      await apiFetch<{ status: string; id: string }>('/api/admin/accounts/notion/verify-otp', {
+        method: 'POST',
+        json: { email: opts.email, code, label: opts.label },
+      });
       setStep('done');
       opts.onSuccess();
     } catch (e) {

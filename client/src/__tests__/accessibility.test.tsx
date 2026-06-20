@@ -1,11 +1,11 @@
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { fireEvent, render, screen } from '@testing-library/preact';
 import { describe, expect, it, vi } from 'vitest';
-import { Switch } from '../components/Switch';
-import { Modal } from '../components/Modal';
-import { ToastProvider } from '../components/ToastProvider';
-import { Progress } from '../components/Progress';
-import { Icon } from '../components/Icon';
 import { ErrorState } from '../components/ErrorState';
+import { Icon } from '../components/Icon';
+import { Modal } from '../components/Modal';
+import { Progress } from '../components/Progress';
+import { Switch } from '../components/Switch';
+import { ToastProvider } from '../components/ToastProvider';
 
 describe('Switch accessibility', () => {
   it('has role="switch" and aria-checked', () => {
@@ -32,14 +32,22 @@ describe('Switch accessibility', () => {
 
 describe('Modal accessibility', () => {
   it('has role="dialog" and aria-modal="true"', () => {
-    render(<Modal open={true} onClose={() => {}} title="Test Modal">Content</Modal>);
+    render(
+      <Modal open={true} onClose={() => {}} title="Test Modal">
+        Content
+      </Modal>
+    );
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveAttribute('aria-modal', 'true');
   });
 
   it('has aria-labelledby pointing to title', () => {
-    render(<Modal open={true} onClose={() => {}} title="My Title">Content</Modal>);
+    render(
+      <Modal open={true} onClose={() => {}} title="My Title">
+        Content
+      </Modal>
+    );
     const dialog = screen.getByRole('dialog');
     const labelId = dialog.getAttribute('aria-labelledby');
     expect(labelId).toBeTruthy();
@@ -62,7 +70,11 @@ describe('Modal accessibility', () => {
 
 describe('Toast accessibility', () => {
   it('toast-stack has aria-live="polite" and role="status"', () => {
-    const { container } = render(<ToastProvider><div>App</div></ToastProvider>);
+    const { container } = render(
+      <ToastProvider>
+        <div>App</div>
+      </ToastProvider>
+    );
     const stack = container.querySelector('.toast-stack');
     expect(stack).toHaveAttribute('aria-live', 'polite');
     expect(stack).toHaveAttribute('role', 'status');

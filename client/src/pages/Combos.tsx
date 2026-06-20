@@ -81,7 +81,11 @@ export function Combos() {
   return (
     <>
       <TopBar
-        title={<>Com<em>bo</em>s</>}
+        title={
+          <>
+            Com<em>bo</em>s
+          </>
+        }
         eyebrow="Catalog / combos"
         actions={<Button onClick={() => setEditing('new')}>+ New Combo</Button>}
       />
@@ -97,10 +101,7 @@ export function Combos() {
         ) : combos.length === 0 ? (
           <p class="card-sub">
             No combos yet.{' '}
-            <button
-              class="btn-link"
-              onClick={() => setEditing('new')}
-            >
+            <button class="btn-link" onClick={() => setEditing('new')}>
               Create one →
             </button>
           </p>
@@ -120,7 +121,9 @@ export function Combos() {
                   <tr key={c.id}>
                     <td class="mono">{c.name}</td>
                     <td>
-                      <span class="card-sub">{c.models.length} model{c.models.length !== 1 ? 's' : ''}</span>
+                      <span class="card-sub">
+                        {c.models.length} model{c.models.length !== 1 ? 's' : ''}
+                      </span>
                     </td>
                     <td class="card-sub mono" style={{ fontSize: 12 }} title={c.updated_at}>
                       {relativeTime(c.updated_at)}

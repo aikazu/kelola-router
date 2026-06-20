@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
+import { apiFetch } from '../../lib/api';
 import { Button } from '../Button';
 import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { useToast } from '../ToastProvider';
-import { apiFetch } from '../../lib/api';
 import type { Transport } from './types';
 
 interface EditTransportModalProps {
@@ -69,7 +69,14 @@ export function EditTransportModal({ transport, onClose }: EditTransportModalPro
         />
         <label>
           Kind
-          <select name="kind" value={editForm.kind} onChange={(e) => setEditForm({ ...editForm, kind: (e.target as HTMLSelectElement).value })} class="input">
+          <select
+            name="kind"
+            value={editForm.kind}
+            onChange={(e) =>
+              setEditForm({ ...editForm, kind: (e.target as HTMLSelectElement).value })
+            }
+            class="input"
+          >
             <option value="http">HTTP</option>
             <option value="socks5">SOCKS5</option>
             <option value="vercel">Vercel</option>

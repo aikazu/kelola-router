@@ -9,7 +9,9 @@ import { TopBar } from './TopBar';
 
 const Accounts = lazy(() => import('../pages/Accounts').then((m) => ({ default: m.Accounts })));
 const Aliases = lazy(() => import('../pages/Aliases').then((m) => ({ default: m.Aliases })));
-const ClientKeys = lazy(() => import('../pages/ClientKeys').then((m) => ({ default: m.ClientKeys })));
+const ClientKeys = lazy(() =>
+  import('../pages/ClientKeys').then((m) => ({ default: m.ClientKeys }))
+);
 const Combos = lazy(() => import('../pages/Combos').then((m) => ({ default: m.Combos })));
 const Login = lazy(() => import('../pages/Login').then((m) => ({ default: m.Login })));
 const Models = lazy(() => import('../pages/Models').then((m) => ({ default: m.Models })));
@@ -17,7 +19,9 @@ const NotFound = lazy(() => import('../pages/NotFound').then((m) => ({ default: 
 const Overview = lazy(() => import('../pages/Overview').then((m) => ({ default: m.Overview })));
 const Quota = lazy(() => import('../pages/Quota').then((m) => ({ default: m.Quota })));
 const Settings = lazy(() => import('../pages/Settings').then((m) => ({ default: m.Settings })));
-const Transports = lazy(() => import('../pages/Transports').then((m) => ({ default: m.Transports })));
+const Transports = lazy(() =>
+  import('../pages/Transports').then((m) => ({ default: m.Transports }))
+);
 const Usage = lazy(() => import('../pages/Usage').then((m) => ({ default: m.Usage })));
 const Console = lazy(() => import('../pages/Console').then((m) => ({ default: m.Console })));
 
@@ -164,19 +168,35 @@ export function AppShell() {
         />
       )}
       <div class="app-body">
-        <a href="#main-content" class="skip-link">Skip to content</a>
-        <Sidebar current={current} mobileOpen={mobileNav} onMobileClose={() => setMobileNav(false)} />
+        <a href="#main-content" class="skip-link">
+          Skip to content
+        </a>
+        <Sidebar
+          current={current}
+          mobileOpen={mobileNav}
+          onMobileClose={() => setMobileNav(false)}
+        />
         <main class="main" id="main-content">
-          <button
-            class="hamburger"
-            onClick={() => setMobileNav(true)}
-            aria-label="Open navigation"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <button class="hamburger" onClick={() => setMobileNav(true)} aria-label="Open navigation">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
               <path d="M3 12h18M3 6h18M3 18h18" />
             </svg>
           </button>
-          <Suspense fallback={<div aria-live="polite" aria-busy="true"><p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p></div>}>
+          <Suspense
+            fallback={
+              <div aria-live="polite" aria-busy="true">
+                <p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p>
+              </div>
+            }
+          >
             <Page current={current} />
           </Suspense>
         </main>
@@ -197,11 +217,13 @@ export function AppShell() {
               aria-label="Keyboard shortcuts"
               style={{ maxWidth: 400 }}
               onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => { if (e.key === 'Escape') setHelpOpen(false); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setHelpOpen(false);
+              }}
             >
               <div class="modal-header">
                 <div class="modal-title">Keyboard shortcuts</div>
-                <button class="modal-close" onClick={() => setHelpOpen(false)} aria-label="Close" autoFocus>
+                <button class="modal-close" onClick={() => setHelpOpen(false)} aria-label="Close">
                   ×
                 </button>
               </div>

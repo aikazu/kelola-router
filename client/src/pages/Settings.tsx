@@ -53,7 +53,9 @@ function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
         onSubmit(pw);
       }}
     >
-      <label htmlFor="pw-new" class="sr-only">New password</label>
+      <label htmlFor="pw-new" class="sr-only">
+        New password
+      </label>
       <input
         id="pw-new"
         type="password"
@@ -67,7 +69,9 @@ function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
         spellcheck={false}
         class="input"
       />
-      <label htmlFor="pw-confirm" class="sr-only">Confirm password</label>
+      <label htmlFor="pw-confirm" class="sr-only">
+        Confirm password
+      </label>
       <input
         id="pw-confirm"
         type="password"
@@ -198,7 +202,8 @@ export function Settings() {
           onClick={async () => {
             const ok = await confirmDialog({
               title: 'Remove password',
-              message: 'Remove dashboard password? The dashboard will be open to anyone with network access.',
+              message:
+                'Remove dashboard password? The dashboard will be open to anyone with network access.',
               confirmLabel: 'Remove',
               danger: true,
             });
@@ -209,7 +214,9 @@ export function Settings() {
         </button>
       </Card>
       <Card title="Caveman mode" sub="Injects a terse system prompt to force concise output.">
-        <label htmlFor="caveman-mode" class="sr-only">Caveman mode level</label>
+        <label htmlFor="caveman-mode" class="sr-only">
+          Caveman mode level
+        </label>
         <select
           id="caveman-mode"
           value={merged.caveman.level}

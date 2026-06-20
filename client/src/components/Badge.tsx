@@ -1,5 +1,4 @@
-import type { ComponentChildren } from 'preact';
-import type { JSX } from 'preact';
+import type { ComponentChildren, JSX } from 'preact';
 
 type Variant = 'active' | 'error' | 'muted' | 'warn' | 'default';
 

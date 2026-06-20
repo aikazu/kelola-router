@@ -1,7 +1,7 @@
 import { useCallback } from 'preact/hooks';
+import type { DeviceCodeData } from '../lib/types';
 import { Button } from './Button';
 import { useToast } from './ToastProvider';
-import type { DeviceCodeData } from '../lib/types';
 
 interface KiroDeviceFlowFormProps {
   deviceStep: 'idle' | 'loading' | 'code' | 'polling' | 'success' | 'error';
@@ -38,21 +38,44 @@ export function KiroDeviceFlowForm({
     if (!deviceData?.userCode) return;
     navigator.clipboard.writeText(deviceData.userCode).then(
       () => toast.success('Code copied to clipboard'),
-      () => toast.error('Failed to copy code'),
+      () => toast.error('Failed to copy code')
     );
   }, [deviceData?.userCode, toast]);
   if (deviceStep === 'loading') {
-    return <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 16 }}>Registering with AWS SSO…</p>;
+    return (
+      <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 16 }}>
+        Registering with AWS SSO…
+      </p>
+    );
   }
 
   if (deviceStep === 'code' || deviceStep === 'polling') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', padding: '8px 0' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          alignItems: 'center',
+          padding: '8px 0',
+        }}
+      >
         <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
           Open the link below and enter this code:
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ background: 'var(--ink-2)', border: '2px solid var(--gold)', borderRadius: 8, padding: '12px 24px', fontSize: 24, fontFamily: 'var(--font-mono)', letterSpacing: 4, fontWeight: 700 }}>
+          <div
+            style={{
+              background: 'var(--ink-2)',
+              border: '2px solid var(--gold)',
+              borderRadius: 8,
+              padding: '12px 24px',
+              fontSize: 24,
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: 4,
+              fontWeight: 700,
+            }}
+          >
             {deviceData?.userCode}
           </div>
           <Button size="sm" variant="ghost" onClick={copyCode}>
@@ -83,14 +106,20 @@ export function KiroDeviceFlowForm({
   }
 
   if (deviceStep === 'success') {
-    return <p style={{ color: 'var(--success)', textAlign: 'center', padding: 16, fontWeight: 600 }}>✓ Account connected successfully!</p>;
+    return (
+      <p style={{ color: 'var(--success)', textAlign: 'center', padding: 16, fontWeight: 600 }}>
+        ✓ Account connected successfully!
+      </p>
+    );
   }
 
   if (deviceStep === 'error') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
         <p style={{ color: 'var(--danger)', fontSize: 13 }}>{deviceError}</p>
-        <Button onClick={onStartDeviceCode} size="sm">Retry</Button>
+        <Button onClick={onStartDeviceCode} size="sm">
+          Retry
+        </Button>
       </div>
     );
   }
@@ -131,11 +160,10 @@ export function KiroDeviceFlowForm({
           </label>
         </>
       )}
-      <Button
-        onClick={onStartDeviceCode}
-        disabled={kiroMethod === 'idc' && !kiroStartUrl.trim()}
-      >
-        {kiroMethod === 'builder-id' ? 'Login with AWS Builder ID' : 'Login with IAM Identity Center'}
+      <Button onClick={onStartDeviceCode} disabled={kiroMethod === 'idc' && !kiroStartUrl.trim()}>
+        {kiroMethod === 'builder-id'
+          ? 'Login with AWS Builder ID'
+          : 'Login with IAM Identity Center'}
       </Button>
     </div>
   );

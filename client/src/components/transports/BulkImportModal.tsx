@@ -1,11 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
+import { apiFetch } from '../../lib/api';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { useToast } from '../ToastProvider';
-import { apiFetch } from '../../lib/api';
 
 interface BulkImportModalProps {
   open: boolean;
@@ -19,7 +19,11 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
   const [bulkText, setBulkText] = useState('');
   const [bulkKind, setBulkKind] = useState<'http' | 'socks5'>('http');
   const [bulkPrefix, setBulkPrefix] = useState('proxy');
-  const [bulkProgress, setBulkProgress] = useState<{ total: number; done: number; errors: number } | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<{
+    total: number;
+    done: number;
+    errors: number;
+  } | null>(null);
 
   function parseBulkLines(): string[] {
     return bulkText
@@ -84,7 +88,8 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
           <div aria-live="polite">
             {bulkProgress && (
               <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                {bulkProgress.done}/{bulkProgress.total}{bulkProgress.errors > 0 ? ` (${bulkProgress.errors} err)` : ''}
+                {bulkProgress.done}/{bulkProgress.total}
+                {bulkProgress.errors > 0 ? ` (${bulkProgress.errors} err)` : ''}
               </span>
             )}
           </div>
@@ -100,7 +105,14 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <label>
           Protocol
-          <select name="protocol" value={bulkKind} onChange={(e) => setBulkKind((e.target as HTMLSelectElement).value as 'http' | 'socks5')} class="input">
+          <select
+            name="protocol"
+            value={bulkKind}
+            onChange={(e) =>
+              setBulkKind((e.target as HTMLSelectElement).value as 'http' | 'socks5')
+            }
+            class="input"
+          >
             <option value="http">http</option>
             <option value="socks5">socks5</option>
           </select>
@@ -115,7 +127,8 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
           autocomplete="off"
         />
         <label>
-          Proxy list {parseBulkLines().length > 0 && <Badge variant="active">{parseBulkLines().length}</Badge>}
+          Proxy list{' '}
+          {parseBulkLines().length > 0 && <Badge variant="active">{parseBulkLines().length}</Badge>}
           <textarea
             name="proxy-list"
             value={bulkText}
@@ -127,7 +140,8 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
           />
         </label>
         <span style={{ color: 'var(--text-3)', fontSize: 11 }}>
-          Formats: <code>ip:port:user:pass</code>, <code>ip:port</code>, <code>user:pass@ip:port</code>, or full URL. Lines starting with # are ignored.
+          Formats: <code>ip:port:user:pass</code>, <code>ip:port</code>,{' '}
+          <code>user:pass@ip:port</code>, or full URL. Lines starting with # are ignored.
         </span>
       </div>
     </Modal>

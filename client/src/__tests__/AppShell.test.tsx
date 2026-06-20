@@ -36,7 +36,7 @@ function wrap() {
   return render(
     <QueryClientProvider client={qc}>
       <AppShell />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 }
 

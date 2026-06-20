@@ -61,7 +61,7 @@ function renderKeys(me: MeData): void {
   render(
     <QueryClientProvider client={qc}>
       <ClientKeys />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 }
 
@@ -85,9 +85,7 @@ describe('ClientKeys — reveal-key flow (Task 16)', () => {
 
       // Inline `<code>` appears with the raw key; no modal dialog.
       await waitFor(() => {
-        expect(screen.getByTestId(`reveal-inline-${SAMPLE_KEY.id}`).textContent).toBe(
-          RAW_KEY,
-        );
+        expect(screen.getByTestId(`reveal-inline-${SAMPLE_KEY.id}`).textContent).toBe(RAW_KEY);
       });
       expect(screen.queryByRole('dialog')).toBeNull();
 
@@ -138,10 +136,7 @@ describe('ClientKeys — reveal-key flow (Task 16)', () => {
       expect(within(dialog).getByText('my-app')).toBeInTheDocument();
 
       // The raw key endpoint is NOT called yet — gate is closed.
-      expect(globalThis.fetch).not.toHaveBeenCalledWith(
-        KEY_URL,
-        expect.anything(),
-      );
+      expect(globalThis.fetch).not.toHaveBeenCalledWith(KEY_URL, expect.anything());
     });
 
     it('wrong password → inline "Wrong password" error and modal stays open for retry', async () => {
@@ -165,9 +160,7 @@ describe('ClientKeys — reveal-key flow (Task 16)', () => {
       // Modal still open; key still hidden.
       expect(screen.queryByTestId('reveal-key-pre')).toBeNull();
       // Password field is cleared after each submit per the spec.
-      expect((screen.getByLabelText('Dashboard password') as HTMLInputElement).value).toBe(
-        '',
-      );
+      expect((screen.getByLabelText('Dashboard password') as HTMLInputElement).value).toBe('');
     });
 
     it('correct password → reauth cookie set + key fetched + revealed with Copy', async () => {
@@ -225,9 +218,7 @@ describe('ClientKeys — reveal-key flow (Task 16)', () => {
         target: { value: 'pw' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Reveal' }));
-      await waitFor(() =>
-        expect(screen.getByTestId('reveal-key-pre').textContent).toBe(RAW_KEY),
-      );
+      await waitFor(() => expect(screen.getByTestId('reveal-key-pre').textContent).toBe(RAW_KEY));
 
       // Close → modal unmounted. Click by text (× button has aria-label="Close"
       // too, so role+name is ambiguous — use the text "Close" from the footer).
@@ -237,4 +228,3 @@ describe('ClientKeys — reveal-key flow (Task 16)', () => {
     });
   });
 });
-

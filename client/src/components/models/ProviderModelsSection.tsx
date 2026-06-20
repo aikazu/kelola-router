@@ -277,7 +277,11 @@ export function ProviderModelsSection({
                         );
                       if (t?.state === 'fail')
                         return (
-                          <span class="mono" style={{ fontSize: 11, color: 'var(--alert)' }} title={t.error}>
+                          <span
+                            class="mono"
+                            style={{ fontSize: 11, color: 'var(--alert)' }}
+                            title={t.error}
+                          >
                             ✗ {t.error.slice(0, 24)}
                           </span>
                         );

@@ -1,10 +1,10 @@
+import type { useKiroAutoImport } from '../../hooks/useKiroAutoImport';
+import type { useKiroDeviceFlow } from '../../hooks/useKiroDeviceFlow';
 import { Button } from '../Button';
 import { KiroAutoImportForm } from '../KiroAutoImportForm';
 import { KiroDeviceFlowForm } from '../KiroDeviceFlowForm';
 import { Modal } from '../Modal';
 import { NotionAuthForm } from '../NotionAuthForm';
-import { useKiroAutoImport } from '../../hooks/useKiroAutoImport';
-import { useKiroDeviceFlow } from '../../hooks/useKiroDeviceFlow';
 
 export type KiroMethod = 'builder-id' | 'idc' | 'token' | 'auto-import';
 
@@ -140,7 +140,9 @@ export function AddAccountModal({
                 id="add-mm-label"
                 name="mm-label"
                 value={form.label}
-                onInput={(e) => onFormChange({ ...form, label: (e.target as HTMLInputElement).value })}
+                onInput={(e) =>
+                  onFormChange({ ...form, label: (e.target as HTMLInputElement).value })
+                }
                 class="input"
                 autocomplete="off"
                 aria-required="true"
@@ -152,7 +154,9 @@ export function AddAccountModal({
                 id="add-mm-credit-type"
                 name="mm-credit-type"
                 value={form.credit_type}
-                onChange={(e) => onFormChange({ ...form, credit_type: (e.target as HTMLSelectElement).value })}
+                onChange={(e) =>
+                  onFormChange({ ...form, credit_type: (e.target as HTMLSelectElement).value })
+                }
                 class="input"
               >
                 <option value="payg">PAYG</option>
@@ -165,7 +169,9 @@ export function AddAccountModal({
                 id="add-mm-api-key"
                 name="mm-api-key"
                 value={form.api_key}
-                onInput={(e) => onFormChange({ ...form, api_key: (e.target as HTMLInputElement).value })}
+                onInput={(e) =>
+                  onFormChange({ ...form, api_key: (e.target as HTMLInputElement).value })
+                }
                 placeholder="mm_…"
                 class="input"
                 autocomplete="off"
@@ -181,7 +187,12 @@ export function AddAccountModal({
                 id="add-pio-label"
                 name="pio-label"
                 value={pioneerForm.label}
-                onInput={(e) => onPioneerFormChange({ ...pioneerForm, label: (e.target as HTMLInputElement).value })}
+                onInput={(e) =>
+                  onPioneerFormChange({
+                    ...pioneerForm,
+                    label: (e.target as HTMLInputElement).value,
+                  })
+                }
                 class="input"
                 autocomplete="off"
                 aria-required="true"
@@ -193,7 +204,12 @@ export function AddAccountModal({
                 id="add-pio-api-key"
                 name="pio-api-key"
                 value={pioneerForm.api_key}
-                onInput={(e) => onPioneerFormChange({ ...pioneerForm, api_key: (e.target as HTMLInputElement).value })}
+                onInput={(e) =>
+                  onPioneerFormChange({
+                    ...pioneerForm,
+                    api_key: (e.target as HTMLInputElement).value,
+                  })
+                }
                 placeholder="pio_sk_…"
                 class="input"
                 autocomplete="off"
@@ -217,7 +233,9 @@ export function AddAccountModal({
                 id="add-zai-label"
                 name="zai-label"
                 value={zaiForm.label}
-                onInput={(e) => onZaiFormChange({ ...zaiForm, label: (e.target as HTMLInputElement).value })}
+                onInput={(e) =>
+                  onZaiFormChange({ ...zaiForm, label: (e.target as HTMLInputElement).value })
+                }
                 class="input"
                 autocomplete="off"
                 aria-required="true"
@@ -248,8 +266,11 @@ export function AddAccountModal({
                 placeholder="leave blank for api.z.ai"
                 class="input"
               />
-              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
-                Defaults to api.z.ai: Anthropic Messages at <code>/v1/messages</code>, OpenAI Chat at <code>/chat/completions</code>.
+              <span
+                style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}
+              >
+                Defaults to api.z.ai: Anthropic Messages at <code>/v1/messages</code>, OpenAI Chat
+                at <code>/chat/completions</code>.
               </span>
             </label>
           </>
@@ -328,7 +349,9 @@ function KiroTokenPaste({
         Label{' '}
         <input
           value={kiroForm.label}
-          onInput={(e) => onKiroFormChange({ ...kiroForm, label: (e.target as HTMLInputElement).value })}
+          onInput={(e) =>
+            onKiroFormChange({ ...kiroForm, label: (e.target as HTMLInputElement).value })
+          }
           placeholder="kiro1"
           class="input"
         />

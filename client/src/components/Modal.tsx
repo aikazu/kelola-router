@@ -57,7 +57,9 @@ export function Modal({ open, onClose, title, children, footer, width }: ModalPr
         style={width ? { maxWidth: `${width}px` } : undefined}
       >
         <div class="modal-header">
-          <div class="modal-title" id={titleId}>{title}</div>
+          <div class="modal-title" id={titleId}>
+            {title}
+          </div>
           <button class="modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>

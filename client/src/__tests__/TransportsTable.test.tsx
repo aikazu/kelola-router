@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { VNode } from 'preact';
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
+import type { VNode } from 'preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TransportsTable } from '../components/transports/TransportsTable';
 import type { Transport } from '../components/transports/types';

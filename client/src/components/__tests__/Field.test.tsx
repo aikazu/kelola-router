@@ -4,9 +4,7 @@ import { Field } from '../Field';
 
 describe('Field', () => {
   it('associates the label with the input via htmlFor/id', () => {
-    render(
-      <Field id="email" label="Email" value="" onInput={() => {}} type="email" />,
-    );
+    render(<Field id="email" label="Email" value="" onInput={() => {}} type="email" />);
     const input = screen.getByLabelText('Email');
     expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute('id', 'email');
@@ -24,7 +22,7 @@ describe('Field', () => {
         autocomplete="off"
         placeholder="mm_…"
         required
-      />,
+      />
     );
     const input = screen.getByLabelText('API key');
     expect(input).toHaveAttribute('name', 'api_key');

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useCallback } from 'preact/hooks';
+import { useCallback, useState } from 'preact/hooks';
 import { useToast } from '../components/ToastProvider';
 import { apiFetch } from '../lib/api';
 
@@ -9,11 +9,7 @@ interface UseKiroAutoImportParams {
   onSuccess: () => void;
 }
 
-export function useKiroAutoImport({
-  label,
-  onLabelChange,
-  onSuccess,
-}: UseKiroAutoImportParams) {
+export function useKiroAutoImport({ label, onLabelChange, onSuccess }: UseKiroAutoImportParams) {
   const qc = useQueryClient();
   const toast = useToast();
   const [status, setStatus] = useState<'idle' | 'loading' | 'found' | 'error'>('idle');
@@ -25,9 +21,12 @@ export function useKiroAutoImport({
     setStatus('loading');
     setError('');
     try {
-      const res = await apiFetch<{ found: boolean; refreshToken?: string; source?: string; error?: string }>(
-        '/api/admin/accounts/kiro/auto-import',
-      );
+      const res = await apiFetch<{
+        found: boolean;
+        refreshToken?: string;
+        source?: string;
+        error?: string;
+      }>('/api/admin/accounts/kiro/auto-import');
       if (res.found && res.refreshToken) {
         setToken(res.refreshToken);
         setSource(res.source || '');

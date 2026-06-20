@@ -33,27 +33,27 @@ function byteLen(s: string | null): number {
 function ConsoleBlockDetail({ reqId }: { reqId: string }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['request-log-by-req', reqId],
-    queryFn: () =>
-      apiFetch<RequestLogDetail>(`/api/admin/request-logs/by-req-id/${reqId}`),
+    queryFn: () => apiFetch<RequestLogDetail>(`/api/admin/request-logs/by-req-id/${reqId}`),
     staleTime: 30_000,
     retry: false,
   });
   if (isLoading) return <div class="console-detail">loading…</div>;
-  if (isError || !data)
-    return <div class="console-detail">no persisted log for this request</div>;
+  if (isError || !data) return <div class="console-detail">no persisted log for this request</div>;
   return (
     <div class="console-detail">
-      <div>account: {data.accountId ?? '—'} · client-key: {data.clientKeyId ?? '—'}</div>
       <div>
-        model: {data.requestedModel ?? '—'} · {data.endpoint} · {data.stream ? 'stream' : 'buffered'}
+        account: {data.accountId ?? '—'} · client-key: {data.clientKeyId ?? '—'}
       </div>
       <div>
-        tokens: in {data.promptTokens} out {data.completionTokens} cache{' '}
-        {data.cacheReadTokens}/{data.cacheCreationTokens} total {data.totalTokens}
+        model: {data.requestedModel ?? '—'} · {data.endpoint} ·{' '}
+        {data.stream ? 'stream' : 'buffered'}
       </div>
       <div>
-        cost ${data.cost.toFixed(6)} · latency {data.latencyMs}ms · rtk saved{' '}
-        {data.rtkBytesSaved}B
+        tokens: in {data.promptTokens} out {data.completionTokens} cache {data.cacheReadTokens}/
+        {data.cacheCreationTokens} total {data.totalTokens}
+      </div>
+      <div>
+        cost ${data.cost.toFixed(6)} · latency {data.latencyMs}ms · rtk saved {data.rtkBytesSaved}B
       </div>
       <div>
         body sizes: req {byteLen(data.requestBody)}B · resp {byteLen(data.responseBody)}B
@@ -64,11 +64,31 @@ function ConsoleBlockDetail({ reqId }: { reqId: string }) {
 }
 
 export type FlowEvent =
-  | { phase: 'start'; reqId: string; ts: string; method: string; path: string; model: string; alias: string | null }
+  | {
+      phase: 'start';
+      reqId: string;
+      ts: string;
+      method: string;
+      path: string;
+      model: string;
+      alias: string | null;
+    }
   | { phase: 'account'; reqId: string; ts: string; accountLabel: string; reason: string }
   | { phase: 'transport'; reqId: string; ts: string; kind: string; label: string }
   | { phase: 'transport-fail'; reqId: string; ts: string; fellBack: boolean; message: string }
-  | { phase: 'done'; reqId: string; ts: string; status: number; ttftMs: number | null; inTok: number; outTok: number; cacheTok: number; costUsd: number; latencyMs: number; rtkSaved: number }
+  | {
+      phase: 'done';
+      reqId: string;
+      ts: string;
+      status: number;
+      ttftMs: number | null;
+      inTok: number;
+      outTok: number;
+      cacheTok: number;
+      costUsd: number;
+      latencyMs: number;
+      rtkSaved: number;
+    }
   | { phase: 'error'; reqId: string; ts: string; status: number; message: string };
 
 function fmtTokens(n: number): string {
@@ -136,7 +156,13 @@ function collapseBlocks(blocks: Block[]): CollapsedBlock[] {
   return out;
 }
 
-export function ConsoleBlocks({ events, collapse = false }: { events: FlowEvent[]; collapse?: boolean }) {
+export function ConsoleBlocks({
+  events,
+  collapse = false,
+}: {
+  events: FlowEvent[];
+  collapse?: boolean;
+}) {
   const collapsed = useMemo(() => {
     const blocks = groupBlocks(events);
     const out = collapse ? collapseBlocks(blocks) : blocks.map((block) => ({ block, count: 1 }));
@@ -158,7 +184,12 @@ export function ConsoleBlocks({ events, collapse = false }: { events: FlowEvent[
                 role="button"
                 tabIndex={0}
                 onClick={() => toggle(b.reqId)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(b.reqId); } }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggle(b.reqId);
+                  }
+                }}
                 title="Click for request detail"
               >
                 <span class="console-reqid">#{b.reqId}</span> → {b.start.method} {b.start.path}{' '}
@@ -185,9 +216,11 @@ export function ConsoleBlocks({ events, collapse = false }: { events: FlowEvent[
             )}
             {b.done && (
               <div class={`console-line ${failed ? 'console-err' : 'console-ok'}`}>
-                {failed ? '✗' : '✓'} in {fmtTokens(b.done.inTok)} out {fmtTokens(b.done.outTok)} cache{' '}
-                {fmtTokens(b.done.cacheTok)} ${b.done.costUsd.toFixed(4)} {fmtLatency(b.done.latencyMs)}
-                {b.done.rtkSaved > 0 ? ` saved ${fmtTokens(b.done.rtkSaved)}` : ''} · {b.done.status}
+                {failed ? '✗' : '✓'} in {fmtTokens(b.done.inTok)} out {fmtTokens(b.done.outTok)}{' '}
+                cache {fmtTokens(b.done.cacheTok)} ${b.done.costUsd.toFixed(4)}{' '}
+                {fmtLatency(b.done.latencyMs)}
+                {b.done.rtkSaved > 0 ? ` saved ${fmtTokens(b.done.rtkSaved)}` : ''} ·{' '}
+                {b.done.status}
               </div>
             )}
             {b.error && (
@@ -226,7 +259,8 @@ export function Console() {
     const batch = pendingRef.current;
     pendingRef.current = [];
     setEvents((prev) => {
-      const next = prev.length + batch.length > MAX_EVENTS ? [...prev, ...batch] : [...prev, ...batch];
+      const next =
+        prev.length + batch.length > MAX_EVENTS ? [...prev, ...batch] : [...prev, ...batch];
       return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
     });
   };
@@ -274,13 +308,25 @@ export function Console() {
 
     const allowedReqIds = new Set<string>();
     for (const [reqId, evts] of blocks) {
-      const start = evts.find((e) => e.phase === 'start') as Extract<FlowEvent, { phase: 'start' }> | undefined;
-      const account = evts.find((e) => e.phase === 'account') as Extract<FlowEvent, { phase: 'account' }> | undefined;
-      const done = evts.find((e) => e.phase === 'done') as Extract<FlowEvent, { phase: 'done' }> | undefined;
+      const start = evts.find((e) => e.phase === 'start') as
+        | Extract<FlowEvent, { phase: 'start' }>
+        | undefined;
+      const account = evts.find((e) => e.phase === 'account') as
+        | Extract<FlowEvent, { phase: 'account' }>
+        | undefined;
+      const done = evts.find((e) => e.phase === 'done') as
+        | Extract<FlowEvent, { phase: 'done' }>
+        | undefined;
       const error = evts.find((e) => e.phase === 'error');
 
-      if (filterModel && start && !start.model?.toLowerCase().includes(filterModel.toLowerCase())) continue;
-      if (filterAccount && account && !account.accountLabel?.toLowerCase().includes(filterAccount.toLowerCase())) continue;
+      if (filterModel && start && !start.model?.toLowerCase().includes(filterModel.toLowerCase()))
+        continue;
+      if (
+        filterAccount &&
+        account &&
+        !account.accountLabel?.toLowerCase().includes(filterAccount.toLowerCase())
+      )
+        continue;
       if (filterStatus === 'success' && (error || (done && done.status >= 400))) continue;
       if (filterStatus === 'error' && !error && (!done || done.status < 400)) continue;
 
@@ -311,7 +357,14 @@ export function Console() {
           </div>
         }
       />
-      <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--border, rgba(255,255,255,0.06))' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          padding: '8px 16px',
+          borderBottom: '1px solid var(--border, rgba(255,255,255,0.06))',
+        }}
+      >
         <input
           type="text"
           placeholder="Filter model…"
@@ -332,7 +385,9 @@ export function Console() {
         />
         <select
           value={filterStatus}
-          onChange={(e) => setFilterStatus((e.target as HTMLSelectElement).value as 'all' | 'success' | 'error')}
+          onChange={(e) =>
+            setFilterStatus((e.target as HTMLSelectElement).value as 'all' | 'success' | 'error')
+          }
           style={{ padding: '4px 8px', fontSize: 12 }}
         >
           <option value="all">All status</option>
@@ -343,7 +398,11 @@ export function Console() {
           <button
             class="btn btn-ghost btn-sm"
             aria-label="Clear all filters"
-            onClick={() => { setFilterModel(''); setFilterAccount(''); setFilterStatus('all'); }}
+            onClick={() => {
+              setFilterModel('');
+              setFilterAccount('');
+              setFilterStatus('all');
+            }}
             style={{ fontSize: 11 }}
           >
             Clear

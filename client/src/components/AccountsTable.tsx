@@ -1,8 +1,8 @@
+import { relativeTime } from '../lib/relativeTime';
+import type { Account, Transport } from '../lib/types';
 import { Badge } from './Badge';
 import { Button } from './Button';
 import { confirmDialog } from './Confirm';
-import { relativeTime } from '../lib/relativeTime';
-import type { Account, Transport } from '../lib/types';
 
 function statusVariant(s: string, e: boolean) {
   if (!e) return 'muted';
@@ -36,7 +36,7 @@ export function AccountsTable({
   }
 
   return (
-    <div style={{ overflowX: 'auto' }} role="region" aria-label="Accounts table" tabIndex={0}>
+    <div style={{ overflowX: 'auto' }} role="region" aria-label="Accounts table">
       <table class="tbl">
         <thead>
           <tr>
@@ -54,7 +54,12 @@ export function AccountsTable({
             <tr key={a.id}>
               <td>
                 <span style={{ fontWeight: 500 }}>{a.label}</span>
-                <span class="mono" style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}>{a.id}</span>
+                <span
+                  class="mono"
+                  style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}
+                >
+                  {a.id}
+                </span>
               </td>
               <td style={{ whiteSpace: 'nowrap' }}>
                 <Badge variant={a.provider === 'kiro' ? 'active' : 'muted'}>
@@ -69,16 +74,24 @@ export function AccountsTable({
                 )}
               </td>
               <td>
-                <Badge variant={statusVariant(a.status, a.enabled)} pulse={a.status === 'rate_limited'}>
+                <Badge
+                  variant={statusVariant(a.status, a.enabled)}
+                  pulse={a.status === 'rate_limited'}
+                >
                   {a.enabled ? a.status : 'disabled'}
                 </Badge>
                 {a.rateLimitedUntil && (
-                  <span style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }} title={a.rateLimitedUntil}>
+                  <span
+                    style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}
+                    title={a.rateLimitedUntil}
+                  >
                     until {relativeTime(a.rateLimitedUntil)}
                   </span>
                 )}
                 {(a.lockedModels ?? 0) > 0 && (
-                  <Badge variant="warn" style={{ marginLeft: 4 }}>🔒 {a.lockedModels}</Badge>
+                  <Badge variant="warn" style={{ marginLeft: 4 }}>
+                    🔒 {a.lockedModels}
+                  </Badge>
                 )}
               </td>
               <td class="mono">{a.backoffLevel || '—'}</td>
@@ -99,14 +112,27 @@ export function AccountsTable({
                 })()}
               </td>
               <td style={{ maxWidth: 220, fontSize: 11, color: 'var(--text-3)' }}>
-                <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.lastError ?? ''}>
+                <span
+                  style={{
+                    display: 'block',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={a.lastError ?? ''}
+                >
                   {a.lastError ?? '—'}
                 </span>
               </td>
               <td style={{ whiteSpace: 'nowrap' }}>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {a.provider === 'kiro' && (
-                    <Button size="sm" variant="ghost" onClick={() => onUsage(a.id)} aria-label="View Kiro usage">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onUsage(a.id)}
+                      aria-label="View Kiro usage"
+                    >
                       Usage
                     </Button>
                   )}
@@ -114,7 +140,11 @@ export function AccountsTable({
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      const editForm = { label: a.label, api_key: '', persona: a.persona === 'cli' ? 'cli' : 'ide' };
+                      const editForm = {
+                        label: a.label,
+                        api_key: '',
+                        persona: a.persona === 'cli' ? 'cli' : 'ide',
+                      };
                       onEdit(a, editForm);
                       onLoadTransportState(a);
                     }}
@@ -126,7 +156,12 @@ export function AccountsTable({
                     variant="ghost"
                     onClick={async () => {
                       if (a.enabled) {
-                        const ok = await confirmDialog({ title: 'Disable account', message: `Disable "${a.label}"?`, confirmLabel: 'Disable', danger: true });
+                        const ok = await confirmDialog({
+                          title: 'Disable account',
+                          message: `Disable "${a.label}"?`,
+                          confirmLabel: 'Disable',
+                          danger: true,
+                        });
                         if (!ok) return;
                       }
                       onToggle(a.id, a.enabled);

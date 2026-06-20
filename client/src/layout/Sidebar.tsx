@@ -23,7 +23,15 @@ const NAV: NavItem[] = [
   { key: 'settings', label: 'Settings', href: '/admin/settings', icon: 'settings' },
 ];
 
-export function Sidebar({ current, mobileOpen, onMobileClose }: { current: string; mobileOpen?: boolean; onMobileClose?: () => void }) {
+export function Sidebar({
+  current,
+  mobileOpen,
+  onMobileClose,
+}: {
+  current: string;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
   const qc = useQueryClient();
   // Read from cache only — App.PrimeCache() populates this on mount. Reading
   // via getQueryData (synchronous) avoids re-running the query on every
@@ -34,47 +42,47 @@ export function Sidebar({ current, mobileOpen, onMobileClose }: { current: strin
     <>
       {mobileOpen && <div class="sidebar-overlay" onClick={onMobileClose} />}
       <aside class={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}>
-      <div class="brand">
-        <span class="brand-mark">
-          <span class="brand-mark-full">
-            kelola<em>router</em>
-          </span>
-          <span class="brand-mark-mini">
-            k<em>r</em>
-          </span>
-        </span>
-        <span class="brand-tag">{me?.passwordSet ? 'PROTECTED' : 'OPEN MODE'}</span>
-      </div>
-      <nav class="nav">
-        {NAV.map((n) => (
-          <a
-            key={n.key}
-            href={`#${n.href}`}
-            class={`nav-item${n.key === current ? ' active' : ''}`}
-            onClick={onMobileClose}
-          >
-            <span class="nav-icon">
-              <Icon name={n.icon} />
+        <div class="brand">
+          <span class="brand-mark">
+            <span class="brand-mark-full">
+              kelola<em>router</em>
             </span>
-            <span class="nav-label">{n.label}</span>
-          </a>
-        ))}
-      </nav>
-      <div class="user-card">
-        <span>{settings?.version ? `v${settings.version}` : ''}</span>
-        {me?.passwordSet && (
-          <button
-            onClick={async () => {
-              await apiFetch('/api/logout', { method: 'POST' });
-              qc.clear();
-              location.hash = '/';
-            }}
-          >
-            Sign out
-          </button>
-        )}
-      </div>
-    </aside>
+            <span class="brand-mark-mini">
+              k<em>r</em>
+            </span>
+          </span>
+          <span class="brand-tag">{me?.passwordSet ? 'PROTECTED' : 'OPEN MODE'}</span>
+        </div>
+        <nav class="nav">
+          {NAV.map((n) => (
+            <a
+              key={n.key}
+              href={`#${n.href}`}
+              class={`nav-item${n.key === current ? ' active' : ''}`}
+              onClick={onMobileClose}
+            >
+              <span class="nav-icon">
+                <Icon name={n.icon} />
+              </span>
+              <span class="nav-label">{n.label}</span>
+            </a>
+          ))}
+        </nav>
+        <div class="user-card">
+          <span>{settings?.version ? `v${settings.version}` : ''}</span>
+          {me?.passwordSet && (
+            <button
+              onClick={async () => {
+                await apiFetch('/api/logout', { method: 'POST' });
+                qc.clear();
+                location.hash = '/';
+              }}
+            >
+              Sign out
+            </button>
+          )}
+        </div>
+      </aside>
     </>
   );
 }

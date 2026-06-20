@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
+import { apiFetch } from '../../lib/api';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Card } from '../Card';
@@ -7,7 +8,6 @@ import { confirmDialog } from '../Confirm';
 import { ErrorState } from '../ErrorState';
 import { TableSkeleton } from '../Skeleton';
 import { useToast } from '../ToastProvider';
-import { apiFetch } from '../../lib/api';
 import type { TestResult, Transport } from './types';
 
 interface TransportsTableProps {
@@ -93,7 +93,9 @@ export function TransportsTable({
   async function runTest(id: string) {
     setTestResults((r) => ({ ...r, [id]: 'loading' }));
     try {
-      const res = await apiFetch<TestResult>(`/api/admin/transports/${id}/test`, { method: 'POST' });
+      const res = await apiFetch<TestResult>(`/api/admin/transports/${id}/test`, {
+        method: 'POST',
+      });
       setTestResults((r) => ({ ...r, [id]: res }));
       if (res.ok) toast.success(`Reachable · ${res.latencyMs}ms (HTTP ${res.status})`);
       else toast.error(`Failed: ${res.error}`);
@@ -151,9 +153,7 @@ export function TransportsTable({
                 borderRadius: 8,
               }}
             >
-              <span style={{ fontSize: 13 }}>
-                {selected.size} selected
-              </span>
+              <span style={{ fontSize: 13 }}>{selected.size} selected</span>
               <Button
                 size="sm"
                 variant="danger"
@@ -199,7 +199,10 @@ export function TransportsTable({
                     </td>
                     <td>
                       <span style={{ fontWeight: 500 }}>{t.label}</span>
-                      <span class="mono" style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}>
+                      <span
+                        class="mono"
+                        style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}
+                      >
                         {t.id}
                       </span>
                     </td>
@@ -209,21 +212,36 @@ export function TransportsTable({
                       </Badge>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      {t.country
-                        ? <Badge variant="active">{t.country}</Badge>
-                        : <span style={{ color: 'var(--text-3)' }}>—</span>
-                      }
+                      {t.country ? (
+                        <Badge variant="active">{t.country}</Badge>
+                      ) : (
+                        <span style={{ color: 'var(--text-3)' }}>—</span>
+                      )}
                     </td>
-                    <td class="mono" style={{ maxWidth: 260, fontSize: 11, color: 'var(--text-3)' }}>
-                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.url}>
+                    <td
+                      class="mono"
+                      style={{ maxWidth: 260, fontSize: 11, color: 'var(--text-3)' }}
+                    >
+                      <span
+                        style={{
+                          display: 'block',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={t.url}
+                      >
                         {t.url}
                       </span>
                     </td>
                     <td>
-                      {t.usageCount > 0
-                        ? <span style={{ fontWeight: 500 }}>{t.usageCount} account{t.usageCount !== 1 ? 's' : ''}</span>
-                        : <span style={{ color: 'var(--text-3)' }}>—</span>
-                      }
+                      {t.usageCount > 0 ? (
+                        <span style={{ fontWeight: 500 }}>
+                          {t.usageCount} account{t.usageCount !== 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-3)' }}>—</span>
+                      )}
                     </td>
                     <td>
                       <Badge variant={t.enabled ? 'active' : 'muted'}>
@@ -231,9 +249,15 @@ export function TransportsTable({
                       </Badge>
                       {tr && tr !== 'loading' && (
                         <span
-                          style={{ fontSize: 10, display: 'block', color: tr.ok ? 'var(--signal, #6cc3a6)' : 'var(--alert, #d27a6e)' }}
+                          style={{
+                            fontSize: 10,
+                            display: 'block',
+                            color: tr.ok ? 'var(--signal, #6cc3a6)' : 'var(--alert, #d27a6e)',
+                          }}
                         >
-                          {tr.ok ? `✓ ${tr.latencyMs}ms` : `✗ ${tr.error?.slice(0, 24) ?? 'failed'}`}
+                          {tr.ok
+                            ? `✓ ${tr.latencyMs}ms`
+                            : `✗ ${tr.error?.slice(0, 24) ?? 'failed'}`}
                         </span>
                       )}
                     </td>
@@ -242,13 +266,26 @@ export function TransportsTable({
                         <Button size="sm" variant="ghost" onClick={() => onEdit(t)}>
                           Edit
                         </Button>
-                        <Button size="sm" variant="ghost" disabled={tr === 'loading'} onClick={() => runTest(t.id)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={tr === 'loading'}
+                          onClick={() => runTest(t.id)}
+                        >
                           {tr === 'loading' ? 'Testing…' : 'Test'}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => toggleMut.mutate({ id: t.id, enabled: t.enabled })}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => toggleMut.mutate({ id: t.id, enabled: t.enabled })}
+                        >
                           {t.enabled ? 'Disable' : 'Enable'}
                         </Button>
-                        <Button size="sm" variant="danger" onClick={() => handleDelete(t.id, t.label)}>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDelete(t.id, t.label)}
+                        >
                           Delete
                         </Button>
                       </div>

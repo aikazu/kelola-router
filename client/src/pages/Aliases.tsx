@@ -138,10 +138,7 @@ export function Aliases() {
             {aliases.length === 0 ? (
               <>
                 No aliases yet.{' '}
-                <button
-                  class="btn-link"
-                  onClick={() => setEditing('new')}
-                >
+                <button class="btn-link" onClick={() => setEditing('new')}>
                   Create one →
                 </button>
               </>
@@ -151,58 +148,58 @@ export function Aliases() {
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-          <table class="tbl">
-            <thead>
-              <tr>
-                <th>Alias</th>
-                <th>→ Target</th>
-                <th>Label</th>
-                <th>Source</th>
-                <th>Created</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((a) => (
-                <tr key={a.aliasName}>
-                  <td class="mono">{a.aliasName}</td>
-                  <td class="mono">{a.upstreamModel}</td>
-                  <td>{a.label ?? '—'}</td>
-                  <td>
-                    <Badge variant={a.source === 'user' ? 'active' : 'muted'}>{a.source}</Badge>
-                  </td>
-                  <td class="card-sub mono" style={{ fontSize: 12 }} title={a.createdAt}>
-                    {relativeTime(a.createdAt)}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
-                    <Button size="sm" onClick={() => setEditing(a)}>
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={async () => {
-                        if (
-                          await confirmDialog({
-                            title: 'Delete alias',
-                            message: `Delete alias "${a.aliasName}"?`,
-                            confirmLabel: 'Delete',
-                            danger: true,
-                          })
-                        ) {
-                          deleteMut.mutate(a.aliasName);
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
-                    </div>
-                  </td>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Alias</th>
+                  <th>→ Target</th>
+                  <th>Label</th>
+                  <th>Source</th>
+                  <th>Created</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((a) => (
+                  <tr key={a.aliasName}>
+                    <td class="mono">{a.aliasName}</td>
+                    <td class="mono">{a.upstreamModel}</td>
+                    <td>{a.label ?? '—'}</td>
+                    <td>
+                      <Badge variant={a.source === 'user' ? 'active' : 'muted'}>{a.source}</Badge>
+                    </td>
+                    <td class="card-sub mono" style={{ fontSize: 12 }} title={a.createdAt}>
+                      {relativeTime(a.createdAt)}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
+                        <Button size="sm" onClick={() => setEditing(a)}>
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={async () => {
+                            if (
+                              await confirmDialog({
+                                title: 'Delete alias',
+                                message: `Delete alias "${a.aliasName}"?`,
+                                confirmLabel: 'Delete',
+                                danger: true,
+                              })
+                            ) {
+                              deleteMut.mutate(a.aliasName);
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>
@@ -292,8 +289,18 @@ function AliasModal({
             </span>
           )}
           {name && models.some((m) => m.name === name) && (
-            <span style={{ fontSize: 11, color: 'var(--gold, #c9a352)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-              ⚡ This alias shadows built-in model "{name}". Requests for this name route to the alias target instead.
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--gold, #c9a352)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                marginTop: 4,
+              }}
+            >
+              ⚡ This alias shadows built-in model "{name}". Requests for this name route to the
+              alias target instead.
             </span>
           )}
         </label>

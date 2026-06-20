@@ -8,7 +8,11 @@ export interface SelectionSettings {
 }
 
 /** Inline selection mode + step controls for one provider card (auto-saves). */
-export function SelectionControls({ provider }: { provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' }) {
+export function SelectionControls({
+  provider,
+}: {
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai';
+}) {
   const qc = useQueryClient();
   const toast = useToast();
   const { data } = useQuery({
@@ -29,7 +33,9 @@ export function SelectionControls({ provider }: { provider: 'minimax' | 'kiro' |
 
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      <span class="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>Selection</span>
+      <span class="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
+        Selection
+      </span>
       <select
         class="input"
         name="selectionMode"

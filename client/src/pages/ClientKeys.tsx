@@ -79,9 +79,7 @@ export function ClientKeys() {
     if (!passwordMode) {
       // Open mode: fetch + inline reveal, no modal.
       try {
-        const { key } = await apiFetch<{ key: string }>(
-          `/api/admin/client-keys/${k.id}/key`,
-        );
+        const { key } = await apiFetch<{ key: string }>(`/api/admin/client-keys/${k.id}/key`);
         setInlineRevealed((prev) => ({ ...prev, [k.id]: key }));
       } catch (e) {
         toast.error((e as Error).message);
@@ -115,9 +113,7 @@ export function ClientKeys() {
         method: 'POST',
         json: { password: pwd },
       });
-      const { key } = await apiFetch<{ key: string }>(
-        `/api/admin/client-keys/${revealFor.id}/key`,
-      );
+      const { key } = await apiFetch<{ key: string }>(`/api/admin/client-keys/${revealFor.id}/key`);
       setRevealKey(key);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -241,9 +237,10 @@ export function ClientKeys() {
                 {keys.map((k) => (
                   <tr key={k.id}>
                     <td
-                      onDblClick={() => { setEditingLabel(k.id); setEditValue(k.label); }}
-                      role="button"
-                      tabIndex={0}
+                      onDblClick={() => {
+                        setEditingLabel(k.id);
+                        setEditValue(k.label);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
@@ -257,14 +254,14 @@ export function ClientKeys() {
                           value={editValue}
                           onInput={(e) => setEditValue((e.target as HTMLInputElement).value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' && editValue.trim()) labelMut.mutate({ id: k.id, label: editValue.trim() });
+                            if (e.key === 'Enter' && editValue.trim())
+                              labelMut.mutate({ id: k.id, label: editValue.trim() });
                             if (e.key === 'Escape') setEditingLabel(null);
                           }}
                           onBlur={() => setEditingLabel(null)}
                           class="input"
                           style={{ padding: '2px 6px', fontSize: 13, width: '100%' }}
                           aria-label="Edit label"
-                          autoFocus
                         />
                       ) : (
                         <span
@@ -279,13 +276,18 @@ export function ClientKeys() {
                               setEditValue(k.label);
                             }
                           }}
-                        >{k.label}</span>
+                        >
+                          {k.label}
+                        </span>
                       )}
                     </td>
                     <td class="mono">
                       {inlineRevealed[k.id] ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <code style={{ wordBreak: 'break-all' }} data-testid={`reveal-inline-${k.id}`}>
+                          <code
+                            style={{ wordBreak: 'break-all' }}
+                            data-testid={`reveal-inline-${k.id}`}
+                          >
                             {inlineRevealed[k.id]}
                           </code>
                           <Button size="sm" variant="ghost" onClick={() => hideInline(k.id)}>
@@ -323,7 +325,11 @@ export function ClientKeys() {
                         >
                           {k.enabled ? 'Disable' : 'Enable'}
                         </Button>
-                        <Button size="sm" variant="danger" onClick={() => handleDelete(k.id, k.label)}>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDelete(k.id, k.label)}
+                        >
                           Delete
                         </Button>
                       </div>
@@ -385,7 +391,9 @@ export function ClientKeys() {
               aria-invalid={label.length === 0}
             />
             {label.length === 0 && (
-              <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>
+              <span
+                style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}
+              >
                 Required — give this key a descriptive name.
               </span>
             )}
@@ -465,10 +473,7 @@ export function ClientKeys() {
               style={{ width: '100%' }}
             />
             {revealError && (
-              <div
-                role="alert"
-                style={{ color: 'var(--alert)', fontSize: 12, marginTop: 8 }}
-              >
+              <div role="alert" style={{ color: 'var(--alert)', fontSize: 12, marginTop: 8 }}>
                 {revealError}
               </div>
             )}

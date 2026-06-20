@@ -1,5 +1,5 @@
-import { Button } from './Button';
 import { useNotionAuth } from '../hooks/useNotionAuth';
+import { Button } from './Button';
 
 interface NotionAuthFormProps {
   email: string;
@@ -92,7 +92,6 @@ export function NotionAuthForm({
               }}
               placeholder="hdqiGs"
               maxLength={6}
-              autoFocus={typeof window !== 'undefined' && window.innerWidth > 768}
               class="input"
             />
           </label>

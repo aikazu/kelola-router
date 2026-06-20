@@ -98,32 +98,34 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
           marginBottom: 16,
         }}
       >
-        {(['summary', 'request', 'response', ...(data?.error ? ['error'] : [])] as Tab[]).map((t) => (
-          <button
-            key={t}
-            id={`tab-${t}`}
-            role="tab"
-            aria-selected={tab === t}
-            aria-controls={`tabpanel-${t}`}
-            onClick={() => setTab(t)}
-            style={{
-              background: 'none',
-              border: 0,
-              padding: '8px 14px',
-              color: tab === t ? 'var(--emerald-4)' : 'var(--text-2)',
-              borderBottom: tab === t ? '2px solid var(--emerald-3)' : '2px solid transparent',
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              outlineOffset: 2,
-            }}
-          >
-            {t}
-          </button>
-        ))}
+        {(['summary', 'request', 'response', ...(data?.error ? ['error'] : [])] as Tab[]).map(
+          (t) => (
+            <button
+              key={t}
+              id={`tab-${t}`}
+              role="tab"
+              aria-selected={tab === t}
+              aria-controls={`tabpanel-${t}`}
+              onClick={() => setTab(t)}
+              style={{
+                background: 'none',
+                border: 0,
+                padding: '8px 14px',
+                color: tab === t ? 'var(--emerald-4)' : 'var(--text-2)',
+                borderBottom: tab === t ? '2px solid var(--emerald-3)' : '2px solid transparent',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                outlineOffset: 2,
+              }}
+            >
+              {t}
+            </button>
+          )
+        )}
       </div>
       {isLoading && <p>Loading…</p>}
       {isError && (
@@ -131,57 +133,57 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
       )}
       {data && tab === 'summary' && (
         <div id="tabpanel-summary" role="tabpanel" aria-labelledby="tab-summary">
-        <table class="tbl">
-          <tbody>
-            <tr>
-              <th style={{ width: 140 }}>Model</th>
-              <td>{data.model}</td>
-            </tr>
-            <tr>
-              <th>Status</th>
-              <td>
-                <Badge
-                  variant={
-                    data.statusCode < 300 ? 'active' : data.statusCode < 500 ? 'warn' : 'error'
-                  }
-                >
-                  {data.statusCode}
-                </Badge>
-              </td>
-            </tr>
-            <tr>
-              <th>Latency</th>
-              <td>{data.latencyMs}ms</td>
-            </tr>
-            <tr>
-              <th>Tokens</th>
-              <td>
-                {data.promptTokens} prompt + {data.completionTokens} completion = {data.totalTokens}
-              </td>
-            </tr>
-            <tr>
-              <th>Cost</th>
-              <td>${data.cost.toFixed(6)}</td>
-            </tr>
-            <tr>
-              <th>Time</th>
-              <td>{data.createdAt}</td>
-            </tr>
-            <tr>
-              <th>Client key ID</th>
-              <td>{data.clientKeyId ?? '—'}</td>
-            </tr>
-            <tr>
-              <th>Account ID</th>
-              <td>{data.accountId ?? '—'}</td>
-            </tr>
-          </tbody>
-        </table>
+          <table class="tbl">
+            <tbody>
+              <tr>
+                <th style={{ width: 140 }}>Model</th>
+                <td>{data.model}</td>
+              </tr>
+              <tr>
+                <th>Status</th>
+                <td>
+                  <Badge
+                    variant={
+                      data.statusCode < 300 ? 'active' : data.statusCode < 500 ? 'warn' : 'error'
+                    }
+                  >
+                    {data.statusCode}
+                  </Badge>
+                </td>
+              </tr>
+              <tr>
+                <th>Latency</th>
+                <td>{data.latencyMs}ms</td>
+              </tr>
+              <tr>
+                <th>Tokens</th>
+                <td>
+                  {data.promptTokens} prompt + {data.completionTokens} completion ={' '}
+                  {data.totalTokens}
+                </td>
+              </tr>
+              <tr>
+                <th>Cost</th>
+                <td>${data.cost.toFixed(6)}</td>
+              </tr>
+              <tr>
+                <th>Time</th>
+                <td>{data.createdAt}</td>
+              </tr>
+              <tr>
+                <th>Client key ID</th>
+                <td>{data.clientKeyId ?? '—'}</td>
+              </tr>
+              <tr>
+                <th>Account ID</th>
+                <td>{data.accountId ?? '—'}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       )}
       {data && tab === 'request' && (
         <div id="tabpanel-request" role="tabpanel" aria-labelledby="tab-request">
-        <>
           <h4
             style={{
               fontFamily: 'var(--font-body)',
@@ -208,12 +210,10 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
             Headers
           </h4>
           <HeadersView headers={data.requestHeaders} />
-        </>
         </div>
       )}
       {data && tab === 'response' && (
         <div id="tabpanel-response" role="tabpanel" aria-labelledby="tab-response">
-        <>
           <h4
             style={{
               fontFamily: 'var(--font-body)',
@@ -240,12 +240,11 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
             Headers
           </h4>
           <HeadersView headers={data.responseHeaders} />
-        </>
         </div>
       )}
       {data && tab === 'error' && data.error && (
         <div id="tabpanel-error" role="tabpanel" aria-labelledby="tab-error">
-        <p style={{ color: 'var(--danger)' }}>{data.error}</p>
+          <p style={{ color: 'var(--danger)' }}>{data.error}</p>
         </div>
       )}
     </Modal>

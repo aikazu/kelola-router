@@ -29,18 +29,24 @@ export function Transports() {
   return (
     <>
       <TopBar
-        title={<>Pro<em>xies</em></>}
+        title={
+          <>
+            Pro<em>xies</em>
+          </>
+        }
         eyebrow="Network transports"
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="ghost" onClick={() => setBulkOpen(true)}>Bulk import</Button>
+            <Button variant="ghost" onClick={() => setBulkOpen(true)}>
+              Bulk import
+            </Button>
             <Button onClick={() => setOpen(true)}>+ Add transport</Button>
           </div>
         }
       />
       <p class="card-sub">
-        Define HTTP/SOCKS5 proxies and Vercel/Cloudflare relays here, then assign them per account on
-        the Upstream page. Proxies can be pooled and rotated; relays are assigned one at a time.
+        Define HTTP/SOCKS5 proxies and Vercel/Cloudflare relays here, then assign them per account
+        on the Upstream page. Proxies can be pooled and rotated; relays are assigned one at a time.
       </p>
       <FailureModeCard />
       <TransportsTable

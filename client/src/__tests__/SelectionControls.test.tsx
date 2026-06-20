@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { VNode } from 'preact';
 import { render, screen, waitFor } from '@testing-library/preact';
+import type { VNode } from 'preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SelectionControls } from '../components/SelectionControls';
 
@@ -22,9 +22,7 @@ afterEach(() => {
 
 describe('SelectionControls', () => {
   it('shows step input with fetched value when mode is round-robin', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ mode: 'round-robin', step: 3 })
-    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ mode: 'round-robin', step: 3 }));
     wrap(<SelectionControls provider="minimax" />);
     await waitFor(() => expect(screen.getByLabelText('Step')).toBeTruthy());
     expect((screen.getByLabelText('Step') as HTMLInputElement).value).toBe('3');

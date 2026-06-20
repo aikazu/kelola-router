@@ -1,8 +1,8 @@
+import type { Account, Transport } from '../../lib/types';
 import { AccountsTable } from '../AccountsTable';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import { SelectionControls } from '../SelectionControls';
-import type { Account, Transport } from '../../lib/types';
 
 export interface ProviderAccountSectionProps {
   title: string;

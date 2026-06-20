@@ -129,7 +129,6 @@ export function Login() {
           aria-label="Password"
           aria-invalid={!!errMsg}
           aria-describedby={errMsg ? 'login-error' : undefined}
-          autoFocus={typeof window !== 'undefined' && window.innerWidth > 768}
           autoComplete="current-password"
           spellcheck={false}
           required

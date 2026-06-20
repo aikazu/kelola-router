@@ -1,12 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/preact';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  AddAccountModal,
-  type AddAccountModalProps,
-} from './AddAccountModal';
 import type { useKiroAutoImport } from '../../hooks/useKiroAutoImport';
 import type { useKiroDeviceFlow } from '../../hooks/useKiroDeviceFlow';
 import { ToastProvider } from '../ToastProvider';
+import { AddAccountModal, type AddAccountModalProps } from './AddAccountModal';
 
 // Opaque hook return shapes — the parent owns the real hooks, the modal only
 // reads/forwards these values, so the test passes plain mock objects.
@@ -67,7 +64,7 @@ function renderModal(overrides: Partial<AddAccountModalProps> = {}) {
   return render(
     <ToastProvider>
       <AddAccountModal {...props} />
-    </ToastProvider>,
+    </ToastProvider>
   );
 }
 
@@ -96,7 +93,7 @@ describe('AddAccountModal', () => {
           {...baseProps}
           provider="minimax"
           form={{ label: 'main', credit_type: 'payg', api_key: 'mm_xxx' }}
-        />,
+        />
       );
       expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
     });
@@ -128,25 +125,17 @@ describe('AddAccountModal', () => {
       renderModal({ provider: 'kiro', kiroMethod: 'builder-id' });
       const select = screen.getByRole('combobox') as HTMLSelectElement;
       expect(select.value).toBe('builder-id');
+      expect(screen.getByRole('option', { name: 'AWS Builder ID (OAuth)' })).toBeInTheDocument();
       expect(
-        screen.getByRole('option', { name: 'AWS Builder ID (OAuth)' }),
+        screen.getByRole('option', { name: 'AWS IAM Identity Center (OAuth)' })
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole('option', { name: 'AWS IAM Identity Center (OAuth)' }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole('option', { name: 'Auto-import from Kiro IDE' }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole('option', { name: 'Paste token manually' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Auto-import from Kiro IDE' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Paste token manually' })).toBeInTheDocument();
     });
 
     it('builder-id method renders the device-flow login button and NO footer Add button', () => {
       renderModal({ provider: 'kiro', kiroMethod: 'builder-id' });
-      expect(
-        screen.getByRole('button', { name: 'Login with AWS Builder ID' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Login with AWS Builder ID' })).toBeInTheDocument();
       // footer button is suppressed for non-token kiro methods
       expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
     });
@@ -154,7 +143,7 @@ describe('AddAccountModal', () => {
     it('idc method renders the IDC login button and NO footer Add button', () => {
       renderModal({ provider: 'kiro', kiroMethod: 'idc' });
       expect(
-        screen.getByRole('button', { name: 'Login with IAM Identity Center' }),
+        screen.getByRole('button', { name: 'Login with IAM Identity Center' })
       ).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
     });
@@ -168,7 +157,7 @@ describe('AddAccountModal', () => {
     it('token method renders the credential textarea AND the footer Add button', () => {
       renderModal({ provider: 'kiro', kiroMethod: 'token' });
       expect(
-        screen.getByPlaceholderText('Paste token JSON or raw refresh token (aorAAAAAG…)'),
+        screen.getByPlaceholderText('Paste token JSON or raw refresh token (aorAAAAAG…)')
       ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
     });
@@ -189,7 +178,7 @@ describe('AddAccountModal', () => {
             region: '',
             startUrl: '',
           }}
-        />,
+        />
       );
       expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
     });
@@ -229,11 +218,11 @@ describe('AddAccountModal', () => {
         onKiroFormChange,
       });
       const textarea = screen.getByPlaceholderText(
-        'Paste token JSON or raw refresh token (aorAAAAAG…)',
+        'Paste token JSON or raw refresh token (aorAAAAAG…)'
       );
       fireEvent.input(textarea, { target: { value: '{"clientId":"abc"}' } });
       expect(onKiroFormChange).toHaveBeenCalledWith(
-        expect.objectContaining({ credentialJson: '{"clientId":"abc"}', refreshToken: '' }),
+        expect.objectContaining({ credentialJson: '{"clientId":"abc"}', refreshToken: '' })
       );
     });
 
@@ -245,11 +234,11 @@ describe('AddAccountModal', () => {
         onKiroFormChange,
       });
       const textarea = screen.getByPlaceholderText(
-        'Paste token JSON or raw refresh token (aorAAAAAG…)',
+        'Paste token JSON or raw refresh token (aorAAAAAG…)'
       );
       fireEvent.input(textarea, { target: { value: 'aorAAAAAGxxxx' } });
       expect(onKiroFormChange).toHaveBeenCalledWith(
-        expect.objectContaining({ refreshToken: 'aorAAAAAGxxxx', credentialJson: '' }),
+        expect.objectContaining({ refreshToken: 'aorAAAAAGxxxx', credentialJson: '' })
       );
     });
   });
@@ -271,7 +260,7 @@ describe('AddAccountModal', () => {
           {...baseProps}
           provider="pioneer"
           pioneerForm={{ label: 'main', api_key: 'pio_sk_xxx' }}
-        />,
+        />
       );
       expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
     });

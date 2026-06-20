@@ -7,7 +7,12 @@ interface TransportAssignmentProps {
   relays: Transport[];
 }
 
-export function TransportAssignment({ tpState, setTpState, proxies, relays }: TransportAssignmentProps) {
+export function TransportAssignment({
+  tpState,
+  setTpState,
+  proxies,
+  relays,
+}: TransportAssignmentProps) {
   return (
     <div style={{ borderTop: '1px solid var(--ink-3)', paddingTop: 12, marginTop: 4 }}>
       <label>
@@ -16,7 +21,10 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
           name="transport-mode"
           value={tpState.mode}
           onChange={(e) =>
-            setTpState({ ...tpState, mode: (e.target as HTMLSelectElement).value as 'none' | 'proxy' | 'pool' | 'relay' })
+            setTpState({
+              ...tpState,
+              mode: (e.target as HTMLSelectElement).value as 'none' | 'proxy' | 'pool' | 'relay',
+            })
           }
           class="input"
         >
@@ -33,14 +41,15 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
           <select
             name="proxy-id"
             value={tpState.proxyId}
-            onChange={(e) => setTpState({ ...tpState, proxyId: (e.target as HTMLSelectElement).value })}
+            onChange={(e) =>
+              setTpState({ ...tpState, proxyId: (e.target as HTMLSelectElement).value })
+            }
             class="input"
           >
             <option value="">— select proxy —</option>
             {proxies.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.label} ({p.kind})
-                {p.enabled ? '' : ' · disabled'}
+                {p.label} ({p.kind}){p.enabled ? '' : ' · disabled'}
               </option>
             ))}
           </select>
@@ -53,14 +62,15 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
           <select
             name="relay-id"
             value={tpState.relayId}
-            onChange={(e) => setTpState({ ...tpState, relayId: (e.target as HTMLSelectElement).value })}
+            onChange={(e) =>
+              setTpState({ ...tpState, relayId: (e.target as HTMLSelectElement).value })
+            }
             class="input"
           >
             <option value="">— select relay —</option>
             {relays.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.label} ({r.kind})
-                {r.enabled ? '' : ' · disabled'}
+                {r.label} ({r.kind}){r.enabled ? '' : ' · disabled'}
               </option>
             ))}
           </select>
@@ -86,7 +96,10 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
               </span>
             ) : null}
             {proxies.map((p) => (
-              <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <label
+                key={p.id}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
+              >
                 <input
                   type="checkbox"
                   name="pool-member"
@@ -101,8 +114,7 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
                 />
                 {p.label}
                 <span style={{ color: 'var(--text-3)', fontSize: 11 }}>
-                  ({p.kind})
-                  {p.enabled ? '' : ' · disabled'}
+                  ({p.kind}){p.enabled ? '' : ' · disabled'}
                 </span>
               </label>
             ))}
@@ -114,7 +126,12 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
               name="rotate"
               min={1}
               value={tpState.rotate}
-              onInput={(e) => setTpState({ ...tpState, rotate: Math.max(1, Number((e.target as HTMLInputElement).value) || 1) })}
+              onInput={(e) =>
+                setTpState({
+                  ...tpState,
+                  rotate: Math.max(1, Number((e.target as HTMLInputElement).value) || 1),
+                })
+              }
               autocomplete="off"
               class="input"
             />

@@ -1,18 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
+import {
+  AddAccountModal,
+  type KiroForm,
+  type KiroMethod,
+  type MinimaxForm,
+  type PioneerForm,
+} from '../components/accounts/AddAccountModal';
+import { EditAccountModal, type EditForm } from '../components/accounts/EditAccountModal';
+import { KiroUsageModal } from '../components/accounts/KiroUsageModal';
+import { ProviderAccountSection } from '../components/accounts/ProviderAccountSection';
 import { Card } from '../components/Card';
 import { confirmDialog } from '../components/Confirm';
 import { ErrorState } from '../components/ErrorState';
 import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
-import { AddAccountModal, type KiroForm, type MinimaxForm, type PioneerForm, type KiroMethod } from '../components/accounts/AddAccountModal';
-import { EditAccountModal, type EditForm } from '../components/accounts/EditAccountModal';
-import { KiroUsageModal } from '../components/accounts/KiroUsageModal';
-import { ProviderAccountSection } from '../components/accounts/ProviderAccountSection';
-import { TopBar } from '../layout/TopBar';
-import { apiFetch } from '../lib/api';
 import { useKiroAutoImport } from '../hooks/useKiroAutoImport';
 import { useKiroDeviceFlow } from '../hooks/useKiroDeviceFlow';
+import { TopBar } from '../layout/TopBar';
+import { apiFetch } from '../lib/api';
 import type { Account, ModelLock, Transport, TransportState } from '../lib/types';
 
 export function Accounts() {
@@ -50,7 +56,10 @@ export function Accounts() {
     api_key: '',
     base_url: '',
   });
-  const [notionForm, setNotionForm] = useState<{ email: string; label: string }>({ email: '', label: '' });
+  const [notionForm, setNotionForm] = useState<{ email: string; label: string }>({
+    email: '',
+    label: '',
+  });
   const [kiroForm, setKiroForm] = useState<KiroForm>({
     label: '',
     credentialJson: '',
@@ -63,7 +72,10 @@ export function Accounts() {
   const autoImport = useKiroAutoImport({
     label: kiroForm.label,
     onLabelChange: (label) => setKiroForm({ ...kiroForm, label }),
-    onSuccess: () => { setOpen(false); resetForms(); },
+    onSuccess: () => {
+      setOpen(false);
+      resetForms();
+    },
   });
 
   // Device code flow hook
@@ -72,12 +84,20 @@ export function Accounts() {
     region: kiroForm.region,
     startUrl: kiroForm.startUrl,
     label: kiroForm.label,
-    onSuccess: () => { setOpen(false); resetForms(); },
+    onSuccess: () => {
+      setOpen(false);
+      resetForms();
+    },
   });
 
   // Kiro usage modal
   const [usageAccount, setUsageAccount] = useState<string | null>(null);
-  const { data: usageData, isLoading: usageLoading, isError: usageError, error: usageErr } = useQuery({
+  const {
+    data: usageData,
+    isLoading: usageLoading,
+    isError: usageError,
+    error: usageErr,
+  } = useQuery({
     queryKey: ['account-usage', usageAccount],
     queryFn: () => apiFetch<Record<string, unknown>>(`/api/admin/accounts/${usageAccount}/usage`),
     enabled: !!usageAccount,
@@ -95,7 +115,7 @@ export function Accounts() {
   // Model locks for the currently-editing account.
   const { data: locksData, refetch: refetchLocks } = useQuery({
     queryKey: ['account-locks', editing?.id],
-    queryFn: () => apiFetch<{ locks: ModelLock[] }>(`/api/admin/accounts/${editing!.id}/locks`),
+    queryFn: () => apiFetch<{ locks: ModelLock[] }>(`/api/admin/accounts/${editing?.id}/locks`),
     enabled: !!editing,
   });
   const locks = locksData?.locks ?? [];
@@ -113,7 +133,13 @@ export function Accounts() {
     if (a.relayId) {
       setTpState({ mode: 'relay', proxyId: '', relayId: a.relayId, pool: [], rotate: 1 });
     } else if (a.proxyPool && a.proxyPool.length > 0) {
-      setTpState({ mode: 'pool', proxyId: '', relayId: '', pool: a.proxyPool, rotate: a.proxyRotateEvery ?? 1 });
+      setTpState({
+        mode: 'pool',
+        proxyId: '',
+        relayId: '',
+        pool: a.proxyPool,
+        rotate: a.proxyRotateEvery ?? 1,
+      });
     } else if (a.proxyId) {
       setTpState({ mode: 'proxy', proxyId: a.proxyId, relayId: '', pool: [], rotate: 1 });
     } else {
@@ -138,7 +164,12 @@ export function Accounts() {
       provider === 'kiro'
         ? apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts/kiro', {
             method: 'POST',
-            json: { label: kiroForm.label, method: 'token', credentialJson: kiroForm.credentialJson, refreshToken: kiroForm.refreshToken },
+            json: {
+              label: kiroForm.label,
+              method: 'token',
+              credentialJson: kiroForm.credentialJson,
+              refreshToken: kiroForm.refreshToken,
+            },
           })
         : provider === 'pioneer'
           ? apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', {
@@ -161,7 +192,10 @@ export function Accounts() {
                   ...(zaiForm.base_url ? { base_url: zaiForm.base_url } : {}),
                 },
               })
-            : apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', { method: 'POST', json: form }),
+            : apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', {
+                method: 'POST',
+                json: form,
+              }),
     onSuccess: (res) => {
       setOpen(false);
       resetForms();
@@ -216,7 +250,9 @@ export function Accounts() {
   });
   const unlockMut = useMutation({
     mutationFn: ({ accountId, model }: { accountId: string; model: string }) =>
-      apiFetch(`/api/admin/accounts/${accountId}/locks/${encodeURIComponent(model)}`, { method: 'DELETE' }),
+      apiFetch(`/api/admin/accounts/${accountId}/locks/${encodeURIComponent(model)}`, {
+        method: 'DELETE',
+      }),
     onSuccess: () => {
       refetchLocks();
       qc.invalidateQueries({ queryKey: ['accounts'] });
@@ -238,13 +274,17 @@ export function Accounts() {
   return (
     <>
       <TopBar
-        title={<>Up<em>stream</em></>}
+        title={
+          <>
+            Up<em>stream</em>
+          </>
+        }
         eyebrow="Upstream key pool"
       />
       <p class="card-sub">
-        MiniMax uses API keys. Kiro (AWS) supports OAuth, auto-import from Kiro IDE, or manual token paste.
-        Pioneer is an OpenAI-compatible upstream using X-API-Key authentication.
-        The router fans out across enabled accounts with exponential backoff.
+        MiniMax uses API keys. Kiro (AWS) supports OAuth, auto-import from Kiro IDE, or manual token
+        paste. Pioneer is an OpenAI-compatible upstream using X-API-Key authentication. The router
+        fans out across enabled accounts with exponential backoff.
       </p>
       <Card>
         {isError ? (
@@ -258,11 +298,19 @@ export function Accounts() {
               provider="minimax"
               accounts={minimaxAccounts}
               transports={transports}
-              onAdd={() => { setProvider('minimax'); setOpen(true); }}
+              onAdd={() => {
+                setProvider('minimax');
+                setOpen(true);
+              }}
               onUsage={setUsageAccount}
-              onEdit={(a, editFormInitialState) => { setEditing(a); setEditForm(editFormInitialState); }}
+              onEdit={(a, editFormInitialState) => {
+                setEditing(a);
+                setEditForm(editFormInitialState);
+              }}
               onLoadTransportState={loadTransportState}
-              onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+              onToggle={(id, enabled) => {
+                toggleMut.mutate({ id, enabled });
+              }}
               onDelete={handleDelete}
             />
             <ProviderAccountSection
@@ -270,11 +318,19 @@ export function Accounts() {
               provider="kiro"
               accounts={kiroAccounts}
               transports={transports}
-              onAdd={() => { setProvider('kiro'); setOpen(true); }}
+              onAdd={() => {
+                setProvider('kiro');
+                setOpen(true);
+              }}
               onUsage={setUsageAccount}
-              onEdit={(a, editFormInitialState) => { setEditing(a); setEditForm(editFormInitialState); }}
+              onEdit={(a, editFormInitialState) => {
+                setEditing(a);
+                setEditForm(editFormInitialState);
+              }}
               onLoadTransportState={loadTransportState}
-              onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+              onToggle={(id, enabled) => {
+                toggleMut.mutate({ id, enabled });
+              }}
               onDelete={handleDelete}
             />
             <ProviderAccountSection
@@ -282,11 +338,19 @@ export function Accounts() {
               provider="pioneer"
               accounts={pioneerAccounts}
               transports={transports}
-              onAdd={() => { setProvider('pioneer'); setOpen(true); }}
+              onAdd={() => {
+                setProvider('pioneer');
+                setOpen(true);
+              }}
               onUsage={setUsageAccount}
-              onEdit={(a, editFormInitialState) => { setEditing(a); setEditForm(editFormInitialState); }}
+              onEdit={(a, editFormInitialState) => {
+                setEditing(a);
+                setEditForm(editFormInitialState);
+              }}
               onLoadTransportState={loadTransportState}
-              onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+              onToggle={(id, enabled) => {
+                toggleMut.mutate({ id, enabled });
+              }}
               onDelete={handleDelete}
             />
             <ProviderAccountSection
@@ -294,11 +358,19 @@ export function Accounts() {
               provider="notion"
               accounts={notionAccounts}
               transports={transports}
-              onAdd={() => { setProvider('notion'); setOpen(true); }}
+              onAdd={() => {
+                setProvider('notion');
+                setOpen(true);
+              }}
               onUsage={setUsageAccount}
-              onEdit={(a, editFormInitialState) => { setEditing(a); setEditForm(editFormInitialState); }}
+              onEdit={(a, editFormInitialState) => {
+                setEditing(a);
+                setEditForm(editFormInitialState);
+              }}
               onLoadTransportState={loadTransportState}
-              onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+              onToggle={(id, enabled) => {
+                toggleMut.mutate({ id, enabled });
+              }}
               onDelete={handleDelete}
             />
             <ProviderAccountSection
@@ -306,11 +378,19 @@ export function Accounts() {
               provider="zai"
               accounts={zaiAccounts}
               transports={transports}
-              onAdd={() => { setProvider('zai'); setOpen(true); }}
+              onAdd={() => {
+                setProvider('zai');
+                setOpen(true);
+              }}
               onUsage={setUsageAccount}
-              onEdit={(a, editFormInitialState) => { setEditing(a); setEditForm(editFormInitialState); }}
+              onEdit={(a, editFormInitialState) => {
+                setEditing(a);
+                setEditForm(editFormInitialState);
+              }}
               onLoadTransportState={loadTransportState}
-              onToggle={(id, enabled) => { toggleMut.mutate({ id, enabled }); }}
+              onToggle={(id, enabled) => {
+                toggleMut.mutate({ id, enabled });
+              }}
               onDelete={handleDelete}
             />
           </>
@@ -319,7 +399,10 @@ export function Accounts() {
 
       <AddAccountModal
         open={open}
-        onClose={() => { setOpen(false); resetForms(); }}
+        onClose={() => {
+          setOpen(false);
+          resetForms();
+        }}
         provider={provider}
         form={form}
         onFormChange={setForm}
@@ -327,7 +410,11 @@ export function Accounts() {
         onKiroMethodChange={setKiroMethod}
         notionForm={notionForm}
         onNotionFormChange={setNotionForm}
-        notionSuccess={() => { setOpen(false); resetForms(); refetch(); }}
+        notionSuccess={() => {
+          setOpen(false);
+          resetForms();
+          refetch();
+        }}
         kiroForm={kiroForm}
         onKiroFormChange={setKiroForm}
         pioneerForm={pioneerForm}
@@ -352,7 +439,7 @@ export function Accounts() {
         onTpStateChange={setTpState}
         locks={locks}
         onSave={(payload) => editMut.mutate(payload)}
-        onUnlock={(model) => unlockMut.mutate({ accountId: editing!.id, model })}
+        onUnlock={(model) => unlockMut.mutate({ accountId: editing?.id, model })}
         isSaving={editMut.isPending}
         isUnlocking={unlockMut.isPending}
       />

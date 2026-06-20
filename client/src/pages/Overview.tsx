@@ -146,23 +146,23 @@ export function Overview() {
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table class="tbl">
-              <thead>
-                <tr>
-                  <th>Model</th>
-                  <th class="num">Cost</th>
-                  <th class="num">Requests</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.byModel.map((m) => (
-                  <tr key={m.model}>
-                    <td>{m.model}</td>
-                    <td class="num mono">${m.cost.toFixed(4)}</td>
-                    <td class="num mono">{m.requests.toLocaleString()}</td>
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th class="num">Cost</th>
+                    <th class="num">Requests</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.byModel.map((m) => (
+                    <tr key={m.model}>
+                      <td>{m.model}</td>
+                      <td class="num mono">${m.cost.toFixed(4)}</td>
+                      <td class="num mono">{m.requests.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </Card>

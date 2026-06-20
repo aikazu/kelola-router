@@ -11,7 +11,7 @@ describe('SecurityBanner', () => {
   it('renders open-mode warning with CTA + dismiss when open=true', () => {
     render(<SecurityBanner open={true} dbEncrypted={true} onDismiss={() => {}} />);
     expect(
-      screen.getByText(/Router runs in open mode — set an admin password/i),
+      screen.getByText(/Router runs in open mode — set an admin password/i)
     ).toBeInTheDocument();
     // eyebrow
     expect(screen.getByText('Security · Open mode')).toBeInTheDocument();

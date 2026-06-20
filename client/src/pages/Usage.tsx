@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
@@ -110,7 +110,17 @@ export function Usage() {
       p.set('status', statusFilter === '2xx' ? '200' : statusFilter === '4xx' ? '400' : '500');
     if (accountFilter) p.set('account_id', accountFilter);
     return p.toString();
-  }, [page, pageSize, days, sortBy, sortDir, clientKeyId, debouncedSearch, statusFilter, accountFilter]);
+  }, [
+    page,
+    pageSize,
+    days,
+    sortBy,
+    sortDir,
+    clientKeyId,
+    debouncedSearch,
+    statusFilter,
+    accountFilter,
+  ]);
 
   useEffect(() => {
     const newHash = `#/admin/usage?${params}`;
@@ -190,7 +200,9 @@ export function Usage() {
             aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => {
-              setStatusFilter((e.target as HTMLSelectElement).value as 'all' | '2xx' | '4xx' | '5xx');
+              setStatusFilter(
+                (e.target as HTMLSelectElement).value as 'all' | '2xx' | '4xx' | '5xx'
+              );
               setPage(1);
             }}
           >
@@ -294,8 +306,19 @@ export function Usage() {
                       onClick={() => setSort('created_at')}
                       role="button"
                       tabIndex={0}
-                      aria-sort={sortBy === 'created_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSort('created_at'); } }}
+                      aria-sort={
+                        sortBy === 'created_at'
+                          ? sortDir === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSort('created_at');
+                        }
+                      }}
                       style={{ cursor: 'pointer' }}
                     >
                       Time{sortArrow('created_at')}
@@ -306,8 +329,19 @@ export function Usage() {
                       onClick={() => setSort('total_tokens')}
                       role="button"
                       tabIndex={0}
-                      aria-sort={sortBy === 'total_tokens' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSort('total_tokens'); } }}
+                      aria-sort={
+                        sortBy === 'total_tokens'
+                          ? sortDir === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSort('total_tokens');
+                        }
+                      }}
                       style={{ cursor: 'pointer' }}
                     >
                       Tokens{sortArrow('total_tokens')}
@@ -316,8 +350,19 @@ export function Usage() {
                       onClick={() => setSort('cost_usd')}
                       role="button"
                       tabIndex={0}
-                      aria-sort={sortBy === 'cost_usd' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSort('cost_usd'); } }}
+                      aria-sort={
+                        sortBy === 'cost_usd'
+                          ? sortDir === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSort('cost_usd');
+                        }
+                      }}
                       style={{ cursor: 'pointer' }}
                     >
                       Cost{sortArrow('cost_usd')}
@@ -326,8 +371,19 @@ export function Usage() {
                       onClick={() => setSort('latency_ms')}
                       role="button"
                       tabIndex={0}
-                      aria-sort={sortBy === 'latency_ms' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSort('latency_ms'); } }}
+                      aria-sort={
+                        sortBy === 'latency_ms'
+                          ? sortDir === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSort('latency_ms');
+                        }
+                      }}
                       style={{ cursor: 'pointer' }}
                     >
                       Latency{sortArrow('latency_ms')}

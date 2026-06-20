@@ -81,7 +81,15 @@ function ModelBlock({ windows, delay }: { windows: QuotaWindow[]; delay: number 
   );
 }
 
-function AccountRow({ q, expanded, onToggle }: { q: AccountQuota; expanded: boolean; onToggle: () => void }) {
+function AccountRow({
+  q,
+  expanded,
+  onToggle,
+}: {
+  q: AccountQuota;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const grouped = useMemo(() => {
     const byModel = new Map<string, QuotaWindow[]>();
     for (const w of q.windows) {
@@ -98,9 +106,10 @@ function AccountRow({ q, expanded, onToggle }: { q: AccountQuota; expanded: bool
   const fiveHPct = fiveHWindow ? pctOf(fiveHWindow) : null;
   const weeklyPct = weeklyWindow ? pctOf(weeklyWindow) : null;
   const reset = fiveHWindow?.remainsTime ?? weeklyWindow?.remainsTime ?? null;
-  const lastFetched = q.windows.length > 0
-    ? q.windows.reduce((a, b) => (a.fetchedAt > b.fetchedAt ? a : b)).fetchedAt
-    : null;
+  const lastFetched =
+    q.windows.length > 0
+      ? q.windows.reduce((a, b) => (a.fetchedAt > b.fetchedAt ? a : b)).fetchedAt
+      : null;
   const warnHealth = worst < 20;
   const hasError = q.ok === false;
 
@@ -112,7 +121,13 @@ function AccountRow({ q, expanded, onToggle }: { q: AccountQuota; expanded: bool
         tabIndex={0}
         aria-expanded={expanded}
         style={{ cursor: 'pointer' }}
-        title={hasError ? `Error: ${q.error}` : lastFetched ? `Last fetched ${relativeTime(lastFetched)}` : undefined}
+        title={
+          hasError
+            ? `Error: ${q.error}`
+            : lastFetched
+              ? `Last fetched ${relativeTime(lastFetched)}`
+              : undefined
+        }
         onKeyDown={(e: KeyboardEvent) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -123,25 +138,53 @@ function AccountRow({ q, expanded, onToggle }: { q: AccountQuota; expanded: bool
         <td style={{ width: 24, color: 'var(--text-3)' }}>{expanded ? '▾' : '▸'}</td>
         <td style={{ fontWeight: 500 }}>
           {q.label}
-          {!q.enabled && <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>disabled</span>}
-          {hasError && <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>error</span>}
+          {!q.enabled && (
+            <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>disabled</span>
+          )}
+          {hasError && (
+            <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>error</span>
+          )}
         </td>
-        <td><Badge variant={q.creditType === 'token-plan' ? 'warn' : hasError ? 'error' : 'active'}>{q.creditType}</Badge></td>
+        <td>
+          <Badge variant={q.creditType === 'token-plan' ? 'warn' : hasError ? 'error' : 'active'}>
+            {q.creditType}
+          </Badge>
+        </td>
         <td>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div class="quota-bar-track" style={{ width: 60 }}>
-              <div class={`quota-bar-fill${warnHealth ? ' warn' : ''}`} style={{ width: `${worst}%` }} />
+              <div
+                class={`quota-bar-fill${warnHealth ? ' warn' : ''}`}
+                style={{ width: `${worst}%` }}
+              />
             </div>
-            <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: warnHealth ? 'var(--alert)' : 'var(--text-2)' }}>{hasError ? '—' : `${worst}%`}</span>
+            <span
+              style={{
+                fontSize: 12,
+                fontFamily: 'var(--font-mono)',
+                color: warnHealth ? 'var(--alert)' : 'var(--text-2)',
+              }}
+            >
+              {hasError ? '—' : `${worst}%`}
+            </span>
           </div>
         </td>
-        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{hasError ? '—' : fiveHPct != null ? `${fiveHPct}%` : '—'}</td>
-        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>{hasError ? '—' : weeklyPct != null ? `${weeklyPct}%` : '—'}</td>
-        <td style={{ fontSize: 11, fontFamily: 'var(--font-mono)' }}>{hasError ? '—' : reset != null ? forwardDuration(reset) : '—'}</td>
+        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+          {hasError ? '—' : fiveHPct != null ? `${fiveHPct}%` : '—'}
+        </td>
+        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+          {hasError ? '—' : weeklyPct != null ? `${weeklyPct}%` : '—'}
+        </td>
+        <td style={{ fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+          {hasError ? '—' : reset != null ? forwardDuration(reset) : '—'}
+        </td>
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={7} style={{ padding: '12px 16px', background: 'var(--surface-2, rgba(255,255,255,0.02))' }}>
+          <td
+            colSpan={7}
+            style={{ padding: '12px 16px', background: 'var(--surface-2, rgba(255,255,255,0.02))' }}
+          >
             {hasError ? (
               <p class="card-sub" style={{ color: 'var(--alert)' }}>
                 Failed to load quota: {q.error ?? 'unknown error'}
@@ -167,11 +210,12 @@ function AccountRow({ q, expanded, onToggle }: { q: AccountQuota; expanded: bool
 
 export function Quota() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const toggleExpand = (id: string) => setExpanded((s) => {
-    const next = new Set(s);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
+  const toggleExpand = (id: string) =>
+    setExpanded((s) => {
+      const next = new Set(s);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const qc = useQueryClient();
   const toast = useToast();
@@ -234,7 +278,7 @@ export function Quota() {
               aria-label="Refresh quota"
               disabled={isFetching}
             >
-              <span class={isFetching ? 'refresh-spin' : ''}>↻</span>{' '}Refresh
+              <span class={isFetching ? 'refresh-spin' : ''}>↻</span> Refresh
             </button>
           </>
         }
@@ -246,7 +290,10 @@ export function Quota() {
       ) : quotas.length === 0 ? (
         <div class="empty">
           <h3>No quota data</h3>
-          <p>Add an upstream account to see quota windows. Go to <a href="#/admin/accounts">Accounts</a> to add one.</p>
+          <p>
+            Add an upstream account to see quota windows. Go to{' '}
+            <a href="#/admin/accounts">Accounts</a> to add one.
+          </p>
         </div>
       ) : (
         <Card>

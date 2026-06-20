@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/preact';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/preact';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Overview } from '../pages/Overview';
 
@@ -16,7 +16,7 @@ vi.mock('../lib/api', () => ({
       },
       byModel: [],
       recent: [],
-    }),
+    })
   ),
 }));
 
@@ -25,7 +25,7 @@ function renderOverview() {
   return render(
     <QueryClientProvider client={qc}>
       <Overview />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 }
 
