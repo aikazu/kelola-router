@@ -76,3 +76,28 @@ describe('combo error-path logging', () => {
     expect(logs.some((l) => l.status_code === 400 && l.account_id === 'acc_1')).toBe(true);
   });
 });
+
+describe('combo requested_model fix', () => {
+  it('logs requested_model as the pre-alias member model, not the combo name', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+    );
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'combo1', messages: [{ role: 'user', content: 'hi' }] }),
+    });
+    expect(res.status).toBe(200);
+    await flushDeferredLogs();
+    const db = openDb();
+    const logs = recentLogs(db, { limit: 5 });
+    db.close();
+    const row = logs[0];
+    expect(row?.requested_model).toBe('mx/MiniMax-M3');
+    expect(row?.requested_model).not.toBe('combo1');
+  });
+});
