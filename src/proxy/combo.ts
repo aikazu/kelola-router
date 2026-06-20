@@ -341,7 +341,14 @@ export async function handleComboProxy(
 
     try {
       const upstreamBody = JSON.stringify(attemptBody);
-      const resp = await upstreamFetch(url, upstreamBody, headers, transport, proxyOpts);
+      const resp = await upstreamFetch(
+        url,
+        upstreamBody,
+        headers,
+        transport,
+        proxyOpts,
+        c.req.raw.signal
+      );
 
       if (!resp.ok) {
         const errBody = await resp.text();
@@ -378,6 +385,35 @@ export async function handleComboProxy(
             { combo: combo.name, model: modelName, status: resp.status },
             'combo: retryable error, trying next model'
           );
+          // Observability: log retryable combo MiniMax errors too (previously
+          // the `continue` skipped insertRequestLogDeferred).
+          insertRequestLogDeferred(
+            db,
+            buildLogRow({
+              clientKeyId: clientKey.id,
+              accountId: account.id,
+              model: resolved.upstreamModel,
+              requestedModel: modelName,
+              endpoint: upstreamPath,
+              format: upstreamFormat,
+              promptTokens: 0,
+              completionTokens: 0,
+              cacheCreationTokens: 0,
+              cacheReadTokens: 0,
+              totalTokens: 0,
+              costUsd: 0,
+              latencyMs: Date.now() - startMs,
+              statusCode: resp.status,
+              baseRespCode: parsed.baseRespCode,
+              stream: attemptBody.stream === true ? 1 : 0,
+              rtkBytesSaved: rtkSaved,
+              requestBody: originalText,
+              responseBody: errBody,
+              requestHeaders: c.req.raw.headers,
+              responseHeaders: resp.headers,
+              reqId,
+            })
+          );
           lastErrorResponse = c.body(errBody, statusCode(resp.status), {
             'content-type': resp.headers.get('content-type') ?? 'application/json',
           });
@@ -387,6 +423,35 @@ export async function handleComboProxy(
         // Non-retryable error — return immediately
         consoleBus.emit(
           buildError(reqId, new Date().toISOString(), resp.status, errBody.slice(0, 200))
+        );
+        // Observability: log the failed combo MiniMax attempt so it surfaces
+        // in the Request log (previously dropped on the non-retryable return).
+        insertRequestLogDeferred(
+          db,
+          buildLogRow({
+            clientKeyId: clientKey.id,
+            accountId: account.id,
+            model: resolved.upstreamModel,
+            requestedModel: modelName,
+            endpoint: upstreamPath,
+            format: upstreamFormat,
+            promptTokens: 0,
+            completionTokens: 0,
+            cacheCreationTokens: 0,
+            cacheReadTokens: 0,
+            totalTokens: 0,
+            costUsd: 0,
+            latencyMs: Date.now() - startMs,
+            statusCode: resp.status,
+            baseRespCode: parsed.baseRespCode,
+            stream: attemptBody.stream === true ? 1 : 0,
+            rtkBytesSaved: rtkSaved,
+            requestBody: originalText,
+            responseBody: errBody,
+            requestHeaders: c.req.raw.headers,
+            responseHeaders: resp.headers,
+            reqId,
+          })
         );
         return c.body(errBody, statusCode(resp.status), {
           'content-type': resp.headers.get('content-type') ?? 'application/json',
@@ -400,57 +465,62 @@ export async function handleComboProxy(
 
       // Handle streaming response
       if (attemptBody.stream === true) {
-        const piped = await pipeWithUsage(resp, format, (usage, raw) => {
-          const prompt = usage?.prompt_tokens ?? 0;
-          const completion = usage?.completion_tokens ?? 0;
-          const cacheCreate = usage?.cache_creation_tokens ?? 0;
-          const cacheRead = usage?.cache_read_tokens ?? 0;
-          const total = usage?.total_tokens ?? prompt + completion;
-          // biome-ignore format: long line
-          const cost = calculateCost(db, resolved.upstreamModel, { prompt_tokens: prompt, completion_tokens: completion,
+        const piped = await pipeWithUsage(
+          resp,
+          format,
+          (usage, raw) => {
+            const prompt = usage?.prompt_tokens ?? 0;
+            const completion = usage?.completion_tokens ?? 0;
+            const cacheCreate = usage?.cache_creation_tokens ?? 0;
+            const cacheRead = usage?.cache_read_tokens ?? 0;
+            const total = usage?.total_tokens ?? prompt + completion;
+            // biome-ignore format: long line
+            const cost = calculateCost(db, resolved.upstreamModel, { prompt_tokens: prompt, completion_tokens: completion,
             cache_creation_tokens: cacheCreate, cache_read_tokens: cacheRead });
-          insertRequestLogDeferred(
-            db,
-            buildLogRow({
-              clientKeyId: clientKey.id,
-              accountId: account.id,
-              model: resolved.upstreamModel,
-              requestedModel: combo.name,
-              endpoint: upstreamPath,
-              format: upstreamFormat,
-              promptTokens: prompt,
-              completionTokens: completion,
-              cacheCreationTokens: cacheCreate,
-              cacheReadTokens: cacheRead,
-              totalTokens: total,
-              costUsd: cost,
-              latencyMs: Date.now() - startMs,
-              statusCode: resp.status,
-              baseRespCode: undefined,
-              stream: 1,
-              rtkBytesSaved: rtkSaved,
-              requestBody: originalText,
-              responseBody: raw,
-              requestHeaders: c.req.raw.headers,
-              responseHeaders: resp.headers,
-              reqId,
-            })
-          );
-          consoleBus.emit(
-            buildDone(
-              reqId,
-              new Date().toISOString(),
-              resp.status,
-              null,
-              prompt,
-              completion,
-              cacheRead,
-              cost,
-              Date.now() - startMs,
-              rtkSaved
-            )
-          );
-        });
+            insertRequestLogDeferred(
+              db,
+              buildLogRow({
+                clientKeyId: clientKey.id,
+                accountId: account.id,
+                model: resolved.upstreamModel,
+                requestedModel: combo.name,
+                endpoint: upstreamPath,
+                format: upstreamFormat,
+                promptTokens: prompt,
+                completionTokens: completion,
+                cacheCreationTokens: cacheCreate,
+                cacheReadTokens: cacheRead,
+                totalTokens: total,
+                costUsd: cost,
+                latencyMs: Date.now() - startMs,
+                statusCode: resp.status,
+                baseRespCode: undefined,
+                stream: 1,
+                rtkBytesSaved: rtkSaved,
+                requestBody: originalText,
+                responseBody: raw,
+                requestHeaders: c.req.raw.headers,
+                responseHeaders: resp.headers,
+                reqId,
+              })
+            );
+            consoleBus.emit(
+              buildDone(
+                reqId,
+                new Date().toISOString(),
+                resp.status,
+                null,
+                prompt,
+                completion,
+                cacheRead,
+                cost,
+                Date.now() - startMs,
+                rtkSaved
+              )
+            );
+          },
+          c.req.raw.signal
+        );
         return piped;
       }
 
@@ -537,6 +607,35 @@ export async function handleComboProxy(
     } catch (e: unknown) {
       const message = errorMessage(e);
       log.warn({ combo: combo.name, model: modelName, err: message }, 'combo: upstream error');
+      // Observability: transport throw in the combo MiniMax path previously
+      // wrote no request_log row (only set lastErrorResponse).
+      insertRequestLogDeferred(
+        db,
+        buildLogRow({
+          clientKeyId: clientKey.id,
+          accountId: account.id,
+          model: resolved.upstreamModel,
+          requestedModel: modelName,
+          endpoint: upstreamPath,
+          format: upstreamFormat,
+          promptTokens: 0,
+          completionTokens: 0,
+          cacheCreationTokens: 0,
+          cacheReadTokens: 0,
+          totalTokens: 0,
+          costUsd: 0,
+          latencyMs: Date.now() - startMs,
+          statusCode: 502,
+          baseRespCode: undefined,
+          stream: attemptBody.stream === true ? 1 : 0,
+          rtkBytesSaved: rtkSaved,
+          requestBody: originalText,
+          responseBody: message,
+          requestHeaders: c.req.raw.headers,
+          responseHeaders: new Headers(),
+          reqId,
+        })
+      );
       lastErrorResponse = c.json({ error: `upstream unreachable: ${message}` }, 502);
     }
   }
