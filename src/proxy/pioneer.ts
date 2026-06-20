@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
 import { selectAccount } from '../accounts/selection.js';
 import type { SelectionMode } from '../accounts/types.js';
+import { augmentRequest } from '../cache-injection.js';
 import { consoleBus } from '../console/bus.js';
 import {
   buildAccount,
@@ -13,7 +14,7 @@ import {
 } from '../console/flow.js';
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
-import { getSettingT } from '../db/repos/settings.js';
+import { getAllSettings, getSettingT } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import {
   aggregateOpenAISSE,
@@ -22,6 +23,7 @@ import {
 import { responseOpenAIToAnthropic } from '../providers/format/transform.js';
 import { executePioneer } from '../providers/pioneer/index.js';
 import { calculateCost } from '../providers/pricing.js';
+import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
@@ -75,6 +77,33 @@ export async function handlePioneerProxy(
     upstreamModel = raw.startsWith('pioneer/') ? raw.slice('pioneer/'.length) : raw;
   } catch {
     /* leave placeholders null — preparePioneerBody will fall back to prefix-strip */
+  }
+
+  // Pattern #7: augment (caveman + cache_control) + RTK compression + bodyTransform
+  // are skipped in handlers that branch before the dispatcher's augment/RTK block
+  // (src/proxy/minimax.ts ~186-207). Mirror combo.ts:84-98 here so parity holds.
+  const allSettings = getAllSettings(db);
+  const caveman = allSettings.caveman as { level: string } | undefined;
+  // biome-ignore format: long line
+  const caching = allSettings.caching as { autoBreakpoints: boolean; respectCallerMarkers: boolean } | undefined;
+  const rtkSetting = allSettings.rtk as { enabled: boolean } | undefined;
+  const cavemanOn = !!caveman?.level && caveman.level !== 'off';
+  const cachingOn = !!caching?.autoBreakpoints;
+  if (cavemanOn || cachingOn) {
+    await augmentRequest(body, allSettings as Parameters<typeof augmentRequest>[1]);
+  }
+  let rtkSaved = 0;
+  if (rtkSetting?.enabled) {
+    rtkSaved = rtkBytesSaved(compressMessages(body, true));
+  }
+  // bodyTransform writes thinking/max_completion_tokens/reasoning_split
+  // (MiniMax models). Pioneer models don't match ADAPTIVE_THINKING so this
+  // is a no-op for most rows, but applying it keeps parity.
+  try {
+    const r = resolveModel(db, stringValue(body.model), body);
+    r.bodyTransform(body);
+  } catch {
+    /* model already resolved above; transform is best-effort */
   }
 
   // When delegated from a combo, reuse the combo's reqId so the console shows
@@ -180,7 +209,7 @@ export async function handlePioneerProxy(
         statusCode: resp.status,
         baseRespCode: undefined,
         stream: body.stream ? 1 : 0,
-        rtkBytesSaved: 0,
+        rtkBytesSaved: rtkSaved,
         requestBody: originalText,
         requestHeaders: c.req.raw.headers,
         responseHeaders: resp.headers,
@@ -321,7 +350,7 @@ export async function handlePioneerProxy(
         statusCode: 502,
         baseRespCode: undefined,
         stream: body.stream ? 1 : 0,
-        rtkBytesSaved: 0,
+        rtkBytesSaved: rtkSaved,
         requestBody: originalText,
         responseBody: message,
         requestHeaders: c.req.raw.headers,

@@ -31,6 +31,19 @@ beforeEach(() => {
     api_key: 'cb_key',
     provider: 'codebuddy',
   });
+  upsertModel(db, {
+    name: 'pioneer/claude-opus',
+    upstream_model: 'pioneer/claude-opus',
+    provider: 'pioneer',
+  });
+  enableModel(db, 'pioneer/claude-opus');
+  createAccount(db, {
+    id: 'pio1',
+    label: 'pio',
+    credit_type: 'payg',
+    api_key: 'pio_key',
+    provider: 'pioneer',
+  });
   key = genClientKey();
   createClientKey(db, { label: 'app', key });
   db.close();
@@ -80,5 +93,37 @@ describe('augment/RTK parity (codebuddy)', () => {
     const messages = parsed.messages as Array<{ role: string; content: string }>;
     const systemMsg = messages.find((m) => m.role === 'system');
     expect(systemMsg?.content).toContain('Be concise.');
+  });
+});
+
+describe('augment/RTK parity (pioneer)', () => {
+  it('applies caveman augment before calling the pioneer upstream', async () => {
+    const db = openDb();
+    setSetting(db, 'caveman', { level: 'terse' });
+    setSetting(db, 'caching', { autoBreakpoints: false });
+    setSetting(db, 'rtk', { enabled: false });
+    db.close();
+    let sentBody = '';
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts) => {
+      sentBody = (opts?.body as string) ?? '';
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      );
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'pio/claude-opus',
+        messages: [{ role: 'user', content: 'hello' }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(sentBody).toContain('Be concise.');
   });
 });
