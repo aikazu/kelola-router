@@ -74,6 +74,19 @@ beforeEach(() => {
     api_key: 'pio_key',
     provider: 'pioneer',
   });
+  upsertModel(db, {
+    name: 'zai/glm-5.2',
+    upstream_model: 'zai/glm-5.2',
+    provider: 'zai',
+  });
+  enableModel(db, 'zai/glm-5.2');
+  createAccount(db, {
+    id: 'zai1',
+    label: 'zai',
+    credit_type: 'payg',
+    api_key: 'zai_key',
+    provider: 'zai',
+  });
   db.close();
 });
 afterEach(async () => {
@@ -178,6 +191,29 @@ describe('transport-throw logging (pioneer)', () => {
     const logs = recentLogs(db, { limit: 10 });
     db.close();
     const row = logs.find((l) => l.account_id === 'pio1');
+    expect(row?.status_code).toBe(502);
+  });
+});
+
+describe('transport-throw logging (zai)', () => {
+  it('writes a 502 request_log row when zai fetch throws', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('ENOTFOUND zai-upstream');
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'zai/glm-5.2',
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+    });
+    expect(res.status).toBe(502);
+    await flushDeferredLogs();
+    const db = openDb();
+    const logs = recentLogs(db, { limit: 10 });
+    db.close();
+    const row = logs.find((l) => l.account_id === 'zai1');
     expect(row?.status_code).toBe(502);
   });
 });
