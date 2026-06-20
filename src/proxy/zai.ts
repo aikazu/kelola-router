@@ -130,6 +130,7 @@ export async function handleZaiProxy(
       proxyOpts,
       clientFormat: format,
       upstreamModel,
+      signal: c.req.raw.signal,
     });
 
     const logCtxBase = (overrides: Partial<LogRowContext> = {}): LogRowContext =>
@@ -237,24 +238,32 @@ export async function handleZaiProxy(
         // Upstream returned Anthropic Messages SSE — use the anthropic parser.
         // pipeWithUsage(format='anthropic') extracts input_tokens/output_tokens
         // from message_delta events and passes real tail text to onUsage.
-        return pipeWithUsage(resp, 'anthropic', (usage, raw) =>
+        return pipeWithUsage(
+          resp,
+          'anthropic',
+          (usage, raw) =>
+            recordUsage(
+              usage?.prompt_tokens ?? 0,
+              usage?.completion_tokens ?? 0,
+              usage?.cache_read_tokens ?? 0,
+              true,
+              raw
+            ),
+          c.req.raw.signal
+        );
+      }
+      return pipeWithUsage(
+        resp,
+        'openai',
+        (usage, raw) =>
           recordUsage(
             usage?.prompt_tokens ?? 0,
             usage?.completion_tokens ?? 0,
             usage?.cache_read_tokens ?? 0,
             true,
             raw
-          )
-        );
-      }
-      return pipeWithUsage(resp, 'openai', (usage, raw) =>
-        recordUsage(
-          usage?.prompt_tokens ?? 0,
-          usage?.completion_tokens ?? 0,
-          usage?.cache_read_tokens ?? 0,
-          true,
-          raw
-        )
+          ),
+        c.req.raw.signal
       );
     }
 

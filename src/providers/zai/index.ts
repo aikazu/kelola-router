@@ -59,8 +59,9 @@ export async function executeZai(opts: {
   clientFormat: 'openai' | 'anthropic';
   /** Resolved upstream model id (DB stores bare names — no `zai/` prefix). */
   upstreamModel?: string;
+  signal?: AbortSignal;
 }): Promise<Response> {
-  const { body, account, transport, proxyOpts, clientFormat, upstreamModel } = opts;
+  const { body, account, transport, proxyOpts, clientFormat, upstreamModel, signal } = opts;
 
   const prepared = prepareZaiBody(body, clientFormat, upstreamModel);
 
@@ -79,5 +80,5 @@ export async function executeZai(opts: {
     'Accept-Language': 'en-US,en',
   };
 
-  return upstreamFetch(url, prepared, extraHeaders, transport, proxyOpts);
+  return upstreamFetch(url, prepared, extraHeaders, transport, proxyOpts, signal);
 }
