@@ -1,6 +1,5 @@
 import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
-import { checkFallbackError } from '../accounts/errorRules.js';
 import { selectAccount } from '../accounts/selection.js';
 import type { SelectionMode } from '../accounts/types.js';
 import { consoleBus } from '../console/bus.js';
@@ -22,10 +21,10 @@ import { executeZai } from '../providers/zai/index.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
+import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';
 import {
-  applyErrorState,
   buildAccountStates,
   buildLogRow,
   clearErrorState,
@@ -111,6 +110,10 @@ export async function handleZaiProxy(
   const acc = allAccounts.find((a) => a.id === account.id)!;
   consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, reason));
 
+  if (assertModelNotLocked(db, acc.id, upstreamModel ?? model)) {
+    return c.json({ error: `model ${upstreamModel ?? model} temporarily locked` }, 429);
+  }
+
   const transport = resolveTransportForAccount(db, acc);
   const proxyOpts = {
     failureMode: getProxyFailureMode(db),
@@ -157,37 +160,28 @@ export async function handleZaiProxy(
 
     if (!resp.ok) {
       const errBody = await resp.text();
-      const parsed = {
-        message: errBody.slice(0, 500),
-        baseRespCode: undefined,
-        windowResetMs: undefined,
-        retryAfterSec: undefined,
-      };
-      try {
-        const errJson = JSON.parse(errBody) as {
-          error?: { message?: string; data?: { msg?: string } };
-        };
-        if (errJson?.error?.data?.msg) parsed.message = errJson.error.data.msg;
-        else if (errJson?.error?.message) parsed.message = errJson.error.message;
-      } catch {
-        /* non-JSON error */
-      }
-      const decision = checkFallbackError(
-        resp.status,
-        parsed.message,
-        parsed.baseRespCode,
-        acc.backoff_level,
-        parsed.windowResetMs,
-        parsed.retryAfterSec ? parsed.retryAfterSec * 1000 : undefined
-      );
-      applyErrorState(stateDb, account, decision, parsed.message, {
+      const { parsed } = handleUpstreamError(db, {
+        account: acc,
+        acc: {
+          id: acc.id,
+          backoffLevel: acc.backoff_level,
+          rateLimitedUntil: acc.rate_limited_until ?? null,
+          lastError: acc.last_error ? JSON.parse(acc.last_error) : null,
+          status: acc.status as 'active' | 'error',
+          enabled: !!acc.enabled,
+        },
         status: resp.status,
-        baseRespCode: parsed.baseRespCode,
+        errBody,
+        response: resp,
+        upstreamModel: upstreamModel ?? model,
       });
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), resp.status, parsed.message.slice(0, 200))
       );
-      insertRequestLogDeferred(db, buildLogRow(logCtxBase({ responseBody: errBody })));
+      insertRequestLogDeferred(
+        db,
+        buildLogRow(logCtxBase({ responseBody: errBody, baseRespCode: parsed.baseRespCode }))
+      );
       return c.body(errBody, statusCode(resp.status), {
         'content-type': resp.headers.get('content-type') ?? 'application/json',
       });
