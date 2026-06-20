@@ -30,7 +30,11 @@ beforeEach(() => {
   createAccount(db, { id: 'acc_1', label: 'a', credit_type: 'payg', api_key: 'mm_x' });
   key = genClientKey();
   createClientKey(db, { label: 'app', key });
-  upsertModel(db, { name: 'claude-sonnet-4-5', upstream_model: 'claude-sonnet-4-5', provider: 'kiro' });
+  upsertModel(db, {
+    name: 'claude-sonnet-4-5',
+    upstream_model: 'claude-sonnet-4-5',
+    provider: 'kiro',
+  });
   enableModel(db, 'claude-sonnet-4-5');
   createAccount(db, {
     id: 'kiro1',
