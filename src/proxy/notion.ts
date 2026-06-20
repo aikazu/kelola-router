@@ -10,10 +10,11 @@
  */
 import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
+import type { AccountState } from '../accounts/types.js';
 import { consoleBus } from '../console/bus.js';
 import { buildAccount, buildDone, buildError, buildStart, genReqId } from '../console/flow.js';
 import type { Account } from '../db/repos/accounts.js';
-import { listEnabledAccountsByProvider } from '../db/repos/accounts.js';
+import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
 import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
 import { resolveModel } from '../providers/alias.js';
 import {
@@ -26,6 +27,7 @@ import {
 import { extractNotionStream } from '../providers/notion/extract.js';
 import { buildNotionPayload } from '../providers/notion/transform.js';
 import { log } from '../util/log.js';
+import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
 import { errorMessage, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';
 import { buildLogRow, type LogRowContext } from './pipeline.js';
@@ -48,6 +50,17 @@ function readProviderData(raw: string | null): NotionProviderData | null {
 function pickAccount(db: Database.Database): Account | null {
   const accounts = listEnabledAccountsByProvider(db, 'notion');
   return accounts[0] ?? null;
+}
+
+function toAccountState(a: Account): AccountState {
+  return {
+    id: a.id,
+    backoffLevel: a.backoff_level,
+    rateLimitedUntil: a.rate_limited_until ?? null,
+    lastError: a.last_error ? (JSON.parse(a.last_error) as AccountState['lastError']) : null,
+    status: a.status as AccountState['status'],
+    enabled: !!a.enabled,
+  };
 }
 
 function cookieHeader(cookies: Record<string, string>): string {
@@ -168,14 +181,40 @@ export async function handleNotionProxy(
 
   const providerData = readProviderData(account.provider_data);
   if (!providerData?.cookies || !hasAllRequiredCookies(providerData.cookies)) {
+    updateAccount(db, account.id, {
+      status: 'error',
+      last_error: JSON.stringify({
+        status: 401,
+        message: 'missing required cookies',
+        timestamp: new Date().toISOString(),
+      }),
+    });
     const msg = `notion account ${account.id} missing required cookies; re-run notion-add-account`;
     return failAndLog(401, 'notion_reauth_required', msg, account.id);
   }
 
   const spaceId = providerData.spaceId;
   if (!spaceId) {
+    updateAccount(db, account.id, {
+      status: 'error',
+      last_error: JSON.stringify({
+        status: 401,
+        message: 'missing spaceId',
+        timestamp: new Date().toISOString(),
+      }),
+    });
     const msg = `notion account ${account.id} missing spaceId; re-add account to refresh`;
     return failAndLog(401, 'notion_reauth_required', msg, account.id);
+  }
+
+  // Pre-fetch model-lock gate: refuse before paying the upstream round-trip.
+  if (assertModelNotLocked(db, account.id, upstreamModel)) {
+    return failAndLog(
+      429,
+      'upstream_error',
+      `model ${upstreamModel} temporarily locked`,
+      account.id
+    );
   }
 
   consoleBus.emit(buildAccount(reqId, new Date().toISOString(), account.label, 'round-robin'));
@@ -212,6 +251,15 @@ export async function handleNotionProxy(
       { reqId, accountId: account.id, status, fatal: isFatal },
       `notion upstream HTTP ${status}`
     );
+    const errBody = await upstream.text();
+    handleUpstreamError(db, {
+      account,
+      acc: toAccountState(account),
+      status,
+      errBody,
+      response: upstream,
+      upstreamModel,
+    });
     const message = `notion HTTP ${status}`;
     if (status === 401 || status === 403) {
       return failAndLog(401, 'notion_reauth_required', message, account.id);
