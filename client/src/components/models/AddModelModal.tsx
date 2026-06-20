@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { apiFetch } from '../../lib/api';
 import { Button } from '../Button';
+import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { useToast } from '../ToastProvider';
 import type { AddModelForm, Provider } from './types';
@@ -84,46 +85,35 @@ export function AddModelModal({ open, onClose, provider }: AddModelModalProps) {
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <label htmlFor="add-model-name">
-          Model name
-          <input
-            id="add-model-name"
-            class="input"
-            type="text"
-            name="modelName"
-            autoComplete="off"
-            value={form.name}
-            onInput={(e) => setForm({ ...form, name: (e.target as HTMLInputElement).value })}
-            placeholder="exact upstream model id"
-          />
-        </label>
-        <label htmlFor="add-model-display-name">
-          Display name (optional)
-          <input
-            id="add-model-display-name"
-            class="input"
-            type="text"
-            name="displayName"
-            autoComplete="off"
-            value={form.displayName}
-            onInput={(e) => setForm({ ...form, displayName: (e.target as HTMLInputElement).value })}
-          />
-        </label>
-        <label htmlFor="add-model-context-window">
-          Context window (optional)
-          <input
-            id="add-model-context-window"
-            class="input"
-            type="number"
-            name="contextWindow"
-            autoComplete="off"
-            value={form.contextWindow}
-            onInput={(e) =>
-              setForm({ ...form, contextWindow: (e.target as HTMLInputElement).value })
-            }
-          />
-        </label>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <Field
+          id="add-model-name"
+          label="Model name"
+          type="text"
+          name="modelName"
+          autocomplete="off"
+          value={form.name}
+          onInput={(v) => setForm({ ...form, name: v })}
+          placeholder="exact upstream model id"
+        />
+        <Field
+          id="add-model-display-name"
+          label="Display name (optional)"
+          type="text"
+          name="displayName"
+          autocomplete="off"
+          value={form.displayName}
+          onInput={(v) => setForm({ ...form, displayName: v })}
+        />
+        <Field
+          id="add-model-context-window"
+          label="Context window (optional)"
+          type="number"
+          name="contextWindow"
+          autocomplete="off"
+          value={form.contextWindow}
+          onInput={(v) => setForm({ ...form, contextWindow: v })}
+        />
         <div style={{ display: 'flex', gap: 10 }}>
           <label htmlFor="add-model-pricing-input" style={{ flex: 1 }}>
             Pricing in $/M (optional)
