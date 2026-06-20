@@ -179,6 +179,7 @@ export function ConsoleBlocks({
         return (
           <div class="console-block" key={b.reqId}>
             {b.start && (
+              // biome-ignore lint/a11y/useSemanticElements: console log line IS the click affordance
               <div
                 class="console-line console-head"
                 role="button"
@@ -396,6 +397,7 @@ export function Console() {
         </select>
         {(filterModel || filterAccount || filterStatus !== 'all') && (
           <button
+            type="button"
             class="btn btn-ghost btn-sm"
             aria-label="Clear all filters"
             onClick={() => {

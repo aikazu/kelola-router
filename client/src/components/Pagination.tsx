@@ -50,10 +50,16 @@ export function Pagination({
             </option>
           ))}
         </select>
-        <button onClick={() => onPageChange(1)} disabled={page <= 1} aria-label="First page">
+        <button
+          type="button"
+          onClick={() => onPageChange(1)}
+          disabled={page <= 1}
+          aria-label="First page"
+        >
           «
         </button>
         <button
+          type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
           aria-label="Previous page"
@@ -67,6 +73,7 @@ export function Pagination({
             </span>
           ) : (
             <button
+              type="button"
               key={i}
               onClick={() => onPageChange(p as number)}
               class={p === page ? 'active' : ''}
@@ -78,6 +85,7 @@ export function Pagination({
           )
         )}
         <button
+          type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
           aria-label="Next page"
@@ -85,6 +93,7 @@ export function Pagination({
           ›
         </button>
         <button
+          type="button"
           onClick={() => onPageChange(totalPages)}
           disabled={page >= totalPages}
           aria-label="Last page"

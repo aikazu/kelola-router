@@ -42,6 +42,8 @@ export function Modal({ open, onClose, title, children, footer, width }: ModalPr
 
   if (!open) return null;
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape via doc listener
     <div
       class="modal-backdrop"
       onClick={(e) => {
@@ -60,7 +62,7 @@ export function Modal({ open, onClose, title, children, footer, width }: ModalPr
           <div class="modal-title" id={titleId}>
             {title}
           </div>
-          <button class="modal-close" onClick={onClose} aria-label="Close">
+          <button type="button" class="modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>

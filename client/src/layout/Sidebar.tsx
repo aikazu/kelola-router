@@ -40,7 +40,11 @@ export function Sidebar({
   const settings = qc.getQueryData<{ version: string | null }>(['settings']);
   return (
     <>
-      {mobileOpen && <div class="sidebar-overlay" onClick={onMobileClose} />}
+      {mobileOpen && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: tap-target scrim, sidebar owns focus
+        // biome-ignore lint/a11y/useKeyWithClickEvents: sidebar handles Escape
+        <div class="sidebar-overlay" onClick={onMobileClose} />
+      )}
       <aside class={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}>
         <div class="brand">
           <span class="brand-mark">
@@ -72,6 +76,7 @@ export function Sidebar({
           <span>{settings?.version ? `v${settings.version}` : ''}</span>
           {me?.passwordSet && (
             <button
+              type="button"
               onClick={async () => {
                 await apiFetch('/api/logout', { method: 'POST' });
                 qc.clear();

@@ -101,7 +101,7 @@ export function Combos() {
         ) : combos.length === 0 ? (
           <p class="card-sub">
             No combos yet.{' '}
-            <button class="btn-link" onClick={() => setEditing('new')}>
+            <button type="button" class="btn-link" onClick={() => setEditing('new')}>
               Create one →
             </button>
           </p>
@@ -311,6 +311,7 @@ function ComboModal({
                   </span>
                   <div style={{ display: 'flex', gap: 2 }}>
                     <button
+                      type="button"
                       class="btn btn-ghost btn-sm"
                       onClick={() => moveUp(idx)}
                       disabled={idx === 0}
@@ -320,6 +321,7 @@ function ComboModal({
                       ↑
                     </button>
                     <button
+                      type="button"
                       class="btn btn-ghost btn-sm"
                       onClick={() => moveDown(idx)}
                       disabled={idx === comboModels.length - 1}
@@ -329,6 +331,7 @@ function ComboModal({
                       ↓
                     </button>
                     <button
+                      type="button"
                       class="btn btn-danger btn-sm"
                       onClick={() => removeModel(idx)}
                       title="Remove"

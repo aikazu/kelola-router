@@ -228,42 +228,50 @@ export function Usage() {
           </select>
           <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
             Client:
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
+            <button
+              type="button"
+              onClick={() => {
                 setClientKeyId(undefined);
                 setPage(1);
               }}
               aria-label="Show all client keys"
-              aria-current={clientKeyId === undefined ? 'page' : undefined}
-              style={
-                clientKeyId === undefined
-                  ? { color: 'var(--emerald-4)', fontWeight: 700, marginLeft: 6 }
-                  : { marginLeft: 6 }
-              }
+              aria-current={clientKeyId === undefined ? 'true' : undefined}
+              style={{
+                background: 'none',
+                border: 0,
+                padding: 0,
+                font: 'inherit',
+                cursor: 'pointer',
+                color: clientKeyId === undefined ? 'var(--emerald-4)' : 'inherit',
+                fontWeight: clientKeyId === undefined ? 700 : 400,
+                marginLeft: 6,
+              }}
             >
               all
-            </a>
+            </button>
             {keys?.map((k) => (
-              <a
+              <button
+                type="button"
                 key={k.id}
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
+                onClick={() => {
                   setClientKeyId(k.id);
                   setPage(1);
                 }}
                 aria-label={`Filter by client key: ${k.label}`}
-                aria-current={clientKeyId === k.id ? 'page' : undefined}
-                style={
-                  clientKeyId === k.id
-                    ? { color: 'var(--emerald-4)', fontWeight: 700, marginLeft: 6 }
-                    : { marginLeft: 6 }
-                }
+                aria-current={clientKeyId === k.id ? 'true' : undefined}
+                style={{
+                  background: 'none',
+                  border: 0,
+                  padding: 0,
+                  font: 'inherit',
+                  cursor: 'pointer',
+                  color: clientKeyId === k.id ? 'var(--emerald-4)' : 'inherit',
+                  fontWeight: clientKeyId === k.id ? 700 : 400,
+                  marginLeft: 6,
+                }}
               >
                 {k.label}
-              </a>
+              </button>
             ))}
           </div>
         </div>
@@ -303,9 +311,6 @@ export function Usage() {
                 <thead>
                   <tr>
                     <th
-                      onClick={() => setSort('created_at')}
-                      role="button"
-                      tabIndex={0}
                       aria-sort={
                         sortBy === 'created_at'
                           ? sortDir === 'asc'
@@ -313,22 +318,33 @@ export function Usage() {
                             : 'descending'
                           : 'none'
                       }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSort('created_at');
-                        }
-                      }}
-                      style={{ cursor: 'pointer' }}
                     >
-                      Time{sortArrow('created_at')}
+                      <button
+                        type="button"
+                        onClick={() => setSort('created_at')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSort('created_at');
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 0,
+                          padding: 0,
+                          font: 'inherit',
+                          color: 'inherit',
+                          cursor: 'pointer',
+                          letterSpacing: 'inherit',
+                          textTransform: 'inherit',
+                        }}
+                      >
+                        Time{sortArrow('created_at')}
+                      </button>
                     </th>
                     <th>Model</th>
                     <th>Account</th>
                     <th
-                      onClick={() => setSort('total_tokens')}
-                      role="button"
-                      tabIndex={0}
                       aria-sort={
                         sortBy === 'total_tokens'
                           ? sortDir === 'asc'
@@ -336,20 +352,31 @@ export function Usage() {
                             : 'descending'
                           : 'none'
                       }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSort('total_tokens');
-                        }
-                      }}
-                      style={{ cursor: 'pointer' }}
                     >
-                      Tokens{sortArrow('total_tokens')}
+                      <button
+                        type="button"
+                        onClick={() => setSort('total_tokens')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSort('total_tokens');
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 0,
+                          padding: 0,
+                          font: 'inherit',
+                          color: 'inherit',
+                          cursor: 'pointer',
+                          letterSpacing: 'inherit',
+                          textTransform: 'inherit',
+                        }}
+                      >
+                        Tokens{sortArrow('total_tokens')}
+                      </button>
                     </th>
                     <th
-                      onClick={() => setSort('cost_usd')}
-                      role="button"
-                      tabIndex={0}
                       aria-sort={
                         sortBy === 'cost_usd'
                           ? sortDir === 'asc'
@@ -357,20 +384,31 @@ export function Usage() {
                             : 'descending'
                           : 'none'
                       }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSort('cost_usd');
-                        }
-                      }}
-                      style={{ cursor: 'pointer' }}
                     >
-                      Cost{sortArrow('cost_usd')}
+                      <button
+                        type="button"
+                        onClick={() => setSort('cost_usd')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSort('cost_usd');
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 0,
+                          padding: 0,
+                          font: 'inherit',
+                          color: 'inherit',
+                          cursor: 'pointer',
+                          letterSpacing: 'inherit',
+                          textTransform: 'inherit',
+                        }}
+                      >
+                        Cost{sortArrow('cost_usd')}
+                      </button>
                     </th>
                     <th
-                      onClick={() => setSort('latency_ms')}
-                      role="button"
-                      tabIndex={0}
                       aria-sort={
                         sortBy === 'latency_ms'
                           ? sortDir === 'asc'
@@ -378,21 +416,36 @@ export function Usage() {
                             : 'descending'
                           : 'none'
                       }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSort('latency_ms');
-                        }
-                      }}
-                      style={{ cursor: 'pointer' }}
                     >
-                      Latency{sortArrow('latency_ms')}
+                      <button
+                        type="button"
+                        onClick={() => setSort('latency_ms')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSort('latency_ms');
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 0,
+                          padding: 0,
+                          font: 'inherit',
+                          color: 'inherit',
+                          cursor: 'pointer',
+                          letterSpacing: 'inherit',
+                          textTransform: 'inherit',
+                        }}
+                      >
+                        Latency{sortArrow('latency_ms')}
+                      </button>
                     </th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.page.rows.map((l) => (
+                    // biome-ignore lint/a11y/useSemanticElements: tr role=button clickable-row pattern
                     <tr
                       key={l.id}
                       role="button"

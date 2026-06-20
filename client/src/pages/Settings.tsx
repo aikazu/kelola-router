@@ -197,6 +197,7 @@ export function Settings() {
       <Card title="Dashboard access" sub="Set or change the dashboard password.">
         <PasswordForm onSubmit={(p) => pwMut.mutate({ action: 'set', password: p })} />
         <button
+          type="button"
           class="btn btn-danger btn-sm"
           style={{ marginTop: 12 }}
           onClick={async () => {

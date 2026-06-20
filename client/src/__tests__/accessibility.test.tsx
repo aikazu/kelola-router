@@ -58,8 +58,8 @@ describe('Modal accessibility', () => {
   it('traps focus inside the modal', () => {
     render(
       <Modal open={true} onClose={() => {}} title="Trap Test">
-        <button>First</button>
-        <button>Last</button>
+        <button type="button">First</button>
+        <button type="button">Last</button>
       </Modal>
     );
     const dialog = screen.getByRole('dialog');

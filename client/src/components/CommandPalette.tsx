@@ -59,8 +59,10 @@ export function CommandPalette({
 
   if (!open) return null;
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay
     <div
       class="cmdk"
+      role="presentation"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -90,13 +92,7 @@ export function CommandPalette({
         />
         <div class="cmdk-list" role="listbox" id="cmdk-listbox" aria-label="Pages">
           {items.length === 0 ? (
-            <div
-              class="cmdk-item"
-              style={{ color: 'var(--text-3)' }}
-              role="option"
-              aria-selected="false"
-              aria-disabled="true"
-            >
+            <div class="cmdk-item" style={{ color: 'var(--text-3)' }} aria-disabled="true">
               No matches
             </div>
           ) : (
@@ -106,6 +102,7 @@ export function CommandPalette({
                 id={`cmdk-item-${i}`}
                 role="option"
                 aria-selected={i === active}
+                tabIndex={0}
                 class={`cmdk-item${i === active ? ' active' : ''}`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => onNavigate(it.href)}

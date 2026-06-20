@@ -264,6 +264,7 @@ export function ClientKeys() {
                           aria-label="Edit label"
                         />
                       ) : (
+                        // biome-ignore lint/a11y/useSemanticElements: span as inline label-as-button
                         <span
                           style={{ cursor: 'text' }}
                           title="Double-click to edit"

@@ -194,6 +194,7 @@ export function Overview() {
               </thead>
               <tbody>
                 {data.recent.map((r) => (
+                  // biome-ignore lint/a11y/useSemanticElements: tr role=button is the canonical clickable-row pattern
                   <tr
                     key={r.id}
                     role="button"

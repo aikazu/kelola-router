@@ -36,7 +36,7 @@ export function AccountsTable({
   }
 
   return (
-    <div style={{ overflowX: 'auto' }} role="region" aria-label="Accounts table">
+    <section style={{ overflowX: 'auto' }} aria-label="Accounts table">
       <table class="tbl">
         <thead>
           <tr>
@@ -178,6 +178,6 @@ export function AccountsTable({
           ))}
         </tbody>
       </table>
-    </div>
+    </section>
   );
 }

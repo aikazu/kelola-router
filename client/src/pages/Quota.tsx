@@ -115,6 +115,7 @@ function AccountRow({
 
   return (
     <>
+      {/* biome-ignore lint/a11y/useSemanticElements: the clickable row pattern (tr role=button + tabIndex + aria-expanded + key handler) is the canonical a11y pattern for expandable table rows. */}
       <tr
         onClick={onToggle}
         role="button"
@@ -264,6 +265,7 @@ export function Quota() {
         actions={
           <>
             <button
+              type="button"
               class="btn btn-ghost btn-sm"
               onClick={() => pullMut.mutate()}
               disabled={pullMut.isPending}
@@ -273,6 +275,7 @@ export function Quota() {
               <span class={pullMut.isPending ? 'refresh-spin' : ''}>⟳</span> Pull upstream
             </button>
             <button
+              type="button"
               class="btn btn-ghost btn-sm"
               onClick={() => refetch()}
               aria-label="Refresh quota"

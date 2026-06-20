@@ -128,6 +128,7 @@ export function Icon({
   label?: string;
 }) {
   return (
+    // biome-ignore lint/a11y/noSvgWithoutTitle: decorative when label absent (aria-hidden=true)
     <svg
       width={size}
       height={size}
@@ -139,6 +140,7 @@ export function Icon({
       stroke-linejoin="round"
       {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': 'true' })}
     >
+      {label && <title>{label}</title>}
       {renderPath(name)}
     </svg>
   );

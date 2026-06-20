@@ -138,7 +138,7 @@ export function Aliases() {
             {aliases.length === 0 ? (
               <>
                 No aliases yet.{' '}
-                <button class="btn-link" onClick={() => setEditing('new')}>
+                <button type="button" class="btn-link" onClick={() => setEditing('new')}>
                   Create one →
                 </button>
               </>

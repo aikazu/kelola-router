@@ -101,6 +101,7 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
         {(['summary', 'request', 'response', ...(data?.error ? ['error'] : [])] as Tab[]).map(
           (t) => (
             <button
+              type="button"
               key={t}
               id={`tab-${t}`}
               role="tab"
