@@ -1055,6 +1055,14 @@ table.tbl {
   display: block;
   margin-bottom: 6px;
 }
+.field-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+  display: block;
+  margin-top: 6px;
+}
 .input,
 input[type="text"],
 input[type="password"],
