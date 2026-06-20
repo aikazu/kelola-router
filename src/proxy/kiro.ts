@@ -229,6 +229,9 @@ export async function handleKiroProxy(
     });
     const rid = c.get('reqId') ?? '----';
     consoleBus.emit(buildError(rid, new Date().toISOString(), 502, message));
+    // transport throw (DNS/refused/timeout) previously wrote no request_log row.
+    // biome-ignore format: long line
+    insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel, endpoint: upstreamPath, format, promptTokens: 0, completionTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, costUsd: 0, latencyMs: Date.now() - startMs, statusCode: 502, baseRespCode: undefined, stream: upstreamStream ? 1 : 0, rtkBytesSaved: 0, requestBody: JSON.stringify(body), responseBody: message, requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId: rid }));
     return c.json({ error: `kiro upstream error: ${message}` }, 502);
   }
 }
