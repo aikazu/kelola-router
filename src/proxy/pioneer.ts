@@ -158,6 +158,7 @@ export async function handlePioneerProxy(
       proxyOpts,
       clientFormat: format,
       upstreamModel,
+      signal: c.req.raw.signal,
     });
 
     // Common log-row template — caller overrides responseBody + per-call fields.
@@ -270,14 +271,18 @@ export async function handlePioneerProxy(
         );
       }
       // openai client: passthrough OpenAI SSE, tee usage.
-      return pipeWithUsage(resp, 'openai', (usage, raw) =>
-        recordUsage(
-          usage?.prompt_tokens ?? 0,
-          usage?.completion_tokens ?? 0,
-          usage?.cache_read_tokens ?? 0,
-          true,
-          raw
-        )
+      return pipeWithUsage(
+        resp,
+        'openai',
+        (usage, raw) =>
+          recordUsage(
+            usage?.prompt_tokens ?? 0,
+            usage?.completion_tokens ?? 0,
+            usage?.cache_read_tokens ?? 0,
+            true,
+            raw
+          ),
+        c.req.raw.signal
       );
     }
     // Non-stream client: aggregate the forced upstream stream.

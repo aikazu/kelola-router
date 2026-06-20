@@ -26,8 +26,9 @@ export async function executePioneer(opts: {
   clientFormat: 'openai' | 'anthropic';
   /** Resolved upstream model id (Pioneer DB names are `pioneer/`-namespaced). */
   upstreamModel?: string;
+  signal?: AbortSignal;
 }): Promise<Response> {
-  const { body, account, transport, proxyOpts, clientFormat, upstreamModel } = opts;
+  const { body, account, transport, proxyOpts, clientFormat, upstreamModel, signal } = opts;
 
   const prepared = preparePioneerBody(body, clientFormat, upstreamModel);
 
@@ -41,5 +42,5 @@ export async function executePioneer(opts: {
     Accept: 'text/event-stream',
   };
 
-  return upstreamFetch(url, prepared, extraHeaders, transport, proxyOpts);
+  return upstreamFetch(url, prepared, extraHeaders, transport, proxyOpts, signal);
 }
