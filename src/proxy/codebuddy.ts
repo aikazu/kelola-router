@@ -230,7 +230,7 @@ export async function handleCodeBuddyProxy(
       isStream: boolean,
       rawResp: string
     ): void => {
-      const cost = calculateCost(db, model, {
+      const cost = calculateCost(db, upstreamModel, {
         prompt_tokens: prompt,
         completion_tokens: completion,
         cache_creation_tokens: 0,
