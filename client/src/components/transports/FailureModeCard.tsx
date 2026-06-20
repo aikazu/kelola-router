@@ -18,7 +18,7 @@ export function FailureModeCard() {
     onSuccess: (_d, mode) => {
       qc.invalidateQueries({ queryKey: ['proxy-failure-mode'] });
       toast.success(
-        mode === 'block' ? 'Proxy gagal akan memblokir request' : 'Proxy gagal akan fallback ke direct'
+        mode === 'block' ? 'On proxy failure: requests will be blocked' : 'On proxy failure: fallback to direct connection'
       );
     },
     onError: (e: Error) => toast.error(e.message),
@@ -31,11 +31,12 @@ export function FailureModeCard() {
           <h3 style={{ margin: '0 0 2px' }}>On proxy failure</h3>
           <p class="card-sub" style={{ margin: 0 }}>
             {failureMode?.mode === 'block'
-              ? 'Request diblokir (HTTP 502) — IP asli terlindungi, request gagal.'
-              : 'Fallback ke koneksi direct — request tetap jalan tapi IP asli terekspos.'}
+              ? 'Requests blocked (HTTP 502) — real IP protected, request fails.'
+              : 'Fallback to direct connection — request proceeds but real IP is exposed.'}
           </p>
         </div>
         <select
+          name="failure-mode"
           class="input"
           style={{ maxWidth: 200 }}
           value={failureMode?.mode ?? 'direct'}

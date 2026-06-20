@@ -11,6 +11,8 @@ export interface ButtonProps {
   type?: 'button' | 'submit' | 'reset';
   disabled?: boolean;
   title?: string;
+  'aria-label'?: string;
+  'aria-pressed'?: boolean | 'true' | 'false' | 'mixed';
   style?: JSX.CSSProperties;
 }
 
@@ -22,6 +24,8 @@ export function Button({
   type = 'button',
   disabled,
   title,
+  'aria-label': ariaLabel,
+  'aria-pressed': ariaPressed,
   style,
 }: ButtonProps) {
   const classes = [
@@ -39,6 +43,8 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
       style={style}
     >
       {children}

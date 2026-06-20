@@ -51,7 +51,9 @@ function Page({ current }: { current: string }) {
     return (
       <>
         <TopBar title="Loading…" />
-        <p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p>
+        <div aria-live="polite" aria-busy="true">
+          <p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p>
+        </div>
       </>
     );
   if (me?.passwordSet && !me.authed) return <Login />;
@@ -174,7 +176,7 @@ export function AppShell() {
               <path d="M3 12h18M3 6h18M3 18h18" />
             </svg>
           </button>
-          <Suspense fallback={<p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p>}>
+          <Suspense fallback={<div aria-live="polite" aria-busy="true"><p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p></div>}>
             <Page current={current} />
           </Suspense>
         </main>
@@ -199,7 +201,7 @@ export function AppShell() {
             >
               <div class="modal-header">
                 <div class="modal-title">Keyboard shortcuts</div>
-                <button class="modal-close" onClick={() => setHelpOpen(false)} aria-label="Close">
+                <button class="modal-close" onClick={() => setHelpOpen(false)} aria-label="Close" autoFocus>
                   ×
                 </button>
               </div>

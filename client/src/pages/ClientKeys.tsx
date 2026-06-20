@@ -240,7 +240,18 @@ export function ClientKeys() {
               <tbody>
                 {keys.map((k) => (
                   <tr key={k.id}>
-                    <td onDblClick={() => { setEditingLabel(k.id); setEditValue(k.label); }}>
+                    <td
+                      onDblClick={() => { setEditingLabel(k.id); setEditValue(k.label); }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setEditingLabel(k.id);
+                          setEditValue(k.label);
+                        }
+                      }}
+                    >
                       {editingLabel === k.id ? (
                         <input
                           value={editValue}
@@ -252,10 +263,23 @@ export function ClientKeys() {
                           onBlur={() => setEditingLabel(null)}
                           class="input"
                           style={{ padding: '2px 6px', fontSize: 13, width: '100%' }}
+                          aria-label="Edit label"
                           autoFocus
                         />
                       ) : (
-                        <span style={{ cursor: 'text' }} title="Double-click to edit">{k.label}</span>
+                        <span
+                          style={{ cursor: 'text' }}
+                          title="Double-click to edit"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setEditingLabel(k.id);
+                              setEditValue(k.label);
+                            }
+                          }}
+                        >{k.label}</span>
                       )}
                     </td>
                     <td class="mono">
@@ -300,7 +324,7 @@ export function ClientKeys() {
                           {k.enabled ? 'Disable' : 'Enable'}
                         </Button>
                         <Button size="sm" variant="danger" onClick={() => handleDelete(k.id, k.label)}>
-                          Del
+                          Delete
                         </Button>
                       </div>
                     </td>
@@ -355,10 +379,10 @@ export function ClientKeys() {
             <input
               value={label}
               onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
-              placeholder="my-app"
+              placeholder="e.g. my-app…"
               class="input"
               aria-required="true"
-              aria-invalid={label.length === 0 ? undefined : undefined}
+              aria-invalid={label.length === 0}
             />
             {label.length === 0 && (
               <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>

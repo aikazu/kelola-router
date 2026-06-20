@@ -63,6 +63,7 @@ export function Overview() {
         eyebrow={`Operations / ${rangeLabel(days)}`}
         actions={
           <select
+            aria-label="Select date range"
             value={days}
             onChange={(e) => setDays(Number((e.target as HTMLSelectElement).value))}
           >

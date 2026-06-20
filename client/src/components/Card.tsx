@@ -19,7 +19,7 @@ export function Card({
         <div class="card-head" style={{ justifyContent: 'space-between' }}>
           <div class="card-head-text">
             {eyebrow && <span class="card-eyebrow">{eyebrow}</span>}
-            {title && <div class="card-title">{title}</div>}
+            {title && <h2 class="card-title">{title}</h2>}
             {sub && (
               <p class="card-sub" style={{ marginBottom: 0, marginTop: 4 }}>
                 {sub}

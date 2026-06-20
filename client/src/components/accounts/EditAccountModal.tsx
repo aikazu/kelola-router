@@ -89,21 +89,27 @@ export function EditAccountModal({
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <label>
+        <label htmlFor="edit-label">
           Label
           <input
+            id="edit-label"
+            name="label"
             value={editForm.label}
             onInput={(e) => onEditFormChange({ ...editForm, label: (e.target as HTMLInputElement).value })}
             class="input"
+            autocomplete="off"
           />
         </label>
-        <label>
+        <label htmlFor="edit-api-key">
           New API key (leave empty to keep current)
           <input
+            id="edit-api-key"
+            name="api-key"
             value={editForm.api_key}
             onInput={(e) => onEditFormChange({ ...editForm, api_key: (e.target as HTMLInputElement).value })}
-            placeholder="mm_xxxxxxxx"
+            placeholder="mm_…"
             class="input"
+            autocomplete="off"
           />
         </label>
         {editing?.provider === 'kiro' && (

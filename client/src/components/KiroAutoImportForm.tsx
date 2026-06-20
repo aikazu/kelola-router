@@ -31,7 +31,7 @@ export function KiroAutoImportForm({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ background: 'var(--ink-2)', border: '1px solid var(--success)', borderRadius: 6, padding: 12 }}>
-          <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Token detected</span>
+          <span aria-hidden="true" style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Token detected</span>
           <span style={{ color: 'var(--text-3)', fontSize: 11, marginLeft: 8 }}>from {source}</span>
         </div>
         <label>

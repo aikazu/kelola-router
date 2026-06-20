@@ -40,6 +40,7 @@ export function KiroUsageModal({
             wordBreak: 'break-all',
             maxHeight: 400,
             overflow: 'auto',
+            overflowX: 'auto',
             padding: 12,
             background: 'var(--surface-2, rgba(255,255,255,0.02))',
             borderRadius: 6,

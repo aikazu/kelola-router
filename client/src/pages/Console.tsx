@@ -155,7 +155,10 @@ export function ConsoleBlocks({ events, collapse = false }: { events: FlowEvent[
             {b.start && (
               <div
                 class="console-line console-head"
+                role="button"
+                tabIndex={0}
                 onClick={() => toggle(b.reqId)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(b.reqId); } }}
                 title="Click for request detail"
               >
                 <span class="console-reqid">#{b.reqId}</span> → {b.start.method} {b.start.path}{' '}
@@ -296,13 +299,13 @@ export function Console() {
           <div class="console-controls">
             <span class={`console-dot ${connected ? 'live' : 'down'}`} />
             <span class="console-status">{connected ? 'live' : 'reconnecting…'}</span>
-            <Button variant="ghost" onClick={() => setPaused((p) => !p)}>
+            <Button variant="ghost" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
               {paused ? 'Resume' : 'Pause'}
             </Button>
-            <Button variant="ghost" onClick={() => setCollapse((c) => !c)}>
+            <Button variant="ghost" aria-pressed={collapse} onClick={() => setCollapse((c) => !c)}>
               {collapse ? 'Collapse: on' : 'Collapse: off'}
             </Button>
-            <Button variant="ghost" onClick={() => setEvents([])}>
+            <Button variant="ghost" aria-label="Clear all events" onClick={() => setEvents([])}>
               Clear
             </Button>
           </div>
@@ -312,6 +315,7 @@ export function Console() {
         <input
           type="text"
           placeholder="Filter model…"
+          aria-label="Filter by model"
           value={filterModel}
           onInput={(e) => setFilterModel((e.target as HTMLInputElement).value)}
           class="input"
@@ -320,6 +324,7 @@ export function Console() {
         <input
           type="text"
           placeholder="Filter account…"
+          aria-label="Filter by account"
           value={filterAccount}
           onInput={(e) => setFilterAccount((e.target as HTMLInputElement).value)}
           class="input"
@@ -337,6 +342,7 @@ export function Console() {
         {(filterModel || filterAccount || filterStatus !== 'all') && (
           <button
             class="btn btn-ghost btn-sm"
+            aria-label="Clear all filters"
             onClick={() => { setFilterModel(''); setFilterAccount(''); setFilterStatus('all'); }}
             style={{ fontSize: 11 }}
           >

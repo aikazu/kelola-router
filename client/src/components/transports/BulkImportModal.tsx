@@ -80,11 +80,13 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
       title="Bulk import proxies"
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {bulkProgress && (
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-              {bulkProgress.done}/{bulkProgress.total}{bulkProgress.errors > 0 ? ` (${bulkProgress.errors} err)` : ''}
-            </span>
-          )}
+          <div aria-live="polite">
+            {bulkProgress && (
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                {bulkProgress.done}/{bulkProgress.total}{bulkProgress.errors > 0 ? ` (${bulkProgress.errors} err)` : ''}
+              </span>
+            )}
+          </div>
           <Button
             onClick={runBulkImport}
             disabled={!!bulkProgress || parseBulkLines().length === 0}
@@ -97,7 +99,7 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <label>
           Protocol
-          <select value={bulkKind} onChange={(e) => setBulkKind((e.target as HTMLSelectElement).value as 'http' | 'socks5')} class="input">
+          <select name="protocol" value={bulkKind} onChange={(e) => setBulkKind((e.target as HTMLSelectElement).value as 'http' | 'socks5')} class="input">
             <option value="http">http</option>
             <option value="socks5">socks5</option>
           </select>
@@ -105,15 +107,18 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
         <label>
           Label prefix
           <input
+            name="prefix"
             value={bulkPrefix}
             onInput={(e) => setBulkPrefix((e.target as HTMLInputElement).value)}
-            placeholder="proxy"
+            placeholder="proxy…"
+            autocomplete="off"
             class="input"
           />
         </label>
         <label>
           Proxy list {parseBulkLines().length > 0 && <Badge variant="active">{parseBulkLines().length}</Badge>}
           <textarea
+            name="proxy-list"
             value={bulkText}
             onInput={(e) => setBulkText((e.target as HTMLTextAreaElement).value)}
             placeholder={'ip:port:user:pass\nip:port\nuser:pass@ip:port\n# comments ignored'}

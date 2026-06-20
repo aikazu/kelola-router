@@ -9,6 +9,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
+import { relativeTime } from '../lib/relativeTime';
 
 interface Combo {
   id: string;
@@ -96,15 +97,12 @@ export function Combos() {
         ) : combos.length === 0 ? (
           <p class="card-sub">
             No combos yet.{' '}
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setEditing('new');
-              }}
+            <button
+              class="btn-link"
+              onClick={() => setEditing('new')}
             >
               Create one →
-            </a>
+            </button>
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -124,8 +122,8 @@ export function Combos() {
                     <td>
                       <span class="card-sub">{c.models.length} model{c.models.length !== 1 ? 's' : ''}</span>
                     </td>
-                    <td class="card-sub mono" style={{ fontSize: 12 }}>
-                      {c.updated_at}
+                    <td class="card-sub mono" style={{ fontSize: 12 }} title={c.updated_at}>
+                      {relativeTime(c.updated_at)}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
@@ -148,7 +146,7 @@ export function Combos() {
                             }
                           }}
                         >
-                          Del
+                          Delete
                         </Button>
                       </div>
                     </td>
@@ -254,8 +252,9 @@ function ComboModal({
           <input
             value={name}
             onInput={(e) => setName((e.target as HTMLInputElement).value)}
-            placeholder="my-combo-1"
+            placeholder="e.g. my-combo-1…"
             class="input"
+            aria-label="Combo name"
           />
           {name && !nameValid && (
             <span style={{ color: 'var(--alert)', fontSize: 12 }}>
@@ -345,6 +344,7 @@ function ComboModal({
               <select
                 class="input"
                 style={{ flex: 1 }}
+                aria-label="Select model to add"
                 onChange={(e) => {
                   const val = (e.target as HTMLSelectElement).value;
                   if (val) addModel(val);

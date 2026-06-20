@@ -53,29 +53,39 @@ function PasswordForm({ onSubmit }: { onSubmit: (pw: string) => void }) {
         onSubmit(pw);
       }}
     >
+      <label htmlFor="pw-new" class="sr-only">New password</label>
       <input
+        id="pw-new"
         type="password"
         value={pw}
         onInput={(e) => setPw((e.target as HTMLInputElement).value)}
-        placeholder="New password (min 4)"
+        placeholder="New password (min 4)…"
         minLength={4}
         required
         aria-label="New password"
+        autoComplete="new-password"
+        spellcheck={false}
         class="input"
       />
+      <label htmlFor="pw-confirm" class="sr-only">Confirm password</label>
       <input
+        id="pw-confirm"
         type="password"
         value={confirm}
         onInput={(e) => setConfirm((e.target as HTMLInputElement).value)}
-        placeholder="Confirm password"
+        placeholder="Confirm password…"
         required
         aria-label="Confirm password"
         aria-invalid={!!err}
+        aria-describedby={err ? 'pw-error' : undefined}
+        autoComplete="new-password"
+        spellcheck={false}
         class="input"
         style={{ marginTop: 8 }}
       />
       {err && (
         <p
+          id="pw-error"
           role="alert"
           aria-live="assertive"
           style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}
@@ -157,7 +167,7 @@ export function Settings() {
     return (
       <>
         <TopBar title="Settings" />
-        <p style={{ color: 'var(--text-3)' }}>Loading…</p>
+        <p style={{ color: 'var(--text-3)' }}>Loading settings…</p>
       </>
     );
 
@@ -199,7 +209,9 @@ export function Settings() {
         </button>
       </Card>
       <Card title="Caveman mode" sub="Injects a terse system prompt to force concise output.">
+        <label htmlFor="caveman-mode" class="sr-only">Caveman mode level</label>
         <select
+          id="caveman-mode"
           value={merged.caveman.level}
           onChange={(e) => cavemanMut.mutate((e.target as HTMLSelectElement).value)}
           class="input"
@@ -228,9 +240,10 @@ export function Settings() {
         />
       </Card>
       <Card title="MiniMax provider" sub="Cross-format routing + M3 defaults.">
-        <label>
+        <label htmlFor="minimax-format">
           Upstream format override
           <select
+            id="minimax-format"
             value={merged.minimax.upstreamFormat ?? 'auto'}
             onChange={(e) =>
               minimaxMut.mutate({ upstreamFormat: (e.target as HTMLSelectElement).value })

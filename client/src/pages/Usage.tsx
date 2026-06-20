@@ -177,6 +177,8 @@ export function Usage() {
           <input
             type="search"
             placeholder="Search by model, id, error..."
+            aria-label="Search requests"
+            autoComplete="off"
             value={search}
             onInput={(e) => {
               setSearch((e.target as HTMLInputElement).value);
@@ -185,6 +187,7 @@ export function Usage() {
             style={{ flex: 1, minWidth: 200 }}
           />
           <select
+            aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter((e.target as HTMLSelectElement).value as 'all' | '2xx' | '4xx' | '5xx');
@@ -197,6 +200,7 @@ export function Usage() {
             <option value="5xx">5xx server error</option>
           </select>
           <select
+            aria-label="Filter by account"
             value={accountFilter}
             onChange={(e) => {
               setAccountFilter((e.target as HTMLSelectElement).value);
@@ -219,6 +223,8 @@ export function Usage() {
                 setClientKeyId(undefined);
                 setPage(1);
               }}
+              aria-label="Show all client keys"
+              aria-current={clientKeyId === undefined ? 'page' : undefined}
               style={
                 clientKeyId === undefined
                   ? { color: 'var(--emerald-4)', fontWeight: 700, marginLeft: 6 }
@@ -236,6 +242,8 @@ export function Usage() {
                   setClientKeyId(k.id);
                   setPage(1);
                 }}
+                aria-label={`Filter by client key: ${k.label}`}
+                aria-current={clientKeyId === k.id ? 'page' : undefined}
                 style={
                   clientKeyId === k.id
                     ? { color: 'var(--emerald-4)', fontWeight: 700, marginLeft: 6 }
@@ -282,18 +290,46 @@ export function Usage() {
               <table class="tbl">
                 <thead>
                   <tr>
-                    <th onClick={() => setSort('created_at')} style={{ cursor: 'pointer' }}>
+                    <th
+                      onClick={() => setSort('created_at')}
+                      role="button"
+                      tabIndex={0}
+                      aria-sort={sortBy === 'created_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSort('created_at'); } }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       Time{sortArrow('created_at')}
                     </th>
                     <th>Model</th>
                     <th>Account</th>
-                    <th onClick={() => setSort('total_tokens')} style={{ cursor: 'pointer' }}>
+                    <th
+                      onClick={() => setSort('total_tokens')}
+                      role="button"
+                      tabIndex={0}
+                      aria-sort={sortBy === 'total_tokens' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSort('total_tokens'); } }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       Tokens{sortArrow('total_tokens')}
                     </th>
-                    <th onClick={() => setSort('cost_usd')} style={{ cursor: 'pointer' }}>
+                    <th
+                      onClick={() => setSort('cost_usd')}
+                      role="button"
+                      tabIndex={0}
+                      aria-sort={sortBy === 'cost_usd' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSort('cost_usd'); } }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       Cost{sortArrow('cost_usd')}
                     </th>
-                    <th onClick={() => setSort('latency_ms')} style={{ cursor: 'pointer' }}>
+                    <th
+                      onClick={() => setSort('latency_ms')}
+                      role="button"
+                      tabIndex={0}
+                      aria-sort={sortBy === 'latency_ms' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSort('latency_ms'); } }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       Latency{sortArrow('latency_ms')}
                     </th>
                     <th>Status</th>

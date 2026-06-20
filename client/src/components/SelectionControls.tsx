@@ -32,6 +32,8 @@ export function SelectionControls({ provider }: { provider: 'minimax' | 'kiro' |
       <span class="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>Selection</span>
       <select
         class="input"
+        name="selectionMode"
+        aria-label="Selection mode"
         value={mode}
         disabled={mut.isPending}
         onChange={(e) => mut.mutate({ mode: (e.target as HTMLSelectElement).value, step })}
@@ -45,6 +47,7 @@ export function SelectionControls({ provider }: { provider: 'minimax' | 'kiro' |
           class="input"
           type="number"
           min={1}
+          name="step"
           aria-label="Step"
           style={{ width: 72 }}
           value={step}

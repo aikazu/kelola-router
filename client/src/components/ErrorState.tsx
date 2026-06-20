@@ -4,7 +4,7 @@ export function ErrorState({ error, onRetry }: { error: Error; onRetry: () => vo
       <h3 style={{ color: 'var(--danger)' }}>Something went wrong</h3>
       <p style={{ marginBottom: 12 }}>{error.message}</p>
       <button class="btn" onClick={onRetry}>
-        Retry
+        Try again
       </button>
     </div>
   );

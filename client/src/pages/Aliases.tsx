@@ -10,6 +10,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
+import { relativeTime } from '../lib/relativeTime';
 
 interface Alias {
   aliasName: string;
@@ -126,6 +127,7 @@ export function Aliases() {
           value={search}
           onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
           style={{ width: '100%', marginBottom: 12 }}
+          aria-label="Search aliases"
         />
         {isError ? (
           <ErrorState error={error as Error} onRetry={() => refetch()} />
@@ -136,15 +138,12 @@ export function Aliases() {
             {aliases.length === 0 ? (
               <>
                 No aliases yet.{' '}
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setEditing('new');
-                  }}
+                <button
+                  class="btn-link"
+                  onClick={() => setEditing('new')}
                 >
                   Create one →
-                </a>
+                </button>
               </>
             ) : (
               'No aliases match.'
@@ -172,8 +171,8 @@ export function Aliases() {
                   <td>
                     <Badge variant={a.source === 'user' ? 'active' : 'muted'}>{a.source}</Badge>
                   </td>
-                  <td class="card-sub mono" style={{ fontSize: 12 }}>
-                    {a.createdAt}
+                  <td class="card-sub mono" style={{ fontSize: 12 }} title={a.createdAt}>
+                    {relativeTime(a.createdAt)}
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
@@ -196,7 +195,7 @@ export function Aliases() {
                         }
                       }}
                     >
-                      Del
+                      Delete
                     </Button>
                     </div>
                   </td>
@@ -283,8 +282,9 @@ function AliasModal({
             value={name}
             disabled={!!alias}
             onInput={(e) => setName((e.target as HTMLInputElement).value)}
-            placeholder="claude-opus-4-8"
+            placeholder="e.g. claude-opus-4-8…"
             class="input"
+            aria-label="Alias name"
           />
           {name && !nameValid && (
             <span style={{ color: 'var(--alert)', fontSize: 12 }}>
@@ -305,6 +305,7 @@ function AliasModal({
             value={target}
             onChange={(e) => setTarget((e.target as HTMLSelectElement).value)}
             class="input"
+            aria-label="Target upstream model"
           >
             {enabledModels.map((m) => (
               <option key={m.name} value={m.name}>
@@ -320,8 +321,9 @@ function AliasModal({
           <input
             value={label}
             onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
-            placeholder="Claude Code → M3"
+            placeholder="e.g. Claude Code → M3…"
             class="input"
+            aria-label="Label (optional)"
           />
         </label>
       </div>

@@ -36,7 +36,7 @@ export function AccountsTable({
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ overflowX: 'auto' }} role="region" aria-label="Accounts table" tabIndex={0}>
       <table class="tbl">
         <thead>
           <tr>
@@ -106,7 +106,7 @@ export function AccountsTable({
               <td style={{ whiteSpace: 'nowrap' }}>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {a.provider === 'kiro' && (
-                    <Button size="sm" variant="ghost" onClick={() => onUsage(a.id)}>
+                    <Button size="sm" variant="ghost" onClick={() => onUsage(a.id)} aria-label="View Kiro usage">
                       Usage
                     </Button>
                   )}
@@ -135,7 +135,7 @@ export function AccountsTable({
                     {a.enabled ? 'Disable' : 'Enable'}
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => onDelete(a.id, a.label)}>
-                    Del
+                    Delete
                   </Button>
                 </div>
               </td>

@@ -249,7 +249,7 @@ export function TransportsTable({
                           {t.enabled ? 'Disable' : 'Enable'}
                         </Button>
                         <Button size="sm" variant="danger" onClick={() => handleDelete(t.id, t.label)}>
-                          Del
+                          Delete
                         </Button>
                       </div>
                     </td>

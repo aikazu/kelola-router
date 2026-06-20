@@ -283,6 +283,10 @@ table.tbl {
   background: var(--gold-glow);
   cursor: pointer;
 }
+.tbl tbody tr:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
 .tbl td.mono,
 .tbl code {
   font-family: var(--font-mono);
@@ -546,6 +550,7 @@ table.tbl {
 .modal-body {
   padding: 20px 24px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   flex: 1;
 }
 .modal-footer {
@@ -657,6 +662,10 @@ table.tbl {
   font-size: 16px;
   padding: 18px 20px;
   outline: none;
+}
+.cmdk-input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 .cmdk-input::placeholder {
   color: var(--text-3);
@@ -792,6 +801,7 @@ table.tbl {
 }
 .nav-item.active {
   color: var(--gold);
+  font-weight: 600;
   border-left-color: var(--gold);
   background: linear-gradient(90deg, var(--gold-glow) 0%, transparent 100%);
 }
@@ -1061,6 +1071,13 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--gold);
+}
+.input:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 .input::placeholder,
 input::placeholder,

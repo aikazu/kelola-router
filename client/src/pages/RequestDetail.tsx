@@ -89,6 +89,8 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
       width={760}
     >
       <div
+        role="tablist"
+        aria-label="Request detail tabs"
         style={{
           display: 'flex',
           gap: 4,
@@ -99,6 +101,10 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
         {(['summary', 'request', 'response', ...(data?.error ? ['error'] : [])] as Tab[]).map((t) => (
           <button
             key={t}
+            id={`tab-${t}`}
+            role="tab"
+            aria-selected={tab === t}
+            aria-controls={`tabpanel-${t}`}
             onClick={() => setTab(t)}
             style={{
               background: 'none',
@@ -112,6 +118,7 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
               textTransform: 'uppercase',
               cursor: 'pointer',
               fontFamily: 'inherit',
+              outlineOffset: 2,
             }}
           >
             {t}
@@ -123,6 +130,7 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
         <ErrorState error={new Error('Failed to load request')} onRetry={() => refetch()} />
       )}
       {data && tab === 'summary' && (
+        <div id="tabpanel-summary" role="tabpanel" aria-labelledby="tab-summary">
         <table class="tbl">
           <tbody>
             <tr>
@@ -169,8 +177,10 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
             </tr>
           </tbody>
         </table>
+        </div>
       )}
       {data && tab === 'request' && (
+        <div id="tabpanel-request" role="tabpanel" aria-labelledby="tab-request">
         <>
           <h4
             style={{
@@ -199,8 +209,10 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
           </h4>
           <HeadersView headers={data.requestHeaders} />
         </>
+        </div>
       )}
       {data && tab === 'response' && (
+        <div id="tabpanel-response" role="tabpanel" aria-labelledby="tab-response">
         <>
           <h4
             style={{
@@ -229,9 +241,12 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
           </h4>
           <HeadersView headers={data.responseHeaders} />
         </>
+        </div>
       )}
       {data && tab === 'error' && data.error && (
+        <div id="tabpanel-error" role="tabpanel" aria-labelledby="tab-error">
         <p style={{ color: 'var(--danger)' }}>{data.error}</p>
+        </div>
       )}
     </Modal>
   );

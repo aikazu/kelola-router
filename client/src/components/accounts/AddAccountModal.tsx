@@ -134,18 +134,23 @@ export function AddAccountModal({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {provider === 'minimax' ? (
           <>
-            <label>
+            <label htmlFor="add-mm-label">
               Label{' '}
               <input
+                id="add-mm-label"
+                name="mm-label"
                 value={form.label}
                 onInput={(e) => onFormChange({ ...form, label: (e.target as HTMLInputElement).value })}
                 class="input"
+                autocomplete="off"
                 aria-required="true"
               />
             </label>
-            <label>
+            <label htmlFor="add-mm-credit-type">
               Credit type
               <select
+                id="add-mm-credit-type"
+                name="mm-credit-type"
                 value={form.credit_type}
                 onChange={(e) => onFormChange({ ...form, credit_type: (e.target as HTMLSelectElement).value })}
                 class="input"
@@ -154,35 +159,44 @@ export function AddAccountModal({
                 <option value="token-plan">Token Plan</option>
               </select>
             </label>
-            <label>
+            <label htmlFor="add-mm-api-key">
               MiniMax API key{' '}
               <input
+                id="add-mm-api-key"
+                name="mm-api-key"
                 value={form.api_key}
                 onInput={(e) => onFormChange({ ...form, api_key: (e.target as HTMLInputElement).value })}
-                placeholder="mm_xxxxxxxx"
+                placeholder="mm_…"
                 class="input"
+                autocomplete="off"
                 aria-required="true"
               />
             </label>
           </>
         ) : provider === 'pioneer' ? (
           <>
-            <label>
+            <label htmlFor="add-pio-label">
               Label{' '}
               <input
+                id="add-pio-label"
+                name="pio-label"
                 value={pioneerForm.label}
                 onInput={(e) => onPioneerFormChange({ ...pioneerForm, label: (e.target as HTMLInputElement).value })}
                 class="input"
+                autocomplete="off"
                 aria-required="true"
               />
             </label>
-            <label>
+            <label htmlFor="add-pio-api-key">
               Pioneer API key{' '}
               <input
+                id="add-pio-api-key"
+                name="pio-api-key"
                 value={pioneerForm.api_key}
                 onInput={(e) => onPioneerFormChange({ ...pioneerForm, api_key: (e.target as HTMLInputElement).value })}
-                placeholder="pio_sk_xxxxxxxx"
+                placeholder="pio_sk_…"
                 class="input"
+                autocomplete="off"
                 aria-required="true"
               />
             </label>
@@ -197,24 +211,30 @@ export function AddAccountModal({
           />
         ) : provider === 'zai' ? (
           <>
-            <label>
+            <label htmlFor="add-zai-label">
               Label{' '}
               <input
+                id="add-zai-label"
+                name="zai-label"
                 value={zaiForm.label}
                 onInput={(e) => onZaiFormChange({ ...zaiForm, label: (e.target as HTMLInputElement).value })}
                 class="input"
+                autocomplete="off"
                 aria-required="true"
               />
             </label>
-            <label>
+            <label htmlFor="add-zai-api-key">
               Z.AI API key{' '}
               <input
+                id="add-zai-api-key"
+                name="zai-api-key"
                 value={zaiForm.api_key}
                 onInput={(e) =>
                   onZaiFormChange({ ...zaiForm, api_key: (e.target as HTMLInputElement).value })
                 }
-                placeholder="zai_sk_xxxxxxxx"
+                placeholder="zai_sk_…"
                 class="input"
+                autocomplete="off"
                 aria-required="true"
               />
             </label>

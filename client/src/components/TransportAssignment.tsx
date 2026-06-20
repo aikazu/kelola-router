@@ -13,6 +13,7 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
       <label>
         Network transport
         <select
+          name="transport-mode"
           value={tpState.mode}
           onChange={(e) =>
             setTpState({ ...tpState, mode: (e.target as HTMLSelectElement).value as 'none' | 'proxy' | 'pool' | 'relay' })
@@ -30,6 +31,7 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
         <label style={{ marginTop: 10, display: 'block' }}>
           Proxy
           <select
+            name="proxy-id"
             value={tpState.proxyId}
             onChange={(e) => setTpState({ ...tpState, proxyId: (e.target as HTMLSelectElement).value })}
             class="input"
@@ -49,6 +51,7 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
         <label style={{ marginTop: 10, display: 'block' }}>
           Relay
           <select
+            name="relay-id"
             value={tpState.relayId}
             onChange={(e) => setTpState({ ...tpState, relayId: (e.target as HTMLSelectElement).value })}
             class="input"
@@ -86,6 +89,7 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
               <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                 <input
                   type="checkbox"
+                  name="pool-member"
                   checked={tpState.pool.includes(p.id)}
                   onChange={(e) => {
                     const on = (e.target as HTMLInputElement).checked;
@@ -107,9 +111,11 @@ export function TransportAssignment({ tpState, setTpState, proxies, relays }: Tr
             Rotate every N requests
             <input
               type="number"
+              name="rotate"
               min={1}
               value={tpState.rotate}
               onInput={(e) => setTpState({ ...tpState, rotate: Math.max(1, Number((e.target as HTMLInputElement).value) || 1) })}
+              autocomplete="off"
               class="input"
             />
             <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>

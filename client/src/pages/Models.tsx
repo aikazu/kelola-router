@@ -90,6 +90,9 @@ export function Models() {
         >
           <input
             type="search"
+            aria-label="Search models"
+            name="search"
+            autoComplete="off"
             placeholder="Filter by name…"
             value={search}
             onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
@@ -111,7 +114,7 @@ export function Models() {
           >
             <span style={{ fontSize: 13, fontWeight: 500 }}>{selected.size} selected</span>
             <Button size="sm" onClick={() => bulkMut.mutate(true)} disabled={bulkMut.isPending}>
-              Enable all
+              {bulkMut.isPending ? 'Enabling…' : 'Enable all'}
             </Button>
             <Button
               size="sm"
@@ -119,7 +122,7 @@ export function Models() {
               onClick={() => bulkMut.mutate(false)}
               disabled={bulkMut.isPending}
             >
-              Disable all
+              {bulkMut.isPending ? 'Disabling…' : 'Disable all'}
             </Button>
             <Button size="sm" variant="ghost" onClick={clearSelection}>
               Clear

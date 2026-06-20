@@ -11,7 +11,8 @@ export function Switch({ checked, onChange, label }: SwitchProps) {
         role="switch"
         aria-checked={checked}
         checked={checked}
-        onChange={(e) => onChange((e.target as HTMLInputElement).checked)}
+        aria-label={label || 'Toggle'}
+        onChange={(e) => onChange((e.currentTarget as HTMLInputElement).checked)}
       />
       <span class="switch-track">
         <span class="switch-thumb" />

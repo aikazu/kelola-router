@@ -156,6 +156,7 @@ export function ProviderModelsSection({
                 <th style={{ width: 32 }}>
                   <input
                     type="checkbox"
+                    aria-label="Select all models"
                     checked={models.length > 0 && models.every((m) => selected.has(m.name))}
                     onChange={() => {
                       if (models.every((m) => selected.has(m.name))) {
@@ -193,6 +194,7 @@ export function ProviderModelsSection({
                   <td>
                     <input
                       type="checkbox"
+                      aria-label={`Select model ${m.name}`}
                       checked={selected.has(m.name)}
                       onChange={() => {
                         const next = new Set(selected);

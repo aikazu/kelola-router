@@ -85,28 +85,39 @@ export function AddModelModal({ open, onClose, provider }: AddModelModalProps) {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <label>
+        <label htmlFor="add-model-name">
           Model name
           <input
+            id="add-model-name"
             class="input"
+            type="text"
+            name="modelName"
+            autoComplete="off"
             value={form.name}
             onInput={(e) => setForm({ ...form, name: (e.target as HTMLInputElement).value })}
             placeholder="exact upstream model id"
           />
         </label>
-        <label>
+        <label htmlFor="add-model-display-name">
           Display name (optional)
           <input
+            id="add-model-display-name"
             class="input"
+            type="text"
+            name="displayName"
+            autoComplete="off"
             value={form.displayName}
             onInput={(e) => setForm({ ...form, displayName: (e.target as HTMLInputElement).value })}
           />
         </label>
-        <label>
+        <label htmlFor="add-model-context-window">
           Context window (optional)
           <input
+            id="add-model-context-window"
             class="input"
             type="number"
+            name="contextWindow"
+            autoComplete="off"
             value={form.contextWindow}
             onInput={(e) =>
               setForm({ ...form, contextWindow: (e.target as HTMLInputElement).value })
@@ -114,22 +125,28 @@ export function AddModelModal({ open, onClose, provider }: AddModelModalProps) {
           />
         </label>
         <div style={{ display: 'flex', gap: 10 }}>
-          <label style={{ flex: 1 }}>
+          <label htmlFor="add-model-pricing-input" style={{ flex: 1 }}>
             Pricing in $/M (optional)
             <input
+              id="add-model-pricing-input"
               class="input"
               type="number"
+              name="pricingInput"
+              autoComplete="off"
               value={form.pricingInput}
               onInput={(e) =>
                 setForm({ ...form, pricingInput: (e.target as HTMLInputElement).value })
               }
             />
           </label>
-          <label style={{ flex: 1 }}>
+          <label htmlFor="add-model-pricing-output" style={{ flex: 1 }}>
             Pricing out $/M (optional)
             <input
+              id="add-model-pricing-output"
               class="input"
               type="number"
+              name="pricingOutput"
+              autoComplete="off"
               value={form.pricingOutput}
               onInput={(e) =>
                 setForm({ ...form, pricingOutput: (e.target as HTMLInputElement).value })

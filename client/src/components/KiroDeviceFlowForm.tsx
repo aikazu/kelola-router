@@ -1,4 +1,6 @@
+import { useCallback } from 'preact/hooks';
 import { Button } from './Button';
+import { useToast } from './ToastProvider';
 import type { DeviceCodeData } from '../lib/types';
 
 interface KiroDeviceFlowFormProps {
@@ -30,6 +32,15 @@ export function KiroDeviceFlowForm({
   onStartDeviceCode,
   onStartPolling,
 }: KiroDeviceFlowFormProps) {
+  const toast = useToast();
+
+  const copyCode = useCallback(() => {
+    if (!deviceData?.userCode) return;
+    navigator.clipboard.writeText(deviceData.userCode).then(
+      () => toast.success('Code copied to clipboard'),
+      () => toast.error('Failed to copy code'),
+    );
+  }, [deviceData?.userCode, toast]);
   if (deviceStep === 'loading') {
     return <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 16 }}>Registering with AWS SSO…</p>;
   }
@@ -40,13 +51,19 @@ export function KiroDeviceFlowForm({
         <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
           Open the link below and enter this code:
         </p>
-        <div style={{ background: 'var(--ink-2)', border: '2px solid var(--gold)', borderRadius: 8, padding: '12px 24px', fontSize: 24, fontFamily: 'var(--font-mono)', letterSpacing: 4, fontWeight: 700 }}>
-          {deviceData?.userCode}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ background: 'var(--ink-2)', border: '2px solid var(--gold)', borderRadius: 8, padding: '12px 24px', fontSize: 24, fontFamily: 'var(--font-mono)', letterSpacing: 4, fontWeight: 700 }}>
+            {deviceData?.userCode}
+          </div>
+          <Button size="sm" variant="ghost" onClick={copyCode}>
+            Copy code
+          </Button>
         </div>
         <a
           href={deviceData?.verificationUriComplete || deviceData?.verificationUri}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label={`Open AWS authorization page (${deviceData?.verificationUri}) in new window`}
           style={{ color: 'var(--gold)', fontSize: 13 }}
         >
           {deviceData?.verificationUri} ↗
@@ -98,7 +115,9 @@ export function KiroDeviceFlowForm({
               value={kiroStartUrl}
               onInput={(e) => onStartUrlChange((e.target as HTMLInputElement).value)}
               placeholder="https://your-org.awsapps.com/start"
-              class="input" style={{ fontFamily: 'var(--font-mono)' }}
+              class="input"
+              style={{ fontFamily: 'var(--font-mono)' }}
+              aria-required="true"
             />
           </label>
           <label>

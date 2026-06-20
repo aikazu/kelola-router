@@ -6,6 +6,7 @@ import {
 } from './AddAccountModal';
 import type { useKiroAutoImport } from '../../hooks/useKiroAutoImport';
 import type { useKiroDeviceFlow } from '../../hooks/useKiroDeviceFlow';
+import { ToastProvider } from '../ToastProvider';
 
 // Opaque hook return shapes — the parent owns the real hooks, the modal only
 // reads/forwards these values, so the test passes plain mock objects.
@@ -63,13 +64,18 @@ const baseProps: AddAccountModalProps = {
 
 function renderModal(overrides: Partial<AddAccountModalProps> = {}) {
   const props = { ...baseProps, ...overrides };
-  return render(<AddAccountModal {...props} />);
+  return render(
+    <ToastProvider>
+      <AddAccountModal {...props} />
+    </ToastProvider>,
+  );
 }
 
 describe('AddAccountModal', () => {
   it('renders nothing when open=false', () => {
-    const { container } = renderModal({ open: false });
-    expect(container).toBeEmptyDOMElement();
+    renderModal({ open: false });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText('Credit type')).not.toBeInTheDocument();
   });
 
   describe('minimax provider', () => {
@@ -77,7 +83,7 @@ describe('AddAccountModal', () => {
       renderModal({ provider: 'minimax' });
       expect(screen.getByText('Label', { exact: true })).toBeInTheDocument();
       expect(screen.getByText('Credit type')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('mm_xxxxxxxx')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('mm_…')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
     });
 
@@ -252,7 +258,7 @@ describe('AddAccountModal', () => {
     it('shows label + api-key fields and the footer Add button', () => {
       renderModal({ provider: 'pioneer' });
       expect(screen.getByText('Label', { exact: true })).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('pio_sk_xxxxxxxx')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('pio_sk_…')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
     });
 

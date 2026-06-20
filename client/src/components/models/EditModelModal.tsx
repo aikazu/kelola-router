@@ -38,7 +38,7 @@ export function EditModelModal({ model, onClose }: EditModelModalProps) {
     setContextOutput(model.contextOutput != null ? String(model.contextOutput) : '');
     setPricingInput(model.pricingInput != null ? String(model.pricingInput) : '');
     setPricingOutput(model.pricingOutput != null ? String(model.pricingOutput) : '');
-  }, [model?.name]);
+  }, [model]);
 
   const editMut = useMutation({
     mutationFn: () => {
@@ -81,47 +81,63 @@ export function EditModelModal({ model, onClose }: EditModelModalProps) {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <label>
+        <label htmlFor="edit-model-display-name">
           Display name
           <input
+            id="edit-model-display-name"
             class="input"
+            type="text"
+            name="displayName"
+            autoComplete="off"
             value={displayName}
             onInput={(e) => setDisplayName((e.target as HTMLInputElement).value)}
           />
         </label>
-        <label>
+        <label htmlFor="edit-model-context-window">
           Context window (in)
           <input
+            id="edit-model-context-window"
             class="input"
             type="number"
+            name="contextWindow"
+            autoComplete="off"
             value={contextWindow}
             onInput={(e) => setContextWindow((e.target as HTMLInputElement).value)}
           />
         </label>
-        <label>
+        <label htmlFor="edit-model-context-output">
           Context output (out)
           <input
+            id="edit-model-context-output"
             class="input"
             type="number"
+            name="contextOutput"
+            autoComplete="off"
             value={contextOutput}
             onInput={(e) => setContextOutput((e.target as HTMLInputElement).value)}
           />
         </label>
         <div style={{ display: 'flex', gap: 10 }}>
-          <label style={{ flex: 1 }}>
+          <label htmlFor="edit-model-pricing-input" style={{ flex: 1 }}>
             Pricing in $/M
             <input
+              id="edit-model-pricing-input"
               class="input"
               type="number"
+              name="pricingInput"
+              autoComplete="off"
               value={pricingInput}
               onInput={(e) => setPricingInput((e.target as HTMLInputElement).value)}
             />
           </label>
-          <label style={{ flex: 1 }}>
+          <label htmlFor="edit-model-pricing-output" style={{ flex: 1 }}>
             Pricing out $/M
             <input
+              id="edit-model-pricing-output"
               class="input"
               type="number"
+              name="pricingOutput"
+              autoComplete="off"
               value={pricingOutput}
               onInput={(e) => setPricingOutput((e.target as HTMLInputElement).value)}
             />

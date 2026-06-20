@@ -47,7 +47,7 @@ export function CommandPalette({
     if (open) {
       setQ('');
       setActive(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      if (window.innerWidth > 768) setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
 
@@ -69,7 +69,7 @@ export function CommandPalette({
         <input
           ref={inputRef}
           class="cmdk-input"
-          placeholder="Search pages..."
+          placeholder="Search pages…"
           value={q}
           role="combobox"
           aria-expanded="true"
@@ -90,7 +90,7 @@ export function CommandPalette({
         />
         <div class="cmdk-list" role="listbox" id="cmdk-listbox" aria-label="Pages">
           {items.length === 0 ? (
-            <div class="cmdk-item" style={{ color: 'var(--text-3)' }} role="option" aria-selected="false">
+            <div class="cmdk-item" style={{ color: 'var(--text-3)' }} role="option" aria-selected="false" aria-disabled="true">
               No matches
             </div>
           ) : (
@@ -103,6 +103,7 @@ export function CommandPalette({
                 class={`cmdk-item${i === active ? ' active' : ''}`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => onNavigate(it.href)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(it.href); } }}
               >
                 <Icon name="search" size={14} />
                 <span>{it.label}</span>

@@ -60,11 +60,11 @@ export function EditTransportModal({ transport, onClose }: EditTransportModalPro
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <label>
           Label
-          <input value={editForm.label} onInput={(e) => setEditForm({ ...editForm, label: (e.target as HTMLInputElement).value })} class="input" />
+          <input name="label" autocomplete="off" value={editForm.label} onInput={(e) => setEditForm({ ...editForm, label: (e.target as HTMLInputElement).value })} class="input" />
         </label>
         <label>
           Kind
-          <select value={editForm.kind} onChange={(e) => setEditForm({ ...editForm, kind: (e.target as HTMLSelectElement).value })} class="input">
+          <select name="kind" value={editForm.kind} onChange={(e) => setEditForm({ ...editForm, kind: (e.target as HTMLSelectElement).value })} class="input">
             <option value="http">HTTP</option>
             <option value="socks5">SOCKS5</option>
             <option value="vercel">Vercel</option>
@@ -73,7 +73,7 @@ export function EditTransportModal({ transport, onClose }: EditTransportModalPro
         </label>
         <label>
           URL
-          <input value={editForm.url} onInput={(e) => setEditForm({ ...editForm, url: (e.target as HTMLInputElement).value })} class="input" placeholder="http://user:pass@ip:port" />
+          <input name="url" autocomplete="off" value={editForm.url} onInput={(e) => setEditForm({ ...editForm, url: (e.target as HTMLInputElement).value })} class="input" placeholder="http://user:pass@ip:port…" />
         </label>
       </div>
     </Modal>

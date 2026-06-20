@@ -38,6 +38,8 @@ export function NotionAuthForm({
         Email
         <input
           type="email"
+          name="email"
+          autocomplete="email"
           value={email}
           onInput={(e) => onEmailChange((e.target as HTMLInputElement).value)}
           placeholder="you@example.com"
@@ -80,6 +82,9 @@ export function NotionAuthForm({
           <label>
             6-character code from email
             <input
+              name="otp"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value=""
               onInput={(e) => {
                 const v = (e.target as HTMLInputElement).value;
@@ -87,7 +92,7 @@ export function NotionAuthForm({
               }}
               placeholder="hdqiGs"
               maxLength={6}
-              autoFocus
+              autoFocus={typeof window !== 'undefined' && window.innerWidth > 768}
               class="input"
             />
           </label>

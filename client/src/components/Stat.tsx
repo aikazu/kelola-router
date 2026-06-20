@@ -9,10 +9,10 @@ export function Stat({
   sub?: ComponentChildren;
 }) {
   return (
-    <div class="stat">
-      <div class="stat-label">{label}</div>
-      <div class="stat-value">{value}</div>
+    <dl class="stat">
+      <dt class="stat-label">{label}</dt>
+      <dd class="stat-value">{value}</dd>
       {sub && <div class="stat-sub">{sub}</div>}
-    </div>
+    </dl>
   );
 }

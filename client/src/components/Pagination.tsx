@@ -32,6 +32,7 @@ export function Pagination({
       <div class="pagination-controls">
         <select
           value={pageSize}
+          aria-label="Items per page"
           onChange={(e) => onPageSizeChange(Number((e.target as HTMLSelectElement).value))}
           style={{
             background: 'var(--ink-1)',

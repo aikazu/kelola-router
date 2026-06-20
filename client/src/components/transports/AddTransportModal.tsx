@@ -66,6 +66,7 @@ export function AddTransportModal({ open, onClose }: AddTransportModalProps) {
         <label>
           Type
           <select
+            name="type"
             value={form.type}
             onChange={(e) => onTypeChange((e.target as HTMLSelectElement).value as 'proxy' | 'relay')}
             class="input"
@@ -77,6 +78,7 @@ export function AddTransportModal({ open, onClose }: AddTransportModalProps) {
         <label>
           Kind
           <select
+            name="kind"
             value={form.kind}
             onChange={(e) => setForm({ ...form, kind: (e.target as HTMLSelectElement).value })}
             class="input"
@@ -89,24 +91,22 @@ export function AddTransportModal({ open, onClose }: AddTransportModalProps) {
         <label>
           Label
           <input
+            name="label"
             value={form.label}
             onInput={(e) => setForm({ ...form, label: (e.target as HTMLInputElement).value })}
-            placeholder={form.type === 'proxy' ? 'home socks' : 'vercel edge'}
+            placeholder={form.type === 'proxy' ? 'home socks…' : 'vercel edge…'}
+            autocomplete="off"
             class="input"
           />
         </label>
         <label>
           URL
           <input
+            name="url"
             value={form.url}
             onInput={(e) => setForm({ ...form, url: (e.target as HTMLInputElement).value })}
-            placeholder={
-              form.type === 'proxy'
-                ? form.kind === 'socks5'
-                  ? 'socks5://127.0.0.1:1080'
-                  : 'http://user:pass@host:8080'
-                : 'https://your-relay.vercel.app/api'
-            }
+            placeholder={form.type === 'proxy' ? (form.kind === 'socks5' ? 'socks5://127.0.0.1:1080…' : 'http://user:pass@host:8080…') : 'https://your-relay.vercel.app/api…'}
+            autocomplete="off"
             class="input" style={{ fontFamily: 'var(--font-mono, monospace)' }}
           />
           <span style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}>

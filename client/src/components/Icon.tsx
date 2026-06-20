@@ -118,7 +118,7 @@ function renderPath(name: IconName): JSX.Element {
   }
 }
 
-export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+export function Icon({ name, size = 18, label }: { name: IconName; size?: number; label?: string }) {
   return (
     <svg
       width={size}
@@ -129,7 +129,7 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
       stroke-width="1.8"
       stroke-linecap="round"
       stroke-linejoin="round"
-      aria-hidden="true"
+      {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": "true" })}
     >
       {renderPath(name)}
     </svg>
