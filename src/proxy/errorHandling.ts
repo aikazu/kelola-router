@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { checkFallbackError, type FallbackDecision } from '../accounts/errorRules.js';
-import { setModelLock } from '../accounts/locks.js';
+import { clearExpiredModelLocks, getModelLock, setModelLock } from '../accounts/locks.js';
+import { isModelLockActive } from '../accounts/state.js';
 import type { AccountState } from '../accounts/types.js';
 import { disableAccount, updateAccount } from '../db/repos/accounts.js';
 import { parseError } from '../providers/parseError.js';
@@ -60,4 +61,18 @@ export function handleUpstreamError(
     setModelLock(db, input.account.id, input.upstreamModel, decision.cooldownMs);
   if (decision.source === 'balance') disableAccount(db, input.account.id);
   return { decision, parsed };
+}
+
+/**
+ * Pre-fetch model-lock gate shared by every provider.
+ * Returns true when the account is currently locked for `model` (caller → 429).
+ * Mirrors src/proxy/minimax.ts:303-305.
+ */
+export function assertModelNotLocked(
+  db: Database.Database,
+  accountId: string,
+  model: string
+): boolean {
+  clearExpiredModelLocks(db);
+  return isModelLockActive(getModelLock(db, accountId, model));
 }

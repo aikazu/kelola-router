@@ -2,10 +2,10 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { _resetLockCleanupThrottle, getModelLock } from '../accounts/locks.js';
+import { _resetLockCleanupThrottle, getModelLock, setModelLock } from '../accounts/locks.js';
 import { openDb } from '../db/index.js';
 import { createAccount, getAccount } from '../db/repos/accounts.js';
-import { handleUpstreamError } from './errorHandling.js';
+import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
 
 describe('handleUpstreamError', () => {
   beforeEach(() => {
@@ -133,5 +133,31 @@ describe('handleUpstreamError', () => {
     });
     expect(parsed.baseRespCode).toBeUndefined();
     expect(getModelLock(db, acc.id, 'kiro/x')).toBeDefined();
+  });
+});
+
+describe('assertModelNotLocked', () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'eh-')), 't.db');
+    _resetLockCleanupThrottle();
+    const db = openDb();
+    createAccount(db, { id: 'acc_1', label: 'L', credit_type: 'payg', api_key: 'kk' });
+  });
+
+  it('returns false when no lock exists', () => {
+    const db = openDb();
+    expect(assertModelNotLocked(db, 'acc_1', 'm')).toBe(false);
+  });
+
+  it('returns true when an active lock exists', () => {
+    const db = openDb();
+    setModelLock(db, 'acc_1', 'm', 60_000);
+    expect(assertModelNotLocked(db, 'acc_1', 'm')).toBe(true);
+  });
+
+  it('clears expired locks and returns false for an expired one', () => {
+    const db = openDb();
+    setModelLock(db, 'acc_1', 'm', -1000);
+    expect(assertModelNotLocked(db, 'acc_1', 'm')).toBe(false);
   });
 });
