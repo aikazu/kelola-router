@@ -104,11 +104,13 @@ describe('pipeWithUsage', () => {
     });
     const r = new Response(body, { status: 200 });
     let callbackInvoked = false;
+    let capturedUsage: SSEUsage | null = undefined as unknown as SSEUsage | null;
     const out = await pipeWithUsage(
       r,
       'openai',
-      () => {
+      (u) => {
         callbackInvoked = true;
+        capturedUsage = u;
       },
       ac.signal
     );
@@ -124,7 +126,48 @@ describe('pipeWithUsage', () => {
     // Let any pending microtasks / timers settle
     await vi.advanceTimersByTimeAsync(20);
 
-    // callback should NOT have fired (we aborted before stream close)
-    expect(callbackInvoked).toBe(false);
+    // With the abort-fix, onUsage now fires with whatever usage was parsed
+    // (null here — no usage block was enqueued before abort) so the handler
+    // can write the request log row even on client disconnect.
+    expect(callbackInvoked).toBe(true);
+    expect(capturedUsage).toBeNull();
+  });
+
+  it('invokes onUsage with partial usage when aborted mid-stream', async () => {
+    const ac = new AbortController();
+    const enc = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(
+          enc.encode(
+            'data: {"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}}\n\n'
+          )
+        );
+        ac.signal.addEventListener('abort', () => {
+          try {
+            c.close();
+          } catch {
+            /* already closed */
+          }
+        });
+      },
+    });
+    let captured: SSEUsage | null = undefined as unknown as SSEUsage | null;
+    const out = await pipeWithUsage(
+      new Response(body, { status: 200 }),
+      'openai',
+      (u) => {
+        captured = u;
+      },
+      ac.signal
+    );
+    ac.abort();
+    const reader = out.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(captured).not.toBeNull();
+    expect(captured?.prompt_tokens).toBe(10);
+    expect(captured?.completion_tokens).toBe(2);
   });
 });

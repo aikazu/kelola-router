@@ -27,9 +27,16 @@ export async function pipeWithUsage(
   let usage: SSEUsage | null = null;
   const tail = new TailBuffer(TAIL_BYTES);
   let aborted = false;
+  let done = false;
+  const fire = () => {
+    if (done) return;
+    done = true;
+    onUsage(usage, tail.snapshot());
+  };
   if (signal) {
-    if (signal.aborted) aborted = true;
-    else
+    if (signal.aborted) {
+      aborted = true;
+    } else
       signal.addEventListener(
         'abort',
         () => {
@@ -40,19 +47,29 @@ export async function pipeWithUsage(
   }
   const tee = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, ctrl) {
+      const text = decoder.decode(chunk, { stream: true });
+      usage = extractUsageFromSSEStream(tail, text, format, usage);
       if (aborted) {
+        // Client disconnected (or will disconnect) mid-stream: still record
+        // the usage we just parsed so the handler can write the request log
+        // row with partial token counts instead of dropping it. The readable
+        // side is terminated so no more bytes are enqueued to the client;
+        // `flush()` won't run on a terminated writable, so we fire here.
+        fire();
         ctrl.terminate();
         return;
       }
-      const text = decoder.decode(chunk, { stream: true });
-      usage = extractUsageFromSSEStream(tail, text, format, usage);
       ctrl.enqueue(chunk);
     },
     flush() {
-      if (aborted) return;
       const tailText = decoder.decode();
-      usage = extractUsageFromSSEStream(tail, tailText, format, usage);
-      onUsage(usage, tail.snapshot());
+      if (!aborted) {
+        usage = extractUsageFromSSEStream(tail, tailText, format, usage);
+      }
+      // On natural completion surface whatever usage was accumulated. On
+      // abort this is best-effort: the transform above normally fires first
+      // and sets `done`; the guard inside `fire` makes this a no-op.
+      fire();
     },
   });
   return new Response(upstream.body.pipeThrough(tee), {
