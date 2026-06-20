@@ -277,3 +277,30 @@ describe('AbortSignal threading (kiro stream)', () => {
     expect(seen.signal).toBeInstanceOf(AbortSignal);
   });
 });
+
+describe('AbortSignal threading (codebuddy openai stream)', () => {
+  it('forwards c.req.raw.signal to pipeWithUsage upstream', async () => {
+    const seen: { signal?: AbortSignal } = {};
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opts) => {
+      seen.signal = (opts as RequestInit).signal;
+      return Promise.resolve(
+        new Response('data: [DONE]\n\n', {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      );
+    });
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'cb/claude-opus',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: true,
+      }),
+    });
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(seen.signal).toBeInstanceOf(AbortSignal);
+  });
+});

@@ -34,8 +34,9 @@ export async function executeCodeBuddy(opts: {
   transport: TransportConfig | null;
   proxyOpts?: ProxyFetchOpts;
   clientFormat: 'openai' | 'anthropic';
+  signal?: AbortSignal;
 }): Promise<Response> {
-  const { body, account, transport, proxyOpts, clientFormat } = opts;
+  const { body, account, transport, proxyOpts, clientFormat, signal } = opts;
 
   const prepared = prepareCodeBuddyBody(body, clientFormat);
 
@@ -49,5 +50,5 @@ export async function executeCodeBuddy(opts: {
     Accept: 'text/event-stream',
   };
 
-  return upstreamFetch(url, prepared, extraHeaders, transport, proxyOpts);
+  return upstreamFetch(url, prepared, extraHeaders, transport, proxyOpts, signal);
 }
