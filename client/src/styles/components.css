@@ -121,6 +121,13 @@
   padding: 5px 12px;
   font-size: 10px;
 }
+/* On touch/coarse-pointer devices, floor small buttons to a 44px hit target
+   (WCAG 2.5.5). Desktop fine-pointer density is left unchanged. */
+@media (pointer: coarse) {
+  .btn-sm {
+    min-height: 44px;
+  }
+}
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -1203,6 +1210,7 @@ textarea::placeholder {
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 140;
+    overscroll-behavior: contain;
   }
   .main {
     padding: 0 16px 32px;
