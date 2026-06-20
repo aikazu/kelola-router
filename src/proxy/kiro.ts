@@ -1,6 +1,5 @@
 import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
-import { checkFallbackError } from '../accounts/errorRules.js';
 import { selectAccount } from '../accounts/selection.js';
 import type { SelectionMode } from '../accounts/types.js';
 import { consoleBus } from '../console/bus.js';
@@ -25,14 +24,9 @@ import { calculateCost } from '../providers/pricing.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
+import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
-import {
-  applyErrorState,
-  buildAccountStates,
-  buildLogRow,
-  clearErrorState,
-  type Db,
-} from './pipeline.js';
+import { buildAccountStates, buildLogRow, clearErrorState, type Db } from './pipeline.js';
 
 /**
  * Mutable cursor ref passed in from server.ts so that account round-robin
@@ -113,6 +107,10 @@ export async function handleKiroProxy(
   const acc = accounts.find((a) => a.id === picked.id)!;
   consoleBus.emit(buildAccount(reqId, new Date().toISOString(), acc.label, kiroReason));
 
+  if (assertModelNotLocked(db, acc.id, modelName)) {
+    return c.json({ error: `model ${modelName} temporarily locked` }, 429);
+  }
+
   const transport = resolveTransportForAccount(db, acc);
   if (transport) {
     if (transport.relay) {
@@ -132,8 +130,8 @@ export async function handleKiroProxy(
       consoleBus.emit(buildTransportFail(reqId, new Date().toISOString(), fellBack, message)),
   };
 
-  // Pipeline helpers (applyErrorState/clearErrorState) need a Db with
-  // updateAccount; the real better-sqlite3 Database only exposes prepare().
+  // clearErrorState needs a Db with updateAccount; the real better-sqlite3
+  // Database only exposes prepare(). handleUpstreamError builds its own.
   const stateDb: Db = { updateAccount: (id, patch) => updateAccount(db, id, patch) };
 
   const recordKiroUsage = (
@@ -170,15 +168,15 @@ export async function handleKiroProxy(
 
     if (!result.ok) {
       const errBody = result.errorBody ?? '';
-      const decision = checkFallbackError(
-        result.status,
+      handleUpstreamError(db, {
+        account: acc,
+        acc: picked,
+        status: result.status,
         errBody,
-        undefined,
-        acc.backoff_level,
-        undefined,
-        undefined
-      );
-      applyErrorState(stateDb, picked, decision, errBody, { status: result.status });
+        response: undefined,
+        retryAfterSec: result.retryAfterSec,
+        upstreamModel: modelName,
+      });
       consoleBus.emit(
         buildError(reqId, new Date().toISOString(), result.status, errBody.slice(0, 200))
       );
@@ -221,6 +219,14 @@ export async function handleKiroProxy(
   } catch (e: unknown) {
     const message = errorMessage(e);
     log.error({ err: message }, 'kiro upstream error');
+    handleUpstreamError(db, {
+      account: acc,
+      acc: picked,
+      status: 502,
+      errBody: message,
+      response: undefined,
+      upstreamModel: modelName,
+    });
     const rid = c.get('reqId') ?? '----';
     consoleBus.emit(buildError(rid, new Date().toISOString(), 502, message));
     return c.json({ error: `kiro upstream error: ${message}` }, 502);

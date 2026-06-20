@@ -81,6 +81,8 @@ export interface KiroExecuteResult {
   json?: OpenAICompletion;
   /** Raw upstream error body when !ok. */
   errorBody?: string;
+  /** Parsed `retry-after` header (seconds) when !ok and header present. */
+  retryAfterSec?: number;
   upstreamModel: string;
 }
 
@@ -118,11 +120,13 @@ export async function executeKiro(args: {
   );
 
   if (!resp.ok) {
+    const ra = resp.headers.get('retry-after');
     return {
       ok: false,
       status: resp.status,
       errorBody: await resp.text(),
       upstreamModel,
+      retryAfterSec: ra ? parseInt(ra, 10) : undefined,
     };
   }
 
