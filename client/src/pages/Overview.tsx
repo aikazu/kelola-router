@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
@@ -38,6 +38,24 @@ const rangeLabel = (days: number) =>
 
 export function Overview() {
   const [days, setDays] = useState(1);
+
+  // URL sync: read days on mount + react to hashchange (back/forward).
+  useEffect(() => {
+    const onHash = () => {
+      const p = new URLSearchParams(location.hash.split('?')[1] ?? '');
+      if (p.get('days') !== null) setDays(Number(p.get('days')));
+    };
+    onHash();
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // URL sync: write days on change.
+  useEffect(() => {
+    const newHash = `#/admin/overview?days=${days}`;
+    if (location.hash !== newHash) history.replaceState(null, '', newHash);
+  }, [days]);
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['overview', days],
     queryFn: () => apiFetch<OverviewData>(`/api/admin/overview?days=${days}`),
@@ -64,8 +82,8 @@ export function Overview() {
         actions={
           <select
             aria-label="Select date range"
-            value={days}
-            onChange={(e) => setDays(Number((e.target as HTMLSelectElement).value))}
+            value={String(days)}
+            onInput={(e) => setDays(Number((e.target as HTMLSelectElement).value))}
           >
             {[1, 7, 30, 90].map((n) => (
               <option key={n} value={n}>
