@@ -293,74 +293,85 @@ export async function handleNotionProxy(
 
   // Convert NDJSON stream → OpenAI SSE stream
   const encoder = new TextEncoder();
+  const capture: { buf: string[]; len: number } = { buf: [], len: 0 };
+  const CAPTURE_MAX = 256 * 1024;
+  const enqueueAndCapture = (
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    chunk: string
+  ) => {
+    capture.buf.push(chunk);
+    capture.len += chunk.length;
+    while (capture.len > CAPTURE_MAX && capture.buf.length > 1) {
+      const dropped = capture.buf.shift()!;
+      capture.len -= dropped.length;
+    }
+    controller.enqueue(encoder.encode(chunk));
+  };
   const readable = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
         let emittedDone = false;
         for await (const delta of extractNotionStream(upstream)) {
           if (delta.done) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  id: `chatcmpl-${reqId}`,
-                  object: 'chat.completion.chunk',
-                  created: Math.floor(Date.now() / 1000),
-                  model: internalModelId,
-                  choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-                })}\n\ndata: [DONE]\n\n`
-              )
+            enqueueAndCapture(
+              controller,
+              `data: ${JSON.stringify({
+                id: `chatcmpl-${reqId}`,
+                object: 'chat.completion.chunk',
+                created: Math.floor(Date.now() / 1000),
+                model: internalModelId,
+                choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+              })}\n\ndata: [DONE]\n\n`
             );
             emittedDone = true;
             break;
           }
           if (delta.toolCall) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  id: `chatcmpl-${reqId}`,
-                  object: 'chat.completion.chunk',
-                  created: Math.floor(Date.now() / 1000),
-                  model: internalModelId,
-                  choices: [
-                    {
-                      index: 0,
-                      delta: {
-                        tool_calls: [
-                          {
-                            index: 0,
-                            id: delta.toolCall.id,
-                            type: 'function',
-                            function: {
-                              name: delta.toolCall.name,
-                              arguments: delta.toolCall.arguments,
-                            },
+            enqueueAndCapture(
+              controller,
+              `data: ${JSON.stringify({
+                id: `chatcmpl-${reqId}`,
+                object: 'chat.completion.chunk',
+                created: Math.floor(Date.now() / 1000),
+                model: internalModelId,
+                choices: [
+                  {
+                    index: 0,
+                    delta: {
+                      tool_calls: [
+                        {
+                          index: 0,
+                          id: delta.toolCall.id,
+                          type: 'function',
+                          function: {
+                            name: delta.toolCall.name,
+                            arguments: delta.toolCall.arguments,
                           },
-                        ],
-                      },
-                      finish_reason: null,
+                        },
+                      ],
                     },
-                  ],
-                })}\n\n`
-              )
+                    finish_reason: null,
+                  },
+                ],
+              })}\n\n`
             );
             continue;
           }
           if (delta.delta) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  id: `chatcmpl-${reqId}`,
-                  object: 'chat.completion.chunk',
-                  created: Math.floor(Date.now() / 1000),
-                  model: internalModelId,
-                  choices: [{ index: 0, delta: { content: delta.delta }, finish_reason: null }],
-                })}\n\n`
-              )
+            enqueueAndCapture(
+              controller,
+              `data: ${JSON.stringify({
+                id: `chatcmpl-${reqId}`,
+                object: 'chat.completion.chunk',
+                created: Math.floor(Date.now() / 1000),
+                model: internalModelId,
+                choices: [{ index: 0, delta: { content: delta.delta }, finish_reason: null }],
+              })}\n\n`
             );
           }
         }
         if (!emittedDone) {
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          enqueueAndCapture(controller, 'data: [DONE]\n\n');
         }
         insertRequestLogDeferred(
           db,
@@ -383,7 +394,7 @@ export async function handleNotionProxy(
             stream: 1,
             rtkBytesSaved: rtkSaved,
             requestBody: JSON.stringify(body),
-            responseBody: null,
+            responseBody: capture.buf.join(''),
             requestHeaders: c.req.raw.headers,
             responseHeaders: new Headers(),
             reqId,

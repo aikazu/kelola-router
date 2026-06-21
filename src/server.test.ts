@@ -927,4 +927,146 @@ describe('response_body capture (regression: systematic null)', () => {
     expect(captured).not.toBeNull();
     expect(captured).toContain('pong');
   });
+
+  it('codebuddy stream openai: captures upstream SSE body', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_cap_cb_s' });
+    createAccount(db, {
+      id: 'acc_cap_cb_s',
+      label: 'CB',
+      credit_type: 'token-plan',
+      api_key: 'cb_test',
+      base_url: 'https://www.codebuddy.ai',
+      provider: 'codebuddy',
+      enabled: true,
+    });
+    upsertModel(db, {
+      name: 'claude-opus-4.6',
+      upstream_model: 'claude-opus-4.6',
+      display_name: 'CB Opus 4.6',
+      provider: 'codebuddy',
+    });
+
+    const upstreamSSE =
+      'data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"pong"}}]}\n\n' +
+      'data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}\n\n' +
+      'data: [DONE]\n\n';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(upstreamSSE, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    );
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'cb/claude-opus-4.6',
+          stream: true,
+          messages: [{ role: 'user', content: 'ping' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await res.text();
+
+    const captured = await lastLogBody(db);
+    expect(captured).not.toBeNull();
+    expect(captured).not.toBe('[anthropic-sse]');
+    expect(captured!.length).toBeGreaterThan(0);
+  });
+
+  it('codebuddy stream anthropic: captures SSE body, not "[anthropic-sse]" placeholder', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_cap_cb_a' });
+    createAccount(db, {
+      id: 'acc_cap_cb_a',
+      label: 'CB',
+      credit_type: 'token-plan',
+      api_key: 'cb_test',
+      base_url: 'https://www.codebuddy.ai',
+      provider: 'codebuddy',
+      enabled: true,
+    });
+    upsertModel(db, {
+      name: 'claude-opus-4.6',
+      upstream_model: 'claude-opus-4.6',
+      display_name: 'CB Opus 4.6',
+      provider: 'codebuddy',
+    });
+
+    const upstreamSSE =
+      'data: {"id":"x","choices":[{"index":0,"delta":{"role":"assistant","content":"pong"}}]}\n\n' +
+      'data: {"id":"x","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}\n\n' +
+      'data: [DONE]\n\n';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(upstreamSSE, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    );
+
+    const res = await app.request(
+      new Request('http://localhost/v1/messages', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'cb/claude-opus-4.6',
+          stream: true,
+          max_tokens: 64,
+          messages: [{ role: 'user', content: 'ping' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await res.text();
+
+    const captured = await lastLogBody(db);
+    expect(captured).not.toBeNull();
+    expect(captured).not.toBe('[anthropic-sse]');
+    expect(captured!.length).toBeGreaterThan(0);
+  });
+
+  it('codebuddy non-stream: captures full aggregated body, not 2KB-truncated', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_cap_cb_n' });
+    createAccount(db, {
+      id: 'acc_cap_cb_n',
+      label: 'CB',
+      credit_type: 'token-plan',
+      api_key: 'cb_test',
+      base_url: 'https://www.codebuddy.ai',
+      provider: 'codebuddy',
+      enabled: true,
+    });
+    upsertModel(db, {
+      name: 'claude-opus-4.6',
+      upstream_model: 'claude-opus-4.6',
+      display_name: 'CB Opus 4.6',
+      provider: 'codebuddy',
+    });
+
+    const big = 'x'.repeat(3000);
+    const upstreamSSE =
+      `data: {"id":"x","choices":[{"index":0,"delta":{"role":"assistant","content":"${big}"}}]}\n\n` +
+      'data: {"id":"x","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}\n\n' +
+      'data: [DONE]\n\n';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(upstreamSSE, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    );
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'cb/claude-opus-4.6',
+          messages: [{ role: 'user', content: 'ping' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const captured = await lastLogBody(db);
+    expect(captured).not.toBeNull();
+    // Body must contain the full payload marker, not the truncated 2000-char version.
+    expect(captured!.length).toBeGreaterThan(2000);
+    expect(captured).toContain(big);
+  });
 });
