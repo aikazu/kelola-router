@@ -14,7 +14,7 @@ A new migration `00X-<name>.ts` that:
 ## Prerequisites
 
 - Read [`../reference/db-tables.md`](../reference/db-tables.md) — current schema
-- Read the latest migration: `src/db/migrations/010-model-context-output.ts` (most recent; `user_version` = 10)
+- Read the consolidated schema: `src/db/migrations/schema.sql.ts` (CREATE TABLE), `indexes.sql.ts`, `seed.sql.ts` — these are concatenated by `001-initial.ts` into the single fresh-deploy migration (`user_version` = 1)
 - Read the runner: `src/db/migrations/index.ts`
 - Know the current `user_version` (run `sqlite3 ~/.local/share/kelola-router/router.db "PRAGMA user_version;"`)
 
@@ -34,18 +34,12 @@ src/db/migrations/
 
 Check `src/db/migrations/index.ts`:
 ```ts
-const ALL_MIGRATIONS = [
-  migration_001, // initial
-  migration_002, // kiro-provider
-  migration_003, // transports
-  migration_004, // request-log-reqid
-  migration_005, // combos
-];
+const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [migration_001];
 ```
 
-The next ID is 6. The migration file should be `00X-<name>.ts` where `<name>` is a short kebab-case identifier (e.g. `00X-foo-provider.ts`, `00X-per-key-budget.ts`).
+There is currently one consolidated migration (`001-initial`, `user_version = 1`). The next ID is 2. The migration file should be `00X-<name>.ts` where `<name>` is a short kebab-case identifier (e.g. `002-foo-provider.ts`, `002-per-key-budget.ts`).
 
-**Why:** IDs are forever. Once a migration ships to a user, its ID is locked. Don't reorder.
+**Why:** IDs are forever. Once a migration ships to a user, its ID is locked. Don't reorder. The project ships fresh-deploy-only — new additive columns go in a new migration file (not back-edited into `001-initial`), so existing DBs at `user_version = 1` still pick them up via the runner.
 
 ### 2. Write the migration
 
@@ -99,14 +93,11 @@ export const migration_00X = {
 **File:** `src/db/migrations/index.ts`
 
 ```ts
+import { migration_001 } from './001-initial.js';
 import { migration_00X } from './00X-<name>.js';
 
-const ALL_MIGRATIONS = [
+const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
   migration_001,
-  migration_002,
-  migration_003,
-  migration_004,
-  migration_005,
   migration_00X, // new
 ];
 ```
@@ -125,7 +116,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3';
-import { migration_005 } from './005-combos.js';
+import { migration_001 } from './001-initial.js';
 import { migration_00X } from './00X-<name>.js';
 import { migrate } from './index.js';
 
@@ -150,16 +141,16 @@ describe('migration 00X', () => {
     expect(cols.map((c) => c.name)).toContain('<new_col>');
   });
 
-  it('applies on a DB at user_version=5 (one migration behind)', () => {
+  it('applies on a DB at user_version=1 (one migration behind)', () => {
     const db = new Database(join(tmpDir, 't.db'));
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
-    // Apply 001-005 first
-    db.exec(migration_005.sql);
-    db.pragma('user_version = 5');
+    // Apply the consolidated 001 first
+    db.exec(migration_001.sql);
+    db.pragma('user_version = 1');
     // Now run migrate() — should apply 00X
     migrate(db);
-    expect(db.pragma('user_version', { simple: true })).toBe(6);
+    expect(db.pragma('user_version', { simple: true })).toBe(2);
   });
 });
 ```

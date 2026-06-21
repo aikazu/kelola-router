@@ -1,8 +1,8 @@
 # DB Tables
 
-Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/00{1,2,3,4,5,6,7,8,9,10}-*.ts`. Migrations tracked via `PRAGMA user_version` (current = 10). All migrations are additive (`ALTER TABLE ADD COLUMN` or `CREATE TABLE`) after `001-initial`.
+Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/001-initial.ts` (SQL split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts`). Migrations tracked via `PRAGMA user_version` (current = 1). The schema is consolidated into a single fresh-deploy migration — no incremental ALTERs, no data dedup; every column/table is created in one step on a new database.
 
-## `accounts` (`001-initial` + 4 ALTERs)
+## `accounts` (`001-initial`)
 
 Upstream credentials (MiniMax API key or Kiro OAuth refresh token).
 
@@ -19,14 +19,14 @@ Upstream credentials (MiniMax API key or Kiro OAuth refresh token).
 | `last_error` | TEXT NULL | `{status, message, timestamp, baseRespCode}` JSON |
 | `status` | TEXT NOT NULL DEFAULT `active` CHECK (`active` / `error` / `disabled`) | `error` set on 401; cleared on next success |
 | `created_at` | TEXT NOT NULL DEFAULT `(datetime('now'))` | |
-| `provider` | TEXT NOT NULL DEFAULT `minimax` (`002-kiro`) | `minimax` or `kiro` |
-| `access_token` | TEXT NULL (`002-kiro`) | Kiro: cached short-lived bearer |
-| `token_expires_at` | TEXT NULL (`002-kiro`) | Kiro: ISO timestamp |
-| `provider_data` | TEXT NULL (`002-kiro`) | Kiro: JSON `{clientId, clientSecret, region, profileArn, authMethod}` |
-| `relay_id` | TEXT NULL (`003-transports`) | single relay (mutually exclusive with proxy*) |
-| `proxy_id` | TEXT NULL (`003-transports`) | single proxy |
-| `proxy_pool` | TEXT NULL (`003-transports`) | JSON array of proxy transport ids |
-| `proxy_rotate_every` | INT NOT NULL DEFAULT 1 (`003-transports`) | advance pool cursor every N requests |
+| `provider` | TEXT NOT NULL DEFAULT `minimax` | `minimax`, `kiro`, `codebuddy`, `pioneer`, `notion`, or `zai` |
+| `access_token` | TEXT NULL | Kiro: cached short-lived bearer |
+| `token_expires_at` | TEXT NULL | Kiro: ISO timestamp |
+| `provider_data` | TEXT NULL | Kiro: JSON `{clientId, clientSecret, region, profileArn, authMethod}` |
+| `relay_id` | TEXT NULL | single relay (mutually exclusive with proxy*) |
+| `proxy_id` | TEXT NULL | single proxy |
+| `proxy_pool` | TEXT NULL | JSON array of proxy transport ids |
+| `proxy_rotate_every` | INT NOT NULL DEFAULT 1 | advance pool cursor every N requests |
 
 \* `resolveTransportForAccount` enforces mutual exclusion at fetch time.
 
@@ -56,9 +56,9 @@ Bearer credentials for clients (Claude Code, hermes-agent).
 
 Unique partial index `idx_client_keys_active_key` on `key WHERE enabled = 1` — a disabled key can be re-enabled with the same secret.
 
-## `request_logs` (`001-initial` + 1 ALTER)
+## `request_logs` (`001-initial`)
 
-Per-request telemetry. 29 columns. Full schema in `src/db/repos/requestLogs.ts` (the `RequestLog` interface). Key columns: `id`, `client_key_id`, `account_id`, `model`, `requested_model` (alias if any), `endpoint`, `format` (`openai` / `anthropic`), `prompt_tokens`, `completion_tokens`, `cache_creation_tokens`, `cache_read_tokens`, `total_tokens`, `cost_usd`, `latency_ms`, `ttft_ms`, `status_code`, `base_resp_code`, `stream` (0/1), `relay_path`, `proxy_path`, `rtk_bytes_saved`, `caveman_level`, `error_message`, `request_body`, `response_body`, `request_headers`, `response_headers`, `error`, `req_id` (added `004-reqid`), `created_at`.
+Per-request telemetry. 29 columns. Full schema in `src/db/repos/requestLogs.ts` (the `RequestLog` interface). Key columns: `id`, `client_key_id`, `account_id`, `model`, `requested_model` (alias if any), `endpoint`, `format` (`openai` / `anthropic`), `prompt_tokens`, `completion_tokens`, `cache_creation_tokens`, `cache_read_tokens`, `total_tokens`, `cost_usd`, `latency_ms`, `ttft_ms`, `status_code`, `base_resp_code`, `stream` (0/1), `relay_path`, `proxy_path`, `rtk_bytes_saved`, `caveman_level`, `error_message`, `request_body`, `response_body`, `request_headers`, `response_headers`, `error`, `req_id`, `created_at`.
 
 Retention: pruned at `REQUEST_LOG_RETENTION_DAYS` (default 30) by `src/scheduler/quotaPull.ts`.
 
@@ -68,7 +68,7 @@ Per-account quota poll results. Columns: `id`, `account_id` (FK CASCADE), `sourc
 
 Latest snapshot per `(model_name, window_type)` is what the Quota page renders.
 
-## `models` (`001-initial` + 2 ALTERs)
+## `models` (`001-initial`)
 
 Catalog of upstream models + pricing.
 
@@ -89,8 +89,8 @@ Catalog of upstream models + pricing.
 | `source` | TEXT NOT NULL DEFAULT `''` | `builtin` / `user` / `fetched` |
 | `enabled` | INT NOT NULL DEFAULT 1 | |
 | `created_at` | TEXT NOT NULL DEFAULT `(datetime('now'))` | |
-| `provider` | TEXT NOT NULL DEFAULT `minimax` (`002-kiro`) | |
-| `context_output` | INT NULL (`010-model-context-output`) | max output tokens |
+| `provider` | TEXT NOT NULL DEFAULT `minimax` | |
+| `context_output` | INT NULL | max output tokens |
 
 ## `model_aliases` (`001-initial`)
 
@@ -104,7 +104,7 @@ Catalog of upstream models + pricing.
 
 Unique constraint: `alias_name` must not collide with `combos.name` (enforced in `createCombo`).
 
-## `combos` (`005-combos`)
+## `combos` (`001-initial`)
 
 Ordered fallback chain: request a combo name → try each model in sequence.
 
@@ -116,7 +116,7 @@ Ordered fallback chain: request a combo name → try each model in sequence.
 | `created_at` | TEXT NOT NULL DEFAULT `(datetime('now'))` | |
 | `updated_at` | TEXT NOT NULL DEFAULT `(datetime('now'))` | |
 
-## `transports` (`003-transports`)
+## `transports` (`001-initial`)
 
 Proxy / relay endpoints.
 
@@ -135,7 +135,7 @@ Proxy / relay endpoints.
 
 Dashboard session cookies (when password is set). Columns: `id` (PK), `user_agent`, `ip`, `created_at`, `expires_at` (7-day TTL), `last_seen`. Cleaned by `cleanupExpiredSessions` in `src/scheduler/quotaPull.ts`.
 
-## `audit_log` (`007-audit-log`)
+## `audit_log` (`001-initial`)
 
 Security-relevant admin actions (key reveals, future: logins/settings changes). Stores **only metadata** — never the secret value. Separate from `request_logs` (proxy telemetry) so audit history survives `cleanupOldLogs` pruning.
 
@@ -158,7 +158,7 @@ Generic key-value store for all runtime config. Columns: `key` (PK), `value` (TE
 
 ## Indexes
 
-`001-initial` also ships these additive indexes (safe to re-run on existing DBs):
+`001-initial` (via `indexes.sql.ts`) creates these indexes, all with `IF NOT EXISTS` (safe to re-run):
 
 - `idx_logs_client_created` on `request_logs(client_key_id, created_at DESC)`
 - `idx_logs_account_created` on `request_logs(account_id, created_at DESC)`
@@ -169,20 +169,17 @@ Generic key-value store for all runtime config. Columns: `key` (PK), `value` (TE
 - `idx_accounts_enabled_status` on `accounts(enabled, status, credit_type)`
 - `idx_client_keys_active_key` UNIQUE on `client_keys(key) WHERE enabled = 1`
 - `idx_quota_account_fetched` on `quota_snapshots(account_id, fetched_at DESC)`
+- `idx_models_family` on `models(family, enabled)`
+- `idx_models_upstream_model` UNIQUE on `models(upstream_model)`
+- `idx_model_aliases_target` on `model_aliases(upstream_model)`
+- `idx_sessions_expires` on `sessions(expires_at)`
+- `idx_audit_log_event_created` on `audit_log(event, created_at DESC)`
+- `idx_audit_log_key_created` on `audit_log(client_key_id, created_at DESC)`
 
 ## Migrations
 
 | # | File | Adds |
 |---|---|---|
-| 1 | `001-initial.ts` | All tables above (consolidated). `user_version` 0 → 1 |
-| 2 | `002-kiro.ts` | Kiro columns on `accounts` + `models` |
-| 3 | `003-transports.ts` | `transports` table + 4 columns on `accounts` |
-| 4 | `004-reqid.ts` | `req_id` on `request_logs` |
-| 5 | `005-combos.ts` | `combos` table |
-| 6 | `006-transport-country.ts` | `country` column on `transports` |
-| 7 | `007-audit-log.ts` | `audit_log` table |
-| 8 | `008-pioneer-dedup.ts` | dedup Pioneer `pioneer/anthropic/pioneer/...` triple-nested rows |
-| 9 | `009-pioneer-anthropic-dedup.ts` | collapse `anthropic/pioneer/<x>` dup rows onto canonical |
-| 10 | `010-model-context-output.ts` | `context_output` column on `models` |
+| 1 | `001-initial.ts` | All tables + indexes + seed settings (SQL split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts`). `user_version` 0 → 1 |
 
-Current `user_version` = 10. Each migration is additive (no schema rewrites); existing rows survive upgrade.
+Current `user_version` = 1. Single consolidated fresh-deploy migration — no incremental ALTERs. (Earlier incremental migrations `002-010` and the Pioneer dedup cleanups `008/009` were folded in and removed; a fresh install reaches the final schema in one step.)

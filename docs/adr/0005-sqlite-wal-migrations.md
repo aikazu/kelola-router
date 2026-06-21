@@ -4,7 +4,7 @@ Date: 2026-06-12
 
 ## Status
 
-Accepted.
+Accepted. Superseded in part (2026-06-21): the incremental migration files were consolidated into a single fresh-deploy schema — see "Schema consolidation (2026-06-21)" below.
 
 ## Context
 
@@ -22,6 +22,10 @@ The pressure: a Docker container that "just works" with `docker compose up -d` i
 SQLite with WAL journal mode, `foreign_keys=ON`, `busy_timeout=5000`. Single file at `~/.local/share/kelola-router/router.db` (override via `ROUTER_DB_PATH`; Docker mounts `/data/router.db`). Migrations are TypeScript files in `src/db/migrations/` exporting `{id, name, sql}` constants. The runner (`src/db/migrations/index.ts:migrate(db)`) reads `PRAGMA user_version`, applies any migration with `id > current` in order, and advances the PRAGMA.
 
 Every migration is additive. The current schema is consolidated in `001-initial.ts` (for fresh deploys); the additive ALTERs live in `002-kiro.ts` (provider columns), `003-transports.ts` (per-account transport), `004-reqid.ts` (request log ↔ console correlation), `005-combos.ts` (model fallback chains). Total `user_version` = 5.
+
+### Schema consolidation (2026-06-21)
+
+After the multi-provider, transport, combo, audit-log, transport-geoip, and model-context-output work shipped as incremental migrations (`002`–`010`), all of them — plus the standalone `CREATE TABLE` migrations (`transports`, `combos`, `audit_log`) — were folded back into `001-initial.ts` as a single consolidated fresh-deploy schema. The SQL is split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts` (concatenated by `001-initial.ts`) to keep each file readable. The Pioneer dedup migrations `008`/`009` were data-only cleanups for DBs that had drifted across older releases; they are irrelevant on a fresh install and were dropped. Result: one migration file, `user_version` ends at 1, no incremental ALTERs, no data dedup. Existing DBs at `user_version = 10` keep working (the runner skips everything; the consolidated schema is a superset), and fresh deploys reach the final schema in a single step.
 
 ## Consequences
 
@@ -67,7 +71,7 @@ Rejected because: no SQL, no joins, no indexes beyond primary key. Every report 
 ## References
 
 - `src/db/index.ts` — `openDb()`, `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`
-- `src/db/migrations/{001-initial,002-kiro,003-transports,004-reqid,005-combos}.ts` — the 5 migration files
+- `src/db/migrations/001-initial.ts` — the single consolidated fresh-deploy migration (concatenates `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts`)
 - `src/db/migrations/index.ts` — `migrate(db)` runner
 - `src/db/repos/*.ts` — per-table repos
 - `docs/reference/db-tables.md` — schema reference

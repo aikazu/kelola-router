@@ -10,7 +10,7 @@ Full playbook: `docs/guides/add-a-migration.md`. Read it first.
 
 ## Steps
 
-1. **Pick next ID** — `git grep user_version` or read `src/db/migrations/index.ts`. Current = 10, next = 11. File: `src/db/migrations/00X-<kebab-name>.ts` (or `00N-…` matching the ID).
+1. **Pick next ID** — `git grep user_version` or read `src/db/migrations/index.ts`. Current = 1 (single consolidated `001-initial` migration), next = 2. File: `src/db/migrations/00X-<kebab-name>.ts` (or `00N-…` matching the ID). The project ships fresh-deploy-only — add new columns in a NEW migration file, don't back-edit `001-initial.ts` (existing DBs at `user_version = 1` won't see edits to already-applied migrations).
 2. **Write migration** — export `migration_00X = { id: N, name: '<kebab-name>', sql: \`...\` }`.
    - **Additive only.** `ALTER TABLE ADD COLUMN` (with `DEFAULT` to backfill) or `CREATE TABLE IF NOT EXISTS`.
    - **No DROP, no UPDATE of existing data, no RENAME.**

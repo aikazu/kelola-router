@@ -76,7 +76,7 @@ All six upstreams live behind a single OpenAI-compatible or Anthropic-compatible
 - 🎛️ **Built-in Preact dashboard** — Obsidian-Gold-themed SPA (Vite) with Overview, Usage, Client keys, Upstream accounts, Models, Aliases, Combos, Quota, Transports, Console, and Settings.
 - 🔌 **Transport flexibility** — direct / SOCKS proxy / HTTP proxy / upstream relay, per-account assignment with geoip-aware defaulting, dispatcher cache.
 - 🐳 **Docker-ready** — multi-stage Dockerfile, `docker-compose.yml`, bind-mount friendly, `recover-db.ts` for WAL race recovery.
-- 🧪 **1000+ tests** across server (Vitest, 161 files), client (Vitest, 83 tests), and the audit-fixes suite (14 new tests).
+- 🧪 **1000+ tests** across server (Vitest, 160 files), client (Vitest, 83 tests), and the audit-fixes suite (14 new tests).
 - 🆕 **Audit-fixes v0.22.0** — quota uses `Promise.allSettled` for parallel per-account fetch with per-account error shape, settings GET returns `null` for missing keys (client merges UI defaults), admin cache 250ms TTL with explicit `bumpAdminCacheVersion` invalidation from `flushDb`, combo/alias name uniqueness enforced both directions (`checkComboConflict` exported), and `upsertAlias` UPDATE branch now sets `source`.
 
 ---
@@ -166,7 +166,7 @@ src/
 ├── db/
 │   ├── index.ts                  # openDb (WAL, FK, busy_timeout, optional SQLCipher)
 │   ├── hooks.ts                  # bumpAdminCacheVersion re-export
-│   ├── migrations/               # 001-initial ... 010-model-context-output
+│   ├── migrations/               # 001-initial only (schema.sql / indexes.sql / seed.sql)
 │   └── repos/                    # accounts, aliases, auditLog, client_keys,
 │                                 #   combos, models, quotaSnapshots,
 │                                 #   requestLogs, requestLogsQueue, settings,
