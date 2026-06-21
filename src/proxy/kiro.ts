@@ -255,8 +255,8 @@ export async function handleKiroProxy(
       return await pipeWithUsage(
         sse,
         format,
-        (usage, raw) => {
-          recordKiroUsage(usage, true, result.status, raw, rtkSaved);
+        (usage, _tail, capturedBody) => {
+          recordKiroUsage(usage, true, result.status, capturedBody, rtkSaved);
         },
         c.req.raw.signal
       );

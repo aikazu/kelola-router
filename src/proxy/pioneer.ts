@@ -303,13 +303,13 @@ export async function handlePioneerProxy(
       return pipeWithUsage(
         resp,
         'openai',
-        (usage, raw) =>
+        (usage, _tail, capturedBody) =>
           recordUsage(
             usage?.prompt_tokens ?? 0,
             usage?.completion_tokens ?? 0,
             usage?.cache_read_tokens ?? 0,
             true,
-            raw
+            capturedBody
           ),
         c.req.raw.signal
       );

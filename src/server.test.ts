@@ -7,7 +7,7 @@ import { openDb } from './db/index.js';
 import { createAccount } from './db/repos/accounts.js';
 import { createClientKey } from './db/repos/client_keys.js';
 import { upsertModel } from './db/repos/models.js';
-import { flushDeferredLogs } from './db/repos/requestLogs.js';
+import { flushDeferredLogs, recentLogs } from './db/repos/requestLogs.js';
 import { clearCache } from './db/repos/settings.js';
 import { app, emitSecurityWarnings, resetDb } from './server.js';
 import { log } from './util/log.js';
@@ -750,5 +750,181 @@ describe('emitSecurityWarnings (boot-time)', () => {
     const spy = vi.spyOn(log, 'warn').mockImplementation(() => {});
     emitSecurityWarnings(db);
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('response_body capture (regression: systematic null)', () => {
+  beforeEach(() => {
+    process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'capture-')), 't.db');
+    resetDb();
+  });
+
+  async function lastLogBody(db: ReturnType<typeof openDb>): Promise<string | null> {
+    await flushDeferredLogs();
+    const logs = recentLogs(db, { limit: 1 });
+    return logs[0]?.response_body ?? null;
+  }
+
+  it('minimax non-stream: captures response body verbatim', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_cap_mm' });
+    createAccount(db, { id: 'acc_cap_mm', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      provider: 'minimax',
+    });
+
+    const upstreamBody =
+      '{"choices":[{"message":{"role":"assistant","content":"pong"}}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(upstreamBody, { status: 200, headers: { 'content-type': 'application/json' } })
+    );
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'mx/MiniMax-M3',
+          messages: [{ role: 'user', content: 'ping' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const captured = await lastLogBody(db);
+    expect(captured).not.toBeNull();
+    expect(captured).toContain('"pong"');
+  });
+
+  it('minimax stream: captures response body (tail)', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_cap_mm_s' });
+    createAccount(db, { id: 'acc_cap_mm_s', label: 'L', credit_type: 'payg', api_key: 'mm_key' });
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      provider: 'minimax',
+    });
+
+    const sse =
+      'data: {"choices":[{"delta":{"content":"pong"},"index":0}]}\n\n' +
+      'data: {"choices":[{"delta":{},"finish_reason":"stop","index":0}]}\n\n' +
+      'data: [DONE]\n\n';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    );
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'mx/MiniMax-M3',
+          stream: true,
+          messages: [{ role: 'user', content: 'ping' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await res.text(); // drain stream so pipeWithUsage fires onUsage
+
+    const captured = await lastLogBody(db);
+    expect(captured).not.toBeNull();
+    expect(captured!.length).toBeGreaterThan(0);
+  });
+
+  it('pioneer non-stream: captures response body', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_cap_pio' });
+    createAccount(db, {
+      id: 'acc_cap_pio',
+      label: 'Pioneer',
+      credit_type: 'token-plan',
+      api_key: 'pio_test',
+      provider: 'pioneer',
+      enabled: true,
+    });
+    upsertModel(db, {
+      name: 'pioneer/claude-opus-4.6',
+      upstream_model: 'pioneer/claude-opus-4.6',
+      display_name: 'Pioneer Opus 4.6',
+      provider: 'pioneer',
+    });
+
+    const upstreamSSE =
+      'data: {"id":"x","choices":[{"index":0,"delta":{"role":"assistant","content":"pong"}}]}\n\n' +
+      'data: {"id":"x","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n' +
+      'data: {"id":"x","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}\n\n' +
+      'data: [DONE]\n\n';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(upstreamSSE, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    );
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'pio/pioneer/claude-opus-4.6',
+          messages: [{ role: 'user', content: 'ping' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await res.text(); // drain stream
+
+    const captured = await lastLogBody(db);
+    expect(captured).not.toBeNull();
+    expect(captured).toContain('pong');
+  });
+
+  it('zai non-stream: captures response body', async () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_cap_zai' });
+    createAccount(db, {
+      id: 'acc_cap_zai',
+      label: 'zai',
+      credit_type: 'token-plan',
+      api_key: 'zai_test',
+      base_url: 'https://api.z.ai',
+      provider: 'zai',
+      enabled: true,
+    });
+    upsertModel(db, {
+      name: 'zai/glm-5.2',
+      upstream_model: 'zai/glm-5.2',
+      display_name: 'GLM 5.2',
+      provider: 'zai',
+    });
+
+    const upstreamSSE =
+      'data: {"id":"x","choices":[{"index":0,"delta":{"role":"assistant","content":"pong"}}]}\n\n' +
+      'data: {"id":"x","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n' +
+      'data: {"id":"x","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}\n\n' +
+      'data: [DONE]\n\n';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(upstreamSSE, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    );
+
+    const res = await app.request(
+      new Request('http://localhost/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ck.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'zai/zai/glm-5.2',
+          messages: [{ role: 'user', content: 'ping' }],
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await res.text(); // drain stream
+
+    const captured = await lastLogBody(db);
+    expect(captured).not.toBeNull();
+    expect(captured).toContain('pong');
   });
 });

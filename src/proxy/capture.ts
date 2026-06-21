@@ -10,7 +10,9 @@ const DEFAULT_HEADER_FIELDS = [
 ] as const;
 
 export function truncateBody(text: string | null | undefined): string | null {
-  if (!text) return null;
+  // Distinguish null (caller has no body) from '' (upstream returned empty).
+  if (text === null || text === undefined) return null;
+  if (text === '') return '';
   if (text.length <= MAX_BODY_BYTES) return text;
   return `${text.slice(0, MAX_BODY_BYTES)}...truncated...`;
 }

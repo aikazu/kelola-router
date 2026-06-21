@@ -385,7 +385,7 @@ export async function handleProxy(
       const piped = await pipeWithUsage(
         resp,
         format,
-        (usage, raw) => {
+        (usage, _tail, capturedBody) => {
           const prompt = usage?.prompt_tokens ?? 0;
           const completion = usage?.completion_tokens ?? 0;
           const cacheCreate = usage?.cache_creation_tokens ?? 0;
@@ -398,7 +398,7 @@ export async function handleProxy(
             cache_read_tokens: cacheRead,
           });
           // biome-ignore format: long line
-          insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: account.id, model: modelName, requestedModel, endpoint: upstreamPath, format: upstreamFormat, promptTokens: prompt, completionTokens: completion, cacheCreationTokens: cacheCreate, cacheReadTokens: cacheRead, totalTokens: total, costUsd: cost, latencyMs: Date.now() - startMs, statusCode: resp.status, baseRespCode: undefined, stream: 1, rtkBytesSaved: rtkSaved, requestBody: text, responseBody: raw, requestHeaders: c.req.raw.headers, responseHeaders: resp.headers, reqId }));
+          insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: account.id, model: modelName, requestedModel, endpoint: upstreamPath, format: upstreamFormat, promptTokens: prompt, completionTokens: completion, cacheCreationTokens: cacheCreate, cacheReadTokens: cacheRead, totalTokens: total, costUsd: cost, latencyMs: Date.now() - startMs, statusCode: resp.status, baseRespCode: undefined, stream: 1, rtkBytesSaved: rtkSaved, requestBody: text, responseBody: capturedBody, requestHeaders: c.req.raw.headers, responseHeaders: resp.headers, reqId }));
           consoleBus.emit(
             buildDone(
               reqId,

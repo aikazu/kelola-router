@@ -1,9 +1,37 @@
 import { extractUsageFromSSEStream, type SSEUsage } from './extractUsage.js';
 import { TailBuffer } from './tailBuffer.js';
 
-export type UsageCallback = (usage: SSEUsage | null, rawText: string) => void;
+export type UsageCallback = (usage: SSEUsage | null, rawText: string, capturedBody: string) => void;
 
 const TAIL_BYTES = 32 * 1024;
+const CAPTURE_MAX_BYTES = 256 * 1024;
+
+/**
+ * Append-only buffer for the full upstream SSE body, capped at CAPTURE_MAX_BYTES.
+ * Separate from TailBuffer (which is a sliding window used for usage extraction):
+ * TailBuffer trims as soon as content pushes it past TAIL_BYTES, so handlers that
+ * only see `tail.snapshot()` lose the early bytes of any stream longer than 32 KB.
+ * Capture buffer keeps the head by trimming oldest chunked blocks once the cap is
+ * exceeded.
+ */
+class CaptureBuffer {
+  private chunks: string[] = [];
+  private len = 0;
+  constructor(private readonly maxBytes: number) {}
+
+  push(chunk: string): void {
+    this.chunks.push(chunk);
+    this.len += chunk.length;
+    while (this.len > this.maxBytes && this.chunks.length > 1) {
+      const dropped = this.chunks.shift()!;
+      this.len -= dropped.length;
+    }
+  }
+
+  snapshot(): string {
+    return this.chunks.join('');
+  }
+}
 
 /**
  * Tee an upstream SSE response: forward every byte to the client unchanged,
@@ -20,18 +48,19 @@ export async function pipeWithUsage(
   signal?: AbortSignal
 ): Promise<Response> {
   if (!upstream.body) {
-    onUsage(null, '');
+    onUsage(null, '', '');
     return upstream;
   }
   const decoder = new TextDecoder('utf-8', { fatal: false });
   let usage: SSEUsage | null = null;
   const tail = new TailBuffer(TAIL_BYTES);
+  const capture = new CaptureBuffer(CAPTURE_MAX_BYTES);
   let aborted = false;
   let done = false;
   const fire = () => {
     if (done) return;
     done = true;
-    onUsage(usage, tail.snapshot());
+    onUsage(usage, tail.snapshot(), capture.snapshot());
   };
   if (signal) {
     if (signal.aborted) {
@@ -49,6 +78,7 @@ export async function pipeWithUsage(
     transform(chunk, ctrl) {
       const text = decoder.decode(chunk, { stream: true });
       usage = extractUsageFromSSEStream(tail, text, format, usage);
+      capture.push(text);
       if (aborted) {
         // Client disconnected (or will disconnect) mid-stream: still record
         // the usage we just parsed so the handler can write the request log
@@ -63,6 +93,7 @@ export async function pipeWithUsage(
     },
     flush() {
       const tailText = decoder.decode();
+      capture.push(tailText);
       if (!aborted) {
         usage = extractUsageFromSSEStream(tail, tailText, format, usage);
       }

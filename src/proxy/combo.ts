@@ -468,7 +468,7 @@ export async function handleComboProxy(
         const piped = await pipeWithUsage(
           resp,
           format,
-          (usage, raw) => {
+          (usage, _tail, capturedBody) => {
             const prompt = usage?.prompt_tokens ?? 0;
             const completion = usage?.completion_tokens ?? 0;
             const cacheCreate = usage?.cache_creation_tokens ?? 0;
@@ -498,7 +498,7 @@ export async function handleComboProxy(
                 stream: 1,
                 rtkBytesSaved: rtkSaved,
                 requestBody: originalText,
-                responseBody: raw,
+                responseBody: capturedBody,
                 requestHeaders: c.req.raw.headers,
                 responseHeaders: resp.headers,
                 reqId,
