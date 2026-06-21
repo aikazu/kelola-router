@@ -2,6 +2,12 @@
 
 > Newest first. The latest shipped version sits at the top under its version heading.
 
+## v0.22.1 — 2026-06-21
+
+**Migration consolidation into a single fresh-deploy schema.**
+- **Single consolidated migration.** Migrations `002-010` folded into `001-initial.ts`; a fresh install reaches the final schema in one step (`user_version` ends at 1). The migration's SQL is split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts` (concatenated by `001-initial.ts`) to keep each file readable. No incremental `ALTER` migrations, no data dedup — fresh deploy only. Existing DBs at `user_version = 10` keep working (runner skips; consolidated schema is a superset).
+- **`CONSOLE_FLOW` env leak fix.** `src/util/env.test.ts` cleared `CONSOLE_FLOW` after the `'0' → false` case so it stops leaking into later files; unblocked a pre-existing flaky `src/console/sink.test.ts` assertion under the full single-fork suite.
+
 ## v0.21.0 — 2026-06-19
 
 **Models dashboard rewrite, the Models admin API, and console-flow parity.**

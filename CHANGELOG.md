@@ -4,6 +4,26 @@ All notable changes to **kelola-router** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.1] — 2026-06-21
+
+### Changed
+
+- **Migration consolidation — single fresh-deploy schema.** Migrations `002-010` are folded into `001-initial.ts` as one consolidated fresh-deploy schema; a new database reaches the final schema in a single step and `user_version` ends at 1. No incremental `ALTER` migrations and no data dedup. The single migration's SQL is split across three modules — `schema.sql.ts` (CREATE TABLE), `indexes.sql.ts` (all CREATE INDEX), `seed.sql.ts` (default settings rows) — concatenated by `001-initial.ts`, so the ~170-LOC schema stays readable per file. Existing DBs at `user_version = 10` keep working unchanged (the runner skips everything; the consolidated schema is a superset). Rationale: this is a self-host single-user pre-1.0 project — the incremental ALTERs and the Pioneer dedup cleanups (`008`/`009`) only ever mattered for DBs that had drifted across older releases, which is irrelevant on a fresh install.
+
+### Removed
+
+- **Migration files `002-010`.** `002-kiro`, `003-transports`, `004-reqid`, `005-combos`, `006-transport-country`, `007-audit-log`, `008-pioneer-dedup`, `009-pioneer-anthropic-dedup`, `010-model-context-output` — their columns/tables now live in the consolidated `001-initial` schema. The `007-audit-log.test.ts` upgrade-path test was dropped (the table is now created by `001`); the `index.test.ts` migration-009 dedup test was replaced with consolidated-schema assertions. `tests/db/migration-004.test.ts` keeps its `req_id` column-presence check but drops the now-false `user_version >= 4` assertion.
+
+### Fixed
+
+- **`CONSOLE_FLOW` env leak in `env.test.ts` (pre-existing flaky `sink.test.ts`).** The `isConsoleFlowEnabled` "env = 0 → false" case set `process.env.CONSOLE_FLOW = '0'` without clearing it; the next `describe` block's `beforeEach` did not reset it, so the flag leaked into later test files. Under the full suite (single fork), this made `attachStdoutSink` early-return in `src/console/sink.test.ts` and the "coalesces multiple events" assertion failed with 0 writes. Now cleared immediately after the assertion.
+
+### Verification
+
+- 980 server tests pass (vitest, `--pool=forks --poolOptions.forks.singleFork=true`; the default `npm test` hits a better-sqlite3 native segfault under file-parallelism on this host — pre-existing, unrelated to this change). 83 client tests pass.
+- `npm run typecheck` clean (root + client). `npm run lint` clean. `npm run build` green.
+- Docs synced: `docs/reference/db-tables.md`, `ARCHITECTURE.md`, `README.md`, `docs/guides/add-a-migration.md`, `docs/adr/0005-sqlite-wal-migrations.md`, `.claude/skills/{add-migration,add-provider}/SKILL.md` — all reflect `user_version = 1` and the single consolidated migration.
+
 ## [0.22.0] — 2026-06-19
 
 ### Fixed
