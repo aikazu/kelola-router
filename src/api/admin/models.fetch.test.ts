@@ -73,7 +73,7 @@ describe('POST /api/admin/models/fetch/:provider', () => {
   });
 
   it('returns 404 for a provider without a model-list endpoint', async () => {
-    const res = await app.request('/api/admin/models/fetch/kiro', {
+    const res = await app.request('/api/admin/models/fetch/anthropic', {
       method: 'POST',
       headers: { 'x-admin-key': 'ak_test' },
     });
