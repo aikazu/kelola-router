@@ -47,8 +47,8 @@ All decode logic is client-side pure functions. No server code. No capture/DB ch
 ### `client/src/lib/decodeBody.ts` (new, pure functions)
 
 - `detectFormat(body, meta): DecodedFormat`
-  - Sniff fields: `choices[]` → `openai-completion`; `content[]` + `stop_reason` → `anthropic-message`; lines starting with `event:` → `anthropic-sse`; JSON with `error` key → `error`; else `plain-text`.
-  - Hint from `meta.contentType` (`application/json` vs `text/event-stream`) and `meta.stream` to disambiguate.
+  - Priority: null → plain-text; body starts with `event:` → `anthropic-sse` (unambiguous body signal); JSON.parse succeeds → shape checks (`choices[]` → `openai-completion`; `content[]`+`stop_reason` → `anthropic-message`; `error` key → `error`) — **body shape wins**; JSON.parse fails → consult `meta.contentType` (`text/event-stream` → `anthropic-sse`, else `plain-text`).
+  - The content-type hint is consulted ONLY when JSON.parse fails, because upstream `content-type` headers can be misleading (verified: relay row id=927 had `text/event-stream` header but a valid OpenAI `chat.completion` JSON body — body shape must win).
 - `decodeRequestBody(body): RequestView`
   - `JSON.parse` body. On failure → throws (caught by renderer → Raw fallback).
   - Returns `{ system?, tools?, messages: MessageCard[], summary: RequestSummary }`.
