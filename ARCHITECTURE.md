@@ -176,7 +176,14 @@ src/
 │   ├── migrations/           001-initial, 002-kiro, 003-transports, 004-reqid, 005-combos, 006-transport-country, 007-audit-log, 008-pioneer-dedup, 009-pioneer-anthropic-dedup, 010-model-context-output (Notion: provider_data JSON carries cookies + spaceId, no schema migration)
 │   └── repos/                One file per table: accounts, client_keys, models,
 │                             aliases, combos, requestLogs, quotaSnapshots,
-│                             transports, settings (1s cache)
+│                             transports, settings (1s cache).
+│                             `src/db/repos/settings.types.ts` is the valibot
+│                             schema registry (`SETTINGS_SCHEMAS`); the typed
+│                             reader `getSettingT<K extends SettingKey>(db, key)`
+│                             (suffix-T convention, `v.parse` over `safeParse`)
+│                             returns `SettingsMap[K] | null` and coexists with
+│                             the untyped `getSetting<T>` until call-site
+│                             migration completes.
 └── util/                     env, log
 ```
 
