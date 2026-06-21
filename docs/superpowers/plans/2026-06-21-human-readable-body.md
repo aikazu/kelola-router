@@ -23,10 +23,15 @@
 - **Create** `client/src/pages/RequestDetail.test.tsx` — render tests per tab + Raw fallback.
 
 Conventions to follow (verified in repo):
-- Test pattern: `client/src/__tests__/api.test.ts` — `import { describe, expect, it, vi } from 'vitest'`.
+- Test pattern: `import { describe, expect, it, vi } from 'vitest'` + `@testing-library/preact` (`render, screen, fireEvent`). Use `.toBeInTheDocument()` / `.toBeTruthy()` as in `client/src/__tests__/Button.test.tsx`.
+- Test environment: `happy-dom`, `globals: true`, setup `./src/__tests__/setup.ts` (imports `@testing-library/jest-dom/vitest`). Config lives in `client/vite.config.ts` `test` block — NO separate `vitest.config.ts`.
+- Provider tests: wrap in `QueryClientProvider` with `retry:false` QueryClient (see `client/src/__tests__/Overview.test.tsx:23-30`). Mock `../lib/api` via `vi.mock` OR `vi.spyOn(globalThis,'fetch')` — prefer fetch spy for detail queries to avoid module mock complexity.
 - Type definition: inline `interface` near consumer (no `client/src/types/` dir exists).
 - Component styling: inline `style` objects + CSS vars (`var(--ink)`, `var(--obsidian-3)`, `var(--grid)`, `var(--gold)`, `var(--ink-dim)`, `var(--radius-sm)`, `var(--font-mono)`), classes `mono`, `card-eyebrow`, `card-sub`, `specsheet`/`specsheet-row`/`specsheet-label`/`specsheet-value` — match `RequestDetail.tsx`.
-- TS config: `strict: true`, `noImplicitAny`, jsx `react-jsx` (jsxImportSource `preact`).
+- TS config: `strict: true`, `noImplicitAny`, jsx `react-jsx` (jsxImportSource `preact`). Import types at top of file, not inline `import('...')` in JSX.
+- Lint: `biome check .` (script `lint`). No prettier. Run `npm run lint` before claiming done.
+
+**CRITICAL test-caveat:** `RequestDetail` defaults to `tab='summary'`. Request/Response content is NOT in the DOM until the corresponding tab button is clicked. Render tests MUST click the tab before asserting on body content: `fireEvent.click(screen.getByRole('tab', { name: /^request$/i }))` (tab buttons use `role="tab"` with the tab name as text). Asserting `getByText('hi there')` without clicking will fail.
 
 ---
 
@@ -657,18 +662,16 @@ function decodeErrorObject(raw: string): ResponseView {
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cd client && npx vitest run src/lib/decodeBody.test.ts`
-Expected: FAIL on SSE tests (not yet implemented) — non-stream/error/plain tests PASS.
+Expected: PASS — all non-stream/error/plain tests green. (SSE tests added in Task 5, not yet present.)
 
-- [ ] **Step 6: Commit (SSE tests intentionally still fail — Task 5 implements them)**
+- [ ] **Step 6: Commit (green — SSE deferred to Task 5)**
 
 ```bash
 git add client/src/lib/decodeBody.ts client/src/lib/decodeBody.test.ts client/src/lib/__fixtures__/decodeFixtures.ts
-git commit -m "feat(decode): add non-stream + error + plain response decode
-
-SSE branch pending — fixtures + tests in place."
+git commit -m "feat(decode): add non-stream + error + plain response decode"
 ```
 
-> Note: SSE tests will fail until Task 5. This is acceptable intermediate state; Task 5 must immediately follow.
+> Do NOT add SSE tests here. Task 5 adds SSE tests + `decodeAnthropicSse` together (red→green in one task) so every commit is green.
 
 ---
 
@@ -831,20 +834,30 @@ git commit -m "feat(decode): add SSE decode — events list + text reconstructio
 ```tsx
 // client/src/components/CollapsibleText.test.tsx
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/preact';
+import { render, fireEvent, screen } from '@testing-library/preact';
 import { CollapsibleText } from './CollapsibleText';
 
 describe('CollapsibleText', () => {
   it('renders short text fully without collapse', () => {
-    render(<CollapsibleText text="short" />);
-    expect(screen.getByText('short')).toBeTruthy();
+    const { container } = render(<CollapsibleText text="short" />);
+    expect(container.textContent).toBe('short');
+    expect(screen.queryByText('show more')).toBeNull();
   });
 
-  it('collapses text over 2KB and expands on click', () => {
+  it('collapses text over 2KB and shows toggle', () => {
     const long = 'x'.repeat(3000);
-    render(<CollapsibleText text={long} />);
-    const collapsed = screen.getByText(/^x{1,1992}\.\.\./);
-    expect(collapsed).toBeTruthy();
+    const { container } = render(<CollapsibleText text={long} />);
+    // Collapsed preview: first 1992 chars + "..."
+    expect(container.textContent).toContain('...');
+    expect(screen.getByText('show more')).toBeTruthy();
+  });
+
+  it('expands full text on click', () => {
+    const long = 'x'.repeat(3000);
+    const { container } = render(<CollapsibleText text={long} />);
+    fireEvent.click(screen.getByText('show more'));
+    expect(container.textContent).not.toContain('...');
+    expect(screen.getByText('show less')).toBeTruthy();
   });
 });
 ```
@@ -1024,7 +1037,7 @@ git commit -m "feat(ui): add HeadersTable with sensitive-value masking"
 ```tsx
 // client/src/pages/RequestDetail.test.tsx
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/preact';
+import { render, screen, waitFor, fireEvent } from '@testing-library/preact';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RequestDetail } from './RequestDetail';
 
@@ -1053,9 +1066,14 @@ function mockLog(body: Record<string, unknown>) {
   );
 }
 
-function withClient(node: React.ReactNode) {
+function withClient(node: preact.JSX.Element) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return <QueryClientProvider client={client}>{node}</QueryClientProvider>;
+}
+
+async function openTab(label: RegExp) {
+  await waitFor(() => expect(screen.getByRole('tab', { name: label })).toBeTruthy());
+  fireEvent.click(screen.getByRole('tab', { name: label }));
 }
 
 beforeEach(() => vi.restoreAllMocks());
@@ -1064,12 +1082,14 @@ describe('RequestDetail request tab', () => {
   it('renders decoded message timeline', async () => {
     mockLog({ requestBody: JSON.stringify({ messages: [{ role: 'user', content: 'hi there' }] }) });
     render(withClient(<RequestDetail id={1} onClose={() => {}} />));
+    await openTab(/^request$/i);
     await waitFor(() => expect(screen.getByText('hi there')).toBeTruthy());
   });
 
   it('shows Raw fallback when request body unparseable', async () => {
     mockLog({ requestBody: 'not json {{{' });
     render(withClient(<RequestDetail id={1} onClose={() => {}} />));
+    await openTab(/^request$/i);
     await waitFor(() => expect(screen.getByText(/Unparseable request body/i)).toBeTruthy());
   });
 });
@@ -1094,6 +1114,7 @@ import { ErrorState } from '../components/ErrorState';
 import { Modal } from '../components/Modal';
 import { apiFetch } from '../lib/api';
 import { decodeRequestBody, decodeResponseBody, isTruncated } from '../lib/decodeBody';
+import type { ContentBlock, MessageCard, ResponseView } from '../lib/decodeBody';
 ```
 
 Replace the `JsonView` function (lines 45-76) — keep it as a Raw-only renderer (rename usage but keep function for Raw):
@@ -1138,7 +1159,7 @@ Delete the old `HeadersView` function (lines 78-97) — replaced by `<HeadersTab
 Add a `ContentBlockView` + `MessageCard` renderer above the `RequestDetail` component:
 
 ```tsx
-function ContentBlockView({ block }: { block: import('../lib/decodeBody').ContentBlock }) {
+function ContentBlockView({ block }: { block: ContentBlock }) {
   switch (block.type) {
     case 'text':
       return (
@@ -1177,7 +1198,7 @@ function ContentBlockView({ block }: { block: import('../lib/decodeBody').Conten
   }
 }
 
-function MessageCardView({ card }: { card: import('../lib/decodeBody').MessageCard }) {
+function MessageCardView({ card }: { card: MessageCard }) {
   const ink = card.role === 'user' ? 'var(--gold)' : 'var(--ink)';
   return (
     <div style={{ marginBottom: 12 }}>
@@ -1297,6 +1318,7 @@ describe('RequestDetail response tab', () => {
       responseHeaders: { 'content-type': 'text/event-stream' },
     });
     render(withClient(<RequestDetail id={1} onClose={() => {}} />));
+    await openTab(/^response$/i);
     await waitFor(() => expect(screen.getByText('hello')).toBeTruthy());
   });
 
@@ -1306,12 +1328,14 @@ describe('RequestDetail response tab', () => {
       responseHeaders: { 'content-type': 'application/json' },
     });
     render(withClient(<RequestDetail id={1} onClose={() => {}} />));
+    await openTab(/^response$/i);
     await waitFor(() => expect(screen.getByText('final answer')).toBeTruthy());
   });
 
   it('renders Raw fallback when response decode throws', async () => {
     mockLog({ responseBody: 'fetch failed', responseHeaders: null });
     render(withClient(<RequestDetail id={1} onClose={() => {}} />));
+    await openTab(/^response$/i);
     await waitFor(() => expect(screen.getByText('fetch failed')).toBeTruthy());
   });
 });
