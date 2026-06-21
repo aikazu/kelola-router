@@ -28,10 +28,17 @@ Full playbook: `docs/guides/ship-a-release.md`. Read it first.
 ## Pre-tag gate (all must be green)
 
 ```bash
-npm test
-cd client && npm test && cd ..
+# 1. Sync docs against the live code FIRST — every release ships current docs.
+#    See ../sync-docs/SKILL.md for the sweep (read-only verify of MEMORY.md /
+#    ARCHITECTURE.md / docs/reference/* / docs/adr/* / .claude/skills/*).
+#    Run this even if nothing changed since the last release: it catches the
+#    silent drift that accumulates between releases.
 npm run typecheck
 cd client && npm run typecheck && cd ..
+
+# 2. Tests + lint + build
+npm test
+cd client && npm test && cd ..
 npm run lint
 npm run build
 ```
@@ -43,5 +50,6 @@ The version-bump commit (step 4) is the only commit for the release. `git commit
 ## See also
 
 - `docs/guides/ship-a-release.md` — full playbook
+- `../sync-docs/SKILL.md` — run before tagging so the release ships current docs
 - `CHANGELOG.md` — current changelog
 - `../../AGENTS.md` (root) — never push without asking
