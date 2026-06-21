@@ -31,12 +31,14 @@ Make `request_body` / `response_body` / headers stored in `request_logs` human-r
 Decoder is a set of pure functions in a new file `client/src/lib/decodeBody.ts`. The modal (`RequestDetail.tsx`) renders the decoded structure. Three layers, strictly separated:
 
 ```
-DB body string + row metadata (format, endpoint, stream, status_code, content-type header)
-  → detectFormat(body, meta)        → DecodedFormat
+DB body string + content-type header (from responseHeaders)
+  → detectFormat(body, meta)        → DecodedFormat   (meta = { contentType? })
   → decodeRequestBody(body)        → RequestView
   → decodeResponseBody(body, meta) → ResponseView
   → RequestDetail.tsx renders DecodedBody → DOM (try/catch → Raw fallback)
 ```
+
+`meta` carries only `{ contentType?: string }` — read from `responseHeaders['content-type']`. The `RequestLog` interface returned by `/api/admin/request-logs/:id` does NOT include `stream`/`endpoint`/`format` columns (verified at `client/src/pages/RequestDetail.tsx:8`), so detection relies on body shape + content-type alone. SSE is unambiguous from body (`event:` lines) or content-type `text/event-stream`; no server change needed.
 
 All decode logic is client-side pure functions. No server code. No capture/DB change.
 
