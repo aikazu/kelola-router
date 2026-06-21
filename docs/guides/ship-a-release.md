@@ -5,8 +5,9 @@ Cut a versioned release of `kelola-router`. Maintainer-only workflow. Contributo
 ## Goal
 
 A new version on the `main` branch with:
-- `package.json` version bumped (semver)
+- `package.json` **and** `client/package.json` versions bumped (semver) — keep them in sync
 - `CHANGELOG.md` updated for the new version
+- `docs/roadmap.md` prepended with the new version's shipped entry (newest-first)
 - A git tag matching the version
 - Docker image rebuilt + pushed (if maintainer controls the image registry)
 - A short release note on the GitHub Releases page
@@ -21,8 +22,9 @@ A new version on the `main` branch with:
 ## File map
 
 No new files. Edits only:
-- `package.json` (bump `version`)
+- `package.json` + `client/package.json` (bump `version` — both, in sync)
 - `CHANGELOG.md` (add new version section)
+- `docs/roadmap.md` (prepend new version heading)
 - (Optional) `docs/superpowers/specs/` — link from CHANGELOG if a spec was written for the release
 
 ## Steps
