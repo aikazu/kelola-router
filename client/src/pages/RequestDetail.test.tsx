@@ -61,3 +61,48 @@ describe('RequestDetail request tab', () => {
     await waitFor(() => expect(screen.getByText(/Unparseable request body/i)).toBeTruthy());
   });
 });
+
+describe('RequestDetail response tab', () => {
+  it('renders reconstructed SSE text and raw sub-tab', async () => {
+    const sse = [
+      'event: message_start',
+      'data: {"type":"message_start","message":{"model":"x"}}',
+      '',
+      'event: content_block_start',
+      'data: {"type":"content_block_start","index":0,"content_block":{"type":"text"}}',
+      '',
+      'event: content_block_delta',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello"}}',
+      '',
+      'event: message_stop',
+      'data: {"type":"message_stop"}',
+      '',
+    ].join('\n');
+    mockLog({
+      responseBody: sse,
+      responseHeaders: { 'content-type': 'text/event-stream' },
+    });
+    render(withClient(<RequestDetail id={1} onClose={() => {}} />));
+    await openTab(/^response$/i);
+    await waitFor(() => expect(screen.getByText('hello')).toBeTruthy());
+  });
+
+  it('renders unpacked non-stream completion content', async () => {
+    mockLog({
+      responseBody: JSON.stringify({
+        choices: [{ finish_reason: 'stop', message: { content: 'final answer' } }],
+      }),
+      responseHeaders: { 'content-type': 'application/json' },
+    });
+    render(withClient(<RequestDetail id={1} onClose={() => {}} />));
+    await openTab(/^response$/i);
+    await waitFor(() => expect(screen.getByText('final answer')).toBeTruthy());
+  });
+
+  it('renders Raw fallback when response decode throws', async () => {
+    mockLog({ responseBody: 'fetch failed', responseHeaders: null });
+    render(withClient(<RequestDetail id={1} onClose={() => {}} />));
+    await openTab(/^response$/i);
+    await waitFor(() => expect(screen.getByText('fetch failed')).toBeTruthy());
+  });
+});

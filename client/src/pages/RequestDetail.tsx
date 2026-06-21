@@ -7,7 +7,7 @@ import { HeadersTable } from '../components/HeadersTable';
 import { Modal } from '../components/Modal';
 import { apiFetch } from '../lib/api';
 import type { ContentBlock, MessageCard } from '../lib/decodeBody';
-import { decodeRequestBody, isTruncated } from '../lib/decodeBody';
+import { decodeRequestBody, decodeResponseBody, isTruncated } from '../lib/decodeBody';
 
 interface RequestLog {
   id: number;
@@ -320,6 +320,132 @@ function RequestTimeline({ data }: { data: RequestLog }) {
   );
 }
 
+type ResponseSubTab = 'reconstructed' | 'events' | 'content' | 'error' | 'raw';
+
+function ResponsePanel({ data }: { data: RequestLog }) {
+  const contentType = data.responseHeaders?.['content-type'];
+  const view = useMemo(
+    () => decodeResponseBody(data.responseBody, { contentType }),
+    [data.responseBody, contentType]
+  );
+  const truncated = isTruncated(data.responseBody);
+  const defaultSub: ResponseSubTab =
+    view.kind === 'sse'
+      ? 'reconstructed'
+      : view.kind === 'error'
+        ? 'error'
+        : view.kind === 'plain-text'
+          ? 'raw'
+          : 'content';
+  const [sub, setSub] = useState<ResponseSubTab>(defaultSub);
+
+  const subs: ResponseSubTab[] =
+    view.kind === 'sse'
+      ? ['reconstructed', 'events', 'raw']
+      : view.kind === 'error'
+        ? ['error', 'raw']
+        : view.kind === 'plain-text'
+          ? ['raw']
+          : ['content', 'raw'];
+
+  return (
+    <div>
+      {truncated && (
+        <div class="card-eyebrow" style={{ color: 'var(--gold)', marginBottom: 8 }}>
+          truncated — full body not captured
+        </div>
+      )}
+      {view.kind === 'sse' && !view.complete && (
+        <div class="card-eyebrow" style={{ color: 'var(--crit)', marginBottom: 8 }}>
+          incomplete stream
+        </div>
+      )}
+      <div role="tablist" style={{ display: 'flex', gap: 2, marginBottom: 12 }}>
+        {subs.map((s) => (
+          <button
+            type="button"
+            key={s}
+            onClick={() => setSub(s)}
+            class="mono"
+            style={{
+              background: 'none',
+              border: 0,
+              padding: '6px 10px',
+              color: sub === s ? 'var(--gold)' : 'var(--ink-dim)',
+              borderBottom: sub === s ? '2px solid var(--gold)' : '2px solid transparent',
+              fontSize: 10,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+      {sub === 'reconstructed' && view.kind === 'sse' && (
+        <div>
+          {view.reconstructed.map((r) => (
+            <div key={r.index} style={{ marginBottom: 12 }}>
+              <div class="card-eyebrow" style={{ color: 'var(--gold)', marginBottom: 4 }}>
+                block {r.index} · {r.blockType}
+              </div>
+              <pre
+                class="mono"
+                style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, margin: 0 }}
+              >
+                {r.text || (r.toolInputParseError ? '<tool input unparseable>' : '')}
+              </pre>
+            </div>
+          ))}
+        </div>
+      )}
+      {sub === 'events' && view.kind === 'sse' && (
+        <pre
+          class="mono"
+          style={{
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontSize: 11,
+            maxHeight: '40vh',
+            overflow: 'auto',
+          }}
+        >
+          {view.events.map((e) => `${e.type}${e.data ? `: ${e.data}` : ''}`).join('\n')}
+        </pre>
+      )}
+      {sub === 'content' && view.kind === 'nonstream' && (
+        <div>
+          {view.contentBlocks.map((b, i) => (
+            <ContentBlockView key={i} block={b} />
+          ))}
+          {view.finishReason && (
+            <div class="mono" style={{ fontSize: 11, color: 'var(--ink-dim)', marginTop: 8 }}>
+              finish: {view.finishReason}
+            </div>
+          )}
+        </div>
+      )}
+      {sub === 'error' && view.kind === 'error' && (
+        <pre
+          class="mono"
+          style={{
+            color: 'var(--crit)',
+            whiteSpace: 'pre-wrap',
+            borderLeft: '2px solid var(--crit)',
+            paddingLeft: 10,
+          }}
+        >
+          {view.errorType ? `[${view.errorType}] ` : ''}
+          {view.message}
+          {view.requestId ? `\nrequest_id: ${view.requestId}` : ''}
+        </pre>
+      )}
+      {sub === 'raw' && <RawView data={data.responseBody} />}
+    </div>
+  );
+}
+
 export function RequestDetail({ id, onClose }: { id: number | null; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('summary');
   const { data, isLoading, isError, refetch } = useQuery({
@@ -431,9 +557,9 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
       {data && tab === 'response' && (
         <div id="tabpanel-response" role="tabpanel" aria-labelledby="tab-response">
           <div class="card-eyebrow" style={{ marginBottom: 8 }}>
-            RESPONSE BODY
+            RESPONSE
           </div>
-          <RawView data={data.responseBody} />
+          <ResponsePanel data={data} />
           <div class="card-eyebrow" style={{ margin: '16px 0 8px' }}>
             RESPONSE HEADERS
           </div>
