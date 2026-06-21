@@ -74,12 +74,16 @@ src/
 │   └── middleware.ts         Shared middleware for /api/admin/* routes
 ├── proxy/
 │   ├── helpers.ts            Shared response/request utilities
-│   ├── minimax.ts            handleProxy — MiniMax pipeline (~470 LOC)
-│   ├── kiro.ts               handleKiroProxy — Kiro pipeline (~270 LOC)
-│   ├── codebuddy.ts          handleCodeBuddyProxy — CodeBuddy pipeline
-│   ├── pioneer.ts            handlePioneerProxy — Pioneer pipeline
-│   ├── zai.ts                handleZaiProxy — Z.AI pipeline
-│   └── combo.ts              handleComboProxy — combo routing (~470 LOC)
+│   ├── minimax.ts            handleProxy — MiniMax pipeline + per-provider dispatch (~534 LOC)
+│   ├── kiro.ts               handleKiroProxy — Kiro pipeline (~327 LOC)
+│   ├── codebuddy.ts          handleCodeBuddyProxy — CodeBuddy pipeline (~363 LOC)
+│   ├── pioneer.ts            handlePioneerProxy — Pioneer pipeline (~363 LOC)
+│   ├── notion.ts             handleNotionProxy — Notion pipeline (~445 LOC)
+│   ├── zai.ts                handleZaiProxy — Z.AI pipeline (~367 LOC)
+│   ├── combo.ts              handleComboProxy — combo routing (~429 LOC)
+│   ├── pipeline.ts           Pure helpers extracted from the proxy handlers (buildLogRow, applyErrorState, …)
+│   ├── capture.ts            Request/response body capture (truncate + headersToJson)
+│   └── errorHandling.ts      Shared error response shaping
 ├── accounts/                 Account selection state machine
 │   ├── selection.ts          sticky / round-robin / lowest-backoff picker
 │   ├── state.ts              applyAccountError, isModelLockActive
@@ -88,7 +92,10 @@ src/
 │   ├── errorRules.ts         base_resp / HTTP status → decision
 │   └── types.ts              AccountState, ModelLock, SelectionOpts
 ├── providers/
-│   ├── format/transform.ts   OpenAI ↔ Anthropic body conversion
+│   ├── format/               OpenAI ↔ Anthropic body + stream conversion
+│   │   ├── transform.ts      bodyOpenAIToAnthropic + bodyAnthropicToOpenAI + response counterparts
+│   │   ├── negotiate.ts      client format detection + per-provider upstreamFormat override
+│   │   └── messageTypes.ts   shared body/message types
 │   ├── common/               shared provider internals
 │   │   └── SseAssemblerBase.ts  abstract template-method for Anthropic-SSE emitters
 │   │                           (shared by Kiro + CodeBuddy; see "Provider layer" below)
@@ -101,7 +108,13 @@ src/
 │   │   ├── anthropicSse.ts   → Anthropic Messages SSE (extends SseAssemblerBase<KiroEvent>)
 │   │   ├── index.ts          executeKiro (orchestrator)
 │   │   ├── deviceCode.ts     AWS Builder ID / IDC device code flow
-│   │   └── accountImport.ts  buildKiroAccountFields (token / idc / social)
+│   │   ├── accountImport.ts  buildKiroAccountFields (token / idc / social)
+│   │   ├── autoImport.ts     one-click import from ~/.aws/sso/cache
+│   │   ├── profile.ts        Kiro profile/region resolution
+│   │   ├── chunkAccumulator.ts  stream chunk aggregation
+│   │   ├── streamConsumer.ts NDJSON → OpenAI delta assembly
+│   │   ├── constants.ts      Kiro-specific constants
+│   │   └── usage.ts          Kiro usage extraction
 │   ├── codebuddy/            CodeBuddy protocol stack
 │   │   ├── index.ts          executeCodeBuddy orchestrator
 │   │   ├── transform.ts      prepareCodeBuddyBody (client → OpenAI upstream)
@@ -112,12 +125,24 @@ src/
 │   │   ├── index.ts          execute orchestrator
 │   │   ├── transform.ts      client → OpenAI upstream body
 │   │   └── models.ts         pioneer/ namespaced model catalogue
+│   ├── notion/              Notion protocol (CRDT-style JSON + NDJSON patch-stream;
+│   │                         cookie-based session, no schema migration — provider_data JSON)
+│   │   ├── auth.ts           3-step OTP login + cookie persistence
+│   │   ├── transform.ts      buildNotionPayload (client → Notion JSON)
+│   │   ├── extract.ts        NDJSON patch-stream → OpenAI delta assembly
+│   │   ├── constants.ts      Notion-specific constants (cookie list, endpoint)
+│   │   └── manifest.json     20-row builtin model catalogue
 │   ├── zai/                  Z.AI protocol (Anthropic Messages + OpenAI CC;
 │   │                         Bearer API key, single key per account)
 │   │   ├── index.ts          execute orchestrator
 │   │   ├── transform.ts      client → upstream body (Anthropic or OpenAI)
 │   │   └── models.ts         zai/ namespaced model catalogue
+│   ├── alias.ts              resolveModel — alias/combo/prefix → upstreamModel
+│   ├── aliasCache.ts         in-process alias cache (per-request ctx)
+│   ├── modelPrefix.ts        parseModelPrefix — <prefix>/<name> split + PREFIX_TO_PROVIDER map
+│   ├── minimax.ts            MiniMax provider constants + URL/header builders
 │   ├── baseUrl.ts            MiniMax region switch (intl/cn)
+│   ├── headers.ts            upstream auth/header builders
 │   ├── parseError.ts         base_resp.status_code extractor
 │   ├── pricing.ts            per-model USD pricing
 │   ├── quota.ts              quota pull
