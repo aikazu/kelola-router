@@ -201,3 +201,80 @@ function toContentBlock(b: AnthropicContentBlock): ContentBlock {
       return { type: 'text', text: JSON.stringify(b) };
   }
 }
+
+export function decodeResponseBody(body: string | null | undefined, meta: BodyMeta): ResponseView {
+  const raw = body ?? '';
+  const format = detectFormat(body, meta);
+  switch (format) {
+    case 'openai-completion':
+      return decodeOpenaiCompletion(raw);
+    case 'anthropic-message':
+      return decodeAnthropicMessage(raw);
+    case 'anthropic-sse':
+      return decodeAnthropicSse(raw);
+    case 'error':
+      return decodeErrorObject(raw);
+    default:
+      return { kind: 'plain-text', text: raw, raw };
+  }
+}
+
+function decodeOpenaiCompletion(raw: string): ResponseView {
+  const obj = JSON.parse(raw) as {
+    choices?: Array<{
+      finish_reason?: string;
+      message?: { content?: string; reasoning_content?: string };
+    }>;
+    usage?: unknown;
+  };
+  const choice = obj.choices?.[0];
+  const blocks: ContentBlock[] = [];
+  if (choice?.message?.reasoning_content) {
+    blocks.push({ type: 'reasoning', text: choice.message.reasoning_content });
+  }
+  if (choice?.message?.content != null) {
+    blocks.push({ type: 'text', text: choice.message.content });
+  }
+  return {
+    kind: 'nonstream',
+    contentBlocks: blocks,
+    finishReason: choice?.finish_reason,
+    usage: obj.usage,
+    raw,
+  };
+}
+
+function decodeAnthropicMessage(raw: string): ResponseView {
+  const obj = JSON.parse(raw) as {
+    content?: AnthropicContentBlock[];
+    stop_reason?: string;
+    usage?: unknown;
+  };
+  return {
+    kind: 'nonstream',
+    contentBlocks: Array.isArray(obj.content) ? obj.content.map(toContentBlock) : [],
+    finishReason: obj.stop_reason,
+    usage: obj.usage,
+    raw,
+  };
+}
+
+function decodeErrorObject(raw: string): ResponseView {
+  const obj = JSON.parse(raw) as {
+    error?: { type?: string; message?: string };
+    request_id?: string;
+    message?: string;
+  };
+  return {
+    kind: 'error',
+    errorType: obj.error?.type,
+    message: obj.error?.message ?? obj.message ?? '',
+    requestId: obj.request_id,
+    raw,
+  };
+}
+
+function decodeAnthropicSse(raw: string): ResponseView {
+  // Full SSE decode implemented in Task 5.
+  return { kind: 'sse', events: [], reconstructed: [], complete: false, raw };
+}

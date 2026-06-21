@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { decodeRequestBody, detectFormat, isTruncated } from './decodeBody';
+import {
+  anthropicMessageBody,
+  errorObjectBody,
+  openaiCompletionBody,
+  plainErrorBody,
+} from './__fixtures__/decodeFixtures';
+import { decodeRequestBody, decodeResponseBody, detectFormat, isTruncated } from './decodeBody';
 
 describe('isTruncated', () => {
   it('returns true when body ends with truncation suffix', () => {
@@ -131,5 +137,48 @@ describe('decodeRequestBody', () => {
     expect(view.parseError).toBeDefined();
     expect(view.raw).toBe('not json');
     expect(view.messages).toEqual([]);
+  });
+});
+
+describe('decodeResponseBody non-stream', () => {
+  it('unpacks openai completion content + reasoning + usage', () => {
+    const view = decodeResponseBody(openaiCompletionBody, {});
+    expect(view.kind).toBe('nonstream');
+    if (view.kind !== 'nonstream') throw new Error('nonstream');
+    expect(view.contentBlocks).toEqual([
+      { type: 'reasoning', text: 'thinking...' },
+      { type: 'text', text: 'Hello there.' },
+    ]);
+    expect(view.finishReason).toBe('stop');
+    expect(view.usage).toEqual({ prompt_tokens: 10, completion_tokens: 3, total_tokens: 13 });
+  });
+
+  it('unpacks anthropic message content blocks', () => {
+    const view = decodeResponseBody(anthropicMessageBody, {});
+    expect(view.kind).toBe('nonstream');
+    if (view.kind !== 'nonstream') throw new Error('nonstream');
+    expect(view.contentBlocks).toEqual([{ type: 'text', text: 'Hi from anthropic' }]);
+    expect(view.finishReason).toBe('end_turn');
+  });
+
+  it('decodes error object', () => {
+    const view = decodeResponseBody(errorObjectBody, {});
+    expect(view.kind).toBe('error');
+    if (view.kind !== 'error') throw new Error('error');
+    expect(view.errorType).toBe('overloaded_error');
+    expect(view.message).toBe('Overloaded');
+    expect(view.requestId).toBe('req_123');
+  });
+
+  it('decodes plain error text', () => {
+    const view = decodeResponseBody(plainErrorBody, {});
+    expect(view.kind).toBe('plain-text');
+    if (view.kind !== 'plain-text') throw new Error('plain');
+    expect(view.text).toBe('fetch failed');
+  });
+
+  it('returns plain-text for null body', () => {
+    const view = decodeResponseBody(null, {});
+    expect(view.kind).toBe('plain-text');
   });
 });
