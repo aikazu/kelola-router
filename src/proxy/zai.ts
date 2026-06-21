@@ -327,7 +327,7 @@ export async function handleZaiProxy(
       u?.completion_tokens ?? 0,
       u?.prompt_tokens_details?.cached_tokens ?? 0,
       false,
-      JSON.stringify(aggregated).slice(0, 2000)
+      JSON.stringify(aggregated)
     );
     return c.json(aggregated);
   } catch (e: unknown) {

@@ -328,9 +328,13 @@ describe('openaiSSEToAnthropicSSE', () => {
       }),
     ]);
     let captured: { prompt_tokens: number; completion_tokens: number } | null = null;
-    const out = openaiSSEToAnthropicSSE(upstream, 'claude-opus-4.6', (u) => {
-      captured = u;
-    });
+    const out = openaiSSEToAnthropicSSE(
+      upstream,
+      'claude-opus-4.6',
+      (u: { prompt_tokens: number; completion_tokens: number }) => {
+        captured = u;
+      }
+    );
     const text = await out.text();
     expect(text).toContain('event: message_start');
     expect(text).toContain('"type":"text_delta","text":"PING"');

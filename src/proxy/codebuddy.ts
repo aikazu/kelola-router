@@ -291,8 +291,8 @@ export async function handleCodeBuddyProxy(
 
     if (body.stream === true) {
       if (format === 'anthropic') {
-        return openaiSSEToAnthropicSSE(resp, model, (u) =>
-          recordUsage(u.prompt_tokens, u.completion_tokens, u.cache_read, true, '[anthropic-sse]')
+        return openaiSSEToAnthropicSSE(resp, model, (u, capturedBody) =>
+          recordUsage(u.prompt_tokens, u.completion_tokens, u.cache_read, true, capturedBody)
         );
       }
       // openai client: passthrough OpenAI SSE, tee usage
@@ -318,7 +318,7 @@ export async function handleCodeBuddyProxy(
       u?.completion_tokens ?? 0,
       u?.prompt_tokens_details?.cached_tokens ?? 0,
       false,
-      JSON.stringify(aggregated).slice(0, 2000)
+      JSON.stringify(aggregated)
     );
     if (format === 'anthropic') return c.json(responseOpenAIToAnthropic(aggregated));
     return c.json(aggregated);

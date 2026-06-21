@@ -306,25 +306,76 @@ export type CodeBuddyUsageCallback = (usage: {
   cache_read: number;
 }) => void;
 
+export type CodeBuddyStreamCallback = (
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cache_read: number;
+  },
+  capturedBody: string
+) => void;
+
+const CAPTURE_MAX_BYTES = 256 * 1024;
+
+class CaptureBuffer {
+  private chunks: string[] = [];
+  private len = 0;
+  constructor(private readonly maxBytes: number) {}
+  push(chunk: string): void {
+    this.chunks.push(chunk);
+    this.len += chunk.length;
+    while (this.len > this.maxBytes && this.chunks.length > 1) {
+      const dropped = this.chunks.shift()!;
+      this.len -= dropped.length;
+    }
+  }
+  snapshot(): string {
+    return this.chunks.join('');
+  }
+}
+
 /** Wrap a CodeBuddy OpenAI-SSE response as an Anthropic Messages SSE response. */
 export function openaiSSEToAnthropicSSE(
   upstream: Response,
   model: string,
-  onUsage?: CodeBuddyUsageCallback
+  onUsage?: CodeBuddyUsageCallback | CodeBuddyStreamCallback
 ): Response {
   const assembler = new OpenAIToAnthropicSSEAssembler(model);
+  const capture = new CaptureBuffer(CAPTURE_MAX_BYTES);
+  const decoder = new TextDecoder('utf-8', { fatal: false });
   const out = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
         if (upstream.body) {
           for await (const chunk of iterSSEChunks(upstream.body)) {
-            for (const ev of assembler.process(chunk)) controller.enqueue(serialize(ev));
+            for (const ev of assembler.process(chunk)) {
+              const s = serialize(ev);
+              capture.push(decoder.decode(s, { stream: true }));
+              controller.enqueue(s);
+            }
           }
         }
-        for (const ev of assembler.finalize()) controller.enqueue(serialize(ev));
+        for (const ev of assembler.finalize()) {
+          const s = serialize(ev);
+          capture.push(decoder.decode(s, { stream: true }));
+          controller.enqueue(s);
+        }
         controller.close();
         const u = assembler.getUsage();
-        onUsage?.(u ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cache_read: 0 });
+        const usage = u ?? {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+          cache_read: 0,
+        };
+        // Callback signature: (usage) for legacy callers, (usage, capturedBody) for new ones.
+        // Use arity to choose — preserves backward compat without breaking the type union.
+        if (onUsage && onUsage.length >= 2) {
+          (onUsage as CodeBuddyStreamCallback)(usage, capture.snapshot());
+        } else {
+          (onUsage as CodeBuddyUsageCallback | undefined)?.(usage);
+        }
       } catch (err) {
         controller.error(err);
       }
