@@ -51,7 +51,7 @@ All decode logic is client-side pure functions. No server code. No capture/DB ch
   - `JSON.parse` body. On failure → throws (caught by renderer → Raw fallback).
   - Returns `{ system?, tools?, messages: MessageCard[], summary: RequestSummary }`.
 - `decodeResponseBody(body, meta): ResponseView`
-  - Dispatches on detected format. Returns one of: `{ kind: 'nonstream', contentBlocks, finishReason, usage }` | `{ kind: 'sse', events: SseEvent[], reconstructed: ReconstructedText[], complete: boolean }` | `{ kind: 'error', type?, message, requestId? }` | `{ kind: 'plain', text }`.
+  - Dispatches on detected format. Returns one of: `{ kind: 'nonstream', contentBlocks, finishReason, usage }` | `{ kind: 'sse', events: SseEvent[], reconstructed: ReconstructedText[], complete: boolean }` | `{ kind: 'error', type?, message, requestId? }` | `{ kind: 'plain-text', text }`. Format `plain-text` maps to `kind: 'plain-text'`.
 - Types (discriminated unions, `strict: true`, no `any`): `DecodedFormat`, `RequestView`, `ResponseView`, `MessageCard`, `ContentBlock`, `SseEvent`, `ReconstructedText`, `RequestSummary`.
 
 ### `client/src/pages/RequestDetail.tsx` (edit existing; replace `JsonView`)
@@ -94,11 +94,14 @@ All decode logic is client-side pure functions. No server code. No capture/DB ch
 - `anthropic-sse`:
   - Parse by splitting on `\n\n`. Each event → `{event, data}`.
   - `message_start` → model + initial `usage`.
-  - `content_block_start` / `content_block_delta` / `content_block_stop` → track per `index`: type + accumulated delta text.
+  - `content_block_start` / `content_block_delta` / `content_block_stop` → track per `index`: block `type` (text / tool_use / image) + accumulated delta.
+    - For `type: 'text'` blocks, concatenate `content_block_delta.delta.text`.
+    - For `type: 'tool_use'` blocks, concatenate `content_block_delta.delta.input_json_delta.partial_json` (streamed JSON); if absent, store raw deltas.
+    - Unknown delta types stored verbatim.
   - `message_delta` → `stop_reason` + final `usage`.
   - `message_stop` → completion marker.
   - `ping` / `error` → render as-is.
-  - Reconstruct: concatenate `content_block_delta.text` per block `index` → final text per block → `ReconstructedText[]`.
+  - Reconstruct: per block `index` produce `ReconstructedText{ index, type, text, toolInput? }`. For tool_use blocks, attempt `JSON.parse` on concatenated partial JSON; on failure keep raw string.
 - `error`: show `error.type` / `error.message` / `request_id` if present.
 - `plain-text`: render verbatim.
 
@@ -120,7 +123,7 @@ All decode logic is client-side pure functions. No server code. No capture/DB ch
 
 ## Security
 
-Header values masked in the Headers tab (show prefix + `****`):
+Header values masked in the Headers tab (keep scheme prefix + first 4 chars, then `****`, e.g. `Bearer sk-a****`):
 - `authorization`
 - `x-api-key`
 - `proxy-authorization`
