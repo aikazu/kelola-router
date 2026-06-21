@@ -4,6 +4,8 @@ import {
   errorObjectBody,
   openaiCompletionBody,
   plainErrorBody,
+  sseFullBody,
+  ssePartialBody,
 } from './__fixtures__/decodeFixtures';
 import { decodeRequestBody, decodeResponseBody, detectFormat, isTruncated } from './decodeBody';
 
@@ -180,5 +182,41 @@ describe('decodeResponseBody non-stream', () => {
   it('returns plain-text for null body', () => {
     const view = decodeResponseBody(null, {});
     expect(view.kind).toBe('plain-text');
+  });
+});
+
+describe('decodeResponseBody sse', () => {
+  it('parses events list', () => {
+    const view = decodeResponseBody(sseFullBody, {});
+    expect(view.kind).toBe('sse');
+    if (view.kind !== 'sse') throw new Error('sse');
+    expect(view.events.map((e) => e.type)).toEqual([
+      'message_start',
+      'content_block_start',
+      'content_block_delta',
+      'content_block_delta',
+      'content_block_stop',
+      'message_delta',
+      'message_stop',
+    ]);
+  });
+
+  it('reconstructs text from deltas', () => {
+    const view = decodeResponseBody(sseFullBody, {});
+    if (view.kind !== 'sse') throw new Error('sse');
+    expect(view.reconstructed).toHaveLength(1);
+    expect(view.reconstructed[0]).toEqual({
+      index: 0,
+      blockType: 'text',
+      text: 'Hello world',
+    });
+    expect(view.complete).toBe(true);
+  });
+
+  it('marks incomplete when message_stop missing', () => {
+    const view = decodeResponseBody(ssePartialBody, {});
+    if (view.kind !== 'sse') throw new Error('sse');
+    expect(view.complete).toBe(false);
+    expect(view.reconstructed[0].text).toBe('partial');
   });
 });

@@ -274,7 +274,90 @@ function decodeErrorObject(raw: string): ResponseView {
   };
 }
 
+interface SseDelta {
+  type: string;
+  text?: string;
+  partial_json?: string;
+}
+
+interface SseEventPayload {
+  type: string;
+  index?: number;
+  content_block?: { type: string };
+  delta?: SseDelta;
+  usage?: unknown;
+  message?: { model?: string; usage?: unknown };
+}
+
 function decodeAnthropicSse(raw: string): ResponseView {
-  // Full SSE decode implemented in Task 5.
-  return { kind: 'sse', events: [], reconstructed: [], complete: false, raw };
+  const events: SseEvent[] = [];
+  const blocks = new Map<number, { type: string; parts: string[]; toolParts: string[] }>();
+  let complete = false;
+
+  for (const chunk of raw.split('\n\n')) {
+    const lines = chunk.split('\n');
+    let type: string | undefined;
+    let dataLine: string | undefined;
+    for (const line of lines) {
+      if (line.startsWith('event: ')) type = line.slice(7).trim();
+      else if (line.startsWith('data: ')) dataLine = line.slice(6);
+    }
+    if (!type) continue;
+    events.push({ type, data: dataLine });
+    let payload: SseEventPayload | undefined;
+    if (dataLine) {
+      try {
+        payload = JSON.parse(dataLine) as SseEventPayload;
+      } catch {
+        payload = undefined;
+      }
+    }
+    if (!payload) continue;
+    if (type === 'message_stop') complete = true;
+    if (type === 'content_block_start' && typeof payload.index === 'number') {
+      blocks.set(payload.index, {
+        type: payload.content_block?.type ?? 'text',
+        parts: [],
+        toolParts: [],
+      });
+    }
+    if (type === 'content_block_delta' && typeof payload.index === 'number') {
+      const block = blocks.get(payload.index);
+      if (!block) continue;
+      if (payload.delta?.type === 'text_delta' && typeof payload.delta.text === 'string') {
+        block.parts.push(payload.delta.text);
+      } else if (
+        payload.delta?.type === 'input_json_delta' &&
+        typeof payload.delta.partial_json === 'string'
+      ) {
+        block.toolParts.push(payload.delta.partial_json);
+      }
+    }
+  }
+
+  const reconstructed: ReconstructedText[] = [...blocks.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([index, block]) => {
+      if (block.type === 'tool_use') {
+        const joined = block.toolParts.join('');
+        try {
+          return {
+            index,
+            blockType: block.type,
+            text: block.parts.join(''),
+            toolInput: JSON.parse(joined),
+          };
+        } catch {
+          return {
+            index,
+            blockType: block.type,
+            text: block.parts.join(''),
+            toolInputParseError: true,
+          };
+        }
+      }
+      return { index, blockType: block.type, text: block.parts.join('') };
+    });
+
+  return { kind: 'sse', events, reconstructed, complete, raw };
 }
