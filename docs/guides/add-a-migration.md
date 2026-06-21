@@ -14,7 +14,7 @@ A new migration `00X-<name>.ts` that:
 ## Prerequisites
 
 - Read [`../reference/db-tables.md`](../reference/db-tables.md) — current schema
-- Read the latest migration: `src/db/migrations/007-audit-log.ts` (most recent)
+- Read the latest migration: `src/db/migrations/010-model-context-output.ts` (most recent; `user_version` = 10)
 - Read the runner: `src/db/migrations/index.ts`
 - Know the current `user_version` (run `sqlite3 ~/.local/share/kelola-router/router.db "PRAGMA user_version;"`)
 
