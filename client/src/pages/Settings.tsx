@@ -171,7 +171,20 @@ export function Settings() {
     return (
       <>
         <TopBar title="Settings" />
-        <p style={{ color: 'var(--text-3)' }}>Loading settings…</p>
+        <div class="surface module--active">
+          <div class="card-head">
+            <div class="card-head-text">
+              <span class="card-eyebrow">SETTINGS</span>
+              <h2 class="card-title">Loading</h2>
+            </div>
+          </div>
+          <div class="specsheet" aria-hidden="true">
+            <div class="specsheet-row">
+              <span class="specsheet-label">reading config</span>
+              <span class="specsheet-value skeleton-cell" style={{ width: 120 }} />
+            </div>
+          </div>
+        </div>
       </>
     );
 
@@ -183,6 +196,11 @@ export function Settings() {
     minimax: data.minimax ?? SETTINGS_DEFAULTS.minimax,
   };
 
+  const cavemanLevel = merged.caveman.level;
+  const rtkOn = merged.rtk.enabled;
+  const cacheOn = merged.caching.autoBreakpoints;
+  const mmFormat = merged.minimax.upstreamFormat ?? 'auto';
+
   return (
     <>
       <TopBar
@@ -193,8 +211,7 @@ export function Settings() {
         }
         eyebrow="Router configuration"
       />
-      <p class="card-sub">Toggles applied to every proxy request. Changes save immediately.</p>
-      <Card title="Dashboard access" sub="Set or change the dashboard password.">
+      <Card eyebrow="SETTINGS" title="Dashboard access" sub="Set or change the dashboard password.">
         <PasswordForm onSubmit={(p) => pwMut.mutate({ action: 'set', password: p })} />
         <button
           type="button"
@@ -214,53 +231,79 @@ export function Settings() {
           Remove password
         </button>
       </Card>
-      <Card title="Caveman mode" sub="Injects a terse system prompt to force concise output.">
-        <label htmlFor="caveman-mode" class="sr-only">
-          Caveman mode level
-        </label>
-        <select
-          id="caveman-mode"
-          value={merged.caveman.level}
-          onChange={(e) => cavemanMut.mutate((e.target as HTMLSelectElement).value)}
-          class="input"
-          disabled={cavemanMut.isPending}
+
+      <Card eyebrow="ROUTER" title="Request shaping" sub="Toggles applied to every proxy request.">
+        <div class="specsheet">
+          <div class="specsheet-row">
+            <span class="specsheet-label">CAVEMAN MODE</span>
+            <span class="specsheet-value">
+              <label htmlFor="caveman-mode" class="sr-only">
+                Caveman mode level
+              </label>
+              <select
+                id="caveman-mode"
+                value={cavemanLevel}
+                onChange={(e) => cavemanMut.mutate((e.target as HTMLSelectElement).value)}
+                class="input"
+                disabled={cavemanMut.isPending}
+              >
+                <option value="off">off</option>
+                <option value="terse">terse</option>
+                <option value="ultra">ultra</option>
+              </select>
+            </span>
+          </div>
+          <div class="specsheet-row">
+            <span class="specsheet-label">RTK COMPRESSION</span>
+            <span class="specsheet-value">
+              <span
+                class={`dot ${rtkOn ? 'dot--active' : 'dot--idle'}`}
+                aria-hidden="true"
+                style={{ marginRight: 6 }}
+              />
+              <Switch
+                checked={rtkOn}
+                onChange={(v) => rtkMut.mutate(v)}
+                label={rtkOn ? 'enabled' : 'disabled'}
+              />
+            </span>
+          </div>
+          <div class="specsheet-row">
+            <span class="specsheet-label">PROMPT CACHING</span>
+            <span class="specsheet-value">
+              <span
+                class={`dot ${cacheOn ? 'dot--active' : 'dot--idle'}`}
+                aria-hidden="true"
+                style={{ marginRight: 6 }}
+              />
+              <Switch
+                checked={cacheOn}
+                onChange={(v) => cachingMut.mutate(v)}
+                label={cacheOn ? 'enabled' : 'disabled'}
+              />
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      <Card eyebrow="MINIMAX" title="Provider routing" sub="Cross-format routing + M3 defaults.">
+        <label
+          htmlFor="minimax-format"
+          class="specsheet-row"
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}
         >
-          <option value="off">Off</option>
-          <option value="terse">Terse</option>
-          <option value="ultra">Ultra</option>
-        </select>
-      </Card>
-      <Card title="RTK compression" sub="Token-saving compression on messages before forwarding.">
-        <Switch
-          checked={merged.rtk.enabled}
-          onChange={(v) => rtkMut.mutate(v)}
-          label={merged.rtk.enabled ? 'Enabled' : 'Disabled'}
-        />
-      </Card>
-      <Card
-        title="Prompt caching"
-        sub="Auto-inject dual cache_control breakpoints on Anthropic system prompts."
-      >
-        <Switch
-          checked={merged.caching.autoBreakpoints}
-          onChange={(v) => cachingMut.mutate(v)}
-          label={merged.caching.autoBreakpoints ? 'Enabled' : 'Disabled'}
-        />
-      </Card>
-      <Card title="MiniMax provider" sub="Cross-format routing + M3 defaults.">
-        <label htmlFor="minimax-format">
-          Upstream format override
+          <span class="specsheet-label">UPSTREAM FORMAT</span>
           <select
             id="minimax-format"
-            value={merged.minimax.upstreamFormat ?? 'auto'}
+            value={mmFormat}
             onChange={(e) =>
               minimaxMut.mutate({ upstreamFormat: (e.target as HTMLSelectElement).value })
             }
             class="input"
           >
-            <option value="auto">Auto</option>
-            <option value="openai">Always OpenAI</option>
-            <option value="anthropic">Always Anthropic</option>
+            <option value="auto">auto</option>
+            <option value="openai">always openai</option>
+            <option value="anthropic">always anthropic</option>
           </select>
         </label>
       </Card>

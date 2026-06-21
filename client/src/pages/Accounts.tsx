@@ -10,7 +10,6 @@ import {
 import { EditAccountModal, type EditForm } from '../components/accounts/EditAccountModal';
 import { KiroUsageModal } from '../components/accounts/KiroUsageModal';
 import { ProviderAccountSection } from '../components/accounts/ProviderAccountSection';
-import { Card } from '../components/Card';
 import { confirmDialog } from '../components/Confirm';
 import { ErrorState } from '../components/ErrorState';
 import { TableSkeleton } from '../components/Skeleton';
@@ -280,13 +279,31 @@ export function Accounts() {
           </>
         }
         eyebrow="Upstream key pool"
+        actions={
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            onClick={() => {
+              setProvider('minimax');
+              setOpen(true);
+            }}
+          >
+            + Add account
+          </button>
+        }
       />
-      <p class="card-sub">
-        MiniMax uses API keys. Kiro (AWS) supports OAuth, auto-import from Kiro IDE, or manual token
-        paste. Pioneer is an OpenAI-compatible upstream using X-API-Key authentication. The router
-        fans out across enabled accounts with exponential backoff.
-      </p>
-      <Card>
+      <div class="surface module--active">
+        <div class="card-head" style={{ justifyContent: 'space-between' }}>
+          <div class="card-head-text">
+            <span class="card-eyebrow">Upstream</span>
+            <h2 class="card-title">Key pool</h2>
+            <p class="card-sub" style={{ marginBottom: 0, marginTop: 4 }}>
+              MiniMax uses API keys. Kiro (AWS) supports OAuth, auto-import from Kiro IDE, or manual
+              token paste. Pioneer is an OpenAI-compatible upstream using X-API-Key authentication.
+              The router fans out across enabled accounts with exponential backoff.
+            </p>
+          </div>
+        </div>
         {isError ? (
           <ErrorState error={error as Error} onRetry={() => refetch()} />
         ) : isLoading ? (
@@ -395,7 +412,7 @@ export function Accounts() {
             />
           </>
         )}
-      </Card>
+      </div>
 
       <AddAccountModal
         open={open}
@@ -439,7 +456,10 @@ export function Accounts() {
         onTpStateChange={setTpState}
         locks={locks}
         onSave={(payload) => editMut.mutate(payload)}
-        onUnlock={(model) => unlockMut.mutate({ accountId: editing?.id, model })}
+        onUnlock={(model) => {
+          if (!editing) return;
+          unlockMut.mutate({ accountId: editing.id, model });
+        }}
         isSaving={editMut.isPending}
         isUnlocking={unlockMut.isPending}
       />

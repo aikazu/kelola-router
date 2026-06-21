@@ -37,17 +37,54 @@ function worstPercent(windows: QuotaWindow[]): number {
 
 function BarRow({ w }: { w: QuotaWindow }) {
   const pct = pctOf(w);
-  const warn = pct < 20;
+  // Remaining% drives the fill; over-quota/low is signalled by --crit.
+  // Used% = 100 - remaining: when remaining < 20 => used > 80 => warn.
+  const low = pct < 20;
+  const over = pct <= 0;
+  const fill = low ? 'var(--crit)' : 'var(--gold)';
   return (
-    <div class="quota-bar-row">
-      <span class="quota-win-label">{WINDOW_LABEL[w.windowType] ?? w.windowType}</span>
-      <div class="quota-bar-track">
-        <div class={`quota-bar-fill${warn ? ' warn' : ''}`} style={{ width: `${pct}%` }} />
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '24px 1fr auto',
+        gap: 10,
+        alignItems: 'center',
+        padding: '4px 0',
+      }}
+    >
+      <span
+        class="mono"
+        style={{ fontSize: 10, color: 'var(--ink-faint)', letterSpacing: '0.1em' }}
+      >
+        {WINDOW_LABEL[w.windowType] ?? w.windowType}
+      </span>
+      <div
+        role="img"
+        aria-label={`${pct}% remaining`}
+        style={{
+          position: 'relative',
+          height: 3,
+          background: 'var(--obsidian-3)',
+          borderRadius: 'var(--radius-sm)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: `${pct}%`,
+            height: '100%',
+            background: fill,
+            transition: 'width 0.3s',
+          }}
+        />
       </div>
-      <div class="quota-meta">
-        <span class={`quota-pct${warn ? ' warn' : ''}`}>{pct}%</span>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+        {over && <span class="dot dot--error" aria-hidden="true" />}
+        <span class="mono num" style={{ fontSize: 11, color: low ? 'var(--crit)' : 'var(--ink)' }}>
+          {pct}%
+        </span>
         {w.totalCount > 0 && (
-          <span class="quota-count">
+          <span class="mono" style={{ fontSize: 10, color: 'var(--ink-faint)' }}>
             {w.usedCount.toLocaleString()} / {w.totalCount.toLocaleString()}
           </span>
         )}
@@ -63,13 +100,28 @@ function ModelBlock({ windows, delay }: { windows: QuotaWindow[]; delay: number 
   const head = ordered[0];
   const fiveH = ordered.find((w) => w.windowType === '5h');
   const reset = fiveH?.remainsTime ?? null;
+  const worst = worstPercent(ordered);
   return (
-    <div class="quota-model" style={{ animationDelay: `${delay}ms` }}>
-      <div class="quota-model-head">
-        <span class="status-dot active" />
-        <span class="quota-model-name">{head.modelName}</span>
+    <div
+      style={{
+        marginBottom: 12,
+        animationDelay: `${delay}ms`,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 4,
+        }}
+      >
+        <span class={`dot ${worst < 20 ? 'dot--error' : 'dot--ok'}`} aria-hidden="true" />
+        <span class="mono" style={{ fontSize: 12, color: 'var(--ink)' }}>
+          {head.modelName}
+        </span>
         {reset != null && (
-          <span class="reset-chip" style={{ marginLeft: 'auto' }}>
+          <span class="mono" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--gold-dim)' }}>
             resets in {forwardDuration(reset)}
           </span>
         )}
@@ -136,14 +188,20 @@ function AccountRow({
           }
         }}
       >
-        <td style={{ width: 24, color: 'var(--text-3)' }}>{expanded ? '▾' : '▸'}</td>
+        <td class="mono" style={{ width: 24, color: 'var(--ink-faint)' }}>
+          {expanded ? '▾' : '▸'}
+        </td>
         <td style={{ fontWeight: 500 }}>
           {q.label}
           {!q.enabled && (
-            <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>disabled</span>
+            <span class="mono" style={{ color: 'var(--ink-faint)', fontSize: 10, marginLeft: 8 }}>
+              disabled
+            </span>
           )}
           {hasError && (
-            <span style={{ color: 'var(--alert)', fontSize: 11, marginLeft: 8 }}>error</span>
+            <span class="mono" style={{ color: 'var(--crit)', fontSize: 10, marginLeft: 8 }}>
+              error
+            </span>
           )}
         </td>
         <td>
@@ -153,41 +211,53 @@ function AccountRow({
         </td>
         <td>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div class="quota-bar-track" style={{ width: 60 }}>
+            <div
+              role="img"
+              aria-label={`${worst}% health`}
+              style={{
+                position: 'relative',
+                width: 60,
+                height: 3,
+                background: 'var(--obsidian-3)',
+                borderRadius: 'var(--radius-sm)',
+                overflow: 'hidden',
+              }}
+            >
               <div
-                class={`quota-bar-fill${warnHealth ? ' warn' : ''}`}
-                style={{ width: `${worst}%` }}
+                style={{
+                  width: `${worst}%`,
+                  height: '100%',
+                  background: warnHealth ? 'var(--crit)' : 'var(--gold)',
+                }}
               />
             </div>
+            {hasError && <span class="dot dot--error" aria-hidden="true" />}
             <span
+              class="mono num"
               style={{
-                fontSize: 12,
-                fontFamily: 'var(--font-mono)',
-                color: warnHealth ? 'var(--alert)' : 'var(--text-2)',
+                fontSize: 11,
+                color: hasError ? 'var(--ink-faint)' : warnHealth ? 'var(--crit)' : 'var(--ink)',
               }}
             >
               {hasError ? '—' : `${worst}%`}
             </span>
           </div>
         </td>
-        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+        <td class="num mono" style={{ fontSize: 11 }}>
           {hasError ? '—' : fiveHPct != null ? `${fiveHPct}%` : '—'}
         </td>
-        <td style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+        <td class="num mono" style={{ fontSize: 11 }}>
           {hasError ? '—' : weeklyPct != null ? `${weeklyPct}%` : '—'}
         </td>
-        <td style={{ fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+        <td class="mono" style={{ fontSize: 10, color: 'var(--ink-dim)' }}>
           {hasError ? '—' : reset != null ? forwardDuration(reset) : '—'}
         </td>
       </tr>
       {expanded && (
         <tr>
-          <td
-            colSpan={7}
-            style={{ padding: '12px 16px', background: 'var(--surface-2, rgba(255,255,255,0.02))' }}
-          >
+          <td colSpan={7} style={{ padding: '12px 16px', background: 'var(--obsidian-3)' }}>
             {hasError ? (
-              <p class="card-sub" style={{ color: 'var(--alert)' }}>
+              <p class="card-sub" style={{ color: 'var(--crit)' }}>
                 Failed to load quota: {q.error ?? 'unknown error'}
               </p>
             ) : grouped.length === 0 ? (
@@ -198,7 +268,7 @@ function AccountRow({
               ))
             )}
             {lastFetched && !hasError && (
-              <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 14 }}>
+              <p class="mono" style={{ fontSize: 10, color: 'var(--ink-faint)', marginTop: 14 }}>
                 Last fetched {relativeTime(lastFetched)}
               </p>
             )}
@@ -287,19 +357,21 @@ export function Quota() {
         }
       />
       {isLoading ? (
-        <Card>
+        <Card eyebrow="QUOTA" title="Balances">
           <TableSkeleton rows={3} cols={3} />
         </Card>
       ) : quotas.length === 0 ? (
-        <div class="empty">
-          <h3>No quota data</h3>
-          <p>
-            Add an upstream account to see quota windows. Go to{' '}
-            <a href="#/admin/accounts">Accounts</a> to add one.
+        <div class="surface" style={{ textAlign: 'center', padding: '40px 24px' }}>
+          <span class="card-eyebrow" style={{ marginBottom: 8 }}>
+            EMPTY
+          </span>
+          <p class="card-sub" style={{ marginBottom: 0 }}>
+            No quota data — <a href="#/admin/accounts">add an upstream account</a> to see quota
+            windows.
           </p>
         </div>
       ) : (
-        <Card>
+        <Card eyebrow="QUOTA" title="Balances">
           <table class="tbl" style={{ width: '100%' }}>
             <thead>
               <tr>

@@ -1,57 +1,85 @@
-/* Fonts are loaded via <link> in index.html (preconnect + preload + stylesheet)
-   so the browser can start the download in parallel with CSS parse. */
+/* ============================================================================
+   Obsidian Gold — Rack-mount palette
+   Blue-tinted near-black panels + gold accents used as punctuation (5-8%).
+   Fonts loaded via <link> in index.html.
+   ============================================================================ */
 
 :root {
-  /* Obsidian canvas ramp */
-  --canvas: #0a0a0a;
-  --surface-1: #121212;
-  --surface-2: #181818;
-  --surface-3: #1f1f1f;
-  --surface-4: #282828;
+  /* --- Obsidian ramp ----------------------------------------------------- */
+  --obsidian: #0a0b0f; /* body bg, blue-tinted near-black */
+  --obsidian-2: #121419; /* raised face */
+  --obsidian-3: #1c1f26; /* track / well */
+  --grid: #23262f; /* hairline */
 
-  /* borders */
-  --border: #2a2a2a;
-  --border-strong: #3a3a3a;
-  --border-gold: #c9a352;
+  /* --- Ink ramp ---------------------------------------------------------- */
+  --ink: #edeff5; /* primary text, silkscreen white */
+  --ink-dim: #7a7f8a; /* labels, engraved */
+  --ink-faint: #4a4e57; /* dividers, disabled */
 
-  /* gold accent ramp */
-  --gold: #c9a352;
-  --gold-bright: #e0bf6b;
-  --gold-deep: #8a6f2d;
-  --gold-glow: rgba(201, 163, 82, 0.16);
+  /* --- Gold ramp (signature, restraint) --------------------------------- */
+  --gold: #d4af37;
+  --gold-bright: #f0cc5c;
+  --gold-dim: #8a7028;
+  --gold-glow: rgba(212, 175, 55, 0.16);
 
-  /* text ramp */
-  --text-1: #f0ede7;
-  --text-2: #a39f97;
-  --text-3: #8a8680;
-  --text-inv: #0a0a0a;
+  /* --- Status (gold stays the only accent) ------------------------------ */
+  --crit: #e5484d; /* error — only non-gold status */
+  --ok: #6bbf6e; /* healthy idle, restrained green */
+  --signal: #6bbf6e;
+  --alert: #e5484d;
+  --danger: #e5484d;
+  --warning: #d4af37;
+  --success: #6bbf6e;
 
-  /* semantic */
-  --signal: #6cc3a6;
-  --alert: #d27a6e;
-  --danger: #d27a6e;
-  --warning: #c9a352;
-  --success: #6cc3a6;
+  /* --- Semantic aliases (keep these so existing components don't break) - */
+  --bg: var(--obsidian);
+  --surface: var(--obsidian-2);
+  --surface-raised: var(--obsidian-3);
+  --surface-1: var(--obsidian-2);
+  --surface-2: var(--obsidian-3);
+  --surface-3: #232831;
+  --surface-4: #2a2e38;
+  --border: var(--grid);
+  --border-strong: #34384a;
+  --border-gold: var(--gold);
+  --text: var(--ink);
+  --text-1: var(--ink);
+  --text-2: var(--ink-dim);
+  --text-3: var(--ink-faint);
+  --text-inv: var(--obsidian);
+  --accent: var(--gold);
+  --accent-bright: var(--gold-bright);
 
-  /* legacy aliases kept so any straggler references still resolve to the new palette */
+  /* --- Legacy names retained for any straggler references -------------- */
+  --canvas: var(--obsidian);
+  --gold-deep: var(--gold-dim);
+  --gold-deep-legacy: #8a6f2d;
+  --gold-bright-legacy: #e0bf6b;
   --ink-0: #07090a;
-  --ink-1: #0a0a0a;
-  --ink-2: #121212;
-  --ink-3: #1f1f1f;
-  --ink-4: #282828;
-  --emerald-2: #8a6f2d;
-  --emerald-3: #c9a352;
-  --emerald-4: #c9a352;
-  --emerald-5: #e0bf6b;
-  --emerald-glow: rgba(201, 163, 82, 0.16);
+  --ink-1: var(--obsidian);
+  --ink-2: var(--obsidian-2);
+  --ink-3: var(--obsidian-3);
+  --ink-4: #282c36;
+  --emerald-2: var(--gold-dim);
+  --emerald-3: var(--gold);
+  --emerald-4: var(--gold);
+  --emerald-5: var(--gold-bright);
+  --emerald-glow: var(--gold-glow);
   --gold-0: #6b5418;
-  --gold-1: #8a6f2d;
-  --gold-2: #c9a352;
-  --gold-3: #e0bf6b;
+  --gold-1: var(--gold-dim);
+  --gold-2: var(--gold);
+  --gold-3: var(--gold-bright);
 
-  --font-display: "Fraunces", Georgia, serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  /* --- Shape (rack-sharp, NOT 16px SaaS) ------------------------------- */
+  --radius: 4px;
+  --radius-sm: 2px;
+  --rail-w: 56px;
+
+  /* --- Type ------------------------------------------------------------- */
+  --font-display: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-body: var(--font-sans);
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 }
 
 * {
@@ -62,9 +90,9 @@
 
 html,
 body {
-  background: var(--canvas);
-  color: var(--text-1);
-  font-family: var(--font-body);
+  background: var(--obsidian);
+  color: var(--ink);
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
@@ -72,10 +100,8 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(900px 600px at 100% -5%, rgba(201, 163, 82, 0.05) 0%, transparent 55%),
-    radial-gradient(700px 500px at -5% 100%, rgba(201, 163, 82, 0.03) 0%, transparent 50%),
-    var(--canvas);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 40%);
+  background-attachment: fixed;
   min-height: 100vh;
 }
 
@@ -93,20 +119,19 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-display);
-  font-weight: 400;
+  font-family: var(--font-sans);
+  font-weight: 500;
   letter-spacing: -0.01em;
-  font-optical-sizing: auto;
 }
 h1 {
-  font-size: 34px;
-  line-height: 1.1;
+  font-size: 28px;
+  line-height: 1.15;
 }
 h2 {
-  font-size: 22px;
+  font-size: 20px;
 }
 h3 {
-  font-size: 16px;
+  font-size: 15px;
 }
 
 /* Italic gold accent — signature detail. Max one <em> per headline. */
@@ -114,17 +139,18 @@ h1 em,
 h2 em,
 .topbar-title em,
 .hero-figure em {
-  font-style: italic;
-  font-weight: 300;
+  font-style: normal;
+  font-weight: 500;
   color: var(--gold);
+  letter-spacing: 0.02em;
 }
 
 /* Eyebrow — mono uppercase gold label above headlines */
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--gold);
   display: inline-block;
@@ -132,19 +158,19 @@ h2 em,
 
 /* hr-gold — short rule under headlines */
 .hr-gold {
-  width: 64px;
+  width: 48px;
   height: 1px;
   background: var(--gold);
   border: 0;
-  margin: 12px 0;
+  margin: 10px 0;
 }
 
 code,
 pre {
   font-family: var(--font-mono);
-  font-size: 12.5px;
-  background: var(--surface-4);
-  border-radius: 3px;
+  font-size: 12px;
+  background: var(--obsidian-3);
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
   color: var(--gold-bright);
 }
@@ -156,20 +182,48 @@ pre {
 kbd {
   font-family: var(--font-mono);
   font-size: 11px;
-  background: var(--surface-4);
-  border: 1px solid var(--border-strong);
+  background: var(--obsidian-3);
+  border: 1px solid var(--grid);
   border-bottom-width: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
-  color: var(--text-1);
+  color: var(--ink);
+}
+
+/* --- Scrollbars (thin, ink-faint thumb, gold on hover) ------------------ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-faint) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--grid);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ink-faint);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+/* --- Selection ---------------------------------------------------------- */
+::selection {
+  background: var(--gold);
+  color: var(--obsidian);
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms;
-    transition-duration: 0.01ms;
+    /* biome-ignore lint/complexity/noImportantStyles: must override inline animations to honor reduced-motion */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: must override inline transitions to honor reduced-motion */
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -203,9 +257,9 @@ kbd {
   top: -100%;
   left: 16px;
   background: var(--gold);
-  color: var(--text-inv);
+  color: var(--obsidian);
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   font-size: 13px;
   font-weight: 600;
   z-index: 999;

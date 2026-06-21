@@ -41,10 +41,12 @@ const err: FlowEvent = {
 
 describe('ConsoleBlocks', () => {
   it('groups events by reqId and renders summary', () => {
-    render(<ConsoleBlocks events={[start, account, done]} />);
+    const { container } = render(<ConsoleBlocks events={[start, account, done]} />);
     expect(screen.getByText(/#a3f2/)).toBeTruthy();
     expect(screen.getByText(/kiro1/)).toBeTruthy();
-    expect(screen.getByText(/200/)).toBeTruthy();
+    // Status cell — scoped to .console-row-status because the done line
+    // also renders the status code textually.
+    expect(container.querySelector('.console-row-status')?.textContent).toMatch(/200/);
     expect(screen.getByText(/in 1\.2k/)).toBeTruthy();
   });
 

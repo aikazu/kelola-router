@@ -1,3 +1,9 @@
+/* ============================================================================
+   Obsidian Gold — animations
+   Each motion primitive is gated behind prefers-reduced-motion so the rack
+   stays still when the user asks it to.
+   ============================================================================ */
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -26,13 +32,50 @@
     transform: translateX(0);
   }
 }
+
+/* LED pulse — short decay feel, used on active status dots + power LEDs.
+   ~1200ms cycle with a quick bright-to-dim drop so it reads as instrument,
+   not breathing animation. */
+@keyframes led-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Waveform hit — single bar settles after a beat. Used on Console page
+   VU bars. No looping: parent applies once per data tick. */
+@keyframes waveform-hit {
+  0% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0.4);
+  }
+}
+
+/* Subtle sheen — used by powered-module cards. */
+@keyframes sheen {
+  0% {
+    background-position: -120% 0;
+  }
+  100% {
+    background-position: 220% 0;
+  }
+}
+
+/* Backwards-compat: gold-pulse kept under the same name; now fades opacity
+   instead of box-shadow so it composes with the LED dot shape. */
 @keyframes gold-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(201, 163, 82, 0.4);
+    opacity: 1;
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(201, 163, 82, 0);
+    opacity: 0.45;
   }
 }
 
@@ -67,5 +110,20 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* LED dot primitive — opt-in via .dot--pulse. Gated by reduced-motion. */
+.dot--pulse {
+  animation: led-pulse 1.2s ease-in-out infinite;
+}
+.dot--wave {
+  transform-origin: bottom center;
+  animation: waveform-hit 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .module--active {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 40%);
   }
 }

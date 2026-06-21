@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { confirmDialog } from '../components/Confirm';
@@ -116,17 +115,18 @@ export function Aliases() {
         eyebrow="Catalog / aliases"
         actions={<Button onClick={() => setEditing('new')}>+ New alias</Button>}
       />
-      <p class="card-sub">
-        User-defined names that resolve to upstream models. Useful for matching client expectations
-        (e.g. <code>claude-opus-4-8 → MiniMax-M3</code>).
-      </p>
-      <Card>
+      <Card
+        eyebrow="ALIASES"
+        title="Alias → model map"
+        sub="User-defined names that resolve to upstream models (e.g. claude-opus-4-8 → MiniMax-M3)."
+      >
         <input
           type="search"
           placeholder="Filter by alias, target, or label…"
           value={search}
           onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-          style={{ width: '100%', marginBottom: 12 }}
+          class="input"
+          style={{ width: '100%', maxWidth: 360, marginBottom: 12 }}
           aria-label="Search aliases"
         />
         {isError ? (
@@ -134,16 +134,16 @@ export function Aliases() {
         ) : isLoading ? (
           <TableSkeleton rows={5} cols={6} />
         ) : filtered.length === 0 ? (
-          <p class="card-sub">
+          <p class="card-sub mono" style={{ padding: 16 }}>
             {aliases.length === 0 ? (
               <>
-                No aliases yet.{' '}
+                no aliases defined —{' '}
                 <button type="button" class="btn-link" onClick={() => setEditing('new')}>
-                  Create one →
+                  create one →
                 </button>
               </>
             ) : (
-              'No aliases match.'
+              'no aliases match.'
             )}
           </p>
         ) : (
@@ -165,10 +165,15 @@ export function Aliases() {
                     <td class="mono">{a.aliasName}</td>
                     <td class="mono">{a.upstreamModel}</td>
                     <td>{a.label ?? '—'}</td>
-                    <td>
-                      <Badge variant={a.source === 'user' ? 'active' : 'muted'}>{a.source}</Badge>
+                    <td class="mono">
+                      <span
+                        class={`dot ${a.source === 'user' ? 'dot--active' : 'dot--idle'}`}
+                        aria-hidden="true"
+                        style={{ marginRight: 6 }}
+                      />
+                      <span style={{ fontSize: 11, letterSpacing: '0.06em' }}>{a.source}</span>
                     </td>
-                    <td class="card-sub mono" style={{ fontSize: 12 }} title={a.createdAt}>
+                    <td class="mono num" style={{ fontSize: 12 }} title={a.createdAt}>
                       {relativeTime(a.createdAt)}
                     </td>
                     <td>

@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
-import { Button } from '../components/Button';
 import { useToast } from '../components/ToastProvider';
 import { type ApiError, apiFetch } from '../lib/api';
 
@@ -33,7 +32,8 @@ export function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--canvas)',
+        background: 'var(--obsidian)',
+        padding: 24,
       }}
     >
       <form
@@ -42,84 +42,43 @@ export function Login() {
           setErrMsg(null);
           loginMut.mutate(pw);
         }}
+        class="surface module--active"
         style={{
-          position: 'relative',
-          background: 'var(--surface-1)',
-          border: '1px solid var(--border-strong)',
-          borderRadius: 6,
-          padding: 40,
-          width: 372,
-          boxShadow: '0 28px 70px rgba(0,0,0,0.7)',
-          overflow: 'hidden',
+          maxWidth: 360,
+          width: '100%',
+          padding: '28px 28px 32px',
         }}
       >
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 2,
-            background: 'var(--gold)',
-          }}
-        />
-        <div
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 34,
-            fontWeight: 400,
-            textAlign: 'center',
-            marginBottom: 6,
-            letterSpacing: '-0.01em',
-          }}
-        >
-          kelola
-          <em style={{ fontStyle: 'italic', fontWeight: 300, color: 'var(--gold)' }}>router</em>
+        <div class="card-head" style={{ marginBottom: 20 }}>
+          <div class="card-head-text">
+            <span class="card-eyebrow">KELOLA-ROUTER</span>
+            <div class="card-title">Sign in</div>
+          </div>
         </div>
-        <div
-          style={{
-            textAlign: 'center',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10,
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            color: 'var(--gold)',
-            marginBottom: 28,
-          }}
-        >
-          Restricted access
-        </div>
+
         {errMsg && (
           <div
             role="alert"
             aria-live="assertive"
             id="login-error"
+            class="card-sub"
             style={{
-              color: 'var(--alert)',
-              fontSize: 12,
-              marginBottom: 12,
-              padding: 9,
-              background: 'rgba(210,122,110,0.12)',
-              border: '1px solid rgba(210,122,110,0.3)',
-              borderRadius: 4,
+              color: 'var(--crit)',
+              marginBottom: 16,
+              paddingLeft: 10,
+              borderLeft: '2px solid var(--crit)',
             }}
           >
             {errMsg}
           </div>
         )}
+
         <label
           htmlFor="login-password"
-          style={{
-            display: 'block',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'var(--text-3)',
-            marginBottom: 6,
-          }}
+          class="card-eyebrow"
+          style={{ marginBottom: 8, color: 'var(--ink-dim)' }}
         >
-          Password
+          PASSWORD
         </label>
         <input
           id="login-password"
@@ -132,21 +91,17 @@ export function Login() {
           autoComplete="current-password"
           spellcheck={false}
           required
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-1)',
-            borderRadius: 3,
-            marginBottom: 16,
-            fontFamily: 'inherit',
-            fontSize: 14,
-          }}
+          class="input"
+          style={{ width: '100%', marginBottom: 16, fontFamily: 'var(--font-mono)' }}
         />
-        <Button type="submit" disabled={!pw || loginMut.isPending} style={{ width: '100%' }}>
+        <button
+          type="submit"
+          class="btn"
+          disabled={!pw || loginMut.isPending}
+          style={{ width: '100%', justifyContent: 'center' }}
+        >
           {loginMut.isPending ? 'Signing in…' : 'Sign in'}
-        </Button>
+        </button>
       </form>
     </div>
   );
