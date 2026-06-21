@@ -51,6 +51,11 @@ Capture the *why* behind consequential design choices. MADR-lite format. New ADR
 - `docs/adr/0003-in-process-sse-bus.md` — in-process EventEmitter + SSE for the live console
 - `docs/adr/0004-two-tier-auth.md` — separate `client_keys` + cascading admin modes
 - `docs/adr/0005-sqlite-wal-migrations.md` — SQLite-WAL + `user_version` + additive migrations
+- `docs/adr/0006-codebuddy-provider.md` — CodeBuddy as a third upstream (OpenAI bridge + shared SseAssemblerBase)
+- `docs/adr/0007-provider-prefix-routing.md` — `<prefix>/<model>` on `body.model` (mx/ kr/ cb/ pio/ nt/ zai)
+- `docs/adr/0008-combo-fallback-chains.md` — `combos` table; cross-provider ordered fallback + alias/combo name-uniqueness invariant
+- `docs/adr/0009-transport-geoip-probe.md` — advisory country probe via ipapi.co on transport add (non-blocking, UX-only)
+- `docs/adr/0010-request-log-scheduler.md` — in-process scheduler reuses quota-pull tick for `request_logs` pruning (`REQUEST_LOG_RETENTION_DAYS`, default 30)
 
 ## Agent skills
 
