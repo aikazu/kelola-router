@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-// biome-ignore lint/correctness/noUnusedImports: re-exported type re-verified by downstream tasks
-import { type BodyMeta, isTruncated } from './decodeBody';
+import { isTruncated } from './decodeBody';
 
 describe('isTruncated', () => {
   it('returns true when body ends with truncation suffix', () => {
