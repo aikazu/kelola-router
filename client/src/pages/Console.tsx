@@ -5,6 +5,179 @@ import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
 import { relativeTime } from '../lib/relativeTime';
 
+/* ============================================================================
+   Signature page — rack-mount request flow console.
+   Builds on the foundation tokens. Data flows unchanged from SSE; only the
+   presentation layer (header strip, waveform, stat strip, LED rails) is new.
+   ============================================================================ */
+
+const WAVE_BUCKETS = 60; // 60 × 1s = 60s rolling window
+const WAVE_BUCKET_MS = 1000;
+const SLOW_LATENCY_MS = 1500; // threshold for "slow" latency highlighting
+
+function fmtTokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+function fmtLatency(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
+}
+function fmtClock(iso: string): string {
+  if (!iso) return '--:--:--';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '--:--:--';
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+interface WaveformProps {
+  events: FlowEvent[];
+  now: number;
+}
+
+/** 60s rolling waveform: 60 vertical bars, one per 1s bucket, height ∝
+ *  number of `start` events in that bucket. Bars fade older (gold-bright →
+ *  gold-dim) so the eye reads the leading edge. */
+function Waveform({ events, now }: WaveformProps) {
+  const counts = useMemo(() => {
+    const arr = new Array<number>(WAVE_BUCKETS).fill(0);
+    for (const e of events) {
+      if (e.phase !== 'start' || !e.ts) continue;
+      const t = Date.parse(e.ts);
+      if (Number.isNaN(t)) continue;
+      const ageMs = now - t;
+      if (ageMs < 0 || ageMs >= WAVE_BUCKETS * WAVE_BUCKET_MS) continue;
+      const idx = WAVE_BUCKETS - 1 - Math.floor(ageMs / WAVE_BUCKET_MS);
+      if (idx >= 0 && idx < WAVE_BUCKETS) arr[idx]++;
+    }
+    return arr;
+  }, [events, now]);
+
+  const peak = Math.max(1, ...counts);
+  const totalInWindow = counts.reduce((a, b) => a + b, 0);
+
+  return (
+    <div class="console-wave">
+      <div class="console-wave-track" role="img" aria-label="request rate over last 60 seconds">
+        {counts.map((c, i) => {
+          // Map bucket index → recency 0 (oldest) .. 1 (newest). Fade the
+          // tail so the eye reads motion at the leading edge.
+          const recency = i / (WAVE_BUCKETS - 1);
+          const h = c === 0 ? 2 : Math.max(4, Math.round((c / peak) * 100));
+          const has = c > 0;
+          const style: Record<string, string> = {
+            height: `${h}%`,
+            opacity: has ? (0.35 + 0.65 * recency).toFixed(2) : '0.18',
+          };
+          return (
+            <span key={`b-${i}`} class={`console-wave-bar ${has ? 'has' : 'idle'}`} style={style} />
+          );
+        })}
+      </div>
+      {totalInWindow === 0 && <div class="console-wave-hint">awaiting traffic</div>}
+    </div>
+  );
+}
+
+interface StatStripProps {
+  events: FlowEvent[];
+  now: number;
+}
+
+function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const sorted = xs.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? Math.round((sorted[mid - 1] + sorted[mid]) / 2) : sorted[mid];
+}
+
+/** Inline stat strip — numbers from real events in the 60s window. If a metric
+ *  can't be computed (no data), it's omitted instead of showing a lying 0. */
+function StatStrip({ events, now }: StatStripProps) {
+  const stats = useMemo(() => {
+    const windowMs = WAVE_BUCKETS * WAVE_BUCKET_MS;
+    let startsInWindow = 0;
+    let inFlight = 0;
+    let errCount = 0;
+    const latencies: number[] = [];
+    for (const e of events) {
+      if (e.phase === 'start' && e.ts) {
+        const t = Date.parse(e.ts);
+        if (!Number.isNaN(t) && now - t >= 0 && now - t < windowMs) startsInWindow++;
+      } else if (e.phase === 'done') {
+        const t = e.ts ? Date.parse(e.ts) : now;
+        if (!Number.isNaN(t) && now - t < windowMs) {
+          latencies.push(e.latencyMs);
+          if (e.status >= 400) errCount++;
+        }
+      } else if (e.phase === 'error') {
+        const t = e.ts ? Date.parse(e.ts) : now;
+        if (!Number.isNaN(t) && now - t < windowMs) errCount++;
+      }
+    }
+    // in-flight = started in window without a matching done/error yet.
+    const settled = new Set<string>();
+    for (const e of events) {
+      if (e.phase === 'done' || e.phase === 'error') settled.add(e.reqId);
+    }
+    for (const e of events) {
+      if (e.phase !== 'start' || !e.ts) continue;
+      const t = Date.parse(e.ts);
+      if (Number.isNaN(t)) continue;
+      if (now - t < 0 || now - t >= windowMs) continue;
+      if (!settled.has(e.reqId)) inFlight++;
+    }
+
+    const reqPerSec = startsInWindow / (windowMs / 1000);
+    const p50 = median(latencies);
+    const decided = latencies.length + errCount;
+    const errPct = decided === 0 ? 0 : (errCount / decided) * 100;
+
+    const parts: Array<{ label: string; value: string; tone?: 'crit' | 'gold' }> = [];
+    if (startsInWindow > 0) {
+      parts.push({
+        label: 'req/s',
+        value: reqPerSec >= 10 ? reqPerSec.toFixed(1) : reqPerSec.toFixed(2),
+        tone: 'gold',
+      });
+    }
+    if (inFlight > 0) {
+      parts.push({ label: 'active', value: String(inFlight), tone: 'gold' });
+    }
+    if (latencies.length > 0) {
+      parts.push({
+        label: 'p50',
+        value: fmtLatency(p50),
+        tone: p50 >= SLOW_LATENCY_MS ? 'crit' : 'gold',
+      });
+    }
+    if (decided > 0) {
+      parts.push({
+        label: 'err',
+        value: `${errPct.toFixed(1)}%`,
+        tone: errPct > 0 ? 'crit' : 'gold',
+      });
+    }
+    return parts;
+  }, [events, now]);
+
+  if (stats.length === 0) return null;
+
+  return (
+    /* biome-ignore lint/a11y/useSemanticElements: flat stat strip has no native semantic element; role=group gives the labeled collection an accessible name */
+    <div class="console-stats" role="group" aria-label="request flow statistics">
+      {stats.map((s, i) => (
+        <span class="console-stat" key={s.label}>
+          {i > 0 && <span class="console-stat-sep">·</span>}
+          <span class={`console-stat-val console-stat-val--${s.tone ?? 'gold'}`}>{s.value}</span>
+          <span class="console-stat-label">{s.label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 interface RequestLogDetail {
   id: number;
   requestedModel: string | null;
@@ -91,13 +264,6 @@ export type FlowEvent =
     }
   | { phase: 'error'; reqId: string; ts: string; status: number; message: string };
 
-function fmtTokens(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
-}
-function fmtLatency(ms: number): string {
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
-}
-
 interface Block {
   reqId: string;
   start?: Extract<FlowEvent, { phase: 'start' }>;
@@ -181,13 +347,33 @@ export function ConsoleBlocks({
     <div class="console-box">
       {collapsed.map(({ block: b, count }) => {
         const failed = b.error || (b.done && b.done.status >= 400);
+        const settled = !!(b.done || b.error);
+        const inFlight = !!(b.start && !settled);
+        const errored = !!failed;
+        const ledKind: 'errored' | 'active' | 'idle' = errored
+          ? 'errored'
+          : inFlight
+            ? 'active'
+            : 'idle';
+        const provider = (b.account?.accountLabel ?? b.transport?.label ?? '—').toUpperCase();
+        const doneStatus = b.done?.status ?? b.error?.status ?? null;
+        const latencyMs = b.done?.latencyMs ?? null;
+        const slow = latencyMs !== null && latencyMs >= SLOW_LATENCY_MS;
+        const statusClass =
+          doneStatus === null
+            ? ''
+            : doneStatus >= 500
+              ? 'status-crit'
+              : doneStatus >= 400
+                ? 'status-warn'
+                : 'status-ok';
         const isOpen = expanded === b.reqId;
         return (
           <div class="console-block" key={b.reqId}>
             {b.start && (
               // biome-ignore lint/a11y/useSemanticElements: console log line IS the click affordance
               <div
-                class="console-line console-head"
+                class={`console-line console-head console-row console-row--${ledKind}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => toggle(b.reqId)}
@@ -199,10 +385,21 @@ export function ConsoleBlocks({
                 }}
                 title="Click for request detail"
               >
-                <span class="console-reqid">#{b.reqId}</span> → {b.start.method} {b.start.path}{' '}
-                {b.start.alias ? `${b.start.alias}→${b.start.model}` : b.start.model}
-                {count > 1 && <span class="console-count">×{count}</span>}
-                <span class="console-time">{relativeTime(b.start.ts)}</span>
+                <span class={`console-row-led console-row-led--${ledKind}`} aria-hidden="true" />
+                <span class="console-row-ts">{fmtClock(b.start.ts)}</span>
+                <span class="console-row-provider">{provider}</span>
+                <span class="console-row-method">
+                  <span class="console-row-reqid">#{b.reqId}</span> {b.start.method} {b.start.path}{' '}
+                  {b.start.alias ? `${b.start.alias}→${b.start.model}` : b.start.model}
+                  {count > 1 && <span class="console-count">×{count}</span>}
+                </span>
+                <span class="console-row-time">{relativeTime(b.start.ts)}</span>
+                <span class={`console-row-latency ${slow ? 'is-slow' : ''}`}>
+                  {latencyMs !== null ? fmtLatency(latencyMs) : '—'}
+                </span>
+                <span class={`console-row-status ${statusClass}`}>
+                  {doneStatus !== null ? doneStatus : '…'}
+                </span>
               </div>
             )}
             {b.account && (
@@ -257,6 +454,8 @@ export function Console() {
   pausedRef.current = paused;
   const boxRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
+  // Single 1Hz tick — drives the rolling waveform and stat-strip windows.
+  const [now, setNow] = useState<number>(() => Date.now());
   // RAF-batched event buffer. Decouples SSE message rate from React renders.
   const pendingRef = useRef<FlowEvent[]>([]);
   const rafRef = useRef<number | null>(null);
@@ -302,6 +501,13 @@ export function Console() {
       boxRef.current.scrollTop = 0;
     }
   }, [events]);
+
+  // Drive waveform + stat strip windows. 1Hz is enough resolution for a 60s
+  // view; the keyframe animations already gate on prefers-reduced-motion.
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const filteredEvents = useMemo(() => {
     if (!filterModel && !filterAccount && filterStatus === 'all') return events;
@@ -350,7 +556,10 @@ export function Console() {
         eyebrow="live request flow"
         actions={
           <div class="console-controls">
-            <span class={`console-dot ${connected ? 'live' : 'down'}`} />
+            <span
+              class={`dot ${connected ? 'dot--active dot--pulse' : 'dot--idle'}`}
+              aria-hidden="true"
+            />
             <span class="console-status">{connected ? 'live' : 'reconnecting…'}</span>
             <Button variant="ghost" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
               {paused ? 'Resume' : 'Pause'}
@@ -364,6 +573,10 @@ export function Console() {
           </div>
         }
       />
+      <div class="console-meter">
+        <Waveform events={events} now={now} />
+        <StatStrip events={events} now={now} />
+      </div>
       <div
         style={{
           display: 'flex',
@@ -427,7 +640,9 @@ export function Console() {
         }}
       >
         <ConsoleBlocks events={filteredEvents} collapse={collapse} />
-        {events.length === 0 && <div class="console-empty">Waiting for requests…</div>}
+        {events.length === 0 && (
+          <div class="console-empty">No traffic yet — requests will appear here in real time.</div>
+        )}
       </div>
     </div>
   );

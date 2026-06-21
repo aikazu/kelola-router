@@ -439,7 +439,10 @@ export function Accounts() {
         onTpStateChange={setTpState}
         locks={locks}
         onSave={(payload) => editMut.mutate(payload)}
-        onUnlock={(model) => unlockMut.mutate({ accountId: editing?.id, model })}
+        onUnlock={(model) => {
+          if (!editing) return;
+          unlockMut.mutate({ accountId: editing.id, model });
+        }}
         isSaving={editMut.isPending}
         isUnlocking={unlockMut.isPending}
       />
