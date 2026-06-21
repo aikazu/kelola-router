@@ -71,10 +71,10 @@ export async function handleKiroProxy(
   const requestedModel = resolved.requestedModel;
   const modelName = resolved.upstreamModel;
 
-  // Pattern #7 parity: augment + RTK + bodyTransform (kiro branches before the
-  // dispatcher's augment/RTK block in minimax.ts:186-207). Apply to `body` BEFORE
+  // augment + RTK + bodyTransform parity — kiro branches before the dispatcher's
+  // augment/RTK block (src/proxy/minimax.ts ~186-207). Applied to `body` BEFORE
   // the bodyAnthropicToOpenAI merge so cache_control markers survive into the
-  // converted body.
+  // converted body. Mirror combo.ts:84-98 so the behavior matches.
   const allSettings = getAllSettings(db);
   const caveman = allSettings.caveman as { level: string } | undefined;
   // biome-ignore format: long line
@@ -209,8 +209,33 @@ export async function handleKiroProxy(
       );
       // Parity with CodeBuddy/Pioneer/Notion/minimax: log the failed request so
       // it surfaces in the Request log. Tokens/cost are 0 — it's an error.
-      // biome-ignore format: long line
-      insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: acc.id, model: modelName, requestedModel, endpoint: upstreamPath, format, promptTokens: 0, completionTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, costUsd: 0, latencyMs: Date.now() - startMs, statusCode: result.status, baseRespCode: undefined, stream: upstreamStream ? 1 : 0, rtkBytesSaved: 0, requestBody: JSON.stringify(body), responseBody: errBody, requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId }));
+      insertRequestLogDeferred(
+        db,
+        buildLogRow({
+          clientKeyId: clientKey.id,
+          accountId: acc.id,
+          model: modelName,
+          requestedModel,
+          endpoint: upstreamPath,
+          format,
+          promptTokens: 0,
+          completionTokens: 0,
+          cacheCreationTokens: 0,
+          cacheReadTokens: 0,
+          totalTokens: 0,
+          costUsd: 0,
+          latencyMs: Date.now() - startMs,
+          statusCode: result.status,
+          baseRespCode: undefined,
+          stream: upstreamStream ? 1 : 0,
+          rtkBytesSaved: 0,
+          requestBody: JSON.stringify(body),
+          responseBody: errBody,
+          requestHeaders: c.req.raw.headers,
+          responseHeaders: new Headers(),
+          reqId,
+        })
+      );
       return c.body(
         errBody || JSON.stringify({ error: 'kiro upstream error' }),
         statusCode(result.status),

@@ -502,8 +502,33 @@ export async function handleProxy(
     consoleBus.emit(buildError(reqId, new Date().toISOString(), 502, message));
     // transport throw (DNS/refused/timeout) previously wrote no request_log row.
     // Log zeros + 502 so the failure is observable.
-    // biome-ignore format: long line
-    insertRequestLogDeferred(db, buildLogRow({ clientKeyId: clientKey.id, accountId: account.id, model: resolved.upstreamModel, requestedModel, endpoint: upstreamPath, format: upstreamFormat, promptTokens: 0, completionTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, costUsd: 0, latencyMs: Date.now() - c.get('startTime'), statusCode: 502, baseRespCode: undefined, stream: body.stream === true ? 1 : 0, rtkBytesSaved: rtkSaved, requestBody: text, responseBody: message, requestHeaders: c.req.raw.headers, responseHeaders: new Headers(), reqId }));
+    insertRequestLogDeferred(
+      db,
+      buildLogRow({
+        clientKeyId: clientKey.id,
+        accountId: account.id,
+        model: resolved.upstreamModel,
+        requestedModel,
+        endpoint: upstreamPath,
+        format: upstreamFormat,
+        promptTokens: 0,
+        completionTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+        latencyMs: Date.now() - c.get('startTime'),
+        statusCode: 502,
+        baseRespCode: undefined,
+        stream: body.stream === true ? 1 : 0,
+        rtkBytesSaved: rtkSaved,
+        requestBody: text,
+        responseBody: message,
+        requestHeaders: c.req.raw.headers,
+        responseHeaders: new Headers(),
+        reqId,
+      })
+    );
     return c.json({ error: `upstream unreachable: ${message}` }, 502);
   }
 }

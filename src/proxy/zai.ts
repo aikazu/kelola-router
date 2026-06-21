@@ -78,8 +78,8 @@ export async function handleZaiProxy(
     /* unknown/disabled model — placeholder; error surfaces later */
   }
 
-  // Pattern #7: augment (caveman + cache_control) + RTK compression + bodyTransform
-  // are skipped in handlers that branch before the dispatcher's augment/RTK block
+  // augment (caveman + cache_control) + RTK compression + bodyTransform —
+  // skipped because handlers branch before the dispatcher's augment/RTK block
   // (src/proxy/minimax.ts ~186-207). Mirror combo.ts:84-98 here so parity holds.
   const allSettings = getAllSettings(db);
   const caveman = allSettings.caveman as { level: string } | undefined;
