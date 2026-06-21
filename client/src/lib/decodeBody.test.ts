@@ -50,6 +50,12 @@ describe('detectFormat', () => {
       'anthropic-sse'
     );
   });
+  it('prefers JSON body shape over misleading event-stream content-type', () => {
+    const body = JSON.stringify({ choices: [{ message: { content: 'hi' } }] });
+    expect(detectFormat(body, { contentType: 'text/event-stream; charset=utf-8' })).toBe(
+      'openai-completion'
+    );
+  });
   it('defaults to plain-text for non-json non-sse', () => {
     expect(detectFormat('some random text', {})).toBe('plain-text');
   });

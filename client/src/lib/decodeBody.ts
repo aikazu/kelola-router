@@ -82,12 +82,11 @@ export function detectFormat(body: string | null | undefined, meta: BodyMeta): D
   if (body == null) return 'plain-text';
   const trimmed = body.trimStart();
   if (trimmed.startsWith('event:')) return 'anthropic-sse';
-  if (meta.contentType?.includes('text/event-stream')) return 'anthropic-sse';
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
   } catch {
-    return 'plain-text';
+    return meta.contentType?.includes('text/event-stream') ? 'anthropic-sse' : 'plain-text';
   }
   if (parsed !== null && typeof parsed === 'object') {
     const obj = parsed as Record<string, unknown>;
