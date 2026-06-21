@@ -1,9 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import type { ComponentChildren } from 'preact';
-import { useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
+import { CollapsibleText } from '../components/CollapsibleText';
 import { ErrorState } from '../components/ErrorState';
+import { HeadersTable } from '../components/HeadersTable';
 import { Modal } from '../components/Modal';
 import { apiFetch } from '../lib/api';
+import type { ContentBlock, MessageCard } from '../lib/decodeBody';
+import { decodeRequestBody, isTruncated } from '../lib/decodeBody';
 
 interface RequestLog {
   id: number;
@@ -42,7 +46,7 @@ function fmtClock(iso: string): string {
   return `${hh}:${mm}:${ss}`;
 }
 
-function JsonView({ data }: { data: string | null | undefined }) {
+function RawView({ data }: { data: string | null | undefined }) {
   if (data == null)
     return (
       <p class="card-sub" style={{ color: 'var(--ink-dim)', marginBottom: 0 }}>
@@ -72,27 +76,6 @@ function JsonView({ data }: { data: string | null | undefined }) {
     >
       {formatted}
     </pre>
-  );
-}
-
-function HeadersView({ headers }: { headers: Record<string, string> | null }) {
-  if (!headers || Object.keys(headers).length === 0)
-    return (
-      <p class="card-sub" style={{ color: 'var(--ink-dim)', marginBottom: 0 }}>
-        No headers recorded.
-      </p>
-    );
-  return (
-    <div class="specsheet" style={{ marginBottom: 16 }}>
-      {Object.entries(headers).map(([k, v]) => (
-        <div class="specsheet-row" key={k}>
-          <span class="specsheet-label">{k}</span>
-          <span class="specsheet-value mono" style={{ wordBreak: 'break-all' }}>
-            {v}
-          </span>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -203,6 +186,140 @@ function SpecRow({ label, children }: { label: string; children: ComponentChildr
   );
 }
 
+function ContentBlockView({ block }: { block: ContentBlock }) {
+  switch (block.type) {
+    case 'text':
+      return (
+        <div
+          class="mono"
+          style={{ fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+        >
+          <CollapsibleText text={block.text ?? ''} />
+        </div>
+      );
+    case 'reasoning':
+      return (
+        <div
+          class="mono"
+          style={{
+            fontSize: 12,
+            opacity: 0.7,
+            borderLeft: '2px solid var(--gold-dim)',
+            paddingLeft: 8,
+          }}
+        >
+          <CollapsibleText text={block.text ?? ''} />
+        </div>
+      );
+    case 'image':
+      return (
+        <div class="mono" style={{ fontSize: 11, color: 'var(--ink-dim)' }}>
+          [image · {block.mediaType ?? 'unknown'} · {block.byteLength ?? 0} bytes]
+        </div>
+      );
+    case 'tool_use':
+      return (
+        <div class="mono" style={{ fontSize: 11 }}>
+          <span style={{ color: 'var(--gold)' }}>tool_use: {block.toolName}</span>
+          <pre style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>
+            {JSON.stringify(block.toolInput, null, 2)}
+          </pre>
+        </div>
+      );
+    case 'tool_result':
+      return (
+        <div class="mono" style={{ fontSize: 11 }}>
+          <span style={{ color: block.isError ? 'var(--crit)' : 'var(--ink-dim)' }}>
+            tool_result{block.isError ? ' (error)' : ''}
+          </span>
+          <pre style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{block.text ?? ''}</pre>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
+function MessageCardView({ card }: { card: MessageCard }) {
+  const ink = card.role === 'user' ? 'var(--gold)' : 'var(--ink)';
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div class="card-eyebrow" style={{ color: ink, marginBottom: 4 }}>
+        {card.role}
+      </div>
+      {card.blocks.map((b, i) => (
+        <ContentBlockView key={i} block={b} />
+      ))}
+    </div>
+  );
+}
+
+function RequestTimeline({ data }: { data: RequestLog }) {
+  const view = useMemo(() => decodeRequestBody(data.requestBody), [data.requestBody]);
+  const truncated = isTruncated(data.requestBody);
+  return (
+    <div>
+      {truncated && (
+        <div class="card-eyebrow" style={{ color: 'var(--gold)', marginBottom: 8 }}>
+          truncated — full body not captured
+        </div>
+      )}
+      <div class="mono" style={{ fontSize: 11, color: 'var(--ink-dim)', marginBottom: 12 }}>
+        {view.summary.messageCount} messages · {view.summary.toolCount} tools ·{' '}
+        {view.summary.hasSystem ? 'system' : 'no system'} ·{' '}
+        {view.summary.stream ? 'stream' : 'non-stream'}
+      </div>
+      {view.parseError ? (
+        <div>
+          <p class="card-sub" style={{ color: 'var(--crit)', marginBottom: 8 }}>
+            Unparseable request body, see Raw.
+          </p>
+          <RawView data={data.requestBody} />
+        </div>
+      ) : (
+        <>
+          {view.system && view.system.length > 0 && (
+            <details style={{ marginBottom: 12 }}>
+              <summary class="card-eyebrow" style={{ cursor: 'pointer' }}>
+                SYSTEM
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                {view.system.map((b, i) => (
+                  <ContentBlockView key={i} block={b} />
+                ))}
+              </div>
+            </details>
+          )}
+          {view.tools && view.tools.length > 0 && (
+            <details style={{ marginBottom: 12 }}>
+              <summary class="card-eyebrow" style={{ cursor: 'pointer' }}>
+                TOOLS ({view.tools.length})
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                {view.tools.map((t, i) => (
+                  <div key={i} class="mono" style={{ fontSize: 11, marginBottom: 8 }}>
+                    <span style={{ color: 'var(--gold)' }}>{t.name}</span>
+                    <pre style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>
+                      {JSON.stringify(t.inputSchema, null, 2)}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+          {view.messages.map((m, i) => (
+            <MessageCardView key={i} card={m} />
+          ))}
+          <div class="card-eyebrow" style={{ margin: '16px 0 8px' }}>
+            REQUEST BODY (RAW)
+          </div>
+          <RawView data={data.requestBody} />
+        </>
+      )}
+    </div>
+  );
+}
+
 export function RequestDetail({ id, onClose }: { id: number | null; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('summary');
   const { data, isLoading, isError, refetch } = useQuery({
@@ -301,13 +418,13 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
       {data && tab === 'request' && (
         <div id="tabpanel-request" role="tabpanel" aria-labelledby="tab-request">
           <div class="card-eyebrow" style={{ marginBottom: 8 }}>
-            REQUEST BODY
+            REQUEST
           </div>
-          <JsonView data={data.requestBody} />
+          <RequestTimeline data={data} />
           <div class="card-eyebrow" style={{ margin: '16px 0 8px' }}>
             REQUEST HEADERS
           </div>
-          <HeadersView headers={data.requestHeaders} />
+          <HeadersTable headers={data.requestHeaders} />
         </div>
       )}
 
@@ -316,11 +433,11 @@ export function RequestDetail({ id, onClose }: { id: number | null; onClose: () 
           <div class="card-eyebrow" style={{ marginBottom: 8 }}>
             RESPONSE BODY
           </div>
-          <JsonView data={data.responseBody} />
+          <RawView data={data.responseBody} />
           <div class="card-eyebrow" style={{ margin: '16px 0 8px' }}>
             RESPONSE HEADERS
           </div>
-          <HeadersView headers={data.responseHeaders} />
+          <HeadersTable headers={data.responseHeaders} />
         </div>
       )}
 
