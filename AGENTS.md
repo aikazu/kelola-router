@@ -161,6 +161,7 @@ Kiro = AWS CodeWhisperer / Amazon Q. Branched off `handleProxy` in `src/proxy/ki
 ### Test patterns
 
 - **Isolate the DB per test**: set `process.env.ROUTER_DB_PATH` to a fresh `mkdtempSync` path in `beforeEach`, and call `resetDb()` from `src/server.ts` to reset the Hono app's DB handle.
+- **SQLCipher test isolation** (encryption-at-rest): when `process.env.ROUTER_DB_KEY` is set, `openDb()` swaps to `better-sqlite3-multiple-ciphers` and issues `PRAGMA key` as the first statement. Tests that exercise the encrypted path must seed `ROUTER_DB_KEY` in `beforeEach` to a known passphrase (the key is process-env only — never persisted) and clear it in `afterEach` so a leak doesn't bleed across files. `isPlaintextSqlite()` rejects mixing `ROUTER_DB_KEY` against an existing plaintext file; tests must start from a fresh `mkdtempSync` path, never reuse a fixture DB.
 - **Mock upstream fetch** with `vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(...))`. Use `mockImplementation` (not `mockResolvedValueOnce`) when a test calls fetch multiple times — `Response` bodies are single-read.
 - **CSRF**: integration tests for `/admin/*` POSTs must set `Origin` matching `Host` or omit `Origin` entirely. The `csrfGuard` middleware blocks cross-origin POSTs.
 - **Settings cache**: `getSetting` caches for 1s. Call `clearCacheForDb(db)` from `src/db/repos/settings.ts` when changing settings mid-test.
