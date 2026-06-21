@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Verification
 
 - All 6 audit findings from `docs/superpowers/specs/2026-06-19-audit-fixes-design.md` addressed (A4, A5, A6, A7, B1, B2). A1/A2/A3 were already remediated in earlier commits.
-- 14 new tests added across `models.test.ts` (3), `quota.test.ts` (1 + mock setup), `cache.test.ts` (3), `settings.test.ts` (2), `aliases.test.ts` (5). 154 server test files green; 1 pre-existing failure in `src/api/admin/models.fetch.test.ts` (returns 404 vs 200 for an unsupported provider) is out of scope and predates this release.
+- 14 new tests added across `models.test.ts` (3), `quota.test.ts` (1 + mock setup), `cache.test.ts` (3), `settings.test.ts` (2), `aliases.test.ts` (5). 161 server test files green; 1 pre-existing failure in `src/api/admin/models.fetch.test.ts` (returns 404 vs 200 for an unsupported provider) is out of scope and predates this release.
 - 78 client tests pass.
 - `npx tsc --noEmit` clean on both server and client.
 - `npx biome check` clean on all changed files.
