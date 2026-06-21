@@ -1,27 +1,7 @@
 import type Database from 'better-sqlite3';
 import { migration_001 } from './001-initial.js';
-import { migration_002 } from './002-kiro.js';
-import { migration_003 } from './003-transports.js';
-import { migration_004 } from './004-reqid.js';
-import { migration_005 } from './005-combos.js';
-import { migration_006 } from './006-transport-country.js';
-import { migration_007 } from './007-audit-log.js';
-import { migration_008 } from './008-pioneer-dedup.js';
-import { migration_009 } from './009-pioneer-anthropic-dedup.js';
-import { migration_010 } from './010-model-context-output.js';
 
-const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
-  migration_001,
-  migration_002,
-  migration_003,
-  migration_004,
-  migration_005,
-  migration_006,
-  migration_007,
-  migration_008,
-  migration_009,
-  migration_010,
-];
+const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [migration_001];
 
 export function migrate(db: Database.Database): void {
   const current = Number(db.pragma('user_version', { simple: true }));

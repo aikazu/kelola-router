@@ -115,6 +115,7 @@ describe('env getters', () => {
   it('isConsoleFlowEnabled with env = "0" → false', () => {
     process.env.CONSOLE_FLOW = '0';
     expect(isConsoleFlowEnabled()).toBe(false);
+    delete process.env.CONSOLE_FLOW;
   });
 });
 
