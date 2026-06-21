@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { confirmDialog } from '../components/Confirm';
@@ -208,19 +207,19 @@ export function ClientKeys() {
         eyebrow="Bearer credentials"
         actions={<Button onClick={() => setCreateOpen(true)}>+ Create key</Button>}
       />
-      <p class="card-sub">
-        Bearer credentials for clients. Each key gets its own usage tracking on /admin/usage.
-      </p>
-      <Card>
+      <Card
+        eyebrow="CLIENT KEYS"
+        title="Bearer credentials"
+        sub="Each key gets its own usage tracking on /admin/usage."
+      >
         {isError ? (
           <ErrorState error={error as Error} onRetry={() => refetch()} />
         ) : isLoading ? (
           <TableSkeleton rows={3} cols={6} />
         ) : keys.length === 0 ? (
-          <div class="empty">
-            <h3>No client keys yet</h3>
-            <p>Create one to give an app access to the proxy.</p>
-          </div>
+          <p class="card-sub mono" style={{ padding: 16 }}>
+            no keys issued — create one to grant an app access.
+          </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table class="tbl">
@@ -299,12 +298,19 @@ export function ClientKeys() {
                         <code>{k.keyPreview}</code>
                       )}
                     </td>
-                    <td>
-                      <Badge variant={k.enabled ? 'active' : 'muted'}>
-                        {k.enabled ? 'active' : 'disabled'}
-                      </Badge>
+                    <td class="mono">
+                      <span
+                        class={`dot ${k.enabled ? 'dot--active' : 'dot--idle'}`}
+                        aria-hidden="true"
+                        style={{ marginRight: 6 }}
+                      />
+                      <span style={{ fontSize: 11, letterSpacing: '0.06em' }}>
+                        {k.enabled ? 'active' : 'revoked'}
+                      </span>
                     </td>
-                    <td title={k.createdAt}>{relativeTime(k.createdAt)}</td>
+                    <td class="mono num" title={k.createdAt}>
+                      {relativeTime(k.createdAt)}
+                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
                         {inlineRevealed[k.id] ? (

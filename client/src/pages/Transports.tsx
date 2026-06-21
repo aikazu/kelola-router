@@ -44,19 +44,28 @@ export function Transports() {
           </div>
         }
       />
-      <p class="card-sub">
-        Define HTTP/SOCKS5 proxies and Vercel/Cloudflare relays here, then assign them per account
-        on the Upstream page. Proxies can be pooled and rotated; relays are assigned one at a time.
-      </p>
-      <FailureModeCard />
-      <TransportsTable
-        transports={transports}
-        isLoading={isLoading}
-        isError={isError}
-        error={error}
-        refetch={refetch}
-        onEdit={(t) => setEditing(t)}
-      />
+      <div class="surface module--active">
+        <div class="card-head">
+          <div class="card-head-text">
+            <span class="card-eyebrow">Transports</span>
+            <h2 class="card-title">Proxy &amp; relay registry</h2>
+            <p class="card-sub" style={{ marginBottom: 0, marginTop: 4 }}>
+              Define HTTP/SOCKS5 proxies and Vercel/Cloudflare relays here, then assign them per
+              account on the Upstream page. Proxies can be pooled and rotated; relays are assigned
+              one at a time.
+            </p>
+          </div>
+        </div>
+        <FailureModeCard />
+        <TransportsTable
+          transports={transports}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          refetch={refetch}
+          onEdit={(t) => setEditing(t)}
+        />
+      </div>
 
       <AddTransportModal open={open} onClose={() => setOpen(false)} />
       <BulkImportModal open={bulkOpen} onClose={() => setBulkOpen(false)} />

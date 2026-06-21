@@ -4,34 +4,55 @@ export function NotFound({ route }: { route: string }) {
   return (
     <>
       <TopBar title="404" />
-      <div style={{ padding: 36, textAlign: 'center' }}>
-        <h2
+      <div
+        style={{
+          minHeight: '60vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 36,
+        }}
+      >
+        <div
+          class="surface module--active"
           style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 28,
-            color: 'var(--text-1)',
-            marginBottom: 8,
+            maxWidth: 420,
+            width: '100%',
+            textAlign: 'center',
+            padding: '40px 32px',
           }}
         >
-          Page not found
-        </h2>
-        <p style={{ color: 'var(--text-2)', marginBottom: 24 }}>
-          No page matches{' '}
-          <code
-            style={{
-              fontFamily: 'var(--font-mono)',
-              background: 'var(--ink-2)',
-              padding: '2px 6px',
-              borderRadius: 3,
-            }}
-          >
-            {route}
-          </code>
-          .
-        </p>
-        <a href="#/admin" class="btn btn-primary">
-          Back to overview
-        </a>
+          <div class="card-head" style={{ justifyContent: 'center' }}>
+            <div class="card-head-text">
+              <span class="card-eyebrow">NOT FOUND</span>
+              <div
+                class="mono"
+                aria-hidden="true"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 72,
+                  fontWeight: 500,
+                  lineHeight: 1,
+                  letterSpacing: '-0.02em',
+                  color: 'var(--gold-dim)',
+                  margin: '8px 0 16px',
+                }}
+              >
+                404
+              </div>
+              <p class="card-sub" style={{ marginBottom: 24 }}>
+                No route matches{' '}
+                <span class="mono" style={{ color: 'var(--ink-dim)' }}>
+                  {route}
+                </span>
+                . Return to the overview panel to resume operations.
+              </p>
+              <a href="#/admin/overview" class="btn btn-ghost">
+                Back to overview
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );

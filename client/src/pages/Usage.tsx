@@ -184,10 +184,11 @@ export function Usage() {
         }
       />
 
-      <Card>
+      <Card eyebrow="USAGE" title="Filters">
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <input
             type="search"
+            class="input"
             placeholder="Search by model, id, error..."
             aria-label="Search requests"
             autoComplete="off"
@@ -228,7 +229,7 @@ export function Usage() {
               </option>
             ))}
           </select>
-          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+          <div class="mono" style={{ fontSize: 11, color: 'var(--ink-dim)' }}>
             Client:
             <button
               type="button"
@@ -244,7 +245,7 @@ export function Usage() {
                 padding: 0,
                 font: 'inherit',
                 cursor: 'pointer',
-                color: clientKeyId === undefined ? 'var(--emerald-4)' : 'inherit',
+                color: clientKeyId === undefined ? 'var(--gold)' : 'inherit',
                 fontWeight: clientKeyId === undefined ? 700 : 400,
                 marginLeft: 6,
               }}
@@ -267,7 +268,7 @@ export function Usage() {
                   padding: 0,
                   font: 'inherit',
                   cursor: 'pointer',
-                  color: clientKeyId === k.id ? 'var(--emerald-4)' : 'inherit',
+                  color: clientKeyId === k.id ? 'var(--gold)' : 'inherit',
                   fontWeight: clientKeyId === k.id ? 700 : 400,
                   marginLeft: 6,
                 }}
@@ -280,26 +281,34 @@ export function Usage() {
       </Card>
 
       {data && (
-        <div class="stat-grid">
-          <Stat
-            label="Total cost"
-            value={`$${data.summary.totalCost.toFixed(4)}`}
-            sub={<Delta pct={data.summary.deltaCostPct} label="vs prev period" />}
-          />
-          <Stat
-            label="Requests"
-            value={data.summary.totalRequests.toLocaleString()}
-            sub={<Delta pct={data.summary.deltaRequestsPct} label="vs prev period" />}
-          />
-          <Stat
-            label="Tokens"
-            value={data.summary.totalTokens.toLocaleString()}
-            sub={<Delta pct={data.summary.deltaTokensPct} label="vs prev period" />}
-          />
+        <div class="surface module--active" style={{ marginBottom: 20 }}>
+          <div class="card-head">
+            <div class="card-head-text">
+              <span class="card-eyebrow">SUMMARY</span>
+              <h2 class="card-title">Totals</h2>
+            </div>
+          </div>
+          <div class="stat-grid">
+            <Stat
+              label="Total cost"
+              value={`$${data.summary.totalCost.toFixed(4)}`}
+              sub={<Delta pct={data.summary.deltaCostPct} label="vs prev period" />}
+            />
+            <Stat
+              label="Requests"
+              value={data.summary.totalRequests.toLocaleString()}
+              sub={<Delta pct={data.summary.deltaRequestsPct} label="vs prev period" />}
+            />
+            <Stat
+              label="Tokens"
+              value={data.summary.totalTokens.toLocaleString()}
+              sub={<Delta pct={data.summary.deltaTokensPct} label="vs prev period" />}
+            />
+          </div>
         </div>
       )}
 
-      <Card title="Requests">
+      <Card title="Requests" eyebrow="REQUESTS">
         {isError ? (
           <ErrorState error={error as Error} onRetry={() => refetch()} />
         ) : isLoading || !data ? (
@@ -462,12 +471,14 @@ export function Usage() {
                       }}
                       style={{ cursor: 'pointer' }}
                     >
-                      <td title={l.createdAt}>{relativeTime(l.createdAt)}</td>
-                      <td>{l.model}</td>
+                      <td class="mono" title={l.createdAt}>
+                        {relativeTime(l.createdAt)}
+                      </td>
+                      <td class="mono">{l.model}</td>
                       <td>{l.accountLabel ?? '—'}</td>
-                      <td>{l.totalTokens.toLocaleString()}</td>
-                      <td>${l.cost.toFixed(4)}</td>
-                      <td>{l.latencyMs}ms</td>
+                      <td class="num mono">{l.totalTokens.toLocaleString()}</td>
+                      <td class="num mono">${l.cost.toFixed(4)}</td>
+                      <td class="num mono">{l.latencyMs}ms</td>
                       <td>
                         <Badge
                           variant={

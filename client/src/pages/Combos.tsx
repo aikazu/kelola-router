@@ -89,74 +89,88 @@ export function Combos() {
         eyebrow="Catalog / combos"
         actions={<Button onClick={() => setEditing('new')}>+ New Combo</Button>}
       />
-      <p class="card-sub">
-        Combos define ordered sequences of models. Requests are routed through the list in priority
-        order for fallback or load distribution.
-      </p>
-      <Card>
+      <Card
+        eyebrow="COMBOS"
+        title="Fallback chains"
+        sub="Ordered sequences of models — requests route through the list in priority order for fallback or load distribution."
+      >
         {isError ? (
           <ErrorState error={error as Error} onRetry={() => refetch()} />
         ) : isLoading ? (
           <TableSkeleton rows={4} cols={4} />
         ) : combos.length === 0 ? (
-          <p class="card-sub">
-            No combos yet.{' '}
+          <p class="card-sub mono" style={{ padding: 16 }}>
+            no combos defined —{' '}
             <button type="button" class="btn-link" onClick={() => setEditing('new')}>
-              Create one →
+              create one →
             </button>
           </p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table class="tbl">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Models</th>
-                  <th>Updated</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {combos.map((c) => (
-                  <tr key={c.id}>
-                    <td class="mono">{c.name}</td>
-                    <td>
-                      <span class="card-sub">
-                        {c.models.length} model{c.models.length !== 1 ? 's' : ''}
+          <div style={{ display: 'grid', gap: 12 }}>
+            {combos.map((c) => (
+              <div key={c.id} class="surface" style={{ padding: 0 }}>
+                <div class="card-head" style={{ justifyContent: 'space-between' }}>
+                  <div class="card-head-text">
+                    <span class="card-eyebrow">{c.name.toUpperCase()}</span>
+                    <h3 class="card-title mono" style={{ fontSize: 14 }}>
+                      {c.models.length} model{c.models.length !== 1 ? 's' : ''}
+                      <span
+                        class="card-sub mono"
+                        style={{ marginLeft: 8, fontSize: 11 }}
+                        title={c.updated_at}
+                      >
+                        updated {relativeTime(c.updated_at)}
                       </span>
-                    </td>
-                    <td class="card-sub mono" style={{ fontSize: 12 }} title={c.updated_at}>
-                      {relativeTime(c.updated_at)}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
-                        <Button size="sm" onClick={() => setEditing(c)}>
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={async () => {
-                            if (
-                              await confirmDialog({
-                                title: 'Delete combo',
-                                message: `Delete combo "${c.name}"? This cannot be undone.`,
-                                confirmLabel: 'Delete',
-                                danger: true,
-                              })
-                            ) {
-                              deleteMut.mutate(c.id);
-                            }
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
+                    <Button size="sm" onClick={() => setEditing(c)}>
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={async () => {
+                        if (
+                          await confirmDialog({
+                            title: 'Delete combo',
+                            message: `Delete combo "${c.name}"? This cannot be undone.`,
+                            confirmLabel: 'Delete',
+                            danger: true,
+                          })
+                        ) {
+                          deleteMut.mutate(c.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+                <div style={{ padding: '0 16px 12px', display: 'grid', gap: 4 }}>
+                  {c.models.map((m, idx) => (
+                    <div
+                      key={`${c.id}-${idx}-${m}`}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <span
+                        class={`dot ${idx === 0 ? 'dot--active' : 'dot--idle'}`}
+                        aria-hidden="true"
+                      />
+                      <span
+                        class="mono"
+                        style={{ fontSize: 11, color: 'var(--ink-faint)', width: 16 }}
+                      >
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                      <span class="mono" style={{ fontSize: 13 }}>
+                        {m}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Card>
@@ -277,8 +291,8 @@ function ComboModal({
           </span>
 
           {comboModels.length === 0 ? (
-            <p class="card-sub" style={{ margin: 0 }}>
-              No models added yet.
+            <p class="card-sub mono" style={{ margin: 0 }}>
+              no models added yet.
             </p>
           ) : (
             <div style={{ display: 'grid', gap: 4 }}>
@@ -290,21 +304,19 @@ function ComboModal({
                     alignItems: 'center',
                     gap: 8,
                     padding: '6px 8px',
-                    borderRadius: 6,
-                    background: 'var(--bg-2, rgba(255,255,255,0.04))',
+                    borderRadius: 4,
+                    background: 'var(--obsidian-3)',
                   }}
                 >
                   <span
+                    class={`dot ${idx === 0 ? 'dot--active' : 'dot--idle'}`}
+                    aria-hidden="true"
+                  />
+                  <span
                     class="mono"
-                    style={{
-                      fontSize: 11,
-                      color: 'var(--text-3)',
-                      width: 20,
-                      textAlign: 'center',
-                      flexShrink: 0,
-                    }}
+                    style={{ fontSize: 11, color: 'var(--ink-faint)', width: 20, flexShrink: 0 }}
                   >
-                    {idx + 1}
+                    {String(idx + 1).padStart(2, '0')}
                   </span>
                   <span class="mono" style={{ flex: 1, fontSize: 13 }}>
                     {m}

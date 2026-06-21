@@ -75,10 +75,11 @@ export function Models() {
         }
         eyebrow="Catalog / aliases"
       />
-      <p class="card-sub">
-        All models known to the router. Disabled models are rejected at the proxy layer.
-      </p>
-      <Card>
+      <Card
+        eyebrow="MODELS"
+        title="Catalog"
+        sub="All models known to the router. Disabled models are rejected at the proxy layer."
+      >
         <div
           style={{
             display: 'flex',
@@ -90,6 +91,7 @@ export function Models() {
         >
           <input
             type="search"
+            class="input"
             aria-label="Search models"
             name="search"
             autoComplete="off"
@@ -106,13 +108,15 @@ export function Models() {
               gap: 8,
               alignItems: 'center',
               padding: '8px 12px',
-              background: 'var(--surface-2, rgba(255,255,255,0.03))',
-              borderRadius: 8,
+              background: 'var(--obsidian-3)',
+              borderRadius: 'var(--radius-sm)',
               marginBottom: 8,
-              border: '1px solid var(--border)',
+              border: '1px solid var(--grid)',
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 500 }}>{selected.size} selected</span>
+            <span class="mono" style={{ fontSize: 12, color: 'var(--gold)' }}>
+              {selected.size} selected
+            </span>
             <Button size="sm" onClick={() => bulkMut.mutate(true)} disabled={bulkMut.isPending}>
               {bulkMut.isPending ? 'Enabling…' : 'Enable all'}
             </Button>
