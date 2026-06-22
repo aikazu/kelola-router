@@ -1,6 +1,6 @@
 # Debug a Failed Request
 
-Trace a request from client → proxy → upstream → response, find the failing stage, fix it. This is a ladder — walk it top to bottom and stop at the first clue.
+Trace a request from client to proxy to upstream to response, find the failing stage, fix it. This is a ladder. Walk it top to bottom and stop at the first clue.
 
 ## Goal
 
@@ -8,8 +8,8 @@ Identify *where* a request failed (auth, account selection, upstream, format con
 
 ## Prerequisites
 
-- Read [`ARCHITECTURE.md`](../../ARCHITECTURE.md) — request pipeline + state machines
-- Read [`../reference/error-codes.md`](../reference/error-codes.md) — what the backoff/lock decisions mean
+- Read [`ARCHITECTURE.md`](../../ARCHITECTURE.md): request pipeline + state machines
+- Read [`../reference/error-codes.md`](../reference/error-codes.md): what the backoff/lock decisions mean
 - Know how to query the DB: `sqlite3 ~/.local/share/kelola-router/router.db` (or use the dashboard's Request Detail page)
 
 ## Diagnostic ladder
@@ -32,9 +32,9 @@ If no row exists: the request never reached the proxy. Check client auth:
 ### Step 2: Look at the Console page
 
 Open the dashboard `Console` page (`#/admin/console`). The failed request should be a colored block with:
-- `reqid` (4-byte hex) — match this to `request_logs.req_id` for cross-linking
-- `account` — which account was selected
-- `transport` — which relay/proxy/direct path
+- `reqid` (4-byte hex): match this to `request_logs.req_id` for cross-linking
+- `account`: which account was selected
+- `transport`: which relay/proxy/direct path
 - `done` line with status + latency
 - `error` line (if applicable) with the upstream body
 
@@ -156,7 +156,7 @@ curl -X POST http://localhost:20137/v1/chat/completions \
   -d '{"model": "minimax/MiniMax-M3", "messages": [{"role": "user", "content": "hi"}]}'
 ```
 
-Expected: 200 with `chat.completion` JSON (or 5xx with structured error body — match the status to the table above).
+Expected: 200 with `chat.completion` JSON (or 5xx with structured error body; match the status to the table above).
 
 ## Commit
 
@@ -164,8 +164,8 @@ This guide is read-only. No code changes. If you discover a new failure mode wor
 
 ## See also
 
-- [`../reference/error-codes.md`](../reference/error-codes.md) — backoff/lock semantics
-- [`../reference/db-tables.md`](../reference/db-tables.md) — `request_logs`, `account_model_locks`, `accounts` schemas
-- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) — request pipeline + state machines
-- [`../../AGENTS.md`](../../AGENTS.md) — proxy pipeline overview + conventions
-- [`../adr/`](../adr/) — past debug investigations
+- [`../reference/error-codes.md`](../reference/error-codes.md): backoff/lock semantics
+- [`../reference/db-tables.md`](../reference/db-tables.md): `request_logs`, `account_model_locks`, `accounts` schemas
+- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md): request pipeline + state machines
+- [`../../AGENTS.md`](../../AGENTS.md): proxy pipeline overview + conventions
+- [`../adr/`](../adr/): past debug investigations

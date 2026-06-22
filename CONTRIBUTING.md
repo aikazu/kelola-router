@@ -1,6 +1,6 @@
 # Contributing to kelola-router
 
-Thanks for contributing. This guide covers the human-side workflow. AI coding agents should also read `AGENTS.md` (or the human can refer them to it). `AGENTS.md` is the single source of truth for project overview + workflow + conventions — `CLAUDE.md` is just a pointer to it.
+Thanks for contributing. This guide covers the human-side workflow. AI coding agents should also read `AGENTS.md` (or the human can refer them to it). `AGENTS.md` is the single source of truth for project overview + workflow + conventions. `CLAUDE.md` is just a pointer to it.
 
 ## Quick start
 
@@ -29,11 +29,11 @@ npm run lint
 
 ## Branch naming
 
-- `feat/<scope>-<short>` — new feature
-- `fix/<scope>-<short>` — bug fix
-- `refactor/<scope>-<short>` — refactor with no behavior change
-- `docs/<topic>` — docs only
-- `test/<scope>` — tests only
+- `feat/<scope>-<short>`: new feature
+- `fix/<scope>-<short>`: bug fix
+- `refactor/<scope>-<short>`: refactor with no behavior change
+- `docs/<topic>`: docs only
+- `test/<scope>`: tests only
 
 Scope examples: `accounts`, `proxy`, `kiro`, `console`, `client`, `db`, `transports`. Keep it short (≤ 3 words).
 
@@ -61,7 +61,7 @@ Common types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `style
 ## Test requirements
 
 - Every behavior change ships with a test. New endpoint → integration test. New helper → unit test. Bug fix → regression test that fails on `main` and passes on the branch.
-- Test isolation: see `AGENTS.md` "Test patterns" — `process.env.ROUTER_DB_PATH` + `resetDb()` in `beforeEach`.
+- Test isolation: see `AGENTS.md` "Test patterns": `process.env.ROUTER_DB_PATH` + `resetDb()` in `beforeEach`.
 - Coverage: the project doesn't gate on a percentage, but every code path in changed files should be exercised. New helper with no test → PR is blocked.
 
 ## Code style

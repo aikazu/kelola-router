@@ -14,12 +14,12 @@
 
 ## File Structure
 
-- **Create** `src/providers/modelPrefix.ts` — pure prefix parser. One responsibility: parse a raw model string into `{ provider, modelName, prefixed }` or throw on unknown prefix.
-- **Create** `src/providers/modelPrefix.test.ts` — unit tests for the parser.
-- **Modify** `src/providers/alias.ts` — `resolveModel` consumes the parser; adds prefixed/bare branches + provider-match enforcement.
-- **Modify** `src/providers/alias.test.ts` — migrate existing bare-name tests to prefixed form; add prefix/strict/mismatch cases.
-- **Modify** `src/server.test.ts` — add proxy-level routing assertions (prefix → handler, mismatch → 400).
-- **Modify** `CLAUDE.md` + `ARCHITECTURE.md` — document the prefix convention.
+- **Create** `src/providers/modelPrefix.ts`, pure prefix parser. One responsibility: parse a raw model string into `{ provider, modelName, prefixed }` or throw on unknown prefix.
+- **Create** `src/providers/modelPrefix.test.ts`, unit tests for the parser.
+- **Modify** `src/providers/alias.ts`, `resolveModel` consumes the parser; adds prefixed/bare branches + provider-match enforcement.
+- **Modify** `src/providers/alias.test.ts`, migrate existing bare-name tests to prefixed form; add prefix/strict/mismatch cases.
+- **Modify** `src/server.test.ts`, add proxy-level routing assertions (prefix → handler, mismatch → 400).
+- **Modify** `CLAUDE.md` + `ARCHITECTURE.md`, document the prefix convention.
 
 ---
 
@@ -87,7 +87,7 @@ describe('parseModelPrefix', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/providers/modelPrefix.test.ts`
-Expected: FAIL — `Cannot find module './modelPrefix.js'`.
+Expected: FAIL, `Cannot find module './modelPrefix.js'`.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -157,7 +157,7 @@ stays identical.
 
 - [ ] **Step 1: Rewrite the existing tests for strict mode (failing)**
 
-Existing tests resolve bare `MiniMax-M3` directly — that is now invalid (strict:
+Existing tests resolve bare `MiniMax-M3` directly, that is now invalid (strict:
 bare must be a combo or alias). Replace the body of `src/providers/alias.test.ts`
 from the `describe('resolveModel', ...)` block onward with the version below.
 Also extend `beforeEach` to seed a non-MiniMax model. Final file:
@@ -300,7 +300,7 @@ describe('resolveModel — bodyTransform', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run src/providers/alias.test.ts`
-Expected: FAIL — prefixed inputs resolve to `unknown model` (no prefix handling yet) and bare `MiniMax-M3` still resolves instead of throwing.
+Expected: FAIL, prefixed inputs resolve to `unknown model` (no prefix handling yet) and bare `MiniMax-M3` still resolves instead of throwing.
 
 - [ ] **Step 3: Implement the rewrite**
 
@@ -405,13 +405,13 @@ Goal: assert the proxy routes by prefix and surfaces 400 on mismatch/unknown
 prefix. Reuse the existing server test harness in `src/server.test.ts` (it
 already seeds `provider: 'codebuddy'` models around lines 459/473 and mocks
 `fetch`). Follow that file's existing setup pattern (DB temp path, `resetDb()`,
-`Origin` header rules for any admin POSTs — proxy `/v1/*` calls need a valid
+`Origin` header rules for any admin POSTs, proxy `/v1/*` calls need a valid
 client key bearer).
 
 - [ ] **Step 1: Write the failing tests**
 
 Add this block near the other proxy routing tests in `src/server.test.ts`
-(adapt the harness helpers — client-key creation, `app.request`, fetch mock — to
+(adapt the harness helpers, client-key creation, `app.request`, fetch mock, to
 match the surrounding tests in the file; the assertions below are the contract):
 
 ```ts
@@ -459,7 +459,7 @@ helpers referenced before adaptation.
 
 - [ ] **Step 3: Make them pass**
 
-No production code change is expected — Task 2 already routes correctly. Fix the
+No production code change is expected, Task 2 already routes correctly. Fix the
 test bodies until the routing contract holds. If a test reveals the
 `handleProxy` peek swallows a mismatch and wrongly falls through to MiniMax,
 that is a real bug: the canonical error must come from the real `resolveModel`
@@ -559,6 +559,6 @@ git commit -m "docs: document provider prefix routing"
 ## Self-Review Notes
 
 - **Spec coverage:** parser (Task 1), strict + prefixed + mismatch + literal-no-alias + logging via `requestedName` (Task 2), proxy routing + 400 paths (Task 3), suite/lint gate (Task 4), docs (Task 5). All spec sections mapped.
-- **Type consistency:** `parseModelPrefix` / `ParsedModel { provider, modelName, prefixed }` used identically in Tasks 1–2. `resolveModel` return shape (`upstreamModel`, `requestedModel`, `provider`, `bodyTransform`) unchanged from the existing `ResolvedModel` interface.
+- **Type consistency:** `parseModelPrefix` / `ParsedModel { provider, modelName, prefixed }` used identically in Tasks 1-2. `resolveModel` return shape (`upstreamModel`, `requestedModel`, `provider`, `bodyTransform`) unchanged from the existing `ResolvedModel` interface.
 - **Strict null:** `resolvedModel` const copy guards the `bodyTransform` closure against `Model | null`.
-- **Combos:** untouched — intercepted by `getCombo` before `resolveModel`; bare-only by design.
+- **Combos:** untouched, intercepted by `getCombo` before `resolveModel`; bare-only by design.

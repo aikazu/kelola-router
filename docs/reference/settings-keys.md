@@ -15,13 +15,13 @@ Keys stored in the `settings` table. Read via `getSetting(db, '...')` (1s cache)
 | `selection.kiro` | same shape as `selection.minimax` | same | Account selection strategy for Kiro accounts | `GET/POST /api/admin/settings/selection/kiro` |
 | `selection.codebuddy` | same shape as `selection.minimax` | same | Account selection strategy for CodeBuddy accounts | `GET/POST /api/admin/settings/selection/codebuddy` |
 | `selection.pioneer` | same shape as `selection.minimax` | same | Account selection strategy for Pioneer accounts | `GET/POST /api/admin/settings/selection/pioneer` |
-| `selection.notion` | same shape as `selection.minimax` | same | Account selection strategy for Notion accounts (schema-registered; v1 Notion has no multi-account failover, so no current reader branches on this — see CHANGELOG 0.20.0) | `GET/POST /api/admin/settings/selection/notion` |
+| `selection.notion` | same shape as `selection.minimax` | same | Account selection strategy for Notion accounts (schema-registered; v1 Notion has no multi-account failover, so no current reader branches on this; see CHANGELOG 0.20.0) | `GET/POST /api/admin/settings/selection/notion` |
 | `selection.zai` | same shape as `selection.minimax` | same | Account selection strategy for Z.AI accounts | `GET/POST /api/admin/settings/selection/zai` |
 
 ## Special values
 
 - **`null`** is what `getSetting` returns for an unset key (NOT `undefined`). Repos coerce `?? null` to satisfy `T | null` signatures. Tests rely on this.
-- **JSON values** are stored as TEXT. `getSetting` parses them — never store raw strings.
+- **JSON values** are stored as TEXT. `getSetting` parses them; never store raw strings.
 - **Cache TTL**: 1s for most keys. Call `clearCacheForDb(db)` in tests when changing settings mid-test.
 - **Optional fields** in object schemas (`minCompressSize`, `respectCallerMarkers`, `m3DefaultMaxCompletionTokens`, `proxyFailureMode`, `step`) are tolerated by the valibot schemas because the dashboard POST handlers may write partial objects. Readers guard each field individually with `?.` or fall back to a hardcoded default.
 

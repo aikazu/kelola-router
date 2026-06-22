@@ -17,10 +17,10 @@ When an agent writes a single line of code, the line should pass `biome check` +
 ## Biome (`biome.json`)
 
 - Single quotes, 2-space indent, 100-col soft wrap, `es5` trailing commas, `lf` line endings, semicolons on.
-- `noExplicitAny: warn` — combine with `tsc` to enforce no-`any`.
+- `noExplicitAny: warn`. Combine with `tsc` to enforce no-`any`.
 - `noDebugger: error`.
-- Client dir (`client/`) is excluded from biome's `files.includes`. The client has its own `package.json` + lint setup (none currently — add when needed).
-- Run `npm run lint:fix` before commit. Re-read the diff before `git add` — biome sometimes does things you didn't ask for.
+- Client dir (`client/`) is excluded from biome's `files.includes`. The client has its own `package.json` + lint setup (none currently; add when needed).
+- Run `npm run lint:fix` before commit. Re-read the diff before `git add`; biome sometimes does things you didn't ask for.
 
 ## Naming
 
@@ -42,7 +42,7 @@ When an agent writes a single line of code, the line should pass `biome check` +
 ## Imports
 
 - Order (biome auto-sorts, but write them in this order): external → internal absolute (`src/`) → relative.
-- Use `from '../foo.js'` not `from '../foo'` — NodeNext + ESM require the extension.
+- Use `from '../foo.js'`, not `from '../foo'`. NodeNext + ESM require the extension.
 - Use `import type` for types-only.
 - Group by directory, not by file. Don't import 5 functions from the same file with 5 separate `import` lines.
 
@@ -51,7 +51,7 @@ When an agent writes a single line of code, the line should pass `biome check` +
 - **Early returns** over nested `if/else`. Max 2 levels of indentation in the function body.
 - **`const` over `let`**. `let` only for accumulators or state that genuinely changes.
 - **Pure functions preferred.** Side effects (DB writes, fetch) live at the boundary (proxy handlers, repo functions).
-- **No arrow functions for component declarations** — use `function ComponentName() {}` so it's hoisted + has a name in dev tools.
+- **No arrow functions for component declarations.** Use `function ComponentName() {}` so it is hoisted and has a name in dev tools.
 - **No `void`-prefixed function calls** unless intentionally fire-and-forget. `void foo()` is a code smell; usually you want to `await` or move to an event handler.
 
 ## Error handling
@@ -64,7 +64,7 @@ When an agent writes a single line of code, the line should pass `biome check` +
 ## Logging
 
 - Use `import { log } from '../util/log.js'`. Pino-based, structured JSON in prod.
-- `log.info({ key: 'value' }, 'message')` — structured fields first, message second.
+- `log.info({ key: 'value' }, 'message')`. Structured fields first, message second.
 - Never `console.log` in `src/`. (Biome's `noConsole: off` is set, but the convention is `log.*`.)
 - The one exception: `src/db/migrations/index.ts` uses `console.log` for migration progress because the logger isn't initialized yet.
 
@@ -77,7 +77,7 @@ See `../../AGENTS.md` "Test patterns" for the full set. Highlights:
 - Mock `globalThis.fetch` with `vi.spyOn(...)` and `mockImplementation` (not `mockResolvedValueOnce`) for multi-shot.
 - `clearCacheForDb(db)` from `src/db/repos/settings.ts` when changing settings mid-test.
 - For client tests: `cd client && npm test`. Mock `apiFetch`, not global `fetch`.
-- Don't write a test that only verifies the mock — the test should verify the behavior given the mock's response.
+- Don't write a test that only verifies the mock. The test should verify the behavior given the mock's response.
 
 ## Git
 
@@ -90,7 +90,7 @@ See `../../AGENTS.md` "Test patterns" for the full set. Highlights:
 ## Gotchas
 
 - **`new Date().toISOString()` is the only acceptable time format** in the codebase. Unix timestamps (s/ms) are not used in app code. The DB stores ISO strings.
-- **Don't use `process.env.ROUTER_DB_PATH` directly** — read it via `getDbPath()` from `src/util/env.ts`.
+- **Don't use `process.env.ROUTER_DB_PATH` directly.** Read it via `getDbPath()` from `src/util/env.ts`.
 - **Don't call `getDb()` outside `src/server.ts`.** Other modules receive the `db` from the Hono context (`c.get('db')`).
 - **Don't import from `src/server.ts` outside `tests/`.** It's the entry point, not a library.
 - **Settings are JSON in TEXT.** `getSetting` parses; `setSetting` stringifies. Don't store a raw string.
@@ -98,8 +98,8 @@ See `../../AGENTS.md` "Test patterns" for the full set. Highlights:
 
 ## Cross-refs
 
-- [`../../AGENTS.md`](../../AGENTS.md) — workflow + TDD
-- [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md) — git + PR
-- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) — pipeline
-- `biome.json`, `tsconfig.json` — tool configs
-- [`codebase-map.md`](codebase-map.md) — what to import from where
+- [`../../AGENTS.md`](../../AGENTS.md): workflow + TDD
+- [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md): git + PR
+- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md): pipeline
+- `biome.json`, `tsconfig.json`: tool configs
+- [`codebase-map.md`](codebase-map.md): what to import from where

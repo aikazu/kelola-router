@@ -1,4 +1,4 @@
-# 2026-06-19 — Audit Fixes (Data Correctness + Security)
+# 2026-06-19: Audit Fixes (Data Correctness + Security)
 
 > **Status:** Draft, awaiting user review.
 > **Scope:** 9 verified findings from the 2026-06-19 admin-API/data-layer audit. 6 audit findings were dropped after verification (see "Dropped" appendix) because they matched documented design or were already correct in the code.
@@ -18,16 +18,16 @@ User-stated principles the design honours:
 
 Two implementation styles, applied per-section:
 
-- **Section A — data correctness.** Targeted patches in place. Most fixes are 5–20 LOC changes to a single repo function or admin route. Refactor is avoided; the bug class is "the function does the wrong thing" not "the design is wrong." Each fix is paired with a regression test in the existing test file.
-- **Section B — security/permission.** Validation at the admin-route boundary. The codebase already uses valibot for body schemas in the larger routes; the fix extends that pattern to the combo/alias write paths so the "name uniqueness across the bare namespace" invariant is enforced symmetrically in both directions.
+- **Section A (data correctness).** Targeted patches in place. Most fixes are 5-20 LOC changes to a single repo function or admin route. Refactor is avoided; the bug class is "the function does the wrong thing" not "the design is wrong." Each fix is paired with a regression test in the existing test file.
+- **Section B (security/permission).** Validation at the admin-route boundary. The codebase already uses valibot for body schemas in the larger routes; the fix extends that pattern to the combo/alias write paths so the "name uniqueness across the bare namespace" invariant is enforced symmetrically in both directions.
 
 No new dependencies. No breaking schema changes. All fixes are additive (new column writes, new test cases) or constraining (new input validation that rejects previously-accepted bodies with a 400).
 
 ---
 
-## Section A — Data Correctness (7 items)
+## Section A: Data Correctness (7 items)
 
-### A1. `upsertModel` partial-write leaks stale values (HIGH) — **FIXED 2026-06-19**
+### A1. `upsertModel` partial-write leaks stale values (HIGH) (**FIXED 2026-06-19**)
 
 **Problem.** `upsertModel` updated only the keys present in the input. A re-seed that stopped emitting a field left the previous value in the row. Worse, the `provider` column was updatable, so a single `name` could silently flip between providers on partial-upsert, breaking routing and per-provider counts.
 
@@ -37,7 +37,7 @@ No new dependencies. No breaking schema changes. All fixes are additive (new col
 
 ---
 
-### A2. `/api/admin/models/fetch/:provider` returned global row count (HIGH) — **FIXED 2026-06-19**
+### A2. `/api/admin/models/fetch/:provider` returned global row count (HIGH) (**FIXED 2026-06-19**)
 
 **Problem.** The fetch handler returned `listModels().length` (94 = all models in DB) instead of the count for the fetched provider, so the dashboard's toast claimed "Fetched (94 total)" when the user clicked the MiniMax fetch button.
 
@@ -47,7 +47,7 @@ No new dependencies. No breaking schema changes. All fixes are additive (new col
 
 ---
 
-### A3. `aggregateUsage` ignored all filters except `clientKeyId` (HIGH) — **FIXED 2026-06-19**
+### A3. `aggregateUsage` ignored all filters except `clientKeyId` (HIGH) (**FIXED 2026-06-19**)
 
 **Problem.** `aggregateUsage(db, { clientKeyId, days })` only applied those two filters. The `usage` route passed them through unchanged and computed the previous-period delta inline with a hand-rolled SQL that ALSO ignored every other filter. Result: a request filtered by `account_id=X` returned the summary for ALL accounts and a meaningless delta.
 
@@ -59,7 +59,7 @@ No new dependencies. No breaking schema changes. All fixes are additive (new col
 
 ### A4. Manual `POST /api/admin/models` omits `family` field (HIGH)
 
-**Problem.** `models.ts:88-97` inserts a row with `display_name`, `context_window`, `pricing_*`, `provider`, `source` — but never `family`. Result: admin-created rows have `family = NULL`, which breaks `ADAPTIVE_THINKING_MODELS` matching in `src/providers/alias.ts:14` and breaks the per-family grouping in the models dashboard table.
+**Problem.** `models.ts:88-97` inserts a row with `display_name`, `context_window`, `pricing_*`, `provider`, `source`, but never `family`. Result: admin-created rows have `family = NULL`, which breaks `ADAPTIVE_THINKING_MODELS` matching in `src/providers/alias.ts:14` and breaks the per-family grouping in the models dashboard table.
 
 **Fix.** Pass `family: body.family ?? null` to the `upsertModel` call. Treat `family` as a free-form user string in the manual path (no enum constraint); the resolver already does string-match.
 
@@ -97,11 +97,11 @@ No new dependencies. No breaking schema changes. All fixes are additive (new col
 
 ---
 
-## Section B — Security / Permission (2 items)
+## Section B: Security / Permission (2 items)
 
 ### B1. Combo/alias name uniqueness enforced one-way only (HIGH)
 
-**Problem.** `src/db/repos/combos.ts:36` `checkAliasConflict` runs on `createCombo` and on combo rename — it blocks creating a combo whose name is already an alias. But `src/db/repos/aliases.ts:47` `upsertAlias` does NOT check whether a combo with the same name already exists. Per `docs/adr/0008-combo-fallback-chains.md` (the "Combo names must not shadow aliases" decision), the invariant is "names are unique across the bare namespace." Inserting combo first, then inserting an alias with the same name, silently violates that invariant. Resolution is undefined for the bare-name lookup.
+**Problem.** `src/db/repos/combos.ts:36` `checkAliasConflict` runs on `createCombo` and on combo rename. It blocks creating a combo whose name is already an alias. But `src/db/repos/aliases.ts:47` `upsertAlias` does NOT check whether a combo with the same name already exists. Per `docs/adr/0008-combo-fallback-chains.md` (the "Combo names must not shadow aliases" decision), the invariant is "names are unique across the bare namespace." Inserting combo first, then inserting an alias with the same name, silently violates that invariant. Resolution is undefined for the bare-name lookup.
 
 **Fix.** Add a `checkComboConflict(db, name)` mirror in `combos.ts` and call it from `upsertAlias` in `aliases.ts:47`. If a combo already owns the name, reject with the same error shape that the reverse direction uses today.
 
@@ -129,8 +129,8 @@ No new dependencies. No breaking schema changes. All fixes are additive (new col
 
 ### Out of scope (intentionally not in this spec)
 
-- Refactoring `upsertModel` to a `ModelsService` class — bug is fixable in place.
-- A new `aggregateUsage` SQL builder abstraction — current extension is small.
+- Refactoring `upsertModel` to a `ModelsService` class. Bug is fixable in place.
+- A new `aggregateUsage` SQL builder abstraction. Current extension is small.
 - Auth / RBAC. The project is single-user self-host; account-level auth is not in scope.
 - Admin UI changes beyond the existing toast text in `ProviderModelsSection.tsx` (already correct after A2).
 
@@ -139,24 +139,24 @@ No new dependencies. No breaking schema changes. All fixes are additive (new col
 | Finding | Why dropped |
 |---|---|
 | `resolveModel` bare path resolves aliases across providers | **Documented design.** `AGENTS.md:120`: "Unprefixed names resolve only as a combo name or an alias (strict). A bare raw model name is rejected with 400." Aliases are intentionally provider-agnostic per `docs/adr/0008`. |
-| Pioneer dedup with repeated `pioneer/` wraps | **Code already correct.** `src/providers/pioneer/models.ts:277` uses `(?:anthropic\/pioneer\/\|pioneer\/)+` — the `+` quantifier handles repeated wraps in one pass. |
+| Pioneer dedup with repeated `pioneer/` wraps | **Code already correct.** `src/providers/pioneer/models.ts:277` uses `(?:anthropic\/pioneer\/\|pioneer\/)+`; the `+` quantifier handles repeated wraps in one pass. |
 | `POST /api/admin/accounts` accepts arbitrary `provider` | **Code already validates.** `src/api/admin/accounts.ts:97-103` rejects with 400 if `provider` is not in `PROVIDER_ALLOWLIST`. |
 | `fetchModels` doesn't pass `provider: 'minimax'` | **Not actually a bug.** MiniMax rows are stored bare (no `pioneer/...` prefix), so there's no name collision across providers. The default `'minimax'` insert is correct. |
 | `display_name` re-prefixed on every Pioneer re-seed | **Idempotent by design.** The row already says "Pioneer claude-opus-4-8"; re-running with the same name produces the same string. |
-| `requestLogs` deferred queue drops oldest | **Correct FIFO.** `queue.shift()` removes the oldest entry to make room — the newest entry (most likely the one we just tried to insert) is preserved. |
+| `requestLogs` deferred queue drops oldest | **Correct FIFO.** `queue.shift()` removes the oldest entry to make room. The newest entry (most likely the one we just tried to insert) is preserved. |
 
 ---
 
 ## Files touched (planned)
 
-- `src/db/repos/models.ts` (A1 — done)
-- `src/api/admin/models.ts` (A2 — done, A4)
-- `src/db/repos/requestLogs.ts` (A3 — done, A6 hook)
-- `src/api/admin/usage.ts` (A3 — done)
+- `src/db/repos/models.ts` (A1 done)
+- `src/api/admin/models.ts` (A2 done, A4)
+- `src/db/repos/requestLogs.ts` (A3 done, A6 hook)
+- `src/api/admin/usage.ts` (A3 done)
 - `src/api/admin/quota.ts` (A5)
 - `src/api/admin/cache.ts` (A6)
 - `src/api/admin/settings.ts` (A7)
-- `client/src/components/settings/SettingsPanel.tsx` (A7 — default-merge on read side; specific file to be confirmed by impl)
+- `client/src/components/settings/SettingsPanel.tsx` (A7: default-merge on read side; specific file to be confirmed by impl)
 - `src/db/repos/combos.ts` (B1)
 - `src/db/repos/aliases.ts` (B1, B2)
 - Test files for each module above (one new case per fix)

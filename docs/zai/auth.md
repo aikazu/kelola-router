@@ -2,7 +2,7 @@
 
 Z.AI uses a single long-lived **API key** for both the OpenAI Chat
 Completions endpoint and the Anthropic Messages endpoint. No OAuth, no
-short-lived bearer rotation — the key goes directly into
+short-lived bearer rotation. The key goes directly into
 `accounts.api_key` and the proxy sends it as `Authorization: Bearer <key>`
 on every request.
 
@@ -10,7 +10,7 @@ on every request.
 
 1. Visit <https://z.ai/model-api> and sign in (or register).
 2. Open <https://z.ai/manage-apikey/apikey-list> and create a new API key.
-3. Copy the value — it is shown only once at creation time.
+3. Copy the value. It is shown only once at creation time.
 
 ## Storage
 
@@ -54,17 +54,17 @@ catalogue under the "Z.AI" section.
 
 Z.AI exposes two billing surfaces:
 
-1. **Pay-as-you-go API** — every model in the curated catalogue has
+1. **Pay-as-you-go API**. Every model in the curated catalogue has
    per-token pricing (see `docs/zai/wire-format.md`). The router stores
    `pricing_input`, `pricing_output`, and `pricing_cache_read` on each
    `models` row so the dashboard can estimate per-request cost.
-2. **GLM Coding Plan subscription** — flat-rate monthly plans starting at
+2. **GLM Coding Plan subscription**. Flat-rate monthly plans starting at
    $18/mo per <https://docs.z.ai/devpack/overview>. Best-effort, intended
    for use inside Claude Code / Cline / OpenCode / Kilo Code.
 
-The same API key works for both billing modes — `credit_type='payg'` on the
+The same API key works for both billing modes. `credit_type='payg'` on the
 account row is the default.
 
 The Coding Plan uses 5-hour + weekly rolling windows. GLM-5.2 and
-GLM-5-Turbo are billed at 1× off-peak and 2-3× peak (14:00–18:00 UTC+8) per
-the docs. The router does not enforce this — billing is upstream.
+GLM-5-Turbo are billed at 1× off-peak and 2-3× peak (14:00 to 18:00 UTC+8) per
+the docs. The router does not enforce this. Billing is upstream.

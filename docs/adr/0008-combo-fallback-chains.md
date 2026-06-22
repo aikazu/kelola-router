@@ -13,12 +13,12 @@ With three providers available, users need a way to express: "try model A first;
 The existing alias system maps one name to one model. Aliases are not ordered lists and have no retry semantics. Transports handle network-level fallback (direct vs relay), not model-level or provider-level fallback.
 
 Two design questions were open:
-1. Where does the fallback list live — in the DB or in the client request?
+1. Where does the fallback list live (in the DB or in the client request)?
 2. Should combos be able to shadow aliases (i.e. can a combo named `claude` override an alias also named `claude`)?
 
 ## Decision
 
-A `combos` table (migration `005-combos.ts`) stores named fallback chains: `id TEXT`, `name TEXT UNIQUE`, `models TEXT` (JSON array of prefixed model names). A combo is intercepted in `handleProxy` / `handleKiroProxy` before `resolveModel` runs — the proxy checks whether `body.model` (bare, unprefixed) matches a combo name, and if so, delegates to `handleComboProxy` in `src/proxy/combo.ts`.
+A `combos` table (migration `005-combos.ts`) stores named fallback chains: `id TEXT`, `name TEXT UNIQUE`, `models TEXT` (JSON array of prefixed model names). A combo is intercepted in `handleProxy` / `handleKiroProxy` before `resolveModel` runs. The proxy checks whether `body.model` (bare, unprefixed) matches a combo name, and if so, delegates to `handleComboProxy` in `src/proxy/combo.ts`.
 
 `handleComboProxy` walks `combo.models` in order:
 1. Select an account for the current member (re-selecting per iteration to skip freshly backoffed accounts).
@@ -30,7 +30,7 @@ A `combos` table (migration `005-combos.ts`) stores named fallback chains: `id T
 
 **Combo names must not shadow aliases.** `createCombo` queries `model_aliases` and rejects any name that already exists there. This is enforced at write time (not at resolution time) to keep the hot path fast. The rationale: combos and aliases occupy the same namespace (bare unprefixed names in `body.model`); allowing shadowing would make request routing non-deterministic depending on insertion order.
 
-**Combo members must carry a prefix** (`mm/`, `kr/`, `cb/`). This is required for provider identification during the prefixed lookup inside `resolveModel`. A member without a prefix would fall into the bare-name path, which only resolves aliases — creating a circular dependency.
+**Combo members must carry a prefix** (`mm/`, `kr/`, `cb/`). This is required for provider identification during the prefixed lookup inside `resolveModel`. A member without a prefix would fall into the bare-name path, which only resolves aliases, creating a circular dependency.
 
 ## Consequences
 
@@ -43,7 +43,7 @@ A `combos` table (migration `005-combos.ts`) stores named fallback chains: `id T
 ### Negative
 
 - The retryable set (`401/402/403/502/503/504`) is intentionally broad. A `401` on a combo member marks that account as `status: 'error'` and falls through; this could mask a misconfigured account if the combo always has a healthy fallback.
-- Combo names live in the same namespace as alias names. The shadowing guard prevents conflicts at creation time, but a pre-existing alias with the same name blocks creating a combo — the user must rename or delete the alias first.
+- Combo names live in the same namespace as alias names. The shadowing guard prevents conflicts at creation time, but a pre-existing alias with the same name blocks creating a combo. The user must rename or delete the alias first.
 
 ### Neutral
 
@@ -61,8 +61,8 @@ Accept `models: [...]` in the request body. Rejected because: non-standard OpenA
 
 ## References
 
-- `src/proxy/combo.ts` — `handleComboProxy`, retry loop, retryable status set
-- `src/db/repos/combos.ts` — CRUD, `createCombo` alias-shadow guard
-- `src/db/migrations/005-combos.ts` — schema (`user_version = 5`)
-- `src/providers/modelPrefix.ts` — prefix requirement for combo members
-- `CHANGELOG.md` v0.18.0 — combo fallback chains entry
+- `src/proxy/combo.ts`: `handleComboProxy`, retry loop, retryable status set
+- `src/db/repos/combos.ts`: CRUD, `createCombo` alias-shadow guard
+- `src/db/migrations/005-combos.ts`: schema (`user_version = 5`)
+- `src/providers/modelPrefix.ts`: prefix requirement for combo members
+- `CHANGELOG.md` v0.18.0: combo fallback chains entry

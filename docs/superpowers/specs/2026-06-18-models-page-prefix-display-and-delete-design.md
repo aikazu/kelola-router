@@ -5,9 +5,9 @@
 
 This spec has two parts:
 
-- **Part A** — `/admin/models` dashboard: normalize Pioneer seeds to ~75, surface the
+- **Part A**: `/admin/models` dashboard: normalize Pioneer seeds to ~75, surface the
   client call string (`pio/...`), per-card fetch, delete with safety, copy/edit.
-- **Part B** — Console flow consistency across all proxy handlers (Notion emits no
+- **Part B**: Console flow consistency across all proxy handlers (Notion emits no
   events, CodeBuddy/Combo emit placeholders, delegated handlers overwrite the combo
   reqId, error paths skip log rows).
 
@@ -16,7 +16,7 @@ This spec has two parts:
 The `/admin/models` dashboard page is confusing to operate:
 
 1. **139 Pioneer models seeded on fresh deploy, should be ~75.** Root cause: Pioneer's
-   upstream `GET /v1/models` returns each model id in TWO forms — a canonical bare id
+   upstream `GET /v1/models` returns each model id in TWO forms: a canonical bare id
    (`gpt-5.5`, `Qwen/Qwen3-32B`, `nvidia/...`) AND an Anthropic-API-compat alias
    prefixed with `anthropic/pioneer/` (e.g. `anthropic/pioneer/gpt-5.5`). The seeder
    in `src/providers/pioneer/models.ts` only strips a leading `pioneer/`, so the 64
@@ -70,7 +70,7 @@ The `/admin/models` dashboard page is confusing to operate:
 
 ## Design
 
-### 1. Seeder fix — strip `anthropic/pioneer/` before dedup
+### 1. Seeder fix: strip `anthropic/pioneer/` before dedup
 
 File: `src/providers/pioneer/models.ts`, function `fetchAndSeedPioneerModels`.
 
@@ -95,7 +95,7 @@ The bare id is preserved as both `name` (namespaced `pioneer/<bareId>`) and
 `upstream_model` (`<bareId>`). The `/v1/chat/completions` upstream accepts the bare id,
 so no transform change needed in `src/providers/pioneer/transform.ts`.
 
-### 2. Migration 009 — clean duplicate rows in existing DBs
+### 2. Migration 009: clean duplicate rows in existing DBs
 
 File: `src/db/migrations/009-pioneer-anthropic-dedup.ts` (new). Mirrors the style of
 `008-pioneer-dedup.ts`.
@@ -159,7 +159,7 @@ DB (no-op when no duplicates exist).
 All admin model routes live in `src/api/admin/models.ts` (the `modelRoutes` Hono app,
 mounted at `/api/admin/models` via `src/api/admin/index.ts:29`). The CSRF guard
 (`csrfGuard` in `src/auth.ts:51`) already covers every non-GET/HEAD/OPTIONS method
-including DELETE and POST — no CSRF change needed.
+including DELETE and POST (no CSRF change needed).
 
 The JSON routes (`/api/admin/models/*`) are separate from the legacy HTML routes in
 `src/server.ts:154-172` (`/admin/models/fetch`, `/enable`, `/disable`) which the SPA no
@@ -174,7 +174,7 @@ longer uses for the Models page. Leave the legacy HTML routes alone; add new JSO
   Pioneer account.
 - Any other provider → `404 { error: 'no_upstream_list', message: '<provider> has no model-list endpoint' }`.
 - The existing placeholder `POST /api/admin/models/fetch` (`models.ts:133`) stays (harmless
-  no-op) — the dashboard simply stops calling it.
+  no-op; the dashboard simply stops calling it.
 
 #### `GET /api/admin/models/:name/refs` (new)
 
@@ -193,7 +193,7 @@ delete and list what to clean up first.
 - `model_aliases` (not `aliases`): PK `alias_name`, column `upstream_model` is the target.
   It has `FOREIGN KEY (upstream_model) REFERENCES models(upstream_model) ON DELETE CASCADE`.
 - `combos`: `models` is a TEXT column holding a JSON array of model names. No
-  `combo_members` join table — refs must be resolved by reading rows and parsing the
+  `combo_members` join table; refs must be resolved by reading rows and parsing the
   JSON, then matching the requested `:name` against array entries.
 
 **Refs resolution:**
@@ -210,7 +210,7 @@ delete and list what to clean up first.
 **Cascade caveat:** because `model_aliases` is `ON DELETE CASCADE`, a raw
 `DELETE FROM models WHERE name = ?` would silently delete dependent aliases. The
 explicit refs check above therefore MUST run before the delete and abort with 409 if any
-refs exist — we never rely on the cascade to "clean up" silently.
+refs exist. We never rely on the cascade to "clean up" silently.
 
 #### `DELETE /api/admin/models/:name` (new)
 
@@ -218,7 +218,7 @@ refs exist — we never rely on the cascade to "clean up" silently.
 - Compute refs (see `GET .../refs`); if any → `409 { error: 'has_refs', refs }`.
 - Else `DELETE FROM models WHERE name = :name`. Return `{ ok: true }`.
 - Do NOT rely on the `model_aliases.upstream_model` `ON DELETE CASCADE` (schema fact
-  above) — the explicit refs check always runs first and aborts.
+  above). The explicit refs check always runs first and aborts.
 
 ### 4. Client changes
 
@@ -249,7 +249,7 @@ export function callName(provider: string, dbName: string): string {
 ```
 
 Keep this in sync with the server map. (A future refactor could ship one file consumed
-by both — out of scope here.)
+by both. Out of scope here.)
 
 #### `client/src/components/models/ProviderModelsSection.tsx`
 
@@ -259,9 +259,9 @@ by both — out of scope here.)
   - **ID** = `callName(provider, m.name)` (mono). This is the client call string.
   - **NAME** = `m.displayName ?? m.name`.
   - **CONTEXT IN / OUT** = from the model row's input/output context columns (currently
-    only `contextWindow` exists — see migration note below). If a column is null, render
-    `—`.
-  - **Combo** = count of combos referencing this model (needs the refs query — see below).
+    only `contextWindow` exists; see migration note below). If a column is null, render
+    `n/a`.
+  - **Combo** = count of combos referencing this model (needs the refs query; see below).
 - Actions cell (right): `Toggle` (Switch, existing), `Copy`, `Test` (existing),
   `Edit`, `Delete`.
 - Fetch button: render only if `PROVIDERS_WITH_UPSTREAM_LIST.has(provider)`. Calls
@@ -280,7 +280,7 @@ by both — out of scope here.)
 #### `client/src/pages/Models.tsx`
 
 - Pass `provider` to each `ProviderModelsSection`.
-- No `Notion` card today (Notion has no models seeded) — do not add one.
+- No `Notion` card today (Notion has no models seeded). Do not add one.
 
 #### Combo reference counts
 
@@ -301,10 +301,10 @@ seeds it from `max_input_tokens`). The upstream catalogue entry also exposes
   `max_tokens`.
 - **CONTEXT IN** = `context_window`, **CONTEXT OUT** = `context_output`.
 
-## Part B — Console flow consistency
+## Part B: Console flow consistency
 
 The live-request Console (dashboard "Console" page, fed by the `consoleBus` event
-stream — `buildStart`/`buildAccount`/`buildDone`/`buildError`/`buildTransportFail` in
+stream (`buildStart`/`buildAccount`/`buildDone`/`buildError`/`buildTransportFail` in)
 `src/console/flow.ts`) is inconsistent across providers. Audit (verified against current
 code) found these bugs; each is addressed below.
 
@@ -317,23 +317,23 @@ and the log row's `reqId` does not match the server-side `reqId` convention used
 elsewhere. Error paths (no account, missing cookies, missing spaceId, upstream !ok)
 return JSON without emitting any event.
 
-**Fix:** bring `handleNotionProxy` to parity with `handlePioneerProxy` — emit
+**Fix:** bring `handleNotionProxy` to parity with `handlePioneerProxy`: emit
 `buildStart` (with resolved model + requested alias), `buildAccount`, `buildDone`/
 `buildError`, and call `insertRequestLogDeferred` on all terminal paths. Use
 `genReqId()` + `c.set('reqId', reqId)`.
 
 ### B2. CodeBuddy + Combo emit placeholder model/alias in `buildStart`
 
-- `src/proxy/codebuddy.ts:64` emits `buildStart(reqId, …, 'codebuddy', 'codebuddy')` — a
-  hardcoded placeholder, not the resolved model. The log row also uses
+- `src/proxy/codebuddy.ts:64` emits `buildStart(reqId, …, 'codebuddy', 'codebuddy')`:
+  a hardcoded placeholder, not the resolved model. The log row also uses
   `requestedModel: model` (the raw `body.model` string), not
   `resolved.requestedModel`.
-- `src/proxy/combo.ts:80` emits `buildStart(…, \`combo:${combo.name}\`, combo.name)` —
+- `src/proxy/combo.ts:80` emits `buildStart(…, \`combo:${combo.name}\`, combo.name)`:
   a placeholder; the actual resolved member model is never surfaced at combo level.
 
 **Fix:** resolve the model before emitting `buildStart`, wrapped in try/catch with a
 fallback to the raw `body.model` string (exactly as `handlePioneerProxy` does at
-`pioneer.ts:65-79` — resolution can throw on unknown/disabled models, and the console
+`pioneer.ts:65-79`: resolution can throw on unknown/disabled models, and the console
 should still start). Pass `resolved.upstreamModel` + `resolved.requestedModel` to
 `buildStart`. For the CodeBuddy log row, use `resolved.requestedModel` instead of the raw
 `body.model` string.
@@ -351,12 +351,12 @@ console then shows two disconnected event streams for one logical combo request.
 uses it as `reqId`, does NOT call `genReqId()`, and does NOT call `c.set('reqId')`.
 `handleComboProxy` passes its own `reqId` when delegating; direct (non-combo) calls omit
 it, so each still generates its own. This keeps a combo request as one console thread
-while leaving direct calls unchanged. (No new "member selected" event — the existing
+while leaving direct calls unchanged. (No new "member selected" event; the existing
 `account`/`done`/`error` events under the shared reqId are enough.)
 
 ### B4. Error paths skip the request log row (MiniMax, Kiro)
 
-- `src/proxy/minimax.ts:336-341` — the `!resp.ok` branch emits `buildError` and returns,
+- `src/proxy/minimax.ts:336-341`: the `!resp.ok` branch emits `buildError` and returns,
   with no `insertRequestLogDeferred`. Success paths (stream `:361`, buffered `:412`)
   log correctly. CodeBuddy (`codebuddy.ts:191`) and Pioneer (`pioneer.ts:212`) already
   log on the error path.
@@ -386,7 +386,7 @@ event).
 
 **Fix:** make MiniMax emit `buildStart` before account selection, matching the others.
 (Model resolution still happens before `buildStart` so the model/alias fields are
-correct — B2.)
+correct. See B2.)
 
 ### B7. Cross-handler helper
 
@@ -403,7 +403,7 @@ cannot silently drop events.
   structurally different).
 - Do not change the Console UI rendering beyond consuming the now-consistent events.
   (The audit noted `transport` events are emitted but not rendered by
-  `client/src/pages/Console.tsx` — leaving as-is; out of scope.)
+  `client/src/pages/Console.tsx`: leaving as-is; out of scope.)
 
 ## Error handling
 
@@ -429,7 +429,7 @@ cannot silently drop events.
   `!PROVIDERS_WITH_UPSTREAM_LIST.has(provider)`.
 - **Part B console tests:** For each provider handler, assert (via a spy on
   `consoleBus.emit` and on `insertRequestLogDeferred`) that every terminal path emits
-  exactly one `start` + one of `done`/`error`, and writes exactly one log row — including
+  exactly one `start` + one of `done`/`error`, and writes exactly one log row, including
   the upstream `!ok` path. Notion: assert events now emitted (currently none). CodeBuddy:
   assert `buildStart` model = resolved upstream, not `'codebuddy'`. Combo + delegated
   handler: assert the delegated leg reuses the parent reqId (one thread in the event

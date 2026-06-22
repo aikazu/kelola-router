@@ -25,48 +25,48 @@
 
 ## Verified Bugs (Code-Confirmed)
 
-### GAP A — Pioneer: `calculateCost` receives alias `pio/...` not upstream model
+### GAP A: Pioneer: `calculateCost` receives alias `pio/...` not upstream model
 
-- **`src/proxy/pioneer.ts:61`** — `const model = stringValue(body.model) || 'pio/claude-opus-4-8'`
-  — this captures the alias (`pio/...`) from the request body.
-- **`src/proxy/pioneer.ts:160`** — `logCtxBase` sets `model: model` (alias, not upstream).
-- **`src/proxy/pioneer.ts:232`** — `calculateCost(db, model, ...)` — passes alias → `getModel(db, 'pio/...')` returns null → cost = 0 always.
-- **`src/proxy/pioneer.ts:72`** — `upstreamModel` is already resolved correctly (strips `pioneer/` prefix for the API call), but the DB pricing key is `pioneer/<bare>` — so the correct key for `calculateCost` is the **full resolved upstreamModel before stripping**, i.e. `resolved.upstreamModel` before the `.startsWith('pioneer/')` slice.
+- **`src/proxy/pioneer.ts:61`**, `const model = stringValue(body.model) || 'pio/claude-opus-4-8'`
+, this captures the alias (`pio/...`) from the request body.
+- **`src/proxy/pioneer.ts:160`**, `logCtxBase` sets `model: model` (alias, not upstream).
+- **`src/proxy/pioneer.ts:232`**, `calculateCost(db, model, ...)`, passes alias → `getModel(db, 'pio/...')` returns null → cost = 0 always.
+- **`src/proxy/pioneer.ts:72`**, `upstreamModel` is already resolved correctly (strips `pioneer/` prefix for the API call), but the DB pricing key is `pioneer/<bare>`, so the correct key for `calculateCost` is the **full resolved upstreamModel before stripping**, i.e. `resolved.upstreamModel` before the `.startsWith('pioneer/')` slice.
 
 **Root cause:** The `resolveModel` call (line 69) returns `resolved.upstreamModel` which is keyed as `pioneer/claude-opus-4-8` in the DB. Line 72 then strips the prefix to get the bare id for the upstream API. But `calculateCost` needs the **DB key** (`pioneer/claude-opus-4-8`), not the stripped bare id or the alias.
 
 **Fix:** Introduce a `pricingModel` variable capturing `resolved.upstreamModel` (pre-strip) and use it in `calculateCost` and `logCtxBase`.
 
-### GAP B — CodeBuddy: `calculateCost` receives alias `cb/...` not upstream model
+### GAP B: CodeBuddy: `calculateCost` receives alias `cb/...` not upstream model
 
-- **`src/proxy/codebuddy.ts:61`** — `const model = stringValue(body.model) || 'cb/claude-opus-4.6'`
-- **`src/proxy/codebuddy.ts:233`** — `calculateCost(db, model, ...)` — `model` is the `cb/...` alias; pricing DB has no entry for `cb/...` → cost = 0.
-- **`src/proxy/codebuddy.ts:71`** — `upstreamModel = resolved.upstreamModel` is already correct (e.g. `codebuddy/claude-opus-4.6`).
-- **`src/proxy/codebuddy.ts:160`** — `logCtxBase` already uses `model: upstreamModel` (correct).
+- **`src/proxy/codebuddy.ts:61`**, `const model = stringValue(body.model) || 'cb/claude-opus-4.6'`
+- **`src/proxy/codebuddy.ts:233`**, `calculateCost(db, model, ...)`, `model` is the `cb/...` alias; pricing DB has no entry for `cb/...` → cost = 0.
+- **`src/proxy/codebuddy.ts:71`**, `upstreamModel = resolved.upstreamModel` is already correct (e.g. `codebuddy/claude-opus-4.6`).
+- **`src/proxy/codebuddy.ts:160`**, `logCtxBase` already uses `model: upstreamModel` (correct).
 
 **Fix:** Change `calculateCost(db, model, ...)` → `calculateCost(db, upstreamModel, ...)` at line 233. One-line fix.
 
-### GAP C+D — Z.AI: anthropic-format stream uses OpenAI SSE parser; log placeholder literal
+### GAP C+D: Z.AI: anthropic-format stream uses OpenAI SSE parser; log placeholder literal
 
-- **`src/proxy/zai.ts:246-249`** — when `format === 'anthropic'` and `body.stream === true`:
-  ```ts
-  return openaiSSEToAnthropicSSE(resp, upstreamModel ?? model, (u) =>
-    recordUsage(u.prompt_tokens, u.completion_tokens, u.cache_read, true, '[anthropic-sse]')
-  );
-  ```
-  `executeZai` routes anthropic requests to `ZAI_ANTHROPIC_BASE_URL` which returns **Anthropic Messages SSE** (`message_start / content_block_delta / message_delta / message_stop`). But `openaiSSEToAnthropicSSE` reads `choices[0].delta` — absent in Anthropic SSE — so content = empty, usage = 0. The `'[anthropic-sse]'` literal is also logged as response_body instead of real stream text.
+- **`src/proxy/zai.ts:246-249`**, when `format === 'anthropic'` and `body.stream === true`:
+```ts
+return openaiSSEToAnthropicSSE(resp, upstreamModel ?? model, (u) =>
+recordUsage(u.prompt_tokens, u.completion_tokens, u.cache_read, true, '[anthropic-sse]')
+);
+```
+`executeZai` routes anthropic requests to `ZAI_ANTHROPIC_BASE_URL` which returns **Anthropic Messages SSE** (`message_start / content_block_delta / message_delta / message_stop`). But `openaiSSEToAnthropicSSE` reads `choices[0].delta`, absent in Anthropic SSE, so content = empty, usage = 0. The `'[anthropic-sse]'` literal is also logged as response_body instead of real stream text.
 
-- **`src/proxy/zai.ts:262-271`** — non-stream anthropic path calls `aggregateOpenAISSE` which also reads `choices[0].delta` → empty content + 0 tokens.
+- **`src/proxy/zai.ts:262-271`**, non-stream anthropic path calls `aggregateOpenAISSE` which also reads `choices[0].delta` → empty content + 0 tokens.
 
-**Fix (stream):** Replace `openaiSSEToAnthropicSSE(...)` with `pipeWithUsage(resp, 'anthropic', ...)` — `pipeWithUsage` already accepts `format: 'anthropic'` and calls `extractUsageFromSSEStream(tail, text, 'anthropic', ...)` which reads `input_tokens`/`output_tokens` from `message_delta`. The `raw` arg to `recordUsage` becomes the real tail snapshot instead of the literal.
+**Fix (stream):** Replace `openaiSSEToAnthropicSSE(...)` with `pipeWithUsage(resp, 'anthropic', ...)`, `pipeWithUsage` already accepts `format: 'anthropic'` and calls `extractUsageFromSSEStream(tail, text, 'anthropic', ...)` which reads `input_tokens`/`output_tokens` from `message_delta`. The `raw` arg to `recordUsage` becomes the real tail snapshot instead of the literal.
 
-**Fix (non-stream):** Replace `aggregateOpenAISSE(resp)` (OpenAI parser) with a direct Anthropic JSON parse. Z.AI's Anthropic non-stream endpoint returns a standard Anthropic Messages JSON response — parse `resp.json()` directly and extract `usage.input_tokens` / `usage.output_tokens`. Then return `c.json(body)` for anthropic clients and `c.json(responseOpenAIToAnthropic(aggregated))` — wait, client is already anthropic so return as-is, OR convert with `responseAnthropicToOpenAI` if client is openai. But in the non-stream branch of zai.ts lines 262-271, `format` can be either — the branch guard is only `body.stream === true` above. The anthropic non-stream case enters the same `aggregateOpenAISSE` path as openai non-stream. Fix: add a guard for `format === 'anthropic'` before calling `aggregateOpenAISSE`.
+**Fix (non-stream):** Replace `aggregateOpenAISSE(resp)` (OpenAI parser) with a direct Anthropic JSON parse. Z.AI's Anthropic non-stream endpoint returns a standard Anthropic Messages JSON response, parse `resp.json()` directly and extract `usage.input_tokens` / `usage.output_tokens`. Then return `c.json(body)` for anthropic clients and `c.json(responseOpenAIToAnthropic(aggregated))`, wait, client is already anthropic so return as-is, OR convert with `responseAnthropicToOpenAI` if client is openai. But in the non-stream branch of zai.ts lines 262-271, `format` can be either, the branch guard is only `body.stream === true` above. The anthropic non-stream case enters the same `aggregateOpenAISSE` path as openai non-stream. Fix: add a guard for `format === 'anthropic'` before calling `aggregateOpenAISSE`.
 
 ---
 
-## Task 1 — GAP A: Fix Pioneer cost model key
+## Task 1: GAP A: Fix Pioneer cost model key
 
-### Step 1.1 — Write failing test
+### Step 1.1: Write failing test
 
 Create `src/proxy/pioneer.cost.test.ts`:
 
@@ -169,7 +169,7 @@ describe('handlePioneerProxy — cost accounting', () => {
 });
 ```
 
-### Step 1.2 — Run, confirm RED
+### Step 1.2: Run, confirm RED
 
 ```bash
 npx vitest run src/proxy/pioneer.cost.test.ts -t "cost"
@@ -177,7 +177,7 @@ npx vitest run src/proxy/pioneer.cost.test.ts -t "cost"
 
 Expected failure: `expect(row.model).toBe('pioneer/claude-opus-4-8')` fails (actual: `'pio/claude-opus-4-8'`) AND `expect(row.costUsd).toBeGreaterThan(0)` fails (actual: `0`).
 
-### Step 1.3 — Implement fix in `src/proxy/pioneer.ts`
+### Step 1.3: Implement fix in `src/proxy/pioneer.ts`
 
 **Change 1:** Add `pricingModel` variable capturing the full DB key before stripping (lines 66-75). Replace the current block:
 
@@ -237,7 +237,7 @@ Expected failure: `expect(row.model).toBe('pioneer/claude-opus-4-8')` fails (act
       const cost = calculateCost(db, pricingModel, {
 ```
 
-### Step 1.4 — Run, confirm GREEN
+### Step 1.4: Run, confirm GREEN
 
 ```bash
 npx vitest run src/proxy/pioneer.cost.test.ts -t "cost"
@@ -245,7 +245,7 @@ npx vitest run src/proxy/pioneer.cost.test.ts -t "cost"
 
 Expected: all assertions pass.
 
-### Step 1.5 — Commit
+### Step 1.5: Commit
 
 ```
 fix(pioneer): use resolved upstream model key for calculateCost and request log model column
@@ -258,9 +258,9 @@ and the request-log model column.
 
 ---
 
-## Task 2 — GAP B: Fix CodeBuddy cost model key
+## Task 2: GAP B: Fix CodeBuddy cost model key
 
-### Step 2.1 — Write failing test
+### Step 2.1: Write failing test
 
 Create `src/proxy/codebuddy.cost.test.ts`:
 
@@ -358,7 +358,7 @@ describe('handleCodeBuddyProxy — cost accounting', () => {
 });
 ```
 
-### Step 2.2 — Run, confirm RED
+### Step 2.2: Run, confirm RED
 
 ```bash
 npx vitest run src/proxy/codebuddy.cost.test.ts -t "cost"
@@ -366,7 +366,7 @@ npx vitest run src/proxy/codebuddy.cost.test.ts -t "cost"
 
 Expected failure: `expect(row.costUsd).toBeGreaterThan(0)` fails (actual: `0`). The `model` column test may pass already (codebuddy.ts:160 uses `upstreamModel`), but cost is still 0.
 
-### Step 2.3 — Implement fix in `src/proxy/codebuddy.ts`
+### Step 2.3: Implement fix in `src/proxy/codebuddy.ts`
 
 Single line change at line 233:
 
@@ -380,7 +380,7 @@ Single line change at line 233:
       const cost = calculateCost(db, upstreamModel, {
 ```
 
-### Step 2.4 — Run, confirm GREEN
+### Step 2.4: Run, confirm GREEN
 
 ```bash
 npx vitest run src/proxy/codebuddy.cost.test.ts -t "cost"
@@ -388,7 +388,7 @@ npx vitest run src/proxy/codebuddy.cost.test.ts -t "cost"
 
 Expected: all assertions pass.
 
-### Step 2.5 — Commit
+### Step 2.5: Commit
 
 ```
 fix(codebuddy): pass resolved upstreamModel to calculateCost instead of alias
@@ -400,9 +400,9 @@ pricing entry in the DB → cost was always 0. upstreamModel holds the DB key
 
 ---
 
-## Task 3 — GAP C+D: Fix Z.AI anthropic-format SSE parser and log placeholder
+## Task 3: GAP C+D: Fix Z.AI anthropic-format SSE parser and log placeholder
 
-### Step 3.1 — Write failing test
+### Step 3.1: Write failing test
 
 Create `src/proxy/zai.anthropic.test.ts`:
 
@@ -598,7 +598,7 @@ describe('handleZaiProxy — anthropic format', () => {
 });
 ```
 
-### Step 3.2 — Run, confirm RED
+### Step 3.2: Run, confirm RED
 
 ```bash
 npx vitest run src/proxy/zai.anthropic.test.ts
@@ -608,9 +608,9 @@ Expected failures:
 - Test 1: `expect(body).toContain('PONG')` fails (body is empty SSE because OpenAI parser finds no `choices[0].delta`). `expect(row.promptTokens).toBe(10)` fails (actual: 0). `expect(row.responseBody).not.toBe('[anthropic-sse]')` fails (actual: `'[anthropic-sse]'`).
 - Test 2: `expect(body.content?.[0]?.text).toBe('PONG')` fails (content array is empty because `aggregateOpenAISSE` found no `choices[0].delta.content`). `expect(row.promptTokens).toBe(8)` fails (actual: 0).
 
-### Step 3.3 — Implement fix in `src/proxy/zai.ts`
+### Step 3.3: Implement fix in `src/proxy/zai.ts`
 
-**Change 1 — streaming anthropic path (lines 245-249):**
+**Change 1, streaming anthropic path (lines 245-249):**
 
 ```ts
 // BEFORE (lines 245-249)
@@ -641,7 +641,7 @@ Expected failures:
       }
 ```
 
-**Change 2 — non-streaming anthropic path (lines 262-271):**
+**Change 2, non-streaming anthropic path (lines 262-271):**
 
 ```ts
 // BEFORE (lines 261-272)
@@ -691,7 +691,7 @@ Expected failures:
     return c.json(aggregated);
 ```
 
-**Note on imports:** The `openaiSSEToAnthropicSSE` import is still used by the anthropic **streaming** branch — wait, after the fix it is no longer used in zai.ts. Check: the `openaiSSEToAnthropicSSE` import at line 21 of `zai.ts` comes from `'../providers/codebuddy/streamConvert.js'`. After the fix, zai.ts no longer calls it. Remove the import (or leave it — TypeScript strict won't error on unused imports by default, but biome lint may flag it). **Remove it** to keep the file clean:
+**Note on imports:** The `openaiSSEToAnthropicSSE` import is still used by the anthropic **streaming** branch, wait, after the fix it is no longer used in zai.ts. Check: the `openaiSSEToAnthropicSSE` import at line 21 of `zai.ts` comes from `'../providers/codebuddy/streamConvert.js'`. After the fix, zai.ts no longer calls it. Remove the import (or leave it, TypeScript strict won't error on unused imports by default, but biome lint may flag it). **Remove it** to keep the file clean:
 
 ```ts
 // BEFORE (lines 19-23 of zai.ts)
@@ -706,7 +706,7 @@ import {
 import { aggregateOpenAISSE } from '../providers/codebuddy/streamConvert.js';
 ```
 
-### Step 3.4 — Run, confirm GREEN
+### Step 3.4: Run, confirm GREEN
 
 ```bash
 npx vitest run src/proxy/zai.anthropic.test.ts
@@ -714,7 +714,7 @@ npx vitest run src/proxy/zai.anthropic.test.ts
 
 Expected: both tests pass.
 
-### Step 3.5 — Run full test suite to catch regressions
+### Step 3.5: Run full test suite to catch regressions
 
 ```bash
 npx vitest run
@@ -722,7 +722,7 @@ npx vitest run
 
 All tests must pass before committing.
 
-### Step 3.6 — Commit
+### Step 3.6: Commit
 
 ```
 fix(zai): use anthropic SSE parser for anthropic-format requests, fix log placeholder
@@ -740,17 +740,17 @@ Also removes the '[anthropic-sse]' literal from the response_body log column.
 
 | Gap | Fixed | Test covers failure mode | Commit |
 |-----|-------|--------------------------|--------|
-| A — Pioneer cost $0 (alias to calculateCost) | Yes — `pricingModel = resolved.upstreamModel` before strip | Yes — pricing row keyed by `pioneer/claude-opus-4-8`, asserts `costUsd > 0` | Task 1.5 |
-| A — Pioneer `model` column shows alias | Yes — `logCtxBase` uses `pricingModel` | Yes — asserts `row.model === 'pioneer/claude-opus-4-8'` | Task 1.5 |
-| B — CodeBuddy cost $0 (alias to calculateCost) | Yes — `calculateCost(db, upstreamModel, ...)` | Yes — pricing row keyed by `codebuddy/claude-opus-4.6`, asserts `costUsd > 0` | Task 2.5 |
-| C — Z.AI anthropic stream empty content + 0 tokens | Yes — `pipeWithUsage(resp, 'anthropic', ...)` | Yes — asserts `body.contains('PONG')`, `promptTokens=10`, `completionTokens=5` | Task 3.6 |
-| C — Z.AI anthropic non-stream empty content + 0 tokens | Yes — direct Anthropic JSON parse for `format==='anthropic'` | Yes — asserts `content[0].text='PONG'`, `promptTokens=8`, `completionTokens=4` | Task 3.6 |
-| D — Z.AI `'[anthropic-sse]'` placeholder in log | Yes — `pipeWithUsage` passes real `raw` tail snapshot | Yes — asserts `responseBody !== '[anthropic-sse]'` | Task 3.6 |
+| A, Pioneer cost $0 (alias to calculateCost) | Yes, `pricingModel = resolved.upstreamModel` before strip | Yes, pricing row keyed by `pioneer/claude-opus-4-8`, asserts `costUsd > 0` | Task 1.5 |
+| A, Pioneer `model` column shows alias | Yes, `logCtxBase` uses `pricingModel` | Yes, asserts `row.model === 'pioneer/claude-opus-4-8'` | Task 1.5 |
+| B, CodeBuddy cost $0 (alias to calculateCost) | Yes, `calculateCost(db, upstreamModel, ...)` | Yes, pricing row keyed by `codebuddy/claude-opus-4.6`, asserts `costUsd > 0` | Task 2.5 |
+| C, Z.AI anthropic stream empty content + 0 tokens | Yes, `pipeWithUsage(resp, 'anthropic', ...)` | Yes, asserts `body.contains('PONG')`, `promptTokens=10`, `completionTokens=5` | Task 3.6 |
+| C, Z.AI anthropic non-stream empty content + 0 tokens | Yes, direct Anthropic JSON parse for `format==='anthropic'` | Yes, asserts `content[0].text='PONG'`, `promptTokens=8`, `completionTokens=4` | Task 3.6 |
+| D, Z.AI `'[anthropic-sse]'` placeholder in log | Yes, `pipeWithUsage` passes real `raw` tail snapshot | Yes, asserts `responseBody !== '[anthropic-sse]'` | Task 3.6 |
 
 **Placeholder scan:** No TBD, no "add appropriate X", no stub implementations in any code block above.
 
 **Type consistency:**
-- `calculateCost(db: Database.Database, modelName: string, usage: Usage): number` — all call sites pass `string` (verified in `src/providers/pricing.ts:49`).
-- `pipeWithUsage(upstream: Response, format: 'openai' | 'anthropic', onUsage: UsageCallback, signal?: AbortSignal)` — `'anthropic'` is a valid literal for the `format` parameter (verified in `src/streaming/pipeWithUsage.ts:16-20`). `UsageCallback = (usage: SSEUsage | null, rawText: string) => void` — `usage?.cache_read_tokens` is the correct field on `SSEUsage` (verified in `src/streaming/extractUsage.ts:5-9`).
-- `aggregateOpenAISSE` remains imported and used for the `format === 'openai'` non-stream path — no dead import.
-- `openaiSSEToAnthropicSSE` import removed from `zai.ts` after fix — no longer referenced.
+- `calculateCost(db: Database.Database, modelName: string, usage: Usage): number`, all call sites pass `string` (verified in `src/providers/pricing.ts:49`).
+- `pipeWithUsage(upstream: Response, format: 'openai' | 'anthropic', onUsage: UsageCallback, signal?: AbortSignal)`, `'anthropic'` is a valid literal for the `format` parameter (verified in `src/streaming/pipeWithUsage.ts:16-20`). `UsageCallback = (usage: SSEUsage | null, rawText: string) => void`, `usage?.cache_read_tokens` is the correct field on `SSEUsage` (verified in `src/streaming/extractUsage.ts:5-9`).
+- `aggregateOpenAISSE` remains imported and used for the `format === 'openai'` non-stream path, no dead import.
+- `openaiSSEToAnthropicSSE` import removed from `zai.ts` after fix, no longer referenced.

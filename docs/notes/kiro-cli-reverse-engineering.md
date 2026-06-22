@@ -3,8 +3,8 @@
 > **Audience: a future AI agent maintaining this repo.** This is the single source
 > of truth for how the `cli` Kiro persona was reverse-engineered, what is verified
 > vs assumed, and exactly how to re-verify or fix it when the Kiro CLI updates or
-> the backend changes. Everything here was captured from **real kiro-cli 2.6.0
-> traffic via mitmproxy** unless explicitly marked "assumed".
+> the backend changes. Everything here was captured from real kiro-cli 2.6.0
+> traffic via mitmproxy unless explicitly marked "assumed".
 
 Last verified: 2026-06-09 against `kiro-cli 2.6.0`, region `us-east-1`, account type IDC.
 
@@ -21,7 +21,7 @@ Kiro upstream has two client "personas" the router can impersonate:
 
 The persona is stored per-account in `provider_data.persona` and toggled from the
 dashboard (Upstream → Edit → Persona) or `PATCH /api/admin/accounts/:id {persona}`.
-**Default is `ide`** — never change that default without explicit instruction.
+**Default is `ide`**. Never change that default without explicit instruction.
 
 The whole point of `cli` is to look byte-identical to the real CLI so the account
 is less likely to get flagged/banned. **Accuracy of the wire format is the entire
@@ -35,11 +35,11 @@ value.** If you change it, re-verify against a real capture.
 src/providers/kiro/
 ├── constants.ts     # endpoints, persona type, CLI version constants, UA builders,
 │                    #   toCliModelId(), management endpoint
-├── transform.ts     # buildKiroPayload() — branches IDE vs CLI body shape
-├── index.ts         # executeKiro() — picks endpoint + headers per persona,
+├── transform.ts     # buildKiroPayload(): branches IDE vs CLI body shape
+├── index.ts         # executeKiro(): picks endpoint + headers per persona,
 │                    #   calls ensureProfileArn() for cli
 ├── profile.ts       # discoverProfileArn() + ensureProfileArn() (ListAvailableProfiles)
-├── auth.ts          # ensureAccessToken() — token refresh + DB cache
+├── auth.ts          # ensureAccessToken(): token refresh + DB cache
 ├── tokenRefresh.ts  # KiroProviderData type (persona, profileArn, clientId, ...)
 └── *.test.ts        # unit tests; profile.test.ts + transform/constants persona tests
 src/api/admin/accounts.ts   # PATCH accepts {persona, profileArn} → merged into provider_data
@@ -47,16 +47,16 @@ client/src/pages/Accounts.tsx  # persona dropdown in Edit modal + IDE/CLI badge
 ```
 
 **Key functions to look at first when something breaks:**
-- `buildKiroPayload(model, body, {persona})` in `transform.ts` — the body shape.
-- `buildKiroHeaders(auth, persona)` in `index.ts` — the headers.
-- `resolveKiroEndpoint(persona, region)` in `constants.ts` — which host.
-- `ensureProfileArn()` in `profile.ts` — profileArn discovery.
+- `buildKiroPayload(model, body, {persona})` in `transform.ts`: the body shape.
+- `buildKiroHeaders(auth, persona)` in `index.ts`: the headers.
+- `resolveKiroEndpoint(persona, region)` in `constants.ts`: which host.
+- `ensureProfileArn()` in `profile.ts`: profileArn discovery.
 
 ---
 
 ## 3. Verified CLI wire formats
 
-### 3.1 Chat — `GenerateAssistantResponse`
+### 3.1 Chat: `GenerateAssistantResponse`
 
 ```
 POST https://runtime.{region}.kiro.dev/        (HTTP/1.1)
@@ -72,12 +72,12 @@ Amz-Sdk-Invocation-Id: <uuid>
 Amz-Sdk-Request: attempt=1; max=3
 ```
 
-Body (the parts that matter — **all verified against the full captured body**):
+Body (the parts that matter; **all verified against the full captured body**):
 
 ```jsonc
 {
   "conversationState": {
-    "chatTriggerType": "MANUAL",          // REQUIRED — do NOT drop for cli
+    "chatTriggerType": "MANUAL",          // REQUIRED. Do NOT drop for cli.
     "conversationId": "<uuid>",
     "currentMessage": {
       "userInputMessage": {
@@ -89,7 +89,7 @@ Body (the parts that matter — **all verified against the full captured body**)
             "operatingSystem": "windows",
             "currentWorkingDirectory": "C:\\..."
           },
-          "tools": [ ... ]                 // real CLI sends 14 tools; router omits — accepted
+          "tools": [ ... ]                 // real CLI sends 14 tools; router omits. Accepted.
         }
       }
     },
@@ -112,7 +112,7 @@ Body (the parts that matter — **all verified against the full captured body**)
 4. Hyphenated modelId → `400 INVALID_MODEL_ID` (see §3.3).
 5. Missing `profileArn` → `400 "profileArn is required for this request."` (see §4).
 
-### 3.2 Profile discovery — `ListAvailableProfiles` / `GetProfile`
+### 3.2 Profile discovery: `ListAvailableProfiles` / `GetProfile`
 
 ```
 POST https://management.{region}.kiro.dev/
@@ -130,7 +130,7 @@ Response:
 - The CLI probes **multiple regions** (saw `us-east-1` + `eu-central-1`); empty regions
   return no profiles. The router only probes the account's region (default `us-east-1`).
 - `GetProfile` takes a `profileArn` as **input** (`{"profileArn":"..."}`) and returns
-  full profile details incl. the model catalog. It is **not** a discovery call — the
+  full profile details incl. the model catalog. It is **not** a discovery call; the
   CLI already had the ARN cached. Use `ListAvailableProfiles` to discover.
 - The management UA uses `api/codewhispererruntime/...` whereas chat uses
   `api/codewhispererstreaming/...`. This is why `kiroCliUserAgent()` takes an
@@ -153,7 +153,7 @@ deepseek-3.2, minimax-m2.5, minimax-m2.1, glm-5, qwen3-coder-next
 
 Router-side seeded models use hyphenated ids (e.g. `claude-sonnet-4-6`); the dotting
 happens only in the cli payload. If a new model appears upstream, seed it hyphenated
-and `toCliModelId` will handle the rest — **as long as it follows the `name-N-M`
+and `toCliModelId` will handle the rest, **as long as it follows the `name-N-M`
 shape.** Odd names (e.g. `deepseek-3.2`, `minimax-m2.5`, `glm-5`) do NOT match the
 `-N-M$` regex, so if you ever route those through cli you must map them explicitly.
 
@@ -196,11 +196,11 @@ Find the current installed CLI version:
 
 ---
 
-## 6. Re-capture procedure (mitmproxy) — verified, copy-paste
+## 6. Re-capture procedure (mitmproxy), verified, copy-paste
 
 The real CLI uses **reqwest + rustls**, which loads **native Windows certs** and
 respects `HTTPS_PROXY`. So: trust the mitmproxy CA in the Windows user root store,
-point `HTTPS_PROXY` at mitmdump, run the CLI. Keep each command short — PowerShell
+point `HTTPS_PROXY` at mitmdump, run the CLI. Keep each command short; PowerShell
 chokes on long bundled commands and `Start-Process` with redirects.
 
 > ⚠️ Security: this trusts a MITM CA on your machine. **Always undo it** (§6.5).
@@ -213,7 +213,7 @@ Start-Process -FilePath $mitm -ArgumentList "-p","8888","--set","confdir=$PWD\da
 ```
 The CA cert is generated at `data/mitm/mitmproxy-ca-cert.cer` on first run.
 
-### 6.2 Trust the CA (user root store — no admin needed)
+### 6.2 Trust the CA (user root store, no admin needed)
 ```powershell
 certutil -user -addstore Root data/mitm/mitmproxy-ca-cert.cer
 ```
@@ -221,8 +221,8 @@ certutil -user -addstore Root data/mitm/mitmproxy-ca-cert.cer
 ### 6.3 Capture addon (`data/mitm/profile_addon.py`)
 A minimal addon: log every host+`x-amz-target` to `hosts.log`, and dump full
 request+response bodies for any `management.*` / `*Profile*` / `*GenerateAssistantResponse*`
-call to a JSON file. (Recreate it — `data/mitm/` is gitignored / cleaned after use.)
-Key point: capture the **full** body — the streaming chat body is ~60 KB and an
+call to a JSON file. (Recreate it; `data/mitm/` is gitignored / cleaned after use.)
+Key point: capture the **full** body. The streaming chat body is ~60 KB and an
 early truncation hid `chatTriggerType` and cost a debugging cycle.
 
 ### 6.4 Trigger the CLI through the proxy (short, standalone commands)
@@ -320,16 +320,16 @@ router actually runs in a **Linux** container, that produced a request with:
 - `envState.operatingSystem: "linux"`  (dynamic)
 - `envState.currentWorkingDirectory: "/app"`
 
-i.e. **UA says Windows, envState says Linux** — a combination a real kiro-cli never emits,
+i.e. **UA says Windows, envState says Linux**, a combination a real kiro-cli never emits,
 which is exactly the kind of inconsistency that raises ban risk for the cli persona.
 
 **Decision (2026-06-09): pin the cli fingerprint to the verified Windows profile.**
 `buildEnvState()` now returns the constants `KIRO_CLI_OPERATING_SYSTEM = 'windows'` +
 `KIRO_CLI_WORKING_DIRECTORY = 'C:\\Users\\user'` (both in `constants.ts`), so UA + envState
-all agree and match the one capture we actually verified — regardless of host OS.
+all agree and match the one capture we actually verified, regardless of host OS.
 
 **If you ever want true Linux/macOS-native mimicry:** do NOT just flip `os/windows` →
-`os/linux` from memory. Capture a real kiro-cli on that OS first (§6) — the UA tail differs
+`os/linux` from memory. Capture a real kiro-cli on that OS first (§6); the UA tail differs
 (kernel/version suffixes, possibly a different `lang/rust` build), and getting it wrong is
 worse than a consistent Windows profile. Then make UA **and** envState **and** cwd all derive
 from the same verified per-OS source together.

@@ -1,6 +1,6 @@
 # Add a Database Migration
 
-Add a new migration file to `src/db/migrations/`. Migrations are tracked by `PRAGMA user_version` and run in order on startup. New migrations must be additive — never rewrite or drop data.
+Add a new migration file to `src/db/migrations/`. Migrations are tracked by `PRAGMA user_version` and run in order on startup. New migrations must be additive. Never rewrite or drop data.
 
 ## Goal
 
@@ -13,8 +13,8 @@ A new migration `00X-<name>.ts` that:
 
 ## Prerequisites
 
-- Read [`../reference/db-tables.md`](../reference/db-tables.md) — current schema
-- Read the consolidated schema: `src/db/migrations/schema.sql.ts` (CREATE TABLE), `indexes.sql.ts`, `seed.sql.ts` — these are concatenated by `001-initial.ts` into the single fresh-deploy migration (`user_version` = 1)
+- Read [`../reference/db-tables.md`](../reference/db-tables.md): current schema
+- Read the consolidated schema: `src/db/migrations/schema.sql.ts` (CREATE TABLE), `indexes.sql.ts`, `seed.sql.ts`. These are concatenated by `001-initial.ts` into the single fresh-deploy migration (`user_version` = 1).
 - Read the runner: `src/db/migrations/index.ts`
 - Know the current `user_version` (run `sqlite3 ~/.local/share/kelola-router/router.db "PRAGMA user_version;"`)
 
@@ -22,10 +22,10 @@ A new migration `00X-<name>.ts` that:
 
 ```
 src/db/migrations/
-├── 00X-<name>.ts        NEW — your migration
-└── index.ts             EXTEND — register the new migration in ALL_MIGRATIONS
+├── 00X-<name>.ts        NEW: your migration
+└── index.ts             EXTEND: register the new migration in ALL_MIGRATIONS
 src/db/migrations/
-└── 00X-<name>.test.ts   NEW — upgrade-path test
+└── 00X-<name>.test.ts   NEW: upgrade-path test
 ```
 
 ## Steps
@@ -39,16 +39,16 @@ const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [migrat
 
 There is currently one consolidated migration (`001-initial`, `user_version = 1`). The next ID is 2. The migration file should be `00X-<name>.ts` where `<name>` is a short kebab-case identifier (e.g. `002-foo-provider.ts`, `002-per-key-budget.ts`).
 
-**Why:** IDs are forever. Once a migration ships to a user, its ID is locked. Don't reorder. The project ships fresh-deploy-only — new additive columns go in a new migration file (not back-edited into `001-initial`), so existing DBs at `user_version = 1` still pick them up via the runner.
+**Why:** IDs are forever. Once a migration ships to a user, its ID is locked. Don't reorder. The project ships fresh-deploy-only. New additive columns go in a new migration file (not back-edited into `001-initial`), so existing DBs at `user_version = 1` still pick them up via the runner.
 
 ### 2. Write the migration
 
 **File:** `src/db/migrations/00X-<name>.ts` (new)
 
-Pattern A — additive column on an existing table (most common):
+Pattern A: additive column on an existing table (most common):
 ```ts
 /**
- * Migration 00X — <one-line description>.
+ * Migration 00X: <one-line description>.
  *
  * Additive only. <Why this column is needed.>
  */
@@ -61,7 +61,7 @@ export const migration_00X = {
 };
 ```
 
-Pattern B — new table:
+Pattern B: new table:
 ```ts
 export const migration_00X = {
   id: 6,
@@ -80,13 +80,13 @@ export const migration_00X = {
 };
 ```
 
-**Why:** `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN` are both safe to re-run on existing DBs. Migrations are wrapped in `db.exec()` with no transaction guard — each statement must stand alone. Use `ADD COLUMN` with a `DEFAULT` to backfill existing rows.
+**Why:** `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN` are both safe to re-run on existing DBs. Migrations are wrapped in `db.exec()` with no transaction guard. Each statement must stand alone. Use `ADD COLUMN` with a `DEFAULT` to backfill existing rows.
 
 **Avoid:**
-- `ALTER TABLE DROP COLUMN` — destructive, can't roll back
-- `ALTER TABLE RENAME` — fine, but coordinate with read paths
-- `CREATE INDEX` without `IF NOT EXISTS` — fails on re-run
-- Modifying values in-place (e.g. `UPDATE accounts SET …`) — that's data, not schema
+- `ALTER TABLE DROP COLUMN`: destructive, can't roll back
+- `ALTER TABLE RENAME`: fine, but coordinate with read paths
+- `CREATE INDEX` without `IF NOT EXISTS`: fails on re-run
+- Modifying values in-place (e.g. `UPDATE accounts SET …`): that's data, not schema
 
 ### 3. Register in the runner
 
@@ -148,7 +148,7 @@ describe('migration 00X', () => {
     // Apply the consolidated 001 first
     db.exec(migration_001.sql);
     db.pragma('user_version = 1');
-    // Now run migrate() — should apply 00X
+    // Now run migrate() to apply 00X
     migrate(db);
     expect(db.pragma('user_version', { simple: true })).toBe(2);
   });
@@ -206,7 +206,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## See also
 
-- [`../reference/db-tables.md`](../reference/db-tables.md) — current schema + migration history
-- [`../../adr/0005-sqlite-wal-migrations.md`](../../adr/0005-sqlite-wal-migrations.md) — why the runner is the way it is
-- [`../../AGENTS.md`](../../AGENTS.md) — TDD + test patterns
-- [`add-an-admin-endpoint.md`](add-an-admin-endpoint.md) — for the API side
+- [`../reference/db-tables.md`](../reference/db-tables.md): current schema + migration history
+- [`../../adr/0005-sqlite-wal-migrations.md`](../../adr/0005-sqlite-wal-migrations.md): why the runner is the way it is
+- [`../../AGENTS.md`](../../AGENTS.md): TDD + test patterns
+- [`add-an-admin-endpoint.md`](add-an-admin-endpoint.md): for the API side

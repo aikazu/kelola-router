@@ -17,7 +17,7 @@ Switch per-account via `accounts.provider_data.persona` field. Toggle in the das
 
 **Never change the default from `ide` without explicit instruction.** Changing the default would break every existing Kiro account.
 
-## Auth — refresh token + cached bearer
+## Auth: refresh token + cached bearer
 
 `src/providers/kiro/auth.ts:ensureAccessToken(db, account)`:
 1. Read `accounts.access_token` + `accounts.token_expires_at`
@@ -30,11 +30,11 @@ Switch per-account via `accounts.provider_data.persona` field. Toggle in the das
 - If `provider_data.clientId` + `clientSecret` present: AWS SSO OIDC endpoint `oidc.{region}.amazonaws.com/token`
 - Else: Kiro desktop social `prod.us-east-1.auth.desktop.kiro.dev/refreshToken`
 
-## Request — `buildKiroPayload` (OpenAI → CodeWhisperer)
+## Request: `buildKiroPayload` (OpenAI → CodeWhisperer)
 
 `src/providers/kiro/transform.ts`. Branches on `persona`:
 
-### Body shape — IDE persona
+### Body shape: IDE persona
 
 ```jsonc
 {
@@ -48,7 +48,7 @@ Switch per-account via `accounts.provider_data.persona` field. Toggle in the das
 
 System / tool messages are folded into the user turn (CodeWhisperer has no `system` role). Tools are transformed to `toolSpecification`. Images stay as content blocks.
 
-### Body shape — CLI persona
+### Body shape: CLI persona
 
 Same as IDE structurally, but:
 - `chatTriggerType: 'MANUAL'`
@@ -66,7 +66,7 @@ Synthetic model variants keep the suffix in `upstream_model`:
 
 The executor strips the suffix before sending.
 
-## Response — AWS event-stream binary
+## Response: AWS event-stream binary
 
 `src/providers/kiro/eventstream.ts:decodeFrames(rawStream)`. AWS event-stream is a binary framing format with:
 - 12-byte prelude (total length + headers length)
@@ -116,10 +116,10 @@ The management host also uses `aws-sdk-rust` + `AmazonQ-For-CLI` fingerprint. Th
 ```
 src/providers/kiro/
 ├── constants.ts     endpoints, persona type, UA builders, toCliModelId()
-├── transform.ts     buildKiroPayload() — branches IDE vs CLI
-├── index.ts         executeKiro() — picks endpoint + headers per persona
+├── transform.ts     buildKiroPayload(): branches IDE vs CLI
+├── index.ts         executeKiro(): picks endpoint + headers per persona
 ├── profile.ts       discoverProfileArn() + ensureProfileArn()
-├── auth.ts          ensureAccessToken() — token refresh + DB cache
+├── auth.ts          ensureAccessToken(): token refresh + DB cache
 ├── tokenRefresh.ts  KiroProviderData type (persona, profileArn, clientId, ...)
 ├── eventstream.ts   binary frame decoder
 ├── assembler.ts     → OpenAI SSE chunks
@@ -136,15 +136,15 @@ src/providers/kiro/
 
 - **Default persona is `ide`.** If the user switches to `cli`, they accept the risk of a less-tested wire format.
 - **The `profileArn` is per-account.** Each account has its own discovery round-trip. Don't share.
-- **AWS event-stream frames are 1 KB–4 KB.** Don't read the whole response into memory; pipe it.
+- **AWS event-stream frames are 1 KB to 4 KB.** Don't read the whole response into memory; pipe it.
 - **The `cli` persona's `chatTriggerType: 'MANUAL'` is required** by the runtime host. Without it, the request is rejected.
 - **The dot-vs-dash model id conversion is lossy** for display. The Kiro runtime host requires dotted form; the IDE host accepts either. The conversion happens in `constants.ts:toCliModelId()`.
 - **Kiro responses are 2-3× slower** than MiniMax because of the binary framing + re-emission. TTFT is higher.
 
 ## Cross-refs
 
-- [`docs/notes/kiro-cli-reverse-engineering.md`](../../docs/notes/kiro-cli-reverse-engineering.md) — full capture-from-traffic notes (single source of truth for wire format)
-- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) — provider branching in `handleProxy`
-- [`../../docs/guides/add-a-provider.md`](../../docs/guides/add-a-provider.md) — when extending with new personas
-- [`../skills/add-provider/SKILL.md`](../skills/add-provider/SKILL.md) — provider integration skill
-- `src/providers/kiro/constants.ts` — endpoint + UA constants
+- [`docs/notes/kiro-cli-reverse-engineering.md`](../../docs/notes/kiro-cli-reverse-engineering.md): full capture-from-traffic notes (single source of truth for wire format)
+- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md): provider branching in `handleProxy`
+- [`../../docs/guides/add-a-provider.md`](../../docs/guides/add-a-provider.md): when extending with new personas
+- [`../skills/add-provider/SKILL.md`](../skills/add-provider/SKILL.md): provider integration skill
+- `src/providers/kiro/constants.ts`: endpoint + UA constants

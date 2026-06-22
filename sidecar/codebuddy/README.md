@@ -90,7 +90,7 @@ Fast path handles ~90% of cases. Browser only needed when cookies fully expire (
 
 ## Proxy
 
-- **Login/registration:** NO proxy needed — Camoufox fingerprint + OAuth trusted app is sufficient
+- **Login/registration:** NO proxy needed. Camoufox fingerprint + OAuth trusted app is sufficient.
 - **Inference (API calls):** Proxy handled by kelola-router's transport layer, not this sidecar
 
 ## Cookie Storage

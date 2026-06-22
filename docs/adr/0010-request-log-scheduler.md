@@ -11,9 +11,9 @@ Accepted.
 `request_logs` grows unboundedly. Every proxy request appends a row; a moderately active install accumulates tens of thousands of rows in days. Without pruning, the table grows until disk space runs out or query performance degrades.
 
 The router is a single-process, self-hosted server with no external infrastructure. Options for running a periodic prune:
-1. **System cron** — a cron job runs `sqlite3 t.db "DELETE FROM request_logs WHERE ..."` on a schedule.
-2. **Database-level trigger** — SQLite doesn't have time-based triggers; only row-level triggers exist, which fire on writes, not on a schedule.
-3. **In-process interval** — the server's `scheduler/` module runs a `setInterval` tick that handles multiple housekeeping tasks (quota pull, session cleanup, snapshot cleanup, log pruning) in one place.
+1. **System cron**: a cron job runs `sqlite3 t.db "DELETE FROM request_logs WHERE ..."` on a schedule.
+2. **Database-level trigger**: SQLite doesn't have time-based triggers; only row-level triggers exist, which fire on writes, not on a schedule.
+3. **In-process interval**: the server's `scheduler/` module runs a `setInterval` tick that handles multiple housekeeping tasks (quota pull, session cleanup, snapshot cleanup, log pruning) in one place.
 
 An existing scheduler already ran for quota pulling (`src/scheduler/quotaPull.ts`). Log pruning fits naturally in the same tick.
 
@@ -32,7 +32,7 @@ The scheduler is registered once in `src/server.ts` at startup. `startQuotaPulle
 ### Positive
 
 - No external infrastructure required. The router self-prunes.
-- Configurable retention via env var — easy to extend or tighten without a code change.
+- Configurable retention via env var: easy to extend or tighten without a code change.
 - Reuses the existing scheduler tick: no new timer, no new process, minimal code.
 - The prune is logged when it removes rows, making it visible in server logs for operators who want to monitor growth.
 
@@ -43,7 +43,7 @@ The scheduler is registered once in `src/server.ts` at startup. `startQuotaPulle
 
 ### Neutral
 
-- The prune is in the same transaction scope as the rest of the tick's SQLite operations — it benefits from WAL mode's isolation without additional configuration.
+- The prune is in the same transaction scope as the rest of the tick's SQLite operations. It benefits from WAL mode's isolation without additional configuration.
 
 ## Alternatives considered
 
@@ -53,7 +53,7 @@ Require users to configure a cron job that runs a `sqlite3` command. Rejected be
 
 ### Separate pruning process / sidecar
 
-Run a dedicated Node script as a separate process or container sidecar. Rejected because: introduces coordination complexity (two processes touching the same SQLite file — safe under WAL, but operationally awkward), and the task is trivial enough to co-locate with the existing scheduler.
+Run a dedicated Node script as a separate process or container sidecar. Rejected because: introduces coordination complexity (two processes touching the same SQLite file, safe under WAL but operationally awkward), and the task is trivial enough to co-locate with the existing scheduler.
 
 ### DELETE on every write (rolling window)
 
@@ -61,7 +61,7 @@ Prune in the same `setImmediate` that inserts the log row. Rejected because: cou
 
 ## References
 
-- `src/scheduler/quotaPull.ts` — `tickQuotaOnce` (prune call), `startQuotaPuller` (interval guard)
-- `src/db/repos/requestLogs.ts` — `cleanupOldLogs`
-- `src/scheduler/quotaPull.test.ts` — retention test (sets `REQUEST_LOG_RETENTION_DAYS=7`)
-- `CHANGELOG.md` v0.18.0 — Scheduler entry
+- `src/scheduler/quotaPull.ts`: `tickQuotaOnce` (prune call), `startQuotaPuller` (interval guard)
+- `src/db/repos/requestLogs.ts`: `cleanupOldLogs`
+- `src/scheduler/quotaPull.test.ts`: retention test (sets `REQUEST_LOG_RETENTION_DAYS=7`)
+- `CHANGELOG.md` v0.18.0: Scheduler entry

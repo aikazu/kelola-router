@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the CodeBuddy provider actually work with Anthropic agents (Claude Code / hermes) by speaking CodeBuddy's real wire protocol — OpenAI Chat Completions, stream-only, system-message-required — instead of the broken Anthropic passthrough currently shipped.
+**Goal:** Make the CodeBuddy provider actually work with Anthropic agents (Claude Code / hermes) by speaking CodeBuddy's real wire protocol (OpenAI Chat Completions, stream-only, system-message-required) instead of the broken Anthropic passthrough currently shipped.
 
 **Architecture:** CodeBuddy's upstream (`https://www.codebuddy.ai/v2/chat/completions`) is an OpenAI-compatible, **stream-only** endpoint that **requires a `system` role message** and a Bearer `ck_…` API key. The router currently forwards Anthropic-format bodies → upstream returns `11101 invalid request`. Fix: convert the client's Anthropic body → OpenAI on the way in (reuse existing `bodyAnthropicToOpenAI`), force `stream:true`, guarantee a system message; on the way out convert CodeBuddy's OpenAI SSE → Anthropic Messages SSE (new assembler, mirrors the existing Kiro `KiroAnthropicAssembler`). For non-stream clients, aggregate the upstream SSE into one response and convert.
 
@@ -10,43 +10,43 @@
 
 ---
 
-## Background — verified facts (reverse-engineered from CLI `@tencent-ai/codebuddy-code@2.106.3` + live API tests with a real `ck_…` key)
+## Background: verified facts (reverse-engineered from CLI `@tencent-ai/codebuddy-code@2.106.3` + live API tests with a real `ck_…` key)
 
 - **Endpoint:** `POST https://www.codebuddy.ai/v2/chat/completions` (base `https://www.codebuddy.ai` + `/v2` + `/chat/completions`). The router account stores `base_url=https://www.codebuddy.ai`; the provider appends `/v2/chat/completions`.
-- **Auth:** `Authorization: Bearer ck_…`. Returns `401` on bad key, `400` on bad body. (CLI also sends `x-api-key` + many `x-*` trace headers, but a bare `Authorization` Bearer works — verified.)
+- **Auth:** `Authorization: Bearer ck_…`. Returns `401` on bad key, `400` on bad body. (CLI also sends `x-api-key` + many `x-*` trace headers, but a bare `Authorization` Bearer works, verified.)
 - **Format:** OpenAI Chat Completions. `messages[]` with `role`/`content` strings. NOT Anthropic. No `anthropic-version` header.
 - **Stream mandatory:** `stream:false` → `{"code":11101,"msg":"Non-stream chat request is currently not supported"}`. Must send `stream:true`.
 - **System message mandatory:** omitting a `role:"system"` message → `{"code":11101,"msg":"Parse message failed: 11101:invalid request"}`. Adding one fixes it. (This was the single most common cause of the 11101 error.)
 - **Response:** `text/event-stream`, OpenAI chunk shape: `data: {"choices":[{"delta":{"content":"…","reasoning_content":"…","tool_calls":[…]},"finish_reason":""}],"usage":{…}}` … terminated by `data: [DONE]`.
 - **Error body shape:** `{"code":NNNNN,"msg":"…","requestId":"…"}`.
 - **Valid models (live-tested ✅ with this key):** `claude-opus-4.6`, `gemini-3.5-flash`, `gemini-3.1-pro`, `gpt-5.5`, `glm-5.0`, `kimi-k2.5`.
-- **Invalid (❌ `service info not found`):** `claude-opus-4.7`, `claude-sonnet-4.5`, `deepseek-v3-2-volc`. **Opus 4.7 does NOT exist on CodeBuddy** — only 4.6.
+- **Invalid (❌ `service info not found`):** `claude-opus-4.7`, `claude-sonnet-4.5`, `deepseek-v3-2-volc`. **Opus 4.7 does NOT exist on CodeBuddy**, only 4.6.
 
 ## Existing infrastructure to REUSE (do not rebuild)
 
 - `src/providers/format/transform.ts`
-  - `bodyAnthropicToOpenAI(body)` — moves top-level `system` → `messages[0]`, converts `tools` to OpenAI function shape, drops Anthropic-only params. (Only injects a system message **if `body.system` was present**.)
-  - `responseOpenAIToAnthropic(resp)` — non-stream OpenAI response → Anthropic response (handles `reasoning_content`→thinking, `tool_calls`→tool_use, usage).
-- `src/providers/format/messageTypes.ts` — `AnthropicBody`, `OpenAIBody`, `OpenAIResponse`, `AnthropicResponse`, `ContentBlock`.
-- `src/streaming/pipeWithUsage.ts` — `pipeWithUsage(resp, 'openai'|'anthropic', onUsage, signal?)` tees an SSE stream + extracts usage. Used for the **openai-client passthrough** case.
-- `src/providers/kiro/anthropicSse.ts` — `KiroAnthropicAssembler` + `serialize()` pattern + `kiroResponseToAnthropicSSE()` ReadableStream wrapper. **Copy this structure** for the new OpenAI→Anthropic SSE assembler (event shapes are identical; only the *input* differs — OpenAI chunks instead of Kiro binary frames).
+- `bodyAnthropicToOpenAI(body)`, moves top-level `system` → `messages[0]`, converts `tools` to OpenAI function shape, drops Anthropic-only params. (Only injects a system message **if `body.system` was present**.)
+- `responseOpenAIToAnthropic(resp)`, non-stream OpenAI response → Anthropic response (handles `reasoning_content`→thinking, `tool_calls`→tool_use, usage).
+- `src/providers/format/messageTypes.ts`, `AnthropicBody`, `OpenAIBody`, `OpenAIResponse`, `AnthropicResponse`, `ContentBlock`.
+- `src/streaming/pipeWithUsage.ts`, `pipeWithUsage(resp, 'openai'|'anthropic', onUsage, signal?)` tees an SSE stream + extracts usage. Used for the **openai-client passthrough** case.
+- `src/providers/kiro/anthropicSse.ts`, `KiroAnthropicAssembler` + `serialize()` pattern + `kiroResponseToAnthropicSSE()` ReadableStream wrapper. **Copy this structure** for the new OpenAI→Anthropic SSE assembler (event shapes are identical; only the *input* differs, OpenAI chunks instead of Kiro binary frames).
 
 ## Files to create / modify
 
-- **Create** `src/providers/codebuddy/streamConvert.ts` — OpenAI SSE → Anthropic SSE assembler + wrapper, and OpenAI SSE → aggregated `OpenAIResponse` (for non-stream clients).
+- **Create** `src/providers/codebuddy/streamConvert.ts`, OpenAI SSE → Anthropic SSE assembler + wrapper, and OpenAI SSE → aggregated `OpenAIResponse` (for non-stream clients).
 - **Create** `src/providers/codebuddy/streamConvert.test.ts`
-- **Modify** `src/providers/codebuddy/transform.ts` — replace `ensureCodeBuddyDefaults` with `prepareCodeBuddyBody(body, clientFormat)` (convert + force stream + guarantee system message + strip prefix).
+- **Modify** `src/providers/codebuddy/transform.ts`, replace `ensureCodeBuddyDefaults` with `prepareCodeBuddyBody(body, clientFormat)` (convert + force stream + guarantee system message + strip prefix).
 - **Modify** `src/providers/codebuddy/transform.test.ts`
-- **Modify** `src/providers/codebuddy/index.ts` — `executeCodeBuddy` uses `prepareCodeBuddyBody`, OpenAI headers (no `anthropic-version`, add `Accept: text/event-stream`), always streams upstream.
-- **Modify** `src/proxy/codebuddy.ts` — branch on client `format` + client `stream`: anthropic-stream → SSE convert; openai-stream → passthrough; non-stream → aggregate + convert.
-- **Modify** `scripts/seed-codebuddy-models.ts` — corrected, live-verified model list.
+- **Modify** `src/providers/codebuddy/index.ts`, `executeCodeBuddy` uses `prepareCodeBuddyBody`, OpenAI headers (no `anthropic-version`, add `Accept: text/event-stream`), always streams upstream.
+- **Modify** `src/proxy/codebuddy.ts`, branch on client `format` + client `stream`: anthropic-stream → SSE convert; openai-stream → passthrough; non-stream → aggregate + convert.
+- **Modify** `scripts/seed-codebuddy-models.ts`, corrected, live-verified model list.
 - **Reference only:** `src/providers/format/transform.ts`, `src/providers/kiro/anthropicSse.ts`, `src/streaming/pipeWithUsage.ts`.
 
 ## Out of scope (note, don't build)
 
-- Combos containing CodeBuddy members (`src/proxy/combo.ts`) — separate follow-up.
-- OAuth device-login import for CodeBuddy — the user already has a long-lived `ck_…` API key; static Bearer is sufficient.
-- Residential-proxy enforcement — `npm run add-account -- --provider codebuddy` already warns; sandbox tests hit the API directly without a proxy successfully, so it is not blocking for this plan.
+- Combos containing CodeBuddy members (`src/proxy/combo.ts`), separate follow-up.
+- OAuth device-login import for CodeBuddy, the user already has a long-lived `ck_…` API key; static Bearer is sufficient.
+- Residential-proxy enforcement, `npm run add-account, --provider codebuddy` already warns; sandbox tests hit the API directly without a proxy successfully, so it is not blocking for this plan.
 
 ---
 
@@ -151,7 +151,7 @@ describe('OpenAIToAnthropicSSEAssembler', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/providers/codebuddy/streamConvert.test.ts`
-Expected: FAIL — `OpenAIToAnthropicSSEAssembler is not exported` / module not found.
+Expected: FAIL, `OpenAIToAnthropicSSEAssembler is not exported` / module not found.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -355,7 +355,7 @@ git commit -m "feat(codebuddy): add OpenAI SSE to Anthropic SSE assembler"
 - Modify: `src/providers/codebuddy/streamConvert.ts`
 - Test: `src/providers/codebuddy/streamConvert.test.ts`
 
-Adds: (a) `openaiSSEToAnthropicSSE(resp, model, onUsage?)` — wraps a CodeBuddy OpenAI-SSE `Response` into an Anthropic-SSE `Response`; (b) `aggregateOpenAISSE(resp)` — buffers a full OpenAI-SSE stream into one `OpenAIResponse` (for non-stream clients).
+Adds: (a) `openaiSSEToAnthropicSSE(resp, model, onUsage?)`, wraps a CodeBuddy OpenAI-SSE `Response` into an Anthropic-SSE `Response`; (b) `aggregateOpenAISSE(resp)`, buffers a full OpenAI-SSE stream into one `OpenAIResponse` (for non-stream clients).
 
 - [ ] **Step 1: Write the failing test (append to existing test file)**
 
@@ -420,7 +420,7 @@ describe('aggregateOpenAISSE', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/providers/codebuddy/streamConvert.test.ts`
-Expected: FAIL — `openaiSSEToAnthropicSSE`/`aggregateOpenAISSE` not exported.
+Expected: FAIL, `openaiSSEToAnthropicSSE`/`aggregateOpenAISSE` not exported.
 
 - [ ] **Step 3: Write the implementation (append to `streamConvert.ts`)**
 
@@ -563,7 +563,7 @@ export async function aggregateOpenAISSE(upstream: Response): Promise<OpenAIResp
 }
 ```
 
-> **Note:** If `tsc` reports that the `OpenAIResponse` literal is missing required fields or that `tool_calls`/`reasoning_content` aren't assignable, check the exact shape in `src/providers/format/messageTypes.ts` (lines 35-83) and adjust the returned object to match — keep the `as OpenAIResponse` cast only as a last resort and prefer matching the real interface. Do not introduce `any`.
+> **Note:** If `tsc` reports that the `OpenAIResponse` literal is missing required fields or that `tool_calls`/`reasoning_content` aren't assignable, check the exact shape in `src/providers/format/messageTypes.ts` (lines 35-83) and adjust the returned object to match, keep the `as OpenAIResponse` cast only as a last resort and prefer matching the real interface. Do not introduce `any`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -584,7 +584,7 @@ git commit -m "feat(codebuddy): add SSE wrapper and non-stream aggregator"
 
 ---
 
-### Task 3: Body preparation — convert, force stream, guarantee system message
+### Task 3: Body preparation: convert, force stream, guarantee system message
 
 **Files:**
 - Modify: `src/providers/codebuddy/transform.ts`
@@ -647,7 +647,7 @@ describe('prepareCodeBuddyBody', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/providers/codebuddy/transform.test.ts`
-Expected: FAIL — `prepareCodeBuddyBody` not exported.
+Expected: FAIL, `prepareCodeBuddyBody` not exported.
 
 - [ ] **Step 3: Write the implementation (replace `transform.ts` contents)**
 
@@ -713,7 +713,7 @@ git commit -m "feat(codebuddy): prepare body as OpenAI stream with guaranteed sy
 
 ---
 
-### Task 4: executeCodeBuddy — OpenAI headers, always-stream upstream
+### Task 4: executeCodeBuddy: OpenAI headers, always-stream upstream
 
 **Files:**
 - Modify: `src/providers/codebuddy/index.ts`
@@ -759,7 +759,7 @@ describe('executeCodeBuddy', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/providers/codebuddy/index.test.ts`
-Expected: FAIL — `executeCodeBuddy` does not accept `clientFormat` / still sends `anthropic-version`.
+Expected: FAIL, `executeCodeBuddy` does not accept `clientFormat` / still sends `anthropic-version`.
 
 - [ ] **Step 3: Write the implementation (replace `executeCodeBuddy` in `index.ts`)**
 
@@ -806,7 +806,7 @@ Expected: PASS.
 - [ ] **Step 5: Run typecheck**
 
 Run: `npm run typecheck`
-Expected: no errors. (Will surface the `skipModelStrip`/`providerData.skip_model_strip` usage in `proxy/codebuddy.ts` — that is fixed in Task 5.)
+Expected: no errors. (Will surface the `skipModelStrip`/`providerData.skip_model_strip` usage in `proxy/codebuddy.ts`, that is fixed in Task 5.)
 
 - [ ] **Step 6: Commit**
 
@@ -817,7 +817,7 @@ git commit -m "feat(codebuddy): execute as OpenAI stream, drop anthropic-version
 
 ---
 
-### Task 5: Proxy handler — branch on client format + stream
+### Task 5: Proxy handler: branch on client format + stream
 
 **Files:**
 - Modify: `src/proxy/codebuddy.ts`
@@ -900,13 +900,13 @@ describe('handleCodeBuddyProxy', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/proxy/codebuddy.test.ts`
-Expected: FAIL — handler still does Anthropic passthrough; output has no `event: message_start` text-delta for `PONG`, or it throws on the removed `skipModelStrip` path.
+Expected: FAIL, handler still does Anthropic passthrough; output has no `event: message_start` text-delta for `PONG`, or it throws on the removed `skipModelStrip` path.
 
 - [ ] **Step 3: Rewrite the handler**
 
 Edit `src/proxy/codebuddy.ts`:
 
-1. Update imports — add the converters, drop nothing still used:
+1. Update imports, add the converters, drop nothing still used:
 
 ```ts
 import { responseOpenAIToAnthropic } from '../providers/format/transform.js';
@@ -1003,9 +1003,9 @@ if (format === 'anthropic') {
 return c.json(aggregated);
 ```
 
-6. Remove the old `// Streaming passthrough — zero conversion` and `// Non-stream passthrough` blocks and any now-unused locals (`usage` object built from `input_tokens`, etc.).
+6. Remove the old `// Streaming passthrough, zero conversion` and `// Non-stream passthrough` blocks and any now-unused locals (`usage` object built from `input_tokens`, etc.).
 
-> **Note:** Confirm `SSEUsage` from `pipeWithUsage` exposes `prompt_tokens_details`. If not, read `cache_read` differently per `src/streaming/extractUsage.ts`. Keep `account` error/recovery (`updateAccount`, `checkFallbackError`) exactly as in the current handler — only the success path changes.
+> **Note:** Confirm `SSEUsage` from `pipeWithUsage` exposes `prompt_tokens_details`. If not, read `cache_read` differently per `src/streaming/extractUsage.ts`. Keep `account` error/recovery (`updateAccount`, `checkFallbackError`) exactly as in the current handler, only the success path changes.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1031,7 +1031,7 @@ git commit -m "feat(codebuddy): bridge OpenAI upstream to client format (stream 
 **Files:**
 - Modify: `scripts/seed-codebuddy-models.ts`
 
-Replace the model list with the live-verified set. Remove unverified `gemini-2.5-flash`; add the tested `gemini-3.5-flash`, `gpt-5.5`, `glm-5.0`. Keep `claude-opus-4.6`, `gemini-3.1-pro`, `kimi-k2.5`. **Do not add `claude-opus-4.7`** — it returns `service info not found`.
+Replace the model list with the live-verified set. Remove unverified `gemini-2.5-flash`; add the tested `gemini-3.5-flash`, `gpt-5.5`, `glm-5.0`. Keep `claude-opus-4.6`, `gemini-3.1-pro`, `kimi-k2.5`. **Do not add `claude-opus-4.7`**, it returns `service info not found`.
 
 - [ ] **Step 1: Edit the `MODELS` array**
 
@@ -1072,12 +1072,12 @@ Expected: `Seeded 6 CodeBuddy models`.
 
 - [ ] **Step 2: Add the CodeBuddy account**
 
-Run: `npm run add-account -- --provider codebuddy --api-key ck_fp3jnkrwvd34.Mo6w3XepNYi5WVpqVZhQrcrTKzsGJOYqdX9CtTbgWBQ --label codebuddy-main`
+Run: `npm run add-account, --provider codebuddy --api-key ck_fp3jnkrwvd34.Mo6w3XepNYi5WVpqVZhQrcrTKzsGJOYqdX9CtTbgWBQ --label codebuddy-main`
 Expected: `✓ Added CodeBuddy account: codebuddy-main`.
 
 - [ ] **Step 3: Start the server**
 
-Run: `npm run dev:server` (port 20137) — leave running in a background shell.
+Run: `npm run dev:server` (port 20137), leave running in a background shell.
 
 - [ ] **Step 4: Anthropic-format streaming request (Claude Code path)**
 
@@ -1115,10 +1115,10 @@ Expected: rows with `status_code=200`, non-broken model names, `stream` 1 and 0 
 **Spec coverage:**
 - Verify CodeBuddy docs vs implementation → Background section documents the real protocol; Tasks 3-5 align the implementation to it. ✅
 - "mulus dipakai Anthropic agent (Claude Code / hermes)" → Task 5 anthropic-stream + non-stream branches + Task 7 live agent turn. ✅
-- "claude-opus-4.6/4.7, gemini-3.5-flash" → 4.6 ✅ and gemini-3.5-flash ✅ seeded (Task 6); **4.7 does not exist on CodeBuddy** — called out in Background + Task 6, surface to user. ⚠️ documented gap, not a code gap.
-- Account setup ("biar bisa dipasang dengan baik") → Task 7 Steps 1-2 use `npm run add-account -- --provider codebuddy` (unified script). ✅
+- "claude-opus-4.6/4.7, gemini-3.5-flash" → 4.6 ✅ and gemini-3.5-flash ✅ seeded (Task 6); **4.7 does not exist on CodeBuddy**, called out in Background + Task 6, surface to user. ⚠️ documented gap, not a code gap.
+- Account setup ("biar bisa dipasang dengan baik") → Task 7 Steps 1-2 use `npm run add-account, --provider codebuddy` (unified script). ✅
 
-**Placeholder scan:** No `TBD`/`handle edge cases`/`similar to`/`write tests for the above` — every code step has full code; every test step has full test bodies. ✅
+**Placeholder scan:** No `TBD`/`handle edge cases`/`similar to`/`write tests for the above`, every code step has full code; every test step has full test bodies. ✅
 
 **Type consistency:** `prepareCodeBuddyBody(body, clientFormat)` used identically in Tasks 3 & 4. `OpenAIToAnthropicSSEAssembler` / `openaiSSEToAnthropicSSE` / `aggregateOpenAISSE` names consistent across Tasks 1, 2, 5. `executeCodeBuddy({…, clientFormat})` signature matches between Task 4 definition and Task 5 caller. `CodeBuddyUsageCallback` shape `{prompt_tokens, completion_tokens, total_tokens, cache_read}` consistent between assembler `getUsage()` and wrapper callback. ✅
 

@@ -1,6 +1,6 @@
 # Admin API Routes
 
-All routes under `/api/admin/*` (Hono router). All require admin auth (session cookie / `x-admin-key` / open mode). All POST/PATCH/PUT/DELETE blocked by CSRF guard when `Origin` doesn't match `Host`. Source: `src/api/admin/*.ts`.
+All routes under `/api/admin/*` (Hono router). All require admin auth (session cookie / `x-admin-key` / open mode). All POST/PATCH/PUT/DELETE are blocked by a CSRF guard when `Origin` does not match `Host`. Source: `src/api/admin/*.ts`.
 
 ## Auth (`src/api/admin/auth.ts`)
 
@@ -12,7 +12,7 @@ All routes under `/api/admin/*` (Hono router). All require admin auth (session c
 
 ## Re-auth gate (`src/api/admin/reauth.ts`)
 
-Short-lived (60s) HttpOnly re-auth cookie that gates sensitive reveal operations (e.g. client-key bearer). Cleared on timeout or explicit clear.
+Short-lived (60s) HttpOnly re-auth cookie that gates sensitive reveal operations (for example, client-key bearer). Cleared on timeout or explicit clear.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -43,7 +43,7 @@ Short-lived (60s) HttpOnly re-auth cookie that gates sensitive reveal operations
 | `GET` | `/api/admin/client-keys/:id/key` | Reveal the full bearer. Requires re-auth cookie from `POST /api/admin/reauth/verify` (else `401 reauth_required`); writes an `audit_log` event on reveal |
 | `PATCH` | `/api/admin/client-keys/:id` | Update label / enabled |
 | `POST` | `/api/admin/client-keys/:id/enable` | Enable a disabled key |
-| `POST` | `/api/admin/client-keys/:id/disable` | Disable (soft — keeps the row) |
+| `POST` | `/api/admin/client-keys/:id/disable` | Disable (soft; keeps the row) |
 | `DELETE` | `/api/admin/client-keys/:id` | Hard delete |
 
 ## Accounts (`src/api/admin/accounts.ts`)
@@ -63,8 +63,8 @@ Short-lived (60s) HttpOnly re-auth cookie that gates sensitive reveal operations
 | `POST` | `/api/admin/accounts/kiro/device-code` | Start AWS Builder ID / IDC device-code flow |
 | `POST` | `/api/admin/accounts/kiro/poll` | Poll device-code token endpoint until user completes browser step |
 | `GET` | `/api/admin/accounts/kiro/auto-import` | Read `~/.aws/sso/cache` and return candidate profiles for one-click import |
-| `POST` | `/api/admin/accounts/notion/request-otp` | Notion 3-step auth: step 1 — submit email, request a 6-char temp password |
-| `POST` | `/api/admin/accounts/notion/verify-otp` | Notion 3-step auth: step 2 — submit temp password, persist 11 cookies in `provider_data` JSON |
+| `POST` | `/api/admin/accounts/notion/request-otp` | Notion 3-step auth: step 1: submit email, request a 6-char temp password |
+| `POST` | `/api/admin/accounts/notion/verify-otp` | Notion 3-step auth: step 2: submit temp password, persist 11 cookies in `provider_data` JSON |
 | `GET` | `/api/admin/accounts/notion/reauth-required` | Returns whether any active Notion account has expired / missing cookies and needs re-auth |
 
 ## Models (`src/api/admin/models.ts`)

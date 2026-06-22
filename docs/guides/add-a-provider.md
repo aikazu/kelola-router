@@ -14,8 +14,8 @@ A new provider `foo` that:
 
 ## Prerequisites
 
-- Read [`ARCHITECTURE.md`](../../ARCHITECTURE.md) — module map + state machines
-- Read [`AGENTS.md`](../../AGENTS.md) — proxy pipeline overview + conventions
+- Read [`ARCHITECTURE.md`](../../ARCHITECTURE.md): module map + state machines
+- Read [`AGENTS.md`](../../AGENTS.md): proxy pipeline overview + conventions
 - Read the existing Kiro provider as a reference implementation: `src/providers/kiro/`
 - Have a working dev env: `npm run dev` + a fresh test DB
 
@@ -31,18 +31,18 @@ src/
 │       ├── upstreamFetch.ts       fetch w/ provider-specific quirks
 │       └── index.ts               executeFoo (orchestrator)
 ├── proxy/
-│   └── foo.ts                     NEW — handleFooProxy, parallel to kiro.ts
+│   └── foo.ts                     NEW: handleFooProxy, parallel to kiro.ts
 ├── db/
 │   ├── repos/
-│   │   └── accounts.ts            EXTEND — add `foo` to the `provider` enum + helpers
+│   │   └── accounts.ts            EXTEND: add `foo` to the `provider` enum + helpers
 │   └── migrations/
-│       └── 00X-foo.ts             NEW — additive columns on `accounts` if needed
+│       └── 00X-foo.ts             NEW: additive columns on `accounts` if needed
 ├── api/admin/
-│   └── accounts.ts                EXTEND — add `POST /api/admin/accounts/foo` if foo needs its own auth flow
+│   └── accounts.ts                EXTEND: add `POST /api/admin/accounts/foo` if foo needs its own auth flow
 ├── scripts/
-│   ├── seed-foo-models.ts         NEW — upsert builtin foo models
-│   └── add-foo-account.ts         NEW — CLI to add a foo account
-└── server.ts                      EXTEND — route `/v1/*` requests for foo provider to `handleFooProxy`
+│   ├── seed-foo-models.ts         NEW: upsert builtin foo models
+│   └── add-foo-account.ts         NEW: CLI to add a foo account
+└── server.ts                      EXTEND: route `/v1/*` requests for foo provider to `handleFooProxy`
 ```
 
 ## Steps
@@ -104,8 +104,8 @@ const migrations = [
 **File:** `src/providers/foo/auth.ts` (new)
 
 Mirror `src/providers/kiro/auth.ts`:
-- `ensureAccessToken(db, account)` — returns a valid bearer, refreshing if needed
-- `refreshFooToken(refreshToken: string)` — POST to foo's token endpoint
+- `ensureAccessToken(db, account)`: returns a valid bearer, refreshing if needed
+- `refreshFooToken(refreshToken: string)`: POST to foo's token endpoint
 - Cache the token in `accounts.access_token` + `accounts.token_expires_at`
 
 **Why:** Auth is isolated so the proxy handler stays clean.
@@ -127,7 +127,7 @@ Things to handle:
 - Image content blocks (if foo supports vision)
 - Stop sequences, temperature, max_tokens
 - Tool / function definitions (if foo has tool use)
-- Stream flag — output format must include a stream indicator
+- Stream flag: output format must include a stream indicator
 
 **Why:** Each provider has its own quirks. Keeping the transform isolated makes it testable.
 
@@ -156,7 +156,7 @@ Copy `src/proxy/kiro.ts` and adjust:
 - Import the foo module instead of kiro
 - Rename `handleKiroProxy` → `handleFooProxy`
 - Keep the same consoleBus emissions: `start`, `account`, `transport`, `done`, `error`
-- Use `listEnabledAccountsByProvider(db, 'foo')` (already in `accounts.ts` — confirm it supports a string param)
+- Use `listEnabledAccountsByProvider(db, 'foo')` (already in `accounts.ts`; confirm it supports a string param)
 - Use `getSetting(db, 'selection.foo')` for selection mode
 - Apply `applyAccountError` on the same error class as kiro
 - Return the response in the client's original format (OpenAI or Anthropic)
@@ -200,7 +200,7 @@ Mirror `scripts/seed-kiro-models.ts` and `scripts/add-account.ts` (unified, `--p
 
 **File:** `client/src/pages/Accounts.tsx`
 
-The Accounts page already renders one card per provider. Add a `<FooCard />` parallel to `<KiroCard />` and `<MinimaxCard />`. The `SelectionControls` component takes a `provider` prop — pass `'foo'`.
+The Accounts page already renders one card per provider. Add a `<FooCard />` parallel to `<KiroCard />` and `<MinimaxCard />`. The `SelectionControls` component takes a `provider` prop; pass `'foo'`.
 
 If foo needs its own auth UI (device code, manual paste, etc.), add a new `KiroDeviceFlow`-style form under `client/src/components/FooAuthForm.tsx` and a hook at `client/src/hooks/useFooAuth.ts`.
 
@@ -208,9 +208,9 @@ If foo needs its own auth UI (device code, manual paste, etc.), add a new `KiroD
 
 ### 10. Add docs
 
-**File:** `docs/minimax-reference/` is a misnomer at this point — rename later. For now, add a `docs/foo/` directory with at minimum:
-- `docs/foo/wire-format.md` — capture foo's exact request/response shape from real traffic
-- `docs/foo/auth.md` — token lifecycle, refresh URL, expiry buffer
+**File:** `docs/minimax-reference/` is a misnomer at this point. Rename later. For now, add a `docs/foo/` directory with at minimum:
+- `docs/foo/wire-format.md`: capture foo's exact request/response shape from real traffic
+- `docs/foo/auth.md`: token lifecycle, refresh URL, expiry buffer
 - Update [`MEMORY.md`](../../MEMORY.md) to add a link to the new guides
 
 **Why:** The Kiro wire format was reverse-engineered (`docs/notes/kiro-cli-reverse-engineering.md`). Do the same for foo and write it down so the next contributor doesn't start from zero.
@@ -274,7 +274,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## See also
 
-- [`../reference/db-tables.md`](../reference/db-tables.md) — `accounts` table schema
-- [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md) — admin endpoint patterns
-- [`../adr/`](../adr/) — past provider decisions
-- [`../../AGENTS.md`](../../AGENTS.md) — proxy pipeline overview
+- [`../reference/db-tables.md`](../reference/db-tables.md): `accounts` table schema
+- [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md): admin endpoint patterns
+- [`../adr/`](../adr/): past provider decisions
+- [`../../AGENTS.md`](../../AGENTS.md): proxy pipeline overview

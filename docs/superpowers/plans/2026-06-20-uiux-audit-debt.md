@@ -2,24 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close the remaining debt from the UI/UX audit commit `6741fd6` — fix one visual regression it introduced, finish the deferred Overview URL-sync, pay down small CSS a11y debt (touch targets, overscroll), and optionally consolidate ~55 inline form-label fixes into a reusable `Field` component.
+**Goal:** Close the remaining debt from the UI/UX audit commit `6741fd6`, fix one visual regression it introduced, finish the deferred Overview URL-sync, pay down small CSS a11y debt (touch targets, overscroll), and optionally consolidate ~55 inline form-label fixes into a reusable `Field` component.
 
-**Architecture:** Preact + TypeScript SPA (hash-routed, TanStack Query). Dark "Obsidian Gold" theme. Styles in three global CSS files (`base.css`, `components.css`, `animations.css`). Tests are Vitest + `@testing-library/preact`, living in `client/src/__tests__/` and beside components as `*.test.tsx`. The audit already achieved WCAG compliance inline; this plan removes a regression and reduces structural debt — it does NOT add new compliance surface except where noted.
+**Architecture:** Preact + TypeScript SPA (hash-routed, TanStack Query). Dark "Obsidian Gold" theme. Styles in three global CSS files (`base.css`, `components.css`, `animations.css`). Tests are Vitest + `@testing-library/preact`, living in `client/src/__tests__/` and beside components as `*.test.tsx`. The audit already achieved WCAG compliance inline; this plan removes a regression and reduces structural debt, it does NOT add new compliance surface except where noted.
 
 **Tech Stack:** Preact, TypeScript (strict, no `any`), Vitest, @testing-library/preact, Biome, Vite.
 
-**Context recap — what's already done (commit `6741fd6`, do NOT redo):**
+**Context recap, what's already done (commit `6741fd6`, do NOT redo):**
 - 149 audit findings applied inline (keyboard access, aria-labels, names/autocomplete, focus-visible, i18n, copy).
 - `Button` has `aria-label`/`aria-pressed`; `Icon` optional `label`; `Card` title → `h2`; `Stat` → `dl/dt/dd`.
 - Form labels associated via `htmlFor`/`id` inline across account/model/transport modals + Login/Settings.
 
 **Cross-cutting conventions (apply to every task):**
 - Preact JSX: `class=` not `className`; `onInput`/`onChange` read `(e.target as HTMLInputElement).value`.
-- Preact lowercases some DOM props: use `spellcheck` NOT `spellCheck` (TS error otherwise — this bit us already).
-- Strict TS, no `any`. Run `cd client && npx tsc --noEmit` — must report 0 errors.
+- Preact lowercases some DOM props: use `spellcheck` NOT `spellCheck` (TS error otherwise, this bit us already).
+- Strict TS, no `any`. Run `cd client && npx tsc --noEmit`, must report 0 errors.
 - After CSS-only changes (not unit-testable in jsdom): verify with `cd client && npx vite build` (must succeed) + the exact grep assertions given.
 - Commit per task. Conventional Commits. English commit messages.
-- Line endings: files must stay LF. If your editor writes CRLF on Windows, the diff will balloon — after editing run `sed -i 's/\r$//' <file>` on touched files before `git add`, and confirm with `file <path>` showing no "CRLF".
+- Line endings: files must stay LF. If your editor writes CRLF on Windows, the diff will balloon, after editing run `sed -i 's/\r$//' <file>` on touched files before `git add`, and confirm with `file <path>` showing no "CRLF".
 
 ---
 
@@ -28,7 +28,7 @@
 | File | Responsibility | Tasks |
 |---|---|---|
 | `client/src/styles/base.css` | Add missing `.sr-only` utility (P0 regression fix) | 1 |
-| `client/src/pages/Settings.tsx` | Consumer of `.sr-only` — verify after fix | 1 |
+| `client/src/pages/Settings.tsx` | Consumer of `.sr-only`, verify after fix | 1 |
 | `client/src/pages/Overview.tsx` | Add URL hash sync for `days` range | 2 |
 | `client/src/__tests__/Overview.test.tsx` | New test for Overview URL-sync | 2 |
 | `client/src/styles/components.css` | Touch-target min-height on `.btn-sm`; overscroll on sidebar drawer | 3 |
@@ -40,7 +40,7 @@
 
 ## Task 1: Fix `.sr-only` regression (P0)
 
-**Problem:** Commit `6741fd6` added `<label class="sr-only">` in `Settings.tsx` (lines 56, 70, 212) to give password/select fields accessible names without visible duplicate labels. But `.sr-only` is **not defined** in any CSS file (only `.skip-link` exists). Result: those three labels render as plain visible text — a visual regression. Fix = define the standard screen-reader-only utility.
+**Problem:** Commit `6741fd6` added `<label class="sr-only">` in `Settings.tsx` (lines 56, 70, 212) to give password/select fields accessible names without visible duplicate labels. But `.sr-only` is **not defined** in any CSS file (only `.skip-link` exists). Result: those three labels render as plain visible text, a visual regression. Fix = define the standard screen-reader-only utility.
 
 **Files:**
 - Modify: `client/src/styles/base.css` (add `.sr-only` near `.skip-link`, ~line 186)
@@ -107,7 +107,7 @@ screen-reader-only utility next to .skip-link."
 
 ## Task 2: Overview page URL-sync for date range (deferred / nav)
 
-**Problem:** `Usage.tsx` syncs all its filters to the URL hash (deep-linkable, back/forward works). `Overview.tsx` has the same `days` range select but keeps it only in `useState` — no deep linking, no back/forward. Mirror the Usage pattern for the single `days` param.
+**Problem:** `Usage.tsx` syncs all its filters to the URL hash (deep-linkable, back/forward works). `Overview.tsx` has the same `days` range select but keeps it only in `useState`, no deep linking, no back/forward. Mirror the Usage pattern for the single `days` param.
 
 **Reference pattern:** `client/src/pages/Usage.tsx:83-97` (read on mount + `hashchange` listener) and `Usage.tsx:115-120` (`replaceState` on change). Overview only needs the `days` param, so it's a trimmed version.
 
@@ -181,7 +181,7 @@ Run:
 ```bash
 cd client && npx vitest run src/__tests__/Overview.test.tsx
 ```
-Expected: FAIL — first test fails because `location.hash` never gets `days=7` (no sync code yet).
+Expected: FAIL, first test fails because `location.hash` never gets `days=7` (no sync code yet).
 
 - [ ] **Step 3: Add the URL-sync effects**
 
@@ -250,7 +250,7 @@ survives browser back/forward."
 
 **Problem (two parts):**
 1. **Touch targets:** `.btn-sm` (used densely in table row actions like TransportsTable: Edit/Test/Disable/Delete) has no `min-height`. WCAG 2.5.5 / mobile usability wants ≥44px hit targets. Add a touch-only floor so desktop density is preserved but coarse-pointer (touch) devices get bigger targets.
-2. **Overscroll:** `.modal-body` already has `overscroll-behavior: contain` (components.css:553), but the mobile sidebar drawer (`.sidebar-open` / `.sidebar-overlay`, components.css:1182/1200) does not — scroll momentum can leak to the page behind the open drawer.
+2. **Overscroll:** `.modal-body` already has `overscroll-behavior: contain` (components.css:553), but the mobile sidebar drawer (`.sidebar-open` / `.sidebar-overlay`, components.css:1182/1200) does not, scroll momentum can leak to the page behind the open drawer.
 
 **Files:**
 - Modify: `client/src/styles/components.css` (`.btn-sm` block ~line 120; sidebar mobile block ~line 1182/1200)
@@ -288,7 +288,7 @@ In `client/src/styles/components.css`, inside the mobile media query, find the `
   }
 ```
 
-(Only add to `.sidebar-open` if it sets `overflow-y: auto`/`scroll`; inspect the block first — if it does not scroll, the overlay rule is sufficient and you should note that in the commit.)
+(Only add to `.sidebar-open` if it sets `overflow-y: auto`/`scroll`; inspect the block first, if it does not scroll, the overlay rule is sufficient and you should note that in the commit.)
 
 - [ ] **Step 4: Verify the rules are present**
 
@@ -319,11 +319,11 @@ contain scroll momentum on the mobile sidebar drawer."
 
 ---
 
-## Task 4 (OPTIONAL — G1): Create reusable `Field` component
+## Task 4 (OPTIONAL: G1): Create reusable `Field` component
 
-> **Decision gate:** Compliance is ALREADY met inline (commit `6741fd6`). This task and Task 5 are a structural refactor to stop repeating the label+input boilerplate across ~55 sites and prevent future drift. Do this only if reducing that duplication is wanted now. If skipping, stop after Task 3 — the codebase is fully compliant without it.
+> **Decision gate:** Compliance is ALREADY met inline (commit `6741fd6`). This task and Task 5 are a structural refactor to stop repeating the label+input boilerplate across ~55 sites and prevent future drift. Do this only if reducing that duplication is wanted now. If skipping, stop after Task 3, the codebase is fully compliant without it.
 
-**Scope:** `Field` handles the common **text/number input + visible label** case only. Selects and textareas keep their existing manual `<label htmlFor>` markup (their markup varies too much to unify cheaply — YAGNI).
+**Scope:** `Field` handles the common **text/number input + visible label** case only. Selects and textareas keep their existing manual `<label htmlFor>` markup (their markup varies too much to unify cheaply, YAGNI).
 
 **Files:**
 - Create: `client/src/components/Field.tsx`
@@ -384,7 +384,7 @@ Run:
 ```bash
 cd client && npx vitest run src/components/__tests__/Field.test.tsx
 ```
-Expected: FAIL — `Field` not found / cannot resolve `../Field`.
+Expected: FAIL, `Field` not found / cannot resolve `../Field`.
 
 - [ ] **Step 3: Implement `Field`**
 
@@ -478,13 +478,13 @@ Text-input only; selects/textareas keep their own markup."
 
 ---
 
-## Task 5 (OPTIONAL — G1 cont.): Migrate AddModelModal to `Field` as proof
+## Task 5 (OPTIONAL: G1 cont.): Migrate AddModelModal to `Field` as proof
 
 **Purpose:** Prove `Field` is a drop-in and the modal still passes its tests, before fanning out to the other modals. AddModelModal currently has 3 text/number inputs with manual `<label htmlFor>` (lines 88, 101, 113) plus two pricing inputs (128, 142).
 
 **Files:**
 - Modify: `client/src/components/models/AddModelModal.tsx`
-- Existing test (must still pass): `client/src/__tests__/` — check for an AddModelModal test; ProviderModelsSection has one. Run the suite to be safe.
+- Existing test (must still pass): `client/src/__tests__/`, check for an AddModelModal test; ProviderModelsSection has one. Run the suite to be safe.
 
 - [ ] **Step 1: Read the current modal to capture exact field props**
 
@@ -517,7 +517,7 @@ For each of the three standalone inputs (name, display-name, context-window), re
 />
 ```
 
-Leave the two pricing inputs (lines 128/142) **as-is** if they use a shared-row flex layout with `style={{ flex: 1 }}` on the label — Field's `div.field` wrapper would break that row. Migrate them only if they are standalone; otherwise note them as intentionally skipped.
+Leave the two pricing inputs (lines 128/142) **as-is** if they use a shared-row flex layout with `style={{ flex: 1 }}` on the label, Field's `div.field` wrapper would break that row. Migrate them only if they are standalone; otherwise note them as intentionally skipped.
 
 - [ ] **Step 4: Run the modal/related tests**
 
@@ -557,22 +557,22 @@ After this proof, the remaining migration targets (each its own commit, same mec
 - `client/src/components/transports/BulkImportModal.tsx`
 - `client/src/components/TransportAssignment.tsx`
 
-These are optional and low-risk. Stop here unless the duplication reduction is explicitly wanted — compliance does not depend on them.
+These are optional and low-risk. Stop here unless the duplication reduction is explicitly wanted, compliance does not depend on them.
 
 ---
 
 ## Self-Review
 
-**1. Spec coverage** — every deferred/debt item from the audit recap is covered:
+**1. Spec coverage**, every deferred/debt item from the audit recap is covered:
 - ✅ `.sr-only` regression (newly found in re-check) → Task 1
 - ✅ Overview URL-sync (deferred/nav) → Task 2
 - ✅ Touch targets 44×44 + overscroll on drawer (fase "Later") → Task 3
-- ✅ G1 `Field` consolidation (~55 inline fixes) → Tasks 4–5 (optional, with migration list)
-- ⏹️ `prefers-reduced-motion` for `.stagger` — intentionally NOT a task: already covered by the global `* { animation-duration: 0.01ms }` rule in `base.css` (verified during audit).
-- ⏹️ Heading-semantics polish beyond `Card`/`Stat` — not currently a flagged finding; out of scope.
+- ✅ G1 `Field` consolidation (~55 inline fixes) → Tasks 4-5 (optional, with migration list)
+- ⏹️ `prefers-reduced-motion` for `.stagger`, intentionally NOT a task: already covered by the global `* { animation-duration: 0.01ms }` rule in `base.css` (verified during audit).
+- ⏹️ Heading-semantics polish beyond `Card`/`Stat`, not currently a flagged finding; out of scope.
 
-**2. Placeholder scan** — no TBD/TODO/"add error handling"/"similar to Task N". All code steps contain complete code; migration values are explicitly captured from source in Task 5 Step 1 rather than guessed.
+**2. Placeholder scan**, no TBD/TODO/"add error handling"/"similar to Task N". All code steps contain complete code; migration values are explicitly captured from source in Task 5 Step 1 rather than guessed.
 
-**3. Type consistency** — `Field` prop names (`id`, `label`, `value`, `onInput`, `type`, `name`, `autocomplete`, `placeholder`, `required`, `inputMode`, `spellcheck`, `hint`) are identical in the component (Task 4 Step 3), its test (Task 4 Step 1), and the usage (Task 5 Step 3). `spellcheck` (lowercase) used consistently per the Preact convention noted up top.
+**3. Type consistency**, `Field` prop names (`id`, `label`, `value`, `onInput`, `type`, `name`, `autocomplete`, `placeholder`, `required`, `inputMode`, `spellcheck`, `hint`) are identical in the component (Task 4 Step 3), its test (Task 4 Step 1), and the usage (Task 5 Step 3). `spellcheck` (lowercase) used consistently per the Preact convention noted up top.
 
-**Risk note:** Task 5 Step 3 calls out the flex-row pricing inputs as a layout hazard for `Field` — this is the one place the mechanical migration can break visual layout, hence the explicit "leave as-is" guard.
+**Risk note:** Task 5 Step 3 calls out the flex-row pricing inputs as a layout hazard for `Field`, this is the one place the mechanical migration can break visual layout, hence the explicit "leave as-is" guard.

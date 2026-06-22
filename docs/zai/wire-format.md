@@ -70,7 +70,7 @@ pair it with `CLAUDE_CODE_AUTO_COMPACT_WINDOW: 1000000` in
 | `glm-4.6v-flashx`     | GLM-4.6V FlashX | 128K    | 0.04      | 0.4        | 0.004          |
 | `glm-5v-turbo`        | GLM-5V Turbo    | 200K    | 1.2       | 4.0        | 0.24           |
 
-`glm-5v-turbo` is Z.AI's first multimodal coding foundation model — image,
+`glm-5v-turbo` is Z.AI's first multimodal coding foundation model. Image,
 video, text, and file input → text output. See the
 [glm-5v-turbo guide](https://docs.z.ai/guides/vlm/glm-5v-turbo) and
 [glm-4.6v guide](https://docs.z.ai/guides/vlm/glm-4.6v) for capability
@@ -81,12 +81,12 @@ matrices.
 Anything in the upstream enum
 (<https://docs.z.ai/api-reference/llm/chat-completion.md>) but not in the
 curated list can be added manually via the dashboard's Models page → "+ Add
-model" — the upstream `model` field accepts the bare id exactly as the docs
+model". The upstream `model` field accepts the bare id exactly as the docs
 spell it (e.g. `glm-4.5-x`, `glm-4.5-air`, `glm-4-32b-0414-128k`).
 
 ## Request shape (OpenAI endpoint)
 
-Mirrors `chat.completion_create` — the router passes the client's OpenAI body
+Mirrors `chat.completion_create`. The router passes the client's OpenAI body
 through after stripping the `zai/` prefix and forcing `stream:true` plus
 `stream_options.include_usage`. No system-injection, no message folding.
 
@@ -104,11 +104,11 @@ through after stripping the `zai/` prefix and forcing `stream:true` plus
 ```
 
 Tool calls, function definitions, and `reasoning_content` are passed through
-unchanged — Z.AI speaks the standard OpenAI Chat Completions surface.
+unchanged. Z.AI speaks the standard OpenAI Chat Completions surface.
 
 ## Request shape (Anthropic endpoint)
 
-Mirrors `messages.create` — the router forwards the client's Anthropic body
+Mirrors `messages.create`. The router forwards the client's Anthropic body
 verbatim (model rewrite + `stream:true` only). System, tools, thinking, and
 multimodal blocks pass through unchanged.
 

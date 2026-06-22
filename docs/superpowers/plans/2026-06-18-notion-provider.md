@@ -13,27 +13,27 @@
 ## File Structure
 
 **New files:**
-- `src/auth/notion.ts` — `requestOtp`, `exchangeOtp`, optional `refreshNotionToken`
-- `src/proxy/notion.ts` — provider implementation (selectAccount, upstreamFetch, applyAccountError, format conversion)
-- `src/selection/notion.ts` — sticky/round-robin state machine
-- `src/models/notion.ts` — manifest-driven catalogue seed
-- `src/models/notion/manifest.json` — model list (populated from RE capture)
-- `src/db/migrations/008-conversation-routing.ts` — new table
-- `scripts/notion-add-account.ts` — CLI
-- `src/registry/providers/notion.ts` — provider registration hook
+- `src/auth/notion.ts`, `requestOtp`, `exchangeOtp`, optional `refreshNotionToken`
+- `src/proxy/notion.ts`, provider implementation (selectAccount, upstreamFetch, applyAccountError, format conversion)
+- `src/selection/notion.ts`, sticky/round-robin state machine
+- `src/models/notion.ts`, manifest-driven catalogue seed
+- `src/models/notion/manifest.json`, model list (populated from RE capture)
+- `src/db/migrations/008-conversation-routing.ts`, new table
+- `scripts/notion-add-account.ts`, CLI
+- `src/registry/providers/notion.ts`, provider registration hook
 - `tests/auth/notion.test.ts`
 - `tests/proxy/notion.test.ts`
 - `tests/selection/notion.test.ts`
-- `tests/fixtures/notion/sample-stream.har` — captured session (after RE)
-- `docs/notion/README.md` — endpoint table + ToS note
+- `tests/fixtures/notion/sample-stream.har`, captured session (after RE)
+- `docs/notion/README.md`, endpoint table + ToS note
 
 **Modified files:**
-- `src/server.ts` — register Notion provider, mount auth route
-- `src/registry/providers/index.ts` — add Notion to provider map
-- `package.json` — add `notion-add-account` and `seed-notion-models` scripts
-- `README.md` — Notion provider section
-- `CHANGELOG.md` — entry under next version
-- `.env.example` — Notion-specific env vars (if any)
+- `src/server.ts`, register Notion provider, mount auth route
+- `src/registry/providers/index.ts`, add Notion to provider map
+- `package.json`, add `notion-add-account` and `seed-notion-models` scripts
+- `README.md`, Notion provider section
+- `CHANGELOG.md`, entry under next version
+- `.env.example`, Notion-specific env vars (if any)
 
 ---
 
@@ -241,7 +241,7 @@ describe('notion auth', () => {
 npx vitest run tests/auth/notion.test.ts
 ```
 
-Expected: FAIL — module `src/auth/notion` not found.
+Expected: FAIL, module `src/auth/notion` not found.
 
 - [ ] **Step 3: Implement minimal module**
 
@@ -324,7 +324,7 @@ git commit -m "feat(auth): Notion OTP request + exchange with token + refreshTok
 
 ---
 
-### Task 3: CLI script — notion-add-account
+### Task 3: CLI script: notion-add-account
 
 **Files:**
 - Create: `scripts/notion-add-account.ts`
@@ -513,7 +513,7 @@ describe('selectNotionAccount', () => {
 npx vitest run tests/selection/notion.test.ts
 ```
 
-Expected: FAIL — module not found.
+Expected: FAIL, module not found.
 
 - [ ] **Step 3: Implement selection module**
 
@@ -636,7 +636,7 @@ describe('conversation routing', () => {
 npx vitest run tests/selection/notion.test.ts
 ```
 
-Expected: FAIL — exports not found.
+Expected: FAIL, exports not found.
 
 - [ ] **Step 3: Add exports to selection module**
 
@@ -724,7 +724,7 @@ git commit -m "feat(selection): conversation_routing lookup + atomic upsert with
 
 ## Phase 4: Proxy + Format Conversion
 
-### Task 6: Format conversion — OpenAI → Notion
+### Task 6: Format conversion: OpenAI → Notion
 
 **Files:**
 - Create: `src/proxy/notion/format.ts`
@@ -833,7 +833,7 @@ git commit -m "feat(proxy/notion): OpenAI → Notion body conversion with conver
 
 ---
 
-### Task 7: SSE response conversion — Notion → OpenAI
+### Task 7: SSE response conversion: Notion → OpenAI
 
 **Files:**
 - Modify: `src/proxy/notion/format.ts` (add responseNotionChunkToOpenAI)
@@ -1392,7 +1392,7 @@ Full request/response examples: see `tests/fixtures/notion/sample-stream.har`.
 ## Setup
 
 ```bash
-npm run notion-add-account -- --label personal --email user@example.com
+npm run notion-add-account, --label personal --email user@example.com
 ```
 
 Enter the 6-digit code from email. Token stored in `accounts` table with `provider='notion'`.
@@ -1510,7 +1510,7 @@ If Steps 1-5 surfaced issues, fix them and commit per logical unit. If clean, no
 - Documentation: Task 11 ✓
 - Verification: Task 12 ✓
 
-**Placeholders:** all "TBD" markers point to capture-notes.md (Phase 0 output) — explicit, not invented. Auth refresh implementation is dual-mode placeholder per spec section 1.
+**Placeholders:** all "TBD" markers point to capture-notes.md (Phase 0 output), explicit, not invented. Auth refresh implementation is dual-mode placeholder per spec section 1.
 
 **Type consistency:** `selectNotionAccount`, `lookupConversationRouting`, `upsertConversationRouting` defined in Task 4/5 and used in Task 8/9 with matching signatures. `bodyOpenAIToNotion` and `responseNotionChunkToOpenAI` defined in Task 6/7 and used in Task 8. Account row shape consistent.
 

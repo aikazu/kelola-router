@@ -13,7 +13,7 @@ The 3 state machines (selection / backoff / lock) are the most-touched-and-most-
 | Mode | Storage | Behavior | Reset on… |
 |---|---|---|---|
 | `lowest-backoff` (default) | stateless | Sort by `backoffLevel` asc, take first | N/A |
-| `round-robin` | `rrCursor` per provider (in `server.ts` module-scope) | `idx = floor(cursor / step) % available.length`. Advance `cursor += 1` per request. | process restart (intentional — no DB persistence) |
+| `round-robin` | `rrCursor` per provider (in `server.ts` module-scope) | `idx = floor(cursor / step) % available.length`. Advance `cursor += 1` per request. | process restart (intentional; no DB persistence) |
 | `sticky` | `Map<clientKeyId, accountId>` in `server.ts` `stickyMap` | Pin first-selected account per `clientKeyId`. Fallback to `lowest-backoff` on miss + re-pin. | process restart |
 
 ### Invariants
@@ -51,14 +51,14 @@ See [`docs/reference/error-codes.md`](../../docs/reference/error-codes.md) for t
 ### What gets persisted
 
 `applyAccountError` mutates an `AccountState` (in-memory copy, then `updateAccount(db, ...)` to persist):
-- `rateLimitedUntil` — ISO timestamp. Set when `cooldownMs > 0`. Cleared on next success.
-- `backoffLevel` — `0..BACKOFF_MAX_LEVEL` (5). Increments on `backoff: true` decisions. Resets to 0 on success.
-- `lastError` — JSON blob `{status, message, timestamp, baseRespCode}`. Always set on error. Truncated to 500 chars in `state.ts:42`.
-- `status` — `active` / `error` / `disabled`. Set to `error` on HTTP 401. Cleared on next success.
+- `rateLimitedUntil`. ISO timestamp. Set when `cooldownMs > 0`. Cleared on next success.
+- `backoffLevel`. `0..BACKOFF_MAX_LEVEL` (5). Increments on `backoff: true` decisions. Resets to 0 on success.
+- `lastError`. JSON blob `{status, message, timestamp, baseRespCode}`. Always set on error. Truncated to 500 chars in `state.ts:42`.
+- `status`. `active` / `error` / `disabled`. Set to `error` on HTTP 401. Cleared on next success.
 
 ### Invariants
 
-1. **1008 (balance) is permanent.** `applyAccountError` does not set `cooldownMs`; the account stays `active` but its `backoffLevel` stays at max. It won't be selected by `lowest-backoff` (which sorts by level asc — but max is still selected if all are max).
+1. **1008 (balance) is permanent.** `applyAccountError` does not set `cooldownMs`; the account stays `active` but its `backoffLevel` stays at max. It won't be selected by `lowest-backoff` (which sorts by level asc, but max is still selected if all are max).
 2. **2013 (param) is permanent too.** Same as 1008.
 3. **401 sets `status='error'`.** The dashboard surfaces this and the user must re-add the account.
 4. **Cooldown is wall-clock.** `rate_limited_until > now` is what `isAccountUnavailable` checks. Server time is trusted.
@@ -79,7 +79,7 @@ function isAccountUnavailable(account: AccountState): boolean {
 
 - `backoffLevel` is incremented in `errorRules.checkFallbackError` only when the rule has `backoff: true`. Most base_resp codes return `cooldownMs` directly without bumping the level.
 - The exponential curve lives in `src/accounts/backoff.ts` `getQuotaCooldown(level)`. `BACKOFF_MAX_LEVEL = 5` caps the level; further increments are no-ops (Math.min).
-- `applyAccountError` is called inside the proxy handler's `catch` block. If the request itself crashes (e.g. consoleBus throws), the error path may not run — check `src/console/bus.ts` for the throwing-subscriber isolation.
+- `applyAccountError` is called inside the proxy handler's `catch` block. If the request itself crashes (e.g. consoleBus throws), the error path may not run. Check `src/console/bus.ts` for the throwing-subscriber isolation.
 
 ## 3. Per-model lock (`src/accounts/locks.ts`)
 
@@ -97,19 +97,19 @@ For combo routing, the proxy moves to the NEXT model in the chain.
 
 ### TTL
 
-Lock TTL is short — `getQuotaCooldown(level+1)` typically. Cleared by `clearExpiredModelLocks` on the next proxy tick.
+Lock TTL is short, `getQuotaCooldown(level+1)` typically. Cleared by `clearExpiredModelLocks` on the next proxy tick.
 
 ### Invariants
 
 1. **Lock is per (account, model).** Two accounts can both have the same model locked independently.
 2. **No per-account lock for the model means no lock.** Don't infer "no row = no lock" without checking `locked_until > now` first.
-3. **Lock bypasses `selectAccount`.** Even a healthy account is rejected if its model is locked. This is intentional — model problems are sticky.
+3. **Lock bypasses `selectAccount`.** Even a healthy account is rejected if its model is locked. This is intentional: model problems are sticky.
 
 ### Gotchas
 
 - `clearExpiredModelLocks` runs on every `selectAccount` call (or close to it). It's a cheap `DELETE WHERE locked_until < now`.
-- The PK is `(account_id, model)` — re-inserting on the same pair replaces the row.
-- If you add a new "lock reason" (e.g. `rate_limited`, `safety_violation`), add a column to the table + a migration. Don't store the reason in a JSON blob — the dashboard wants to filter.
+- The PK is `(account_id, model)`. Re-inserting on the same pair replaces the row.
+- If you add a new "lock reason" (e.g. `rate_limited`, `safety_violation`), add a column to the table + a migration. Don't store the reason in a JSON blob; the dashboard wants to filter.
 
 ## Cross-coupling
 
@@ -126,7 +126,7 @@ Lock TTL is short — `getQuotaCooldown(level+1)` typically. Cleared by `clearEx
 
 ## Cross-refs
 
-- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) — state-machine diagrams
-- [`../../docs/reference/error-codes.md`](../../docs/reference/error-codes.md) — error → decision table
-- [`../../docs/guides/debug-a-failed-request.md`](../../docs/guides/debug-a-failed-request.md) — debug ladder
-- `src/accounts/{selection,state,locks,backoff,errorRules,types}.ts` — source of truth
+- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md): state-machine diagrams
+- [`../../docs/reference/error-codes.md`](../../docs/reference/error-codes.md): error → decision table
+- [`../../docs/guides/debug-a-failed-request.md`](../../docs/guides/debug-a-failed-request.md): debug ladder
+- `src/accounts/{selection,state,locks,backoff,errorRules,types}.ts`: source of truth

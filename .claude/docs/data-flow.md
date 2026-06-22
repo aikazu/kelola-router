@@ -8,9 +8,9 @@ When a refactor touches the proxy pipeline, the agent needs to know the exact se
 
 ## 0. Before `handleProxy`: middleware
 
-- `csrfGuard` (admin only) — blocks cross-origin POSTs
-- `requireApiKey` (proxy) — checks `Authorization: Bearer <key>` against `client_keys.key`
-- `requireAdmin` (admin) — session cookie OR `x-admin-key` OR open mode
+- `csrfGuard` (admin only). Blocks cross-origin POSTs.
+- `requireApiKey` (proxy). Checks `Authorization: Bearer <key>` against `client_keys.key`.
+- `requireAdmin` (admin). Session cookie OR `x-admin-key` OR open mode.
 
 ## 1. `parseBody` + model resolution
 
@@ -21,7 +21,7 @@ What `resolveModel` does:
 - Strip `-thinking` / `-agentic` / `-thinking-agentic` suffix for kiro routing
 - Return the resolved model + the original alias (stored as `requested_model` in logs)
 
-## 2. `genReqId()` — 4-byte hex
+## 2. `genReqId()`: 4-byte hex
 
 Set on `c` context. Threaded through every `consoleBus.emit` and every `insertRequestLog` call. Stored in `request_logs.req_id` so the Console page can deep-link to Request Detail.
 
@@ -48,7 +48,7 @@ If locked, the request returns here. No upstream call. The `request_logs` row ge
 
 The Console page renders this so the user can see which account was selected.
 
-## 7. `augmentRequest(body)` — caveman + cache_control
+## 7. `augmentRequest(body)`: caveman + cache_control
 
 `src/cache-injection.ts`:
 - If `caveman.level` is `'lite'` or `'full'`, prepend a system prompt that compresses the conversation
@@ -67,7 +67,7 @@ Skipped if `rtk.enabled` is false (the default).
 
 ## 9. `resolveTransportForAccount`
 
-`src/transport/resolve.ts` — returns a `TransportConfig` based on account's `relay_id` / `proxy_id` / `proxy_pool`, or the global `settings.transport` fallback, or `null` for direct.
+`src/transport/resolve.ts` returns a `TransportConfig` based on account's `relay_id` / `proxy_id` / `proxy_pool`, or the global `settings.transport` fallback, or `null` for direct.
 
 `consoleBus.emit('transport', { reqId, kind: 'relay' | 'proxy' | 'direct', label: <url> })` (only when transport is non-null).
 
@@ -105,17 +105,17 @@ Emitted on success. `ttft_ms` is the time to first byte (streaming only). `token
 
 ## 14. `insertRequestLog(row)`
 
-`src/db/repos/requestLogs.ts:insertRequestLogDeferred` (deferred for buffered) or `insertRequestLog` (immediate for streaming). The row has 29 columns including `request_body`, `response_body`, `request_headers`, `response_headers` (bodies are stored for debugging — see `INSERT_REQUEST_LOG_BODY_RETENTION_DAYS` in scheduler).
+`src/db/repos/requestLogs.ts:insertRequestLogDeferred` (deferred for buffered) or `insertRequestLog` (immediate for streaming). The row has 29 columns including `request_body`, `response_body`, `request_headers`, `response_headers` (bodies are stored for debugging; see `INSERT_REQUEST_LOG_BODY_RETENTION_DAYS` in scheduler).
 
 ## 15. `applyAccountError` (on failure)
 
 If the upstream call threw or returned a 4xx/5xx:
 - `checkFallbackError(status, body, baseRespCode, backoffLevel, ...)` returns a `FallbackDecision`
 - `applyAccountError` mutates the account state in the DB
-- `consoleBus.emit('error', { reqId, status, body })` — body is truncated to 200 chars
+- `consoleBus.emit('error', { reqId, status, body })`. Body is truncated to 200 chars.
 - For Kiro: a different error class (refresh token, persona mismatch) is handled inline in `src/proxy/kiro.ts`
 
-The proxy still returns an HTTP response — the error is logged, not thrown.
+The proxy still returns an HTTP response. The error is logged, not thrown.
 
 ## 16. Kiro-specific path
 
@@ -157,13 +157,13 @@ Bus subscribers: the dashboard SSE stream + (optionally) `attachStdoutSink` for 
 - **`latency_ms` is wall-clock from `c.get('startTime')`** to the moment the response is returned. Includes all upstream time + format conversion + SSE assembly.
 - **The Console bus has 200-event ring buffer.** `consoleBus.recent(200)` is what new SSE clients backfill with.
 - **`CONSOLE_FLOW=0` env disables the stdout sink only** (not the bus or SSE stream). The dashboard always gets events.
-- **Bodies in `request_logs` are full** — they can be megabytes for long conversations. The retention is `REQUEST_LOG_RETENTION_DAYS` (default 30) via the scheduler.
+- **Bodies in `request_logs` are full.** They can be megabytes for long conversations. The retention is `REQUEST_LOG_RETENTION_DAYS` (default 30) via the scheduler.
 
 ## Cross-refs
 
-- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) — visual flow + state machines
-- [`state-machines.md`](state-machines.md) — selection / backoff / lock
-- [`format-conversion.md`](format-conversion.md) — body transform rules
-- [`../../docs/reference/db-tables.md`](../../docs/reference/db-tables.md) — `request_logs` schema
-- [`../../docs/guides/debug-a-failed-request.md`](../../docs/guides/debug-a-failed-request.md) — debug ladder
-- `src/console/types.ts` — FlowEvent union
+- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md): visual flow + state machines
+- [`state-machines.md`](state-machines.md): selection / backoff / lock
+- [`format-conversion.md`](format-conversion.md): body transform rules
+- [`../../docs/reference/db-tables.md`](../../docs/reference/db-tables.md): `request_logs` schema
+- [`../../docs/guides/debug-a-failed-request.md`](../../docs/guides/debug-a-failed-request.md): debug ladder
+- `src/console/types.ts`: FlowEvent union

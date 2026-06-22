@@ -1,4 +1,4 @@
-# Provider Prefix Routing — Design
+# Provider Prefix Routing (Design)
 
 **Date:** 2026-06-14
 **Status:** Approved (brainstorm), pending implementation plan
@@ -25,7 +25,7 @@ Unprefixed model strings resolve **only** against combos and aliases (strict).
 1. **Strict.** A bare (unprefixed) string is valid only if it is a combo name or
    an alias. A bare raw model name (a real `models` row that is not an alias)
    is rejected. Real provider models REQUIRE a prefix.
-2. **Format** `<prefix>/<modelName>` — slash separator, no leading slash.
+2. **Format** `<prefix>/<modelName>` (slash separator, no leading slash).
 3. **Literal lookup + provider enforced.** After a prefix, the model name is
    looked up literally (no alias expansion). The resolved `model.provider` MUST
    equal the prefix's provider, else error. The prefix is authoritative; it does
@@ -45,7 +45,7 @@ Accepted by the user.
 ## Current behaviour (baseline)
 
 - `handleProxy` (`src/proxy/minimax.ts`):
-  1. `getCombo(body.model)` — if combo, delegate to `handleComboProxy`.
+  1. `getCombo(body.model)`: if combo, delegate to `handleComboProxy`.
   2. `peek = resolveModel(db, body.model, body)` inside a try/catch; branch to
      `handleKiroProxy` / `handleCodeBuddyProxy` on `peek.provider`; unknown model
      falls through to the MiniMax path for the canonical 400.
@@ -53,15 +53,15 @@ Accepted by the user.
   returns `{ upstreamModel, requestedModel, provider, bodyTransform }`. Provider
   comes from the `models.provider` column (default `minimax`).
 - `resolveAlias` (`src/providers/aliasCache.ts`): returns the input unchanged on
-  a miss — so "is an alias" == `resolveAlias(x) !== x`.
+  a miss, so "is an alias" == `resolveAlias(x) !== x`.
 - Combos are bare-only and intercepted before `resolveModel` runs.
 
-## Design (Approach 1 — prefix logic inside `resolveModel`)
+## Design (Approach 1: prefix logic inside `resolveModel`)
 
 Single source of truth. All call sites already branch on `resolved.provider`, so
 they inherit enforcement with no change.
 
-### Component 1 — `src/providers/modelPrefix.ts` (new)
+### Component 1: `src/providers/modelPrefix.ts` (new)
 
 ```ts
 const PREFIX_TO_PROVIDER = { mm: 'minimax', kr: 'kiro', cb: 'codebuddy' } as const;
@@ -81,11 +81,11 @@ Logic:
   - Otherwise → throw `Error('unknown model prefix: <segment>')`.
 - No `/` → `{ provider: null, modelName: raw, prefixed: false }`.
 
-### Component 2 — `resolveModel` rewrite (`src/providers/alias.ts`)
+### Component 2: `resolveModel` rewrite (`src/providers/alias.ts`)
 
 1. `const p = parseModelPrefix(requestedName)` (may throw).
 2. **Prefixed branch** (`p.prefixed`):
-   - `model = getModel(db, p.modelName)` — literal, no alias expansion.
+   - `model = getModel(db, p.modelName)` (literal, no alias expansion).
      Missing → throw `unknown model: <requestedName>`.
    - `(model.provider ?? 'minimax') !== p.provider` → throw
      `model <modelName> not available on provider <prefix-provider>`.
@@ -101,9 +101,9 @@ Logic:
    provider, bodyTransform }`. `requestedModel` is the **original** string
    (full prefixed) → satisfies the logging decision. `bodyTransform` unchanged.
 
-Combos are unaffected — still intercepted upstream by `getCombo`.
+Combos are unaffected (still intercepted upstream by `getCombo`).
 
-### Component 3 — call sites
+### Component 3: call sites
 
 No logic change needed (`handleProxy` peek, `combo.ts`, `kiro.ts`, `codebuddy.ts`
 all branch on `resolved.provider`). Verification points:
@@ -121,12 +121,12 @@ all branch on `resolved.provider`). Verification points:
 | `kr/<kiro model>`             | route to kiro                            |
 | `mm/<minimax model>`          | route to minimax                         |
 | `cb/<codebuddy model>`        | route to codebuddy                       |
-| `kr/<minimax model>`          | 400 — provider mismatch                  |
-| `kr/<unknown>`                | 400 — unknown model                      |
-| `xx/foo`                      | 400 — unknown model prefix               |
+| `kr/<minimax model>`          | 400 (provider mismatch)                  |
+| `kr/<unknown>`                | 400 (unknown model)                      |
+| `xx/foo`                      | 400 (unknown model prefix)               |
 | bare alias name               | route by resolved model's provider       |
 | bare combo name               | combo fallback chain (intercepted early) |
-| bare raw model name           | 400 — unknown model (strict)             |
+| bare raw model name           | 400 (unknown model, strict)             |
 
 ## Testing (TDD, red → green)
 
@@ -140,8 +140,8 @@ all branch on `resolved.provider`). Verification points:
 
 ## Docs
 
-- `CLAUDE.md` — document the prefix convention in the provider section.
-- `ARCHITECTURE.md` — note prefix-driven resolution in the model-resolution step.
+- `CLAUDE.md`: document the prefix convention in the provider section.
+- `ARCHITECTURE.md`: note prefix-driven resolution in the model-resolution step.
 
 ## Combo members (added during implementation)
 

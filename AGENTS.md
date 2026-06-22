@@ -1,14 +1,14 @@
 # AGENTS.md
 
-Single source of truth for working in this repository. Auto-loaded into Claude Code (and any other AI coding agent that reads project context) as the primary reference. **This file replaces what used to live in `CLAUDE.md`** — that file is now a one-paragraph pointer back here.
+Single source of truth for working in this repository. Auto-loaded into Claude Code (and any other AI coding agent that reads project context) as the primary reference. **This file replaces what used to live in `CLAUDE.md`**. That file is now a one-paragraph pointer back here.
 
-Humans may also find the conventions section useful — see `CONTRIBUTING.md` for the human-facing workflow.
+Humans may also find the conventions section useful. See `CONTRIBUTING.md` for the human-facing workflow.
 
 ## Read first, in order
 
-1. **`AGENTS.md`** (this file) — project overview, architecture, workflow, conventions.
-2. **[`ARCHITECTURE.md`](ARCHITECTURE.md)** — deep dive: module map, state machines, data flow per request, key invariants.
-3. **[`MEMORY.md`](MEMORY.md)** — index of every knowledge resource (skills, KB, guides, ADRs, reference tables).
+1. **`AGENTS.md`** (this file): project overview, architecture, workflow, conventions.
+2. **[`ARCHITECTURE.md`](ARCHITECTURE.md)**: module map, state machines, data flow per request, key invariants.
+3. **[`MEMORY.md`](MEMORY.md)**: index of every knowledge resource (skills, KB, guides, ADRs, reference tables).
 
 ## TL;DR
 
@@ -61,49 +61,49 @@ Docker: `docker build -t kelola-router:latest . && docker compose up -d` (serves
 
 ## Architecture (one-page)
 
-`src/server.ts` — Hono app, ~330 LOC. Middleware: `requireApiKey` (Bearer) for `/v1/*`, `requireAdmin` for `/admin/*`, `verifySameOrigin` CSRF guard on `/admin/*` POSTs.
+`src/server.ts`: Hono app, ~330 LOC. Middleware: `requireApiKey` (Bearer) for `/v1/*`, `requireAdmin` for `/admin/*`, `verifySameOrigin` CSRF guard on `/admin/*` POSTs.
 
 Per-request path inside `handleProxy` (see `src/proxy/minimax.ts` + `proxy/kiro.ts` + `proxy/codebuddy.ts` + `proxy/pioneer.ts` + `proxy/notion.ts` + `proxy/combo.ts`):
 
 1. `parseBody` + model resolution (alias + thinking + M3 max-completion-tokens)
 2. `selectAccount` (state machine: sticky + round-robin w/ step, skips backoff/locked/disabled). Mode + step read per provider from `selection.<provider>` setting.
 3. Per-model lock check (returns 429 if locked for this model)
-4. `augment` — caveman system-prompt + `cache_control` dual breakpoints
+4. `augment`: caveman system-prompt + `cache_control` dual breakpoints
 5. RTK compression if enabled
 6. `bodyOpenAIToAnthropic` or `bodyAnthropicToOpenAI` per `settings.minimax.upstreamFormat`
 7. `upstreamFetch` → SSE pipe via `streaming/pipeWithUsage` or buffered response
 8. Format-convert response back to client format
 9. `insertRequestLog` (cost, tokens, latency, account_id, client_key_id, `requested_model`)
-10. `applyAccountError` — `base_resp.status_code` mapping, backoff, model lock
+10. `applyAccountError`: `base_resp.status_code` mapping, backoff, model lock
 
 Deep-dive (module map, state machines, data flow): see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## What this is
 
-`kelola-router` — local-first API router. Single-user self-host. OpenAI + Anthropic compatible proxy, multi-account pool with fallback, prompt caching, model aliases, RTK + Caveman compression, built-in dashboard. SQLite (WAL) for state. Hono on Node 20+.
+`kelola-router`: local-first API router. Single-user self-host. OpenAI + Anthropic compatible proxy, multi-account pool with fallback, prompt caching, model aliases, RTK + Caveman compression, built-in dashboard. SQLite (WAL) for state. Hono on Node 20+.
 
-**Upstream providers** (selected by the `body.model` prefix — see "Model prefix routing"; the resolved model's `provider` column must agree):
-- **MiniMax** (default) — [minimax.io](https://minimax.io), API-key bearer, HTTP-JSON.
-- **Kiro** (AWS CodeWhisperer / Amazon Q) — OAuth refresh-token auth, AWS event-stream binary protocol, translated to/from OpenAI + Anthropic. See "Kiro provider" below.
-- **CodeBuddy** (CodeBuddy.ai) — OpenAI-compatible upstream, API-key bearer. Client request bridged to OpenAI stream and back (OpenAI SSE → Anthropic SSE assembler). Routed via cb/ prefix. See src/proxy/codebuddy.ts + src/providers/codebuddy/.
-- **Pioneer** (api.pioneer.ai) — OpenAI-compatible Chat Completions, X-API-Key bearer. Reuses CodeBuddy's OpenAI→Anthropic SSE bridge. Routed via pio/ prefix; models namespaced under pioneer/ to avoid global-unique id collisions. See src/proxy/pioneer.ts + src/providers/pioneer/.
-- **Notion** (app.notion.com) — reverse-engineered Notion desktop AI chat. 3-step temp-password login (email + 6-char temp password emailed), cookie-based session (11 cookies required), CRDT-style JSON request body + NDJSON patch-stream response. Routed via nt/ prefix; OpenAI streaming format. See src/proxy/notion.ts + src/providers/notion/ + docs/notion/wire-format.md.
-- **Z.AI** (api.z.ai) — sixth upstream provider. Single Bearer API-key auth (no OAuth, no migration). Two parallel APIs picked by client body format: Anthropic Messages at `https://api.z.ai/api/anthropic` (Claude-Code-compatible) and OpenAI Chat Completions at `https://api.z.ai/api/coding/paas/v4` (GLM Coding Plan). Routed via zai/ prefix. See src/proxy/zai.ts + src/providers/zai/ + docs/zai/{wire-format,auth}.md.
+**Upstream providers** (selected by the `body.model` prefix; see "Model prefix routing"; the resolved model's `provider` column must agree):
+- **MiniMax** (default): [minimax.io](https://minimax.io), API-key bearer, HTTP-JSON.
+- **Kiro** (AWS CodeWhisperer / Amazon Q): OAuth refresh-token auth, AWS event-stream binary protocol, translated to/from OpenAI + Anthropic. See "Kiro provider" below.
+- **CodeBuddy** (CodeBuddy.ai): OpenAI-compatible upstream, API-key bearer. Client request bridged to OpenAI stream and back (OpenAI SSE → Anthropic SSE assembler). Routed via cb/ prefix. See src/proxy/codebuddy.ts + src/providers/codebuddy/.
+- **Pioneer** (api.pioneer.ai): OpenAI-compatible Chat Completions, X-API-Key bearer. Reuses CodeBuddy's OpenAI→Anthropic SSE bridge. Routed via pio/ prefix; models namespaced under pioneer/ to avoid global-unique id collisions. See src/proxy/pioneer.ts + src/providers/pioneer/.
+- **Notion** (app.notion.com): reverse-engineered Notion desktop AI chat. 3-step temp-password login (email + 6-char temp password emailed), cookie-based session (11 cookies required), CRDT-style JSON request body + NDJSON patch-stream response. Routed via nt/ prefix; OpenAI streaming format. See src/proxy/notion.ts + src/providers/notion/ + docs/notion/wire-format.md.
+- **Z.AI** (api.z.ai): sixth upstream provider. Single Bearer API-key auth (no OAuth, no migration). Two parallel APIs picked by client body format: Anthropic Messages at `https://api.z.ai/api/anthropic` (Claude-Code-compatible) and OpenAI Chat Completions at `https://api.z.ai/api/coding/paas/v4` (GLM Coding Plan). Routed via zai/ prefix. See src/proxy/zai.ts + src/providers/zai/ + docs/zai/{wire-format,auth}.md.
 
 ## Two-tier separation
 
-- **`client_keys`** — bearer credentials for clients (Claude Code, hermes-agent). One per app. Per-key usage.
-- **`accounts`** — upstream MiniMax/Kiro/CodeBuddy/Pioneer keys. Pool of N for fallback + quota. Each has `credit_type` (`payg` or `token-plan`) + `provider`.
+- **`client_keys`**: bearer credentials for clients (Claude Code, hermes-agent). One per app. Per-key usage.
+- **`accounts`**: upstream MiniMax/Kiro/CodeBuddy/Pioneer keys. Pool of N for fallback + quota. Each has `credit_type` (`payg` or `token-plan`) + `provider`.
 
 Never mix these. Client never sees upstream keys; upstream never sees client bearers.
 
 ## Auth model (3 modes cascading in `requireAdmin`)
 
-1. Session cookie (`kelola_session`) — only if password is set
+1. Session cookie (`kelola_session`): only if password is set
 2. `x-admin-key` header matching `ROUTER_ADMIN_KEY` env (for scripts)
-3. Open mode — if no password is set, anyone with the URL gets in
+3. Open mode: if no password is set, anyone with the URL gets in
 
-`POST /login` is rate-limited (`src/auth/rateLimit.ts` — 5/15min/IP, in-memory bucket). Set password via dashboard `/admin/settings` (scrypt-hashed, stored in `settings.admin_password`). Sessions in `sessions` table (7-day TTL).
+`POST /login` is rate-limited at `src/auth/rateLimit.ts` (5/15min/IP, in-memory bucket). Set password via dashboard `/admin/settings` (scrypt-hashed, stored in `settings.admin_password`). Sessions in `sessions` table (7-day TTL).
 
 ## Model prefix routing
 
@@ -119,7 +119,7 @@ Requests select a provider by an explicit prefix on `body.model`:
 | `zai/` | Z.AI        | `zai/<model>`            |
 
 - Prefixed names are looked up **literally** (no alias expansion) and the model's `provider` column MUST match the prefix, else 400.
-- **Unprefixed** names resolve **only** as a combo name or an alias (strict). A bare raw model name is rejected with 400 — add an alias or use a prefix.
+- **Unprefixed** names resolve **only** as a combo name or an alias (strict). A bare raw model name is rejected with 400. Add an alias or use a prefix.
 - An unknown prefix (`xx/...`) is a 400 (`unknown model prefix`).
 - `requested_model` logs the full prefixed string verbatim.
 - Parser: `src/providers/modelPrefix.ts`; enforcement: `resolveModel` in `src/providers/alias.ts`.
@@ -136,13 +136,13 @@ Kiro = AWS CodeWhisperer / Amazon Q. Branched off `handleProxy` in `src/proxy/ki
 
 ## Dashboard
 
-`client/` — standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (baked in Docker build, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`. Pages: Overview, Usage, ClientKeys, Accounts, Aliases, Models, Combos, Quota, Transports, Settings, Login, RequestDetail, Console, NotFound. Theme: Obsidian Gold (`#0a0a0a` canvas + `#c9a352` accent, Fraunces/Inter/JetBrains Mono).
+`client/`: standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (baked in Docker build, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`. Pages: Overview, Usage, ClientKeys, Accounts, Aliases, Models, Combos, Quota, Transports, Settings, Login, RequestDetail, Console, NotFound. Theme: Obsidian Gold (`#0a0a0a` canvas + `#c9a352` accent, Fraunces/Inter/JetBrains Mono).
 
 ## Project-specific conventions
 
 ### TDD workflow
 
-1. Find or write the failing test first. Most modules already have `*.test.ts` siblings — read those to understand the contract.
+1. Find or write the failing test first. Most modules already have `*.test.ts` siblings. Read those to understand the contract.
 2. Run the test file (or `npx vitest run path/to/file.test.ts -t "name"`) to confirm it fails for the **right reason**.
 3. Write the minimum code to make it pass.
 4. Run the full suite before commit: `npm test`. Server-only changes: skip `test:client`; client-only: skip root `test`. Both: run both.
@@ -161,14 +161,14 @@ Kiro = AWS CodeWhisperer / Amazon Q. Branched off `handleProxy` in `src/proxy/ki
 ### Test patterns
 
 - **Isolate the DB per test**: set `process.env.ROUTER_DB_PATH` to a fresh `mkdtempSync` path in `beforeEach`, and call `resetDb()` from `src/server.ts` to reset the Hono app's DB handle.
-- **SQLCipher test isolation** (encryption-at-rest): when `process.env.ROUTER_DB_KEY` is set, `openDb()` swaps to `better-sqlite3-multiple-ciphers` and issues `PRAGMA key` as the first statement. Tests that exercise the encrypted path must seed `ROUTER_DB_KEY` in `beforeEach` to a known passphrase (the key is process-env only — never persisted) and clear it in `afterEach` so a leak doesn't bleed across files. `isPlaintextSqlite()` rejects mixing `ROUTER_DB_KEY` against an existing plaintext file; tests must start from a fresh `mkdtempSync` path, never reuse a fixture DB.
-- **Mock upstream fetch** with `vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(...))`. Use `mockImplementation` (not `mockResolvedValueOnce`) when a test calls fetch multiple times — `Response` bodies are single-read.
+- **SQLCipher test isolation** (encryption-at-rest): when `process.env.ROUTER_DB_KEY` is set, `openDb()` swaps to `better-sqlite3-multiple-ciphers` and issues `PRAGMA key` as the first statement. Tests that exercise the encrypted path must seed `ROUTER_DB_KEY` in `beforeEach` to a known passphrase (the key is process-env only, never persisted) and clear it in `afterEach` so a leak doesn't bleed across files. `isPlaintextSqlite()` rejects mixing `ROUTER_DB_KEY` against an existing plaintext file; tests must start from a fresh `mkdtempSync` path, never reuse a fixture DB.
+- **Mock upstream fetch** with `vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(...))`. Use `mockImplementation` (not `mockResolvedValueOnce`) when a test calls fetch multiple times. `Response` bodies are single-read.
 - **CSRF**: integration tests for `/admin/*` POSTs must set `Origin` matching `Host` or omit `Origin` entirely. The `csrfGuard` middleware blocks cross-origin POSTs.
 - **Settings cache**: `getSetting` caches for 1s. Call `clearCacheForDb(db)` from `src/db/repos/settings.ts` when changing settings mid-test.
 
 ### Commit conventions
 
-Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`, `perf:`, `build:`, `ci:`). Subject ≤ 72 chars. Body explains *why*, not *what* (the diff shows what). One logical unit per commit — don't bundle unrelated changes. WIP: prefix with `wip:`. Reference the issue or test name in the body when relevant.
+Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`, `perf:`, `build:`, `ci:`). Subject ≤ 72 chars. Body explains *why*, not *what* (the diff shows what). One logical unit per commit. Don't bundle unrelated changes. WIP: prefix with `wip:`. Reference the issue or test name in the body when relevant.
 
 ```bash
 # good
@@ -184,7 +184,7 @@ git commit -m "fix bug"
 
 ### Refactor conventions
 
-- Extract helpers to the same directory before the file grows past ~500 LOC. The codebase already follows this pattern — see `src/proxy/{helpers,minimax,kiro,combo}.ts` and `src/accounts/{selection,state,locks,backoff,errorRules}.ts`.
+- Extract helpers to the same directory before the file grows past ~500 LOC. The codebase already follows this pattern. See `src/proxy/{helpers,minimax,kiro,combo}.ts` and `src/accounts/{selection,state,locks,backoff,errorRules}.ts`.
 - When extracting a function, move the related tests with it. Never leave tests against the old path.
 - Refactor commits must keep `npm test` + `npm run typecheck` green at every commit. No "wip: refactor halfway" commits.
 
@@ -205,9 +205,9 @@ These come from the user's global Claude config and apply here unless this file 
 ## Boundaries
 
 - **Do not** push branches or open PRs without explicit user confirmation.
-- **Do not** rewrite `AGENTS.md` without consulting the user — it is the agent's primary auto-load.
+- **Do not** rewrite `AGENTS.md` without consulting the user. It is the agent's primary auto-load.
 - **Do not** introduce new dependencies without a discussion (user reviews `package.json` changes).
-- **Do not** skip the typecheck step. The root `tsc --noEmit` covers `src/` only — `cd client && npm run typecheck` is a separate step.
+- **Do not** skip the typecheck step. The root `tsc --noEmit` covers `src/` only; `cd client && npm run typecheck` is a separate step.
 
 ## Common tasks → see the guides & skills
 
@@ -217,6 +217,6 @@ These come from the user's global Claude config and apply here unless this file 
 - Add a DB migration → `docs/guides/add-a-migration.md`
 - Debug a failed request → `docs/guides/debug-a-failed-request.md`
 - Ship a release → `docs/guides/ship-a-release.md`
-- Sync docs with live code (audit staleness after shipping) → `.claude/skills/sync-docs/SKILL.md` (skill only; no separate guide — meta maintenance task)
+- Sync docs with live code (audit staleness after shipping) → `.claude/skills/sync-docs/SKILL.md` (skill only; no separate guide; meta maintenance task)
 
 If a guide is missing for a task you need, do the work, then write the guide as a follow-up commit. The first PR to do a thing is also the first PR to document the thing.

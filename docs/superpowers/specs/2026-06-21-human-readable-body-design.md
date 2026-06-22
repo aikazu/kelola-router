@@ -12,7 +12,7 @@ Make `request_body` / `response_body` / headers stored in `request_logs` human-r
 
 - 973 rows, all `format='anthropic'`, `endpoint='/v1/messages'`.
 - `request_body` / `response_body` are TEXT, truncated at 100 KB by `src/proxy/capture.ts:12` (Notion SSE at 256 KB rolling, `src/proxy/notion.ts:296`).
-- Non-stream success responses are OpenAI `chat.completion` shape (`choices[0].message.content` + `reasoning_content`) — relay converts format, so `format` column reflects the request protocol, NOT the response shape.
+- Non-stream success responses are OpenAI `chat.completion` shape (`choices[0].message.content` + `reasoning_content`); relay converts format, so `format` column reflects the request protocol, NOT the response shape.
 - Stream success responses are Anthropic SSE (`event: message_start`, `content_block_delta`, `message_delta`, `message_stop`).
 - Error responses are plain text (`fetch failed`) or short error objects.
 - `request_headers` / `response_headers` are JSON objects (`{"content-type":"application/json"}`). Coverage sparse (1/973 rows), but present.
@@ -22,7 +22,7 @@ Make `request_body` / `response_body` / headers stored in `request_logs` human-r
 ## Non-Goals
 
 - No new server endpoint. No DB schema change. No change to capture logic.
-- No change to the Usage list table (no inline summary column — deferred to a future phase).
+- No change to the Usage list table (no inline summary column; deferred to a future phase).
 - No new `/logs` page (out of scope).
 - No syntax-highlighting library (pure text in `<pre>`).
 
@@ -38,7 +38,7 @@ DB body string + content-type header (from responseHeaders)
   → RequestDetail.tsx renders DecodedBody → DOM (try/catch → Raw fallback)
 ```
 
-`meta` carries only `{ contentType?: string }` — read from `responseHeaders['content-type']`. The `RequestLog` interface returned by `/api/admin/request-logs/:id` does NOT include `stream`/`endpoint`/`format` columns (verified at `client/src/pages/RequestDetail.tsx:8`), so detection relies on body shape + content-type alone. SSE is unambiguous from body (`event:` lines) or content-type `text/event-stream`; no server change needed.
+`meta` carries only `{ contentType?: string }` (read from `responseHeaders['content-type']`). The `RequestLog` interface returned by `/api/admin/request-logs/:id` does NOT include `stream`/`endpoint`/`format` columns (verified at `client/src/pages/RequestDetail.tsx:8`), so detection relies on body shape + content-type alone. SSE is unambiguous from body (`event:` lines) or content-type `text/event-stream`; no server change needed.
 
 All decode logic is client-side pure functions. No server code. No capture/DB change.
 
@@ -47,8 +47,8 @@ All decode logic is client-side pure functions. No server code. No capture/DB ch
 ### `client/src/lib/decodeBody.ts` (new, pure functions)
 
 - `detectFormat(body, meta): DecodedFormat`
-  - Priority: null → plain-text; body starts with `event:` → `anthropic-sse` (unambiguous body signal); JSON.parse succeeds → shape checks (`choices[]` → `openai-completion`; `content[]`+`stop_reason` → `anthropic-message`; `error` key → `error`) — **body shape wins**; JSON.parse fails → consult `meta.contentType` (`text/event-stream` → `anthropic-sse`, else `plain-text`).
-  - The content-type hint is consulted ONLY when JSON.parse fails, because upstream `content-type` headers can be misleading (verified: relay row id=927 had `text/event-stream` header but a valid OpenAI `chat.completion` JSON body — body shape must win).
+  - Priority: null → plain-text; body starts with `event:` → `anthropic-sse` (unambiguous body signal); JSON.parse succeeds → shape checks (`choices[]` → `openai-completion`; `content[]`+`stop_reason` → `anthropic-message`; `error` key → `error`). **Body shape wins.** JSON.parse fails → consult `meta.contentType` (`text/event-stream` → `anthropic-sse`, else `plain-text`).
+  - The content-type hint is consulted ONLY when JSON.parse fails, because upstream `content-type` headers can be misleading (verified: relay row id=927 had `text/event-stream` header but a valid OpenAI `chat.completion` JSON body; body shape must win).
 - `decodeRequestBody(body): RequestView`
   - `JSON.parse` body. On failure → throws (caught by renderer → Raw fallback).
   - Returns `{ system?, tools?, messages: MessageCard[], summary: RequestSummary }`.
@@ -117,7 +117,7 @@ All decode logic is client-side pure functions. No server code. No capture/DB ch
 - Body `null`/empty → modal shows "No body captured" per tab; no crash.
 - `JSON.parse` failure on request → Request tab shows inline message + Raw sub-section.
 - `JSON.parse` failure on response → Response tab shows `Raw` only.
-- Truncation suffix (`...truncated...` from capture) → detect suffix, show badge "truncated — full body not captured" above the tab. SSE reconstruction proceeds from available events.
+- Truncation suffix (`...truncated...` from capture): detect suffix, show badge "truncated (full body not captured)" above the tab. SSE reconstruction proceeds from available events.
 - Incomplete SSE (stream cut before `message_stop`) → reconstructed text shown with badge "incomplete stream"; `complete: false` in `ResponseView`.
 - Unknown format → `plain-text` fallback, Raw tab.
 - Any decode throw → renderer `try/catch` → Raw tab. Modal never blank.
@@ -147,7 +147,7 @@ Request/response bodies are NOT masked (they are the point of the feature), but 
   - error object + plain `fetch failed`.
   - truncated suffix → badge.
 - Fixtures from real DB rows (id=927 non-stream, id=973 stream, id=826 error) committed as test data.
-- `RequestDetail.tsx`: render test per tab (Preact Testing Library) — correct tab shown, Raw fallback when decode throws.
+- `RequestDetail.tsx`: render test per tab (Preact Testing Library); correct tab shown, Raw fallback when decode throws.
 
 ## Open Questions
 

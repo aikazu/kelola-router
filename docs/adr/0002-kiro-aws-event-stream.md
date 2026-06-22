@@ -8,14 +8,14 @@ Accepted.
 
 ## Context
 
-Kiro's wire protocol is the AWS event-stream binary framing format — 12-byte prelude + headers + JSON payload, sent as a stream of frames over HTTP. This is what every AWS SDK uses for streaming APIs (S3 Select, Kinesis, Transcribe, etc.).
+Kiro's wire protocol is the AWS event-stream binary framing format: 12-byte prelude + headers + JSON payload, sent as a stream of frames over HTTP. This is what every AWS SDK uses for streaming APIs (S3 Select, Kinesis, Transcribe, etc.).
 
 Two approaches were considered:
 
-1. **Use the binary framing as-is** — decode frames on the fly, re-emit as OpenAI or Anthropic SSE, and never materialize the full response in memory.
-2. **Wrap/unwrap JSON at every step** — convert the binary to a JSON envelope on send, parse back to binary on receive, so the rest of the router only sees JSON.
+1. **Use the binary framing as-is**: decode frames on the fly, re-emit as OpenAI or Anthropic SSE, and never materialize the full response in memory.
+2. **Wrap/unwrap JSON at every step**: convert the binary to a JSON envelope on send, parse back to binary on receive, so the rest of the router only sees JSON.
 
-The pressure: option 2 is conceptually simpler (everything is JSON) but adds latency + a serialization layer that doesn't help. Option 1 is the natural fit — the upstream speaks a streaming binary protocol, the router streams a transformed response downstream.
+The pressure: option 2 is conceptually simpler (everything is JSON) but adds latency + a serialization layer that doesn't help. Option 1 is the natural fit: the upstream speaks a streaming binary protocol, the router streams a transformed response downstream.
 
 ## Decision
 
@@ -28,7 +28,7 @@ The whole pipeline is byte-level: no buffering of the full response, no JSON-of-
 ### Positive
 
 - **Lowest possible latency.** The first event from upstream can be sent to the client without waiting for any frame to be fully buffered.
-- **Smallest memory footprint.** The router never holds the full response — it just shuffles bytes through the frame decoder.
+- **Smallest memory footprint.** The router never holds the full response. It just shuffles bytes through the frame decoder.
 - **No lossy conversion.** Each event type is mapped 1:1 to an OpenAI/Anthropic event. The Anthropic SSE re-emission is wire-identical to what a real Anthropic client would receive.
 
 ### Negative
@@ -39,7 +39,7 @@ The whole pipeline is byte-level: no buffering of the full response, no JSON-of-
 
 ### Neutral
 
-- The protocol byte format is well-documented by AWS. We don't need to reverse-engineer it; we reverse-engineered only the *higher-level* event types and persona headers (see `docs/notes/kiro-cli-reverse-engineering.md`).
+- The protocol byte format is well-documented by AWS. We don't need to reverse-engineer it; we reverse-engineered only the *higher-level* event types and persona headers. See `docs/notes/kiro-cli-reverse-engineering.md`.
 
 ## Alternatives considered
 
@@ -63,9 +63,9 @@ Rejected because: same downsides as the JSON envelope approach, plus a deploymen
 
 ## References
 
-- `src/providers/kiro/eventstream.ts` — frame decoder
-- `src/providers/kiro/assembler.ts` — OpenAI SSE re-emission
-- `src/providers/kiro/anthropicSse.ts` — Anthropic Messages SSE re-emission
-- `docs/notes/kiro-cli-reverse-engineering.md` — event type + persona capture
-- `docs/guides/debug-a-failed-request.md` — debug ladder for Kiro failures
-- `docs/architecture/.claude/docs/kiro-protocol.md` — wire-format digest (see Phase 5)
+- `src/providers/kiro/eventstream.ts`: frame decoder
+- `src/providers/kiro/assembler.ts`: OpenAI SSE re-emission
+- `src/providers/kiro/anthropicSse.ts`: Anthropic Messages SSE re-emission
+- `docs/notes/kiro-cli-reverse-engineering.md`: event type + persona capture
+- `docs/guides/debug-a-failed-request.md`: debug ladder for Kiro failures
+- `docs/architecture/.claude/docs/kiro-protocol.md`: wire-format digest (see Phase 5)

@@ -15,10 +15,10 @@ The router has two distinct identities to authenticate:
 
 Two architectures were considered:
 
-1. **Single identity model** — every actor (client or admin) has a row in one `users` table with roles. A bearer token maps to a user; a session maps to a user; permissions are role-based.
-2. **Two-tier separation** — `client_keys` for proxy traffic, `admin_password` / `x-admin-key` for the dashboard. The two never overlap. No `users` table.
+1. **Single identity model**: every actor (client or admin) has a row in one `users` table with roles. A bearer token maps to a user; a session maps to a user; permissions are role-based.
+2. **Two-tier separation**: `client_keys` for proxy traffic, `admin_password` / `x-admin-key` for the dashboard. The two never overlap. No `users` table.
 
-The pressure: the router is single-user self-host. A `users` table is overhead for one admin. And the security properties are different — client bearers are long-lived, machine-presented, and used by untrusted code; admin auth is interactive, session-based, and rate-limited. Conflating them means the worst-case compromise of a client bearer could also compromise admin actions.
+The pressure: the router is single-user self-host. A `users` table is overhead for one admin. And the security properties are different: client bearers are long-lived, machine-presented, and used by untrusted code; admin auth is interactive, session-based, and rate-limited. Conflating them means the worst-case compromise of a client bearer could also compromise admin actions.
 
 ## Decision
 
@@ -26,11 +26,11 @@ Two tables, two paths. `client_keys` (the bearer credentials) are managed via th
 
 Admin auth has 3 cascading modes in `src/auth.ts:requireAdmin`:
 
-1. **Session cookie** (`kelola_session`) — only if a password is set. Scrypt-hashed, stored in `settings.admin_password`. Session in `sessions` table, 7-day TTL.
-2. **`x-admin-key` header** matching `ROUTER_ADMIN_KEY` env — for scripts and CI.
-3. **Open mode** — if no password is set, the dashboard is reachable by anyone with the URL. This is the local-dev default.
+1. **Session cookie** (`kelola_session`): only if a password is set. Scrypt-hashed, stored in `settings.admin_password`. Session in `sessions` table, 7-day TTL.
+2. **`x-admin-key` header** matching `ROUTER_ADMIN_KEY` env: for scripts and CI.
+3. **Open mode**: if no password is set, the dashboard is reachable by anyone with the URL. This is the local-dev default.
 
-`POST /api/login` is rate-limited (`src/auth/rateLimit.ts` — 5 attempts per 15 min per IP, in-memory bucket). CSRF is enforced by `csrfGuard` on all admin POSTs (blocks cross-origin POSTs by comparing `Origin` to `Host`).
+`POST /api/login` is rate-limited (`src/auth/rateLimit.ts`: 5 attempts per 15 min per IP, in-memory bucket). CSRF is enforced by `csrfGuard` on all admin POSTs (blocks cross-origin POSTs by comparing `Origin` to `Host`).
 
 ## Consequences
 
@@ -73,9 +73,9 @@ Rejected because: client SDKs (curl, hermes-agent) don't have a refresh-token da
 
 ## References
 
-- `src/auth.ts` — `requireApiKey`, `requireAdmin`, `csrfGuard`
-- `src/auth/{password,session,rateLimit}.ts` — building blocks
-- `src/api/admin/middleware.ts` — `requireAdminJson` (JSON-shaped admin gate for `/api/*`)
-- `src/db/migrations/001-initial.ts` — `client_keys` + `sessions` tables
-- `docs/architecture/CLAUDE.md` (legacy) — see `../../AGENTS.md` "Auth model" instead
-- `docs/guides/debug-a-failed-request.md` — auth-failure debug
+- `src/auth.ts`: `requireApiKey`, `requireAdmin`, `csrfGuard`
+- `src/auth/{password,session,rateLimit}.ts`: building blocks
+- `src/api/admin/middleware.ts`: `requireAdminJson` (JSON-shaped admin gate for `/api/*`)
+- `src/db/migrations/001-initial.ts`: `client_keys` + `sessions` tables
+- `docs/architecture/CLAUDE.md` (legacy): see `../../AGENTS.md` "Auth model" instead
+- `docs/guides/debug-a-failed-request.md`: auth-failure debug

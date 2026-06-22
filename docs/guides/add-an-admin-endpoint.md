@@ -12,9 +12,9 @@ A new endpoint, e.g. `POST /api/admin/widgets/` that:
 
 ## Prerequisites
 
-- Read [`ARCHITECTURE.md`](../../ARCHITECTURE.md) — request flow + two-tier auth
-- Read [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md) — existing route inventory
-- Read `src/api/admin/middleware.ts` — `requireAdminJson`, `ApiError`, `handleApiError`
+- Read [`ARCHITECTURE.md`](../../ARCHITECTURE.md): request flow + two-tier auth
+- Read [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md): existing route inventory
+- Read `src/api/admin/middleware.ts`: `requireAdminJson`, `ApiError`, `handleApiError`
 - Read one existing route module as a reference: `src/api/admin/accounts.ts` (most complete pattern)
 
 ## File map
@@ -22,14 +22,14 @@ A new endpoint, e.g. `POST /api/admin/widgets/` that:
 ```
 src/
 └── api/admin/
-    ├── widgets.ts            NEW — your route module
-    └── index.ts              EXTEND — register the new router
+    ├── widgets.ts            NEW: your route module
+    └── index.ts              EXTEND: register the new router
 src/
 └── db/repos/
-    └── widgets.ts            NEW (optional) — DB CRUD for your domain
+    └── widgets.ts            NEW (optional): DB CRUD for your domain
 tests/
 └── api/admin/
-    └── widgets.test.ts       NEW — integration test
+    └── widgets.test.ts       NEW: integration test
 ```
 
 If your endpoint is a thin wrapper over an existing repo, you may not need a new repo file.
@@ -93,7 +93,7 @@ widgetRoutes.delete('/:name', (c) => {
 });
 ```
 
-**Why:** `ApiError` + `handleApiError` give you consistent error envelopes. The `try/catch` around every handler is the convention — don't skip it.
+**Why:** `ApiError` + `handleApiError` give you consistent error envelopes. The `try/catch` around every handler is the convention. Don't skip it.
 
 ### 2. Register the router
 
@@ -106,7 +106,7 @@ import { widgetRoutes } from './widgets.js';
 app.route('/admin/widgets', widgetRoutes);
 ```
 
-**Why:** `app.route` mounts the new module under the `/admin/widgets` prefix. CSRF + admin auth middleware already applies (the `app.use('/admin/*', requireAdminJson)` and `app.use('*', csrfGuard)` lines are at the top of the file — you don't add them).
+**Why:** `app.route` mounts the new module under the `/admin/widgets` prefix. CSRF + admin auth middleware already applies (the `app.use('/admin/*', requireAdminJson)` and `app.use('*', csrfGuard)` lines are at the top of the file; you don't add them).
 
 ### 3. (If needed) write the repo
 
@@ -114,7 +114,7 @@ app.route('/admin/widgets', widgetRoutes);
 
 Mirror an existing repo like `src/db/repos/models.ts`:
 - Use `cachedStmt(db, '...')` for prepared statements (it caches by SQL string)
-- Return `T | null` (not `undefined`) — coerce with `?? null`
+- Return `T | null` (not `undefined`); coerce with `?? null`
 - Use `ulid()` for IDs
 - Use `datetime('now')` defaults in INSERTs
 
@@ -147,7 +147,7 @@ export function deleteWidget(db: Database.Database, name: string): void {
 }
 ```
 
-**Why:** Repo functions are the only thing the route module calls. No SQL in routes. (See AGENTS.md "Test patterns" — repos are easy to test in isolation.)
+**Why:** Repo functions are the only thing the route module calls. No SQL in routes. (See AGENTS.md "Test patterns"; repos are easy to test in isolation.)
 
 ### 4. Add the migration (only if the endpoint needs a new table)
 
@@ -264,7 +264,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## See also
 
-- [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md) — existing route inventory
-- [`../reference/db-tables.md`](../reference/db-tables.md) — schema reference
-- [`../../AGENTS.md`](../../AGENTS.md) — TDD + test patterns
-- [`add-a-migration.md`](add-a-migration.md) — for new tables
+- [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md): existing route inventory
+- [`../reference/db-tables.md`](../reference/db-tables.md): schema reference
+- [`../../AGENTS.md`](../../AGENTS.md): TDD + test patterns
+- [`add-a-migration.md`](add-a-migration.md): for new tables

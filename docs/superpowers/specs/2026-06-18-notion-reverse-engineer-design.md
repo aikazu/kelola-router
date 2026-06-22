@@ -1,7 +1,7 @@
-# Notion Desktop AI Chat — Reverse Engineer & Router Integration
+# Notion Desktop AI Chat (Reverse Engineer & Router Integration)
 
 **Date:** 2026-06-18
-**Status:** v3 REVISION — request body is single JSON `{traceId, spaceId, transcript, patches}` (not NDJSON). Image input via `attachment` record (v1: Notion-hosted URLs only). 11 cookies required for AI request. See `docs/notion/wire-format.md` for full protocol + `docs/notion/capture-notes.md` for RE findings.
+**Status:** v3 REVISION. Request body is single JSON `{traceId, spaceId, transcript, patches}` (not NDJSON). Image input via `attachment` record (v1: Notion-hosted URLs only). 11 cookies required for AI request. See `docs/notion/wire-format.md` for full protocol + `docs/notion/capture-notes.md` for RE findings.
 **Owner:** aikazu
 **Related:** mirrors `src/providers/kiro/` + `src/proxy/kiro.ts` patterns
 
@@ -9,9 +9,9 @@
 
 ## Goal
 
-Reverse engineer the AI chat endpoints of the Notion desktop client, document the protocol, and integrate Notion as a new upstream provider in `kelola-router` — with 3-step temp-password login, cookie-based session auth, JSON request / NDJSON response translation to/from OpenAI chat-completion format, image input (Notion-hosted), tool calls, and conversation continuity.
+Reverse engineer the AI chat endpoints of the Notion desktop client, document the protocol, and integrate Notion as a new upstream provider in `kelola-router`: 3-step temp-password login, cookie-based session auth, JSON request / NDJSON response translation to/from OpenAI chat-completion format, image input (Notion-hosted), tool calls, and conversation continuity.
 
-**Non-goals (v1):** HTTPS/base64 image upload (v1 = Notion-hosted `attachment:` URLs only), function/tool calling (captured but implementation deferred — schema known), multi-workspace routing, image generation in response.
+**Non-goals (v1):** HTTPS/base64 image upload (v1 = Notion-hosted `attachment:` URLs only), function/tool calling (captured but implementation deferred; schema known), multi-workspace routing, image generation in response.
 
 ---
 
@@ -29,9 +29,9 @@ src/providers/notion/
   auth.ts                 # getLoginOptions + sendTemporaryPassword + loginWithEmail + parseCookies + ensureNotionAuth
   transform.ts            # buildNotionPayload(openaiBody, account) → JSON {traceId, spaceId, transcript, patches}
   extract.ts              # NDJSON stream parser + JSON-Patch applicator + text-delta extractor
-  index.ts                # executeNotion() — entry point, cookies + headers, dispatch
+  index.ts                # executeNotion() (entry point: cookies + headers, dispatch)
   *.test.ts
-src/proxy/notion.ts       # handleNotionProxy(c, format, upstreamPath) — mirror src/proxy/kiro.ts
+src/proxy/notion.ts       # handleNotionProxy(c, format, upstreamPath) (mirror src/proxy/kiro.ts)
 src/selection/notion.ts   # sticky/round-robin + conversation routing lookup/upsert
 src/models/notion/manifest.json  # model list from getAvailableModels
 src/db/migrations/008-notion-provider.ts  # notion_user_id, notion_space_id cols + conversation_routing table
@@ -51,7 +51,7 @@ tests/providers/notion/*.test.ts
 
 ## Components
 
-### 1. Auth — `src/providers/notion/auth.ts`
+### 1. Auth (`src/providers/notion/auth.ts`)
 
 Three-step login (per `docs/notion/wire-format.md`):
 
@@ -94,7 +94,7 @@ Cookies stored in `accounts.provider_data` as JSON:
 }
 ```
 
-### 2. Transformer — `src/providers/notion/transform.ts`
+### 2. Transformer (`src/providers/notion/transform.ts`)
 
 ```ts
 export function buildNotionPayload(opts: {
@@ -132,7 +132,7 @@ export function buildNotionPayload(opts: {
 }
 ```
 
-### 3. Stream Extractor — `src/providers/notion/extract.ts`
+### 3. Stream Extractor (`src/providers/notion/extract.ts`)
 
 ```ts
 export interface TextDelta {
@@ -155,7 +155,7 @@ export async function* extractNotionStream(
 5. For `agent-tool-result` records, emit `TextDelta { toolCall: {...} }`
 6. On `{"type":"done"}`, emit `TextDelta { done: true }`
 
-### 4. Proxy — `src/proxy/notion.ts`
+### 4. Proxy (`src/proxy/notion.ts`)
 
 Mirrors `src/proxy/kiro.ts`:
 - `handleNotionProxy(c, format, upstreamPath)`
@@ -167,7 +167,7 @@ Mirrors `src/proxy/kiro.ts`:
 - Logs via `consoleBus` (`start`/`account`/`transport`/`done`/`error` events)
 - Error mapping: 401 → disable + `notion_reauth_required`, 429 → backoff + failover, 5xx → exp backoff
 
-### 5. Selection — `src/selection/notion.ts`
+### 5. Selection (`src/selection/notion.ts`)
 
 ```ts
 export interface NotionSelectionConfig {
@@ -197,7 +197,7 @@ Plus `ALTER TABLE accounts ADD COLUMN notion_user_id TEXT` + `notion_space_id TE
 
 **Lookup:** `conversation_id` extracted from request body custom field `notion_conversation_id` or `X-Notion-Conversation-Id` header. If found + account healthy → pin. If found + account unhealthy → failover (omit conversation_id from new request, force fresh conversation on new account).
 
-**v1 simplification:** capture evidence shows each request is stateless (full transcript sent each time). No need for cross-turn conversation continuity in router. **Skip conversation_routing table for v1** — just select a healthy account per request.
+**v1 simplification:** capture evidence shows each request is stateless (full transcript sent each time). No need for cross-turn conversation continuity in router. **Skip conversation_routing table for v1**. Just select a healthy account per request.
 
 ### 7. Models
 
@@ -216,11 +216,11 @@ Plus `ALTER TABLE accounts ADD COLUMN notion_user_id TEXT` + `notion_space_id TE
 }
 ```
 
-(`acai-budino` excluded — restricted trial.)
+(`acai-budino` excluded: restricted trial.)
 
 `pricing: 0` because Notion AI is subscription-based, not per-token. Router can compute "API-equivalent" cost later.
 
-### 8. CLI — `scripts/notion-add-account.ts`
+### 8. CLI (`scripts/notion-add-account.ts`)
 
 ```
 $ npm run notion-add-account -- --label personal --email attila@kcmon.id
@@ -243,26 +243,26 @@ $ npm run notion-add-account -- --label personal --email attila@kcmon.id
 
 | Notion status | Class | Action | Failover? |
 |---|---|---|---|
-| 200 | success | sticky, clear backoff | — |
+| 200 | success | sticky, clear backoff | n/a |
 | 401 | fatal | disable account, surface `notion_reauth_required` to client | NO |
 | 403 | fatal | disable account | NO |
 | 404 | fatal (unknown conversation/record) | return 404, suggest new conversation | NO |
 | 429 | retryable | backoff 60s, model lock if `Retry-After` per-model | YES |
 | 500/502/503 | retryable | exp backoff 1s→2s→4s, max 3 attempts | YES |
 | network/timeout | retryable | failover immediately | YES |
-| `hasAccount: false` | fatal | CLI rejects email, no DB row | — |
-| `passwordSignIn: true` | unsupported | CLI rejects, "account requires password, not supported" | — |
-| `getAIUsageEligibility.isEligible: false` | fatal | reject at account-add time | — |
+| `hasAccount: false` | fatal | CLI rejects email, no DB row | n/a |
+| `passwordSignIn: true` | unsupported | CLI rejects, "account requires password, not supported" | n/a |
+| `getAIUsageEligibility.isEligible: false` | fatal | reject at account-add time | n/a |
 
 ---
 
-## Data Flow — Single Request
+## Data Flow: Single Request
 
 ```
 Client (OpenAI format)
   → POST /v1/chat/completions w/ Bearer client_key
   → parseBody + model alias resolution (router-facing → internal ID via manifest)
-  → selectAccount('notion') — sticky/round-robin
+  → selectAccount('notion') (sticky/round-robin)
   → checkModelLock → 429 if locked
   → augment system prompt
   → buildNotionPayload({openaiBody, account, internalModelId, spaceId, attachments})
@@ -278,7 +278,7 @@ Client (OpenAI format)
 
 ## Testing (TDD red-green per CLAUDE.md)
 
-**`tests/providers/notion/auth.test.ts`** — mock fetch:
+**`tests/providers/notion/auth.test.ts`** (mock fetch):
 - `getLoginOptions` parses response
 - `sendTemporaryPassword` posts correct body
 - `loginWithEmail` extracts 8 cookies from Set-Cookie header (correct domain filtering)
@@ -344,13 +344,13 @@ Client (OpenAI format)
 
 1. Migration + enum extension (Tasks 1-2)
 2. Auth module + CLI (Tasks 3)
-3. Transformer (Task 4) — pure function, easy to test
-4. Stream extractor (Task 5) — pure function, easy to test
+3. Transformer (Task 4). Pure function, easy to test.
+4. Stream extractor (Task 5). Pure function, easy to test.
 5. Proxy + dispatch wiring (Task 6)
 6. Selection (Task 7)
 7. Models manifest + seed (Task 8)
 8. CLI scripts (Task 9)
-9. Tool call wire-up (Task 10) — defer if needed
+9. Tool call wire-up (Task 10). Defer if needed.
 10. Dashboard (Task 11)
 11. Tests + docs (Tasks 12-13)
 

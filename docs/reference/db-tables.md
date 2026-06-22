@@ -1,6 +1,6 @@
 # DB Tables
 
-Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/001-initial.ts` (SQL split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts`). Migrations tracked via `PRAGMA user_version` (current = 1). The schema is consolidated into a single fresh-deploy migration — no incremental ALTERs, no data dedup; every column/table is created in one step on a new database.
+Schema reference for every table in the SQLite-WAL database. Source: `src/db/migrations/001-initial.ts` (SQL split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts`). Migrations tracked via `PRAGMA user_version` (current = 1). The schema is consolidated into a single fresh-deploy migration: no incremental ALTERs and no data dedup. Every column/table is created in one step on a new database.
 
 ## `accounts` (`001-initial`)
 
@@ -54,7 +54,7 @@ Bearer credentials for clients (Claude Code, hermes-agent).
 | `enabled` | INT NOT NULL DEFAULT 1 | soft-disable |
 | `created_at` | TEXT NOT NULL DEFAULT `(datetime('now'))` | |
 
-Unique partial index `idx_client_keys_active_key` on `key WHERE enabled = 1` — a disabled key can be re-enabled with the same secret.
+Unique partial index `idx_client_keys_active_key` on `key WHERE enabled = 1`. A disabled key can be re-enabled with the same secret.
 
 ## `request_logs` (`001-initial`)
 
@@ -78,7 +78,7 @@ Catalog of upstream models + pricing.
 | `name` | TEXT NOT NULL UNIQUE | router-facing name (what clients send) |
 | `display_name` | TEXT NULL | human label |
 | `family` | TEXT NULL | e.g. `m3`, `m2.7`, `kiro` |
-| `upstream_model` | TEXT NOT NULL | unique-indexed — actual wire id |
+| `upstream_model` | TEXT NOT NULL | unique-indexed; actual wire id |
 | `context_window` | INT NULL | |
 | `pricing_input` | REAL NULL | USD per 1M tokens |
 | `pricing_output` | REAL NULL | |
@@ -137,7 +137,7 @@ Dashboard session cookies (when password is set). Columns: `id` (PK), `user_agen
 
 ## `audit_log` (`001-initial`)
 
-Security-relevant admin actions (key reveals, future: logins/settings changes). Stores **only metadata** — never the secret value. Separate from `request_logs` (proxy telemetry) so audit history survives `cleanupOldLogs` pruning.
+Security-relevant admin actions (key reveals, future: logins/settings changes). Stores **only metadata**, never the secret value. Separate from `request_logs` (proxy telemetry) so audit history survives `cleanupOldLogs` pruning.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -150,7 +150,7 @@ Security-relevant admin actions (key reveals, future: logins/settings changes). 
 
 Indexes: `idx_audit_log_event_created` on `(event, created_at DESC)`, `idx_audit_log_key_created` on `(client_key_id, created_at DESC)`.
 
-Inserted from `src/api/admin/clientKeys.ts` on every successful `GET /api/admin/client-keys/:id/key`. Wrapped in try/catch — audit failure never blocks the reveal.
+Inserted from `src/api/admin/clientKeys.ts` on every successful `GET /api/admin/client-keys/:id/key`. Wrapped in try/catch so an audit failure never blocks the reveal.
 
 ## `settings` (`001-initial`)
 
@@ -182,4 +182,4 @@ Generic key-value store for all runtime config. Columns: `key` (PK), `value` (TE
 |---|---|---|
 | 1 | `001-initial.ts` | All tables + indexes + seed settings (SQL split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts`). `user_version` 0 → 1 |
 
-Current `user_version` = 1. Single consolidated fresh-deploy migration — no incremental ALTERs. (Earlier incremental migrations `002-010` and the Pioneer dedup cleanups `008/009` were folded in and removed; a fresh install reaches the final schema in one step.)
+Current `user_version` = 1. Single consolidated fresh-deploy migration, no incremental ALTERs. (Earlier incremental migrations `002-010` and the Pioneer dedup cleanups `008/009` were folded in and removed; a fresh install reaches the final schema in one step.)

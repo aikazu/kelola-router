@@ -10,10 +10,10 @@ Accepted.
 
 When Kiro (AWS CodeWhisperer / Amazon Q) was added in v0.16.0, the router was a single MiniMax proxy. Two options for Kiro's place in the architecture were considered:
 
-1. **Kiro as a new provider** — branch in `handleProxy` based on `models.provider`, with a dedicated `src/proxy/kiro.ts` handler.
-2. **Kiro as a transport** — keep the proxy pipeline generic, encode provider-specific behavior in a `Transport` (the layer below the proxy that handles fetch / SOCKS / relay).
+1. **Kiro as a new provider**: branch in `handleProxy` based on `models.provider`, with a dedicated `src/proxy/kiro.ts` handler.
+2. **Kiro as a transport**: keep the proxy pipeline generic, encode provider-specific behavior in a `Transport` (the layer below the proxy that handles fetch / SOCKS / relay).
 
-The pressure points: Kiro has a different auth model (OAuth refresh token vs API-key bearer), a different wire protocol (AWS event-stream binary vs HTTP-JSON), and a different response shape (SSE re-emission needed). Cramming that into a `Transport` would force the transport to know about model selection, error rules, and response assembly — concerns the transport layer shouldn't have.
+The pressure points: Kiro has a different auth model (OAuth refresh token vs API-key bearer), a different wire protocol (AWS event-stream binary vs HTTP-JSON), and a different response shape (SSE re-emission needed). Cramming that into a `Transport` would force the transport to know about model selection, error rules, and response assembly, which are concerns the transport layer shouldn't have.
 
 ## Decision
 
@@ -26,7 +26,7 @@ Branch in `handleProxy` on `models.provider`. The dispatch lives in `src/server.
 ### Positive
 
 - Provider-specific auth, transform, and stream logic is isolated in one module per provider.
-- Adding a future provider (Anthropic direct, Bedrock, llama.cpp) is a clean per-provider add — see `docs/guides/add-a-provider.md`.
+- Adding a future provider (Anthropic direct, Bedrock, llama.cpp) is a clean per-provider add. See `docs/guides/add-a-provider.md`.
 - Each provider can have its own selection mode and step (e.g. sticky per-client-key for Kiro, round-robin for MiniMax).
 - Error rules are shared (`src/accounts/errorRules.ts`) but the inputs (base_resp vs AWS-shaped error) are decoded per-provider.
 
@@ -34,7 +34,7 @@ Branch in `handleProxy` on `models.provider`. The dispatch lives in `src/server.
 
 - The proxy dispatch in `src/server.ts` grows by 1 line per provider. Mitigated by keeping the dispatch table small (3 entries today).
 - The selection state machine reads from two settings keys, doubling the validation surface. Mitigated by sharing the same `SelectionOpts` type.
-- Combo routing has to know about both providers — it does, via `combo.models` being a list of `name` strings that each resolve to a `(provider, upstream_model)` pair.
+- Combo routing has to know about both providers. It does, via `combo.models` being a list of `name` strings that each resolve to a `(provider, upstream_model)` pair.
 
 ### Neutral
 
@@ -46,7 +46,7 @@ Branch in `handleProxy` on `models.provider`. The dispatch lives in `src/server.
 
 Wrap the Kiro-specific behavior in a `TransportConfig` variant. The proxy pipeline stays generic; transport is where the AWS event-stream is decoded.
 
-Rejected because: a `Transport` shouldn't know about error rules, model selection, or response re-emission. Putting that logic there would invert the dependency (transport depending on proxy internals). The current boundary — transport is a fetch primitive, proxy is request orchestration — is cleaner.
+Rejected because: a `Transport` shouldn't know about error rules, model selection, or response re-emission. Putting that logic there would invert the dependency (transport depending on proxy internals). The current boundary is cleaner: transport is a fetch primitive, proxy is request orchestration.
 
 ### Kiro as a sidecar service
 
@@ -56,10 +56,10 @@ Rejected because: the binary event-stream re-emission needs to happen on the tru
 
 ## References
 
-- `src/server.ts` — dispatch (`if (resolved.provider === 'kiro') return handleKiroProxy(...)`)
-- `src/proxy/{minimax,kiro,combo}.ts` — three handlers
-- `src/db/repos/accounts.ts:18` — `ProviderName` type
-- `src/db/migrations/002-kiro.ts` — additive columns
-- `CHANGELOG.md` v0.16.0 — Kiro addition entry
-- `docs/guides/add-a-provider.md` — pattern for future providers
-- `docs/notes/kiro-cli-reverse-engineering.md` — wire format capture
+- `src/server.ts`: dispatch (`if (resolved.provider === 'kiro') return handleKiroProxy(...)`)
+- `src/proxy/{minimax,kiro,combo}.ts`: three handlers
+- `src/db/repos/accounts.ts:18`: `ProviderName` type
+- `src/db/migrations/002-kiro.ts`: additive columns
+- `CHANGELOG.md` v0.16.0: Kiro addition entry
+- `docs/guides/add-a-provider.md`: pattern for future providers
+- `docs/notes/kiro-cli-reverse-engineering.md`: wire format capture

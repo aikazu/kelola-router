@@ -12,8 +12,8 @@ A new page, e.g. `/admin/widgets` that:
 
 ## Prerequisites
 
-- Read [`AGENTS.md`](../../AGENTS.md) — Dashboard section
-- Read [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md) — your endpoint
+- Read [`AGENTS.md`](../../AGENTS.md): Dashboard section
+- Read [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md): your endpoint
 - Read one small existing page as a reference: `client/src/pages/Aliases.tsx` (CRUD) or `client/src/pages/Quota.tsx` (read-only with polling)
 - Dev env: `cd client && npm run dev` (proxies `/api` to the running server on :20137)
 
@@ -22,14 +22,14 @@ A new page, e.g. `/admin/widgets` that:
 ```
 client/src/
 ├── pages/
-│   └── Widgets.tsx            NEW — your page component
+│   └── Widgets.tsx            NEW: your page component
 ├── layout/
-│   ├── AppShell.tsx           EXTEND — register the lazy import + KNOWN_ROUTES + switch case
-│   └── Sidebar.tsx            EXTEND — add a sidebar entry
+│   ├── AppShell.tsx           EXTEND: register the lazy import + KNOWN_ROUTES + switch case
+│   └── Sidebar.tsx            EXTEND: add a sidebar entry
 ├── lib/
-│   └── api.ts                 (read-only — use apiFetch helper)
+│   └── api.ts                 (read-only: use apiFetch helper)
 └── components/
-    └── WidgetForm.tsx         NEW (optional) — extracted form if the page is big
+    └── WidgetForm.tsx         NEW (optional): extracted form if the page is big
 ```
 
 ## Steps
@@ -167,7 +167,7 @@ case 'widgets':
 
 **File:** `client/src/layout/Sidebar.tsx`
 
-Find the array of nav items (likely `const NAV` or `const ITEMS` — search for the existing routes). Add:
+Find the array of nav items (likely `const NAV` or `const ITEMS`; search for the existing routes). Add:
 
 ```tsx
 { to: '/admin/widgets', label: 'Widgets', icon: <SomeIcon />, hotkey: 'w' }
@@ -263,6 +263,6 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## See also
 
-- [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md) — your endpoint contract
-- [`../../AGENTS.md`](../../AGENTS.md) — Dashboard section + TDD + test patterns
-- [`add-an-admin-endpoint.md`](add-an-admin-endpoint.md) — if you need a new backend route first
+- [`../reference/admin-api-routes.md`](../reference/admin-api-routes.md): your endpoint contract
+- [`../../AGENTS.md`](../../AGENTS.md): Dashboard section + TDD + test patterns
+- [`add-an-admin-endpoint.md`](add-an-admin-endpoint.md): if you need a new backend route first

@@ -10,25 +10,25 @@ Accepted.
 
 The router supports SOCKS5/HTTP transports (proxies/relays) to route upstream traffic through specific network paths. Users add transports via the dashboard and immediately want to know two things: (1) does this transport actually work, and (2) what country does it exit from?
 
-Before v0.18.0, the transports page showed label, URL, and kind — no connectivity or geographic information. Users had to manually test a transport by routing a real request through it and inspecting the upstream log.
+Before v0.18.0, the transports page showed label, URL, and kind: no connectivity or geographic information. Users had to manually test a transport by routing a real request through it and inspecting the upstream log.
 
 Adding a probe at transport-add time is an opportunity to surface both signals in one operation. The question was whether a failure to probe should block the transport from being saved, and which external service to use for country detection.
 
 ## Decision
 
-`src/transport/geoip.ts` exports `checkTransportGeo(cfg: TransportConfig, timeoutMs = 8000): Promise<GeoResult>`. It routes a GET to `https://ipapi.co/json/` through the transport using `proxyAwareFetch`, then reads `country_code` (or `countryCode`) from the JSON response. The function **never throws** — any network failure or parse error returns `{ active: false, country: null }`.
+`src/transport/geoip.ts` exports `checkTransportGeo(cfg: TransportConfig, timeoutMs = 8000): Promise<GeoResult>`. It routes a GET to `https://ipapi.co/json/` through the transport using `proxyAwareFetch`, then reads `country_code` (or `countryCode`) from the JSON response. The function **never throws**: any network failure or parse error returns `{ active: false, country: null }`.
 
 Migration `006-transport-country` adds `ALTER TABLE transports ADD COLUMN country TEXT` (additive, `user_version = 6`). Existing rows are `NULL` until probed.
 
-The probe runs as part of the `POST /api/admin/transports` handler — after the transport row is written, the probe fires and the result is patched back into the row. If the probe times out or fails, the transport is still saved with `country = NULL`. The probe is **advisory** and **non-blocking** for the save: the user gets the transport regardless.
+The probe runs as part of the `POST /api/admin/transports` handler: after the transport row is written, the probe fires and the result is patched back into the row. If the probe times out or fails, the transport is still saved with `country = NULL`. The probe is **advisory** and **non-blocking** for the save: the user gets the transport regardless.
 
-`ipapi.co` was chosen because it requires no API key, returns a small JSON payload, and identifies the egress IP's country as seen from the target host — which is exactly the IP a proxy or relay presents to the upstream.
+`ipapi.co` was chosen because it requires no API key, returns a small JSON payload, and identifies the egress IP's country as seen from the target host, which is exactly the IP a proxy or relay presents to the upstream.
 
 ## Consequences
 
 ### Positive
 
-- Users get immediate feedback on whether a transport is reachable and where it exits — without needing to make a real proxy request.
+- Users get immediate feedback on whether a transport is reachable and where it exits, without needing to make a real proxy request.
 - The `country` column on the Transports page is informational and helps users identify misconfigured or geographically wrong transports at a glance.
 - Non-blocking: a slow or unreachable proxy does not delay the save operation beyond the 8-second timeout.
 
@@ -40,7 +40,7 @@ The probe runs as part of the `POST /api/admin/transports` handler — after the
 
 ### Neutral
 
-- `NULL` country is rendered as "—" in the dashboard. The absence of country is distinguishable from "probed and unknown".
+- `NULL` country is rendered as a literal em-dash placeholder in the dashboard. The absence of country is distinguishable from "probed and unknown".
 
 ## Alternatives considered
 
@@ -58,8 +58,8 @@ Fire the probe asynchronously and let the dashboard poll for the result. Rejecte
 
 ## References
 
-- `src/transport/geoip.ts` — `checkTransportGeo`, `GeoResult`
-- `src/transport/proxyFetch.ts` — `proxyAwareFetch` (transport-aware fetch)
-- `src/db/migrations/006-transport-country.ts` — additive `country TEXT` column
-- `src/api/admin/transports.ts` — probe-on-add wiring
-- `CHANGELOG.md` v0.18.0 — Transport upgrades entry
+- `src/transport/geoip.ts`: `checkTransportGeo`, `GeoResult`
+- `src/transport/proxyFetch.ts`: `proxyAwareFetch` (transport-aware fetch)
+- `src/db/migrations/006-transport-country.ts`: additive `country TEXT` column
+- `src/api/admin/transports.ts`: probe-on-add wiring
+- `CHANGELOG.md` v0.18.0: Transport upgrades entry

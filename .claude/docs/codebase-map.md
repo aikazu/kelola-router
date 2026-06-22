@@ -11,11 +11,11 @@ When refactoring, the agent needs to know what imports what and who calls whom. 
 | File | Role | Imported by |
 |---|---|---|
 | `src/server.ts` | Hono app. Wires routes, middleware, the proxy dispatch. ~330 LOC. | `npm start`, `npm run dev:server` (and indirectly `tests/`) |
-| `src/proxy/minimax.ts` | `handleProxy` — the MiniMax/OpenAI/Anthropic path. ~470 LOC. | `server.ts` (re-exports a wrapper) |
-| `src/proxy/kiro.ts` | `handleKiroProxy` — the Kiro/AWS CodeWhisperer path. ~270 LOC. | `server.ts` |
-| `src/proxy/combo.ts` | `handleComboProxy` — fallback chains across models. ~470 LOC. | `server.ts` |
+| `src/proxy/minimax.ts` | `handleProxy`: the MiniMax/OpenAI/Anthropic path. ~470 LOC. | `server.ts` (re-exports a wrapper) |
+| `src/proxy/kiro.ts` | `handleKiroProxy`: the Kiro/AWS CodeWhisperer path. ~270 LOC. | `server.ts` |
+| `src/proxy/combo.ts` | `handleComboProxy`: fallback chains across models. ~470 LOC. | `server.ts` |
 | `src/proxy/helpers.ts` | 34 LOC of shared response/request utilities. | All 3 proxy handlers |
-| `src/accounts/selection.ts` | `selectAccount` — the state machine. | All 3 proxy handlers |
+| `src/accounts/selection.ts` | `selectAccount`: the state machine. | All 3 proxy handlers |
 | `src/accounts/state.ts` | `applyAccountError`, `isModelLockActive`. | All 3 proxy handlers |
 | `src/db/index.ts` | `openDb()`, `migrate()`. Singleton via `getDb()`. | `server.ts`, every `db/repos/*.ts` |
 | `client/src/main.tsx` | Preact entry. Mounts `<App />`. | `client/index.html` |
@@ -24,7 +24,7 @@ When refactoring, the agent needs to know what imports what and who calls whom. 
 
 ## Server module dependency graph
 
-`server.ts` imports (top-level only — not transitively listed):
+`server.ts` imports (top-level only; not transitively listed):
 - `hono` + middleware from `src/auth.ts` + `src/api/admin/`
 - The 3 proxy handlers from `src/proxy/{minimax,kiro,combo}.ts`
 - Scheduler: `src/scheduler/quotaPull.ts`
@@ -84,8 +84,8 @@ Each page imports:
 
 ## Cyclic imports (be aware)
 
-- `server.ts` ↔ `src/proxy/{minimax,kiro,combo}.ts` — broken by passing a `CursorRef` ref-object from server.ts to the proxy handlers. See comment in `src/proxy/kiro.ts` line 27-30. Don't try to "fix" this — the ref pattern is intentional.
-- `src/db/repos/*` ↔ `src/db/index.ts` — repos import `openDb` from `db/index.ts`. Tests use a per-test db handle via `process.env.ROUTER_DB_PATH`. Don't cache the db handle in module scope.
+- `server.ts` ↔ `src/proxy/{minimax,kiro,combo}.ts`. Broken by passing a `CursorRef` ref-object from server.ts to the proxy handlers. See comment in `src/proxy/kiro.ts` line 27-30. Don't try to "fix" this; the ref pattern is intentional.
+- `src/db/repos/*` ↔ `src/db/index.ts`. Repos import `openDb` from `db/index.ts`. Tests use a per-test db handle via `process.env.ROUTER_DB_PATH`. Don't cache the db handle in module scope.
 
 ## Where new code goes (decision tree)
 
@@ -102,18 +102,18 @@ Each page imports:
 
 ## Gotchas
 
-- **Don't import from `src/proxy/*` into `src/server.ts` other than the handler function.** The handlers are the only public surface. The proxy module also imports `runtime/hotPathMetrics` — that's a singleton meant to be imported by proxy handlers only.
-- **Don't add `any` to a repo return type.** If the SQL column is nullable, return `T | null` (not `undefined`) — tests rely on this.
+- **Don't import from `src/proxy/*` into `src/server.ts` other than the handler function.** The handlers are the only public surface. The proxy module also imports `runtime/hotPathMetrics`; that's a singleton meant to be imported by proxy handlers only.
+- **Don't add `any` to a repo return type.** If the SQL column is nullable, return `T | null` (not `undefined`); tests rely on this.
 - **Don't add new state machine logic outside `src/accounts/`.** Selection / backoff / lock is one cohesive module; spread it and you lose the invariants.
-- **Don't break the `CursorRef` pattern.** `server.ts` owns the in-memory `rrCursor` and `stickyMap`; the proxy handlers mutate them through a ref. Don't try to lift the state into a module-global — that breaks test isolation.
+- **Don't break the `CursorRef` pattern.** `server.ts` owns the in-memory `rrCursor` and `stickyMap`; the proxy handlers mutate them through a ref. Don't try to lift the state into a module-global; that breaks test isolation.
 - **Don't import `better-sqlite3` types in client code.** The dashboard is browser-side; server types don't flow there.
 
 ## Cross-refs
 
-- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) — module map (visual)
-- [`../../AGENTS.md`](../../AGENTS.md) — TDD + test patterns
-- [`../docs/guides/add-a-provider.md`](../docs/guides/add-a-provider.md) — provider integration checklist
-- [`../docs/guides/add-an-admin-endpoint.md`](../docs/guides/add-an-admin-endpoint.md) — admin route checklist
-- [`../docs/guides/add-a-dashboard-page.md`](../docs/guides/add-a-dashboard-page.md) — page checklist
-- [`../docs/guides/add-a-migration.md`](../docs/guides/add-a-migration.md) — migration checklist
-- [`../skills/add-provider/SKILL.md`](../skills/add-provider/SKILL.md) — provider skill
+- [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md): module map (visual)
+- [`../../AGENTS.md`](../../AGENTS.md): TDD + test patterns
+- [`../docs/guides/add-a-provider.md`](../docs/guides/add-a-provider.md): provider integration checklist
+- [`../docs/guides/add-an-admin-endpoint.md`](../docs/guides/add-an-admin-endpoint.md): admin route checklist
+- [`../docs/guides/add-a-dashboard-page.md`](../docs/guides/add-a-dashboard-page.md): page checklist
+- [`../docs/guides/add-a-migration.md`](../docs/guides/add-a-migration.md): migration checklist
+- [`../skills/add-provider/SKILL.md`](../skills/add-provider/SKILL.md): provider skill

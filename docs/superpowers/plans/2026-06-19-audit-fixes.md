@@ -4,13 +4,13 @@
 
 **Goal:** Implement the remaining 6 fixes from the 2026-06-19 audit spec (`docs/superpowers/specs/2026-06-19-audit-fixes-design.md`): A4 (manual POST family), A5 (quota parallel), A6 (admin cache invalidation), A7 (settings null), B1 (combo/alias symmetry), B2 (alias source update). A1/A2/A3 are already fixed in `src/db/repos/models.ts`, `src/api/admin/models.ts`, `src/api/admin/usage.ts`, `src/db/repos/requestLogs.ts`.
 
-**Architecture:** Targeted patches per finding. TDD per task — failing test first, then minimal fix, then regression assertion. No new dependencies. No schema migration. All changes land in `src/db/repos/`, `src/api/admin/`, `src/db/repos/requestLogs.ts`, `client/src/components/settings/`. Each task produces one commit.
+**Architecture:** Targeted patches per finding. TDD per task, failing test first, then minimal fix, then regression assertion. No new dependencies. No schema migration. All changes land in `src/db/repos/`, `src/api/admin/`, `src/db/repos/requestLogs.ts`, `client/src/components/settings/`. Each task produces one commit.
 
 **Tech Stack:** Hono (admin API), valibot (input validation), better-sqlite3 (data layer), Preact + TanStack Query (dashboard), vitest + happy-dom (tests).
 
 ---
 
-### Task 1: A4 — Manual POST `/api/admin/models` accepts and persists `family`
+### Task 1: A4: Manual POST `/api/admin/models` accepts and persists `family`
 
 **Files:**
 - Modify: `src/api/admin/models.ts:88-97` (the `POST /` handler)
@@ -20,7 +20,7 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `src/api/admin/models.test.ts` (the file already tests the POST route — find the matching `describe` block):
+Add to `src/api/admin/models.test.ts` (the file already tests the POST route, find the matching `describe` block):
 
 ```typescript
 it('persists family on manual POST /api/admin/models', async () => {
@@ -62,12 +62,12 @@ it('leaves family null when omitted on manual POST', async () => {
 });
 ```
 
-(Adjust helper names — `openDb`, `createAdminApp`, `csrf`, `getModel` — to match what's already imported in the test file. Re-use the existing csrf-token fixture if one exists.)
+(Adjust helper names, `openDb`, `createAdminApp`, `csrf`, `getModel`, to match what's already imported in the test file. Re-use the existing csrf-token fixture if one exists.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/api/admin/models.test.ts -t "persists family"`
-Expected: FAIL — `family` column comes back `null` for the first case.
+Expected: FAIL, `family` column comes back `null` for the first case.
 
 - [ ] **Step 3: Implement the fix**
 
@@ -87,7 +87,7 @@ upsertModel(db, {
 });
 ```
 
-No type changes needed — `family` is already in `ModelUpsert` (`Partial<Model>`).
+No type changes needed, `family` is already in `ModelUpsert` (`Partial<Model>`).
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -103,7 +103,7 @@ git commit -m "fix(api): persist family on manual model insert"
 
 ---
 
-### Task 2: A5 — Quota endpoint uses `Promise.allSettled` for per-account parallel fetch
+### Task 2: A5: Quota endpoint uses `Promise.allSettled` for per-account parallel fetch
 
 **Files:**
 - Modify: `src/api/admin/quota.ts`
@@ -181,7 +181,7 @@ Adjust imports + helper names to match the existing test file. Mock `fetchKiroUs
 - [ ] **Step 3: Run test to verify it fails**
 
 Run: `npx vitest run src/api/admin/quota.test.ts -t "per-account results"`
-Expected: FAIL — current endpoint returns 502 (broken await chain) and doesn't have an `accounts[]` shape.
+Expected: FAIL, current endpoint returns 502 (broken await chain) and doesn't have an `accounts[]` shape.
 
 - [ ] **Step 4: Refactor `quota.ts` to parallel + per-account shape**
 
@@ -234,7 +234,7 @@ git commit -m "fix(quota): parallel per-account fetch + per-account error shape"
 
 ---
 
-### Task 3: A6 — Admin cache: drop TTL to 250 ms and add `bumpAdminCacheVersion`
+### Task 3: A6: Admin cache: drop TTL to 250 ms and add `bumpAdminCacheVersion`
 
 **Files:**
 - Modify: `src/api/admin/cache.ts`
@@ -306,7 +306,7 @@ Inspect `RequestLogInsert` shape in `src/db/repos/requestLogs.ts` and adjust fie
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/api/admin/cache.test.ts`
-Expected: FAIL — `bumpAdminCacheVersion` doesn't exist yet.
+Expected: FAIL, `bumpAdminCacheVersion` doesn't exist yet.
 
 - [ ] **Step 3: Update `src/api/admin/cache.ts`**
 
@@ -359,7 +359,7 @@ git commit -m "fix(cache): 250ms TTL + explicit invalidation on log write"
 
 ---
 
-### Task 4: A7 — Settings endpoint returns `null` for missing keys; client merges defaults
+### Task 4: A7: Settings endpoint returns `null` for missing keys; client merges defaults
 
 **Files:**
 - Modify: `src/api/admin/settings.ts:9-23`
@@ -395,7 +395,7 @@ it('returns null for never-written keys', async () => {
 - [ ] **Step 3: Run test to verify it fails**
 
 Run: `npx vitest run src/api/admin/settings.test.ts -t "never-written"`
-Expected: FAIL — current response returns default objects, not null.
+Expected: FAIL, current response returns default objects, not null.
 
 - [ ] **Step 4: Fix server**
 
@@ -451,14 +451,14 @@ git commit -m "fix(settings): return null for missing keys; client merges defaul
 
 ---
 
-### Task 5: B1 — Combo/alias name uniqueness enforced both directions
+### Task 5: B1: Combo/alias name uniqueness enforced both directions
 
 **Files:**
 - Modify: `src/db/repos/combos.ts:36` (export `checkComboConflict` from aliases.ts direction)
 - Modify: `src/db/repos/aliases.ts:47-65` (call the combo check in `upsertAlias`)
 - Test: `src/db/repos/aliases.test.ts` (new case)
 
-**Context.** `checkAliasConflict` runs on combo insert + rename but the reverse — `upsertAlias` checking if a combo owns the name — is missing. Per ADR 0008, the invariant is "names unique across the bare namespace." The reverse direction violates it.
+**Context.** `checkAliasConflict` runs on combo insert + rename but the reverse, `upsertAlias` checking if a combo owns the name, is missing. Per ADR 0008, the invariant is "names unique across the bare namespace." The reverse direction violates it.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -477,7 +477,7 @@ it('upsertAlias rejects when a combo already owns the name', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/db/repos/aliases.test.ts -t "rejects when a combo"`
-Expected: FAIL — current `upsertAlias` doesn't check combos, so the insert succeeds.
+Expected: FAIL, current `upsertAlias` doesn't check combos, so the insert succeeds.
 
 - [ ] **Step 3: Add `checkComboConflict` and call it from `upsertAlias`**
 
@@ -517,7 +517,7 @@ git commit -m "fix(aliases): enforce combo-name uniqueness on alias insert"
 
 ---
 
-### Task 6: B2 — `upsertAlias` updates `source` on existing rows
+### Task 6: B2: `upsertAlias` updates `source` on existing rows
 
 **Files:**
 - Modify: `src/db/repos/aliases.ts:51-55`
@@ -542,7 +542,7 @@ it('upsertAlias updates source on existing rows', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/db/repos/aliases.test.ts -t "updates source"`
-Expected: FAIL — current UPDATE does not include `source`.
+Expected: FAIL, current UPDATE does not include `source`.
 
 - [ ] **Step 3: Fix `upsertAlias`**
 
@@ -616,7 +616,7 @@ If `git status` is clean, skip. Otherwise commit any leftovers from the verifica
 - A7 (settings null vs {}) → Task 4 ✓
 - B1 (combo/alias symmetry) → Task 5 ✓
 - B2 (alias source update) → Task 6 ✓
-- A1, A2, A3 — already fixed in session (no task needed; spec marks them FIXED)
+- A1, A2, A3, already fixed in session (no task needed; spec marks them FIXED)
 
 **Placeholder scan:** All steps show actual code. No "TODO", "TBD", "implement later", or "similar to Task N".
 

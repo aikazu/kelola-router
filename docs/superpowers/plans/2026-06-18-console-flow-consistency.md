@@ -1,11 +1,11 @@
-# Console flow consistency — Implementation Plan
+# Console flow consistency: Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the live-request Console emit consistent events across all proxy
-providers — Notion (currently silent), resolved models instead of placeholders
+providers, Notion (currently silent), resolved models instead of placeholders
 (CodeBuddy/Combo), one thread per combo request (delegated handlers reuse the parent
 reqId), a log row on every terminal path including upstream errors (MiniMax/Kiro), and
 `buildStart` before account selection in every handler.
@@ -19,16 +19,16 @@ console thread. No new event types; reuse the existing `consoleBus` builders in
 **Tech Stack:** Hono, TypeScript strict, Vitest, better-sqlite3, Preact (Console page).
 
 **Spec:** `docs/superpowers/specs/2026-06-18-models-page-prefix-display-and-delete-design.md`
-(Part B, sections B1–B7).
+(Part B, sections B1-B7).
 
 **Conventions:**
 - Communication with user: Indonesian. Code/comments/commits: English.
 - TDD: red test first. Conventional Commits, one logical unit per commit. Never push
-  without asking.
+without asking.
 - Gates before "done": `npm test` + `npm run typecheck`.
 - The console event stream is asserted via `vi.spyOn(consoleBus, 'emit')`.
 
-**Key reference — console flow builders** (`src/console/flow.ts`):
+**Key reference, console flow builders** (`src/console/flow.ts`):
 - `genReqId(): string`
 - `buildStart(reqId, ts, method, path, model, alias: string | null)`
 - `buildAccount(reqId, ts, accountLabel, reason)`
@@ -45,7 +45,7 @@ const emitSpy = vi.spyOn(consoleBus, 'emit');
 const phases = emitSpy.mock.calls.map((c) => c[0].phase);
 ```
 
-**Client-key bootstrap** — a fresh `resetDb()` DB has NO `client_keys` row, and the proxy
+**Client-key bootstrap**, a fresh `resetDb()` DB has NO `client_keys` row, and the proxy
 requires a valid bearer. Every proxy test must seed one before sending a request:
 ```ts
 db.prepare(
@@ -60,27 +60,27 @@ client_keys LIMIT 1` returning a row unless you seeded one.
 ## File Structure
 
 **Modify:**
-- `src/proxy/notion.ts` — B1: add console events + genReqId + log rows on all paths.
-- `src/proxy/codebuddy.ts` — B2: resolved model in buildStart; B3: parentReqId param;
-  B5: hoist reqId.
-- `src/proxy/pioneer.ts` — B3: parentReqId param.
-- `src/proxy/kiro.ts` — B3: parentReqId param; B4: log row on error path; B5: hoist
-  reqId; B6: buildStart before account select (already before — verify only).
-- `src/proxy/minimax.ts` — B4: log row on error path; B5: hoist reqId; B6: buildStart
-  before account select.
-- `src/proxy/combo.ts` — B2: resolved model in buildStart; B3: pass parentReqId when
-  delegating.
+- `src/proxy/notion.ts`, B1: add console events + genReqId + log rows on all paths.
+- `src/proxy/codebuddy.ts`, B2: resolved model in buildStart; B3: parentReqId param;
+B5: hoist reqId.
+- `src/proxy/pioneer.ts`, B3: parentReqId param.
+- `src/proxy/kiro.ts`, B3: parentReqId param; B4: log row on error path; B5: hoist
+reqId; B6: buildStart before account select (already before, verify only).
+- `src/proxy/minimax.ts`, B4: log row on error path; B5: hoist reqId; B6: buildStart
+before account select.
+- `src/proxy/combo.ts`, B2: resolved model in buildStart; B3: pass parentReqId when
+delegating.
 
-**Tests — create:**
+**Tests, create:**
 - `src/proxy/notion.console.test.ts`
 - `src/proxy/codebuddy.console.test.ts`
 - `src/proxy/combo.console.test.ts`
 - (extend `src/proxy/minimax.test.ts` / `kiro.test.ts` if they exist, else create
-  minimal console-assertion tests.)
+minimal console-assertion tests.)
 
 ---
 
-## Task B1: Notion — emit console events + log rows
+## Task B1: Notion: emit console events + log rows
 
 **Files:**
 - Modify: `src/proxy/notion.ts`
@@ -191,7 +191,7 @@ describe('handleNotionProxy console flow', () => {
 });
 ```
 
-> The exact client-key bootstrap (`client_keys` row) may differ — check the existing
+> The exact client-key bootstrap (`client_keys` row) may differ, check the existing
 > `src/api/admin/index.test.ts` for how a client key is created, and mirror it. If a
 > client key is auto-created on fresh DB, the `SELECT key FROM client_keys` works;
 > otherwise seed one via `createClientKey`.
@@ -199,7 +199,7 @@ describe('handleNotionProxy console flow', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/proxy/notion.console.test.ts`
-Expected: FAIL — no `start`/`done`/`error` phases emitted (Notion never touches
+Expected: FAIL, no `start`/`done`/`error` phases emitted (Notion never touches
 `consoleBus`).
 
 - [ ] **Step 3: Add console events + reqId + log rows to notion.ts**
@@ -227,7 +227,7 @@ At the top of `handleNotionProxy`, replace the hand-rolled reqId (line ~93):
   c.set('reqId', reqId);
 ```
 
-Resolve the model early (before any return) so buildStart can carry it — wrap in
+Resolve the model early (before any return) so buildStart can carry it, wrap in
 try/catch like Pioneer does. After the `reqId` block, before `pickAccount`:
 
 ```ts
@@ -311,7 +311,7 @@ parser does not surface tokens, pass `0`/`0` and a `costUsd: 0`.
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/proxy/notion.console.test.ts`
-Expected: PASS — start/done/error phases present, log rows written.
+Expected: PASS, start/done/error phases present, log rows written.
 
 - [ ] **Step 5: Commit**
 
@@ -322,7 +322,7 @@ git commit -m "fix(notion): emit console events + write log rows on all paths"
 
 ---
 
-## Task B2: CodeBuddy — resolved model in buildStart
+## Task B2: CodeBuddy: resolved model in buildStart
 
 **Files:**
 - Modify: `src/proxy/codebuddy.ts:59-64,136`
@@ -391,11 +391,11 @@ describe('handleCodeBuddyProxy console flow', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/proxy/codebuddy.console.test.ts`
-Expected: FAIL — `start.model === 'codebuddy'`.
+Expected: FAIL, `start.model === 'codebuddy'`.
 
 - [ ] **Step 3: Resolve the model before buildStart**
 
-In `src/proxy/codebuddy.ts`, replace the block at lines ~59–64. Currently:
+In `src/proxy/codebuddy.ts`, replace the block at lines ~59-64. Currently:
 
 ```ts
   const model = stringValue(body.model) || 'cb/claude-opus-4.6';
@@ -441,7 +441,7 @@ Add the `resolveModel` import at the top (it is not currently imported in codebu
 import { resolveModel } from '../providers/alias.js';
 ```
 
-Also fix the log row's `requestedModel` (line ~136) — change `requestedModel: model` to
+Also fix the log row's `requestedModel` (line ~136), change `requestedModel: model` to
 `requestedModel: requestedModel ?? model`. And `model: model` → `model: upstreamModel` so
 the log row carries the resolved upstream id (parity with Kiro/MiniMax).
 
@@ -454,7 +454,7 @@ Expected: PASS.
 
 Run: `npx vitest run src/providers/codebuddy/ src/proxy/codebuddy.ts`
 Expected: PASS (no regressions; the `model` variable is still the raw body.model and is
-used elsewhere for SSE model echoes — keep that, only the log row + buildStart change).
+used elsewhere for SSE model echoes, keep that, only the log row + buildStart change).
 
 - [ ] **Step 6: Commit**
 
@@ -465,13 +465,13 @@ git commit -m "fix(codebuddy): emit resolved model in buildStart + log row"
 
 ---
 
-## Task B3: parentReqId param — combo stays one thread
+## Task B3: parentReqId param: combo stays one thread
 
 **Files:**
 - Modify: `src/proxy/codebuddy.ts`, `src/proxy/pioneer.ts`, `src/proxy/kiro.ts`
-  (signature + early reqId handling)
+(signature + early reqId handling)
 - Modify: `src/proxy/combo.ts` (pass parentReqId when delegating; resolved model in
-  buildStart)
+buildStart)
 - Test: `src/proxy/combo.console.test.ts` (create)
 
 - [ ] **Step 1: Write the failing test**
@@ -537,7 +537,7 @@ describe('handleComboProxy console thread', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/proxy/combo.console.test.ts`
-Expected: FAIL — `reqIds.size === 2` (combo's reqId + the delegated codebuddy handler's
+Expected: FAIL, `reqIds.size === 2` (combo's reqId + the delegated codebuddy handler's
 regenerated reqId).
 
 - [ ] **Step 3: Add `parentReqId` to the delegated handlers**
@@ -545,7 +545,7 @@ regenerated reqId).
 In each of `src/proxy/codebuddy.ts`, `src/proxy/pioneer.ts`, `src/proxy/kiro.ts`, add an
 optional last parameter to the handler signature and use it instead of regenerating:
 
-**codebuddy.ts** — change the signature:
+**codebuddy.ts**, change the signature:
 
 ```ts
 export async function handleCodeBuddyProxy(
@@ -567,7 +567,7 @@ and the reqId block:
   if (!parentReqId) c.set('reqId', reqId);
 ```
 
-**pioneer.ts** — same signature change + reqId block (`pioneer.ts:48,76-77`):
+**pioneer.ts**, same signature change + reqId block (`pioneer.ts:48,76-77`):
 
 ```ts
   stickyMap: Map<number, string>,
@@ -580,7 +580,7 @@ and the reqId block:
   if (!parentReqId) c.set('reqId', reqId);
 ```
 
-**kiro.ts** — `handleKiroProxy` signature + the `genReqId`/`c.set` block at `kiro.ts:77-78`:
+**kiro.ts**, `handleKiroProxy` signature + the `genReqId`/`c.set` block at `kiro.ts:77-78`:
 
 ```ts
   stickyMap: Map<number, string>,
@@ -628,7 +628,7 @@ Pioneer delegation:
         );
 ```
 
-Kiro delegation — find the `handleKiroProxy(...)` call in the kiro leg and add `reqId` as
+Kiro delegation, find the `handleKiroProxy(...)` call in the kiro leg and add `reqId` as
 the final argument.
 
 - [ ] **Step 5: Combo buildStart carries the resolved member (B2 combo half)**
@@ -636,20 +636,20 @@ the final argument.
 The combo buildStart (`combo.ts:74-83`) uses the placeholder `combo:${combo.name}`. This
 is acceptable for the combo-level start (the member is not yet chosen), so leave the
 placeholder but ensure the delegated handler's buildStart (now under the shared reqId)
-emits the resolved model. No code change needed here beyond B3 — the delegated handler
+emits the resolved model. No code change needed here beyond B3, the delegated handler
 already emits buildStart with its resolved model (after B2 for codebuddy; kiro/pioneer
 already do).
 
 - [ ] **Step 6: Run test to verify it passes**
 
 Run: `npx vitest run src/proxy/combo.console.test.ts`
-Expected: PASS — `reqIds.size === 1`.
+Expected: PASS, `reqIds.size === 1`.
 
 - [ ] **Step 7: Run the full server suite + typecheck**
 
 Run: `npm test && npm run typecheck`
 Expected: PASS. (Watch for any caller of these handlers other than combo/server.ts that
-now needs updating — direct calls omit `parentReqId`, which is fine.)
+now needs updating, direct calls omit `parentReqId`, which is fine.)
 
 - [ ] **Step 8: Commit**
 
@@ -660,7 +660,7 @@ git commit -m "fix(console): combo request stays one thread via parentReqId"
 
 ---
 
-## Task B4: MiniMax + Kiro — log row on the upstream-error path
+## Task B4: MiniMax + Kiro: log row on the upstream-error path
 
 **Files:**
 - Modify: `src/proxy/minimax.ts:336-341` (error branch)
@@ -669,7 +669,7 @@ git commit -m "fix(console): combo request stays one thread via parentReqId"
 
 - [ ] **Step 1: Write the failing test (minimax)**
 
-In `src/proxy/minimax.test.ts` (create if absent — mirror the codebuddy console test
+In `src/proxy/minimax.test.ts` (create if absent, mirror the codebuddy console test
 shape), add:
 
 ```ts
@@ -719,11 +719,11 @@ describe('handleProxy minimax error-path log row', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/proxy/minimax.test.ts -t "error-path log row"`
-Expected: FAIL — no `request_logs` row on the error path.
+Expected: FAIL, no `request_logs` row on the error path.
 
 - [ ] **Step 3: Add the log row to minimax error branch**
 
-In `src/proxy/minimax.ts`, the `!resp.ok` branch is at lines ~336–341. It currently emits
+In `src/proxy/minimax.ts`, the `!resp.ok` branch is at lines ~336-341. It currently emits
 `buildError` and returns. Insert a log row before the `return c.body(...)`. Reuse the
 `buildLogRow` helper (already imported in minimax.ts). The error body, status, and the
 resolved model are all in scope:
@@ -765,11 +765,11 @@ resolved model are all in scope:
 ```
 
 > `text` is the original request body string already in scope (minimax.ts serializes it
-> early). Confirm the variable name by reading the top of the function — it is `text`.
+> early). Confirm the variable name by reading the top of the function, it is `text`.
 
 - [ ] **Step 4: Same for kiro**
 
-In `src/proxy/kiro.ts`, the `!result.ok` branch is at lines ~168–189. After the
+In `src/proxy/kiro.ts`, the `!result.ok` branch is at lines ~168-189. After the
 `consoleBus.emit(buildError(...))` (line ~179), insert a log row mirroring
 `recordKiroUsage`'s shape but with zero tokens:
 
@@ -829,12 +829,12 @@ git commit -m "fix(proxy): write request_logs row on upstream-error path (minima
 
 **Files:**
 - Modify: `src/proxy/minimax.ts` (hoist `genReqId`/`c.set` to the top; emit buildStart
-  before account selection)
+before account selection)
 
 > Kiro/CodeBuddy/Pioneer already emit buildStart before account select and set reqId
-  early (after B2/B3). Only MiniMax still emits buildStart AFTER account selection
-  (`minimax.ts:263-275`) and generates reqId at `:263`. The outer catch at `:459-460`
-  reads `c.get('reqId') ?? '----'` because reqId is not set before model resolution.
+early (after B2/B3). Only MiniMax still emits buildStart AFTER account selection
+(`minimax.ts:263-275`) and generates reqId at `:263`. The outer catch at `:459-460`
+reads `c.get('reqId') ?? '----'` because reqId is not set before model resolution.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -873,14 +873,14 @@ import { consoleBus } from '../console/bus.js';
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/proxy/minimax.test.ts -t "reqId + buildStart ordering"`
-Expected: FAIL — `errorEvents[0].reqId === '----'` (reqId not set before the catch).
+Expected: FAIL, `errorEvents[0].reqId === '----'` (reqId not set before the catch).
 
 - [ ] **Step 3: Hoist reqId in minimax.ts**
 
 In `src/proxy/minimax.ts`, move the `genReqId()` + `c.set('reqId', reqId)` to the very
 top of `handleProxy` (right after `const clientKey = …` / `startMs`), before model
 resolution. Currently those two lines are at `:263-264`. Move them up to near the top of
-the function (after the `parseBody`/early returns for 413 are fine — those pre-reqId
+the function (after the `parseBody`/early returns for 413 are fine, those pre-reqId
 returns are body-parse failures that never reach console; acceptable, but to be safe put
 reqId gen right after the body is parsed). Then the outer catch can reference the
 in-scope `reqId` directly.
@@ -934,7 +934,7 @@ git commit -m "fix(minimax): hoist reqId + emit buildStart before account select
 ## Task B7 (follow-up, optional): shared console scaffold
 
 > **Out of scope for this plan unless the user asks.** The spec lists B7 as a drift
-> guard. Land it as a separate refactor AFTER B1–B6 are green, so the behavioral fixes
+> guard. Land it as a separate refactor AFTER B1-B6 are green, so the behavioral fixes
 > are committed independently and reviewable. If the user wants it now, add a task that
 > extracts a `startProxyFlow(opts)` helper in `src/console/flow.ts` wrapping
 > genReqId + buildStart + buildAccount + buildDone/buildError + logRow, then migrate
@@ -954,7 +954,7 @@ Expected: PASS with zero warnings.
 Run: `npm run dev`. Open the Console page. Send one request per provider (mx/, kr/, cb/,
 pio/, nt/) + one combo. Confirm each shows a single start → account → done/error thread
 with the resolved model name (no `codebuddy` / `combo:...` placeholders, no `----`).
-Trigger an upstream error (bad key) on MiniMax and Kiro — confirm the failed request
+Trigger an upstream error (bad key) on MiniMax and Kiro, confirm the failed request
 appears in the Request log with the upstream status.
 
 - [ ] **Step 3: Sync docs (optional)**
@@ -967,12 +967,12 @@ the new buildStart-before-select behaviour. Use the `sync-docs` skill.
 ## Self-Review Notes (for the implementer)
 
 - **Spec coverage:** B1 (T-B1), B2 (T-B2 + combo half in B3 Step 5), B3 (T-B3), B4
-  (T-B4), B5 (T-B5 Step 3), B6 (T-B5 Step 4 — same task since both are minimax
-  reordering), B7 (marked follow-up).
+(T-B4), B5 (T-B5 Step 3), B6 (T-B5 Step 4, same task since both are minimax
+reordering), B7 (marked follow-up).
 - **Type consistency:** `parentReqId?: string` added identically to codebuddy/pioneer/
-  kiro; combo passes `reqId`. `buildLogRow` field set matches `LogRowContext`.
-- **No placeholders** — every code step shows the exact block to write.
+kiro; combo passes `reqId`. `buildLogRow` field set matches `LogRowContext`.
+- **No placeholders**, every code step shows the exact block to write.
 - **CSRF:** no route changes; handlers are internal.
-- **Risk:** the minimax reorder (B6) is the riskiest step — move only the emit, not the
-  account-selection logic, and keep `buildAccount` after selection. Run the full minimax
-  suite after.
+- **Risk:** the minimax reorder (B6) is the riskiest step, move only the emit, not the
+account-selection logic, and keep `buildAccount` after selection. Run the full minimax
+suite after.

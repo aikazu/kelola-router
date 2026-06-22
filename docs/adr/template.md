@@ -8,7 +8,7 @@ Proposed | Accepted | Deprecated | Superseded by NNNN.
 
 ## Context
 
-<2-4 paragraphs: what was the situation, what was the pressure, what constraints existed. Be specific — name the alternatives that were considered.>
+<2-4 paragraphs: what was the situation, what was the pressure, what constraints existed. Be specific: name the alternatives that were considered.>
 
 ## Decision
 

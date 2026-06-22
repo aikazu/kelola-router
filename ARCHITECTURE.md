@@ -208,7 +208,7 @@ client/src/
                               animations.css
 ```
 
-The client is a Preact SPA — NOT server-rendered. The Hono app exposes a JSON API under `/api/admin/*`; the SPA consumes it via `apiFetch`. Built with Vite, bundled into `client/dist/`, served as static assets by the Hono app in production. In Docker, `client/dist` is baked at build time and copied to runtime.
+The client is a Preact SPA. NOT server-rendered. The Hono app exposes a JSON API under `/api/admin/*`; the SPA consumes it via `apiFetch`. Built with Vite, bundled into `client/dist/`, served as static assets by the Hono app in production. In Docker, `client/dist` is baked at build time and copied to runtime.
 
 ## State machines
 
@@ -242,7 +242,7 @@ sticky     round-robin   lowest-backoff
        └─────────────────┘
 ```
 
-`sticky` pins the first selected account to a `clientKeyId` in an in-memory `Map`. `round-robin` advances a per-provider cursor every `step` requests. `lowest-backoff` is the default — picks the healthiest available.
+`sticky` pins the first selected account to a `clientKeyId` in an in-memory `Map`. `round-robin` advances a per-provider cursor every `step` requests. `lowest-backoff` is the default and picks the healthiest available.
 
 ### Error → backoff (applyAccountError)
 
@@ -322,7 +322,7 @@ on error: applyAccountError → emit('error')
 HTTP out
 ```
 
-The `emit('start' | 'done' | 'error')` lines above are conceptual; the actual builders are `buildStart` / `buildAccount` / `buildDone` / `buildError` in `src/console/flow.ts` — every provider handler emits start → account → done/error with a `request_log` row on every terminal path, and combo requests share one `reqId` across delegated legs (combo delegates via `parentReqId`, so one combo request is one console thread; minimax emits `buildStart` after model resolution + before `buildAccount`).
+The `emit('start' | 'done' | 'error')` lines above are conceptual; the actual builders are `buildStart` / `buildAccount` / `buildDone` / `buildError` in `src/console/flow.ts`. Every provider handler emits start → account → done/error with a `request_log` row on every terminal path, and combo requests share one `reqId` across delegated legs (combo delegates via `parentReqId`, so one combo request is one console thread; minimax emits `buildStart` after model resolution + before `buildAccount`).
 
 ## Two-tier auth
 
@@ -335,28 +335,28 @@ The `emit('start' | 'done' | 'error')` lines above are conceptual; the actual bu
 
 ## Storage
 
-`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Schema is a single consolidated fresh-deploy migration in `src/db/migrations/001-initial.ts` (SQL split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts`), tracked via `PRAGMA user_version` (current = 1). No incremental ALTERs — a fresh install reaches the final schema in one step; earlier incremental migrations `002-010` and the Pioneer dedup cleanups were folded in and removed.
+`~/.local/share/kelola-router/router.db` (override: `ROUTER_DB_PATH`). WAL journal, foreign keys on, 5s busy timeout. Schema is a single consolidated fresh-deploy migration in `src/db/migrations/001-initial.ts` (SQL split across `schema.sql.ts` / `indexes.sql.ts` / `seed.sql.ts`), tracked via `PRAGMA user_version` (current = 1). No incremental ALTERs. A fresh install reaches the final schema in one step; earlier incremental migrations `002-010` and the Pioneer dedup cleanups were folded in and removed.
 
-**Optional encryption-at-rest** via `ROUTER_DB_KEY` (read by `getDbKey()` in `src/util/env.ts`). When set, `openDb()` swaps to `better-sqlite3-multiple-ciphers` and issues `PRAGMA key = '...'` as the FIRST statement on the fresh handle (SQLCipher requires the key before any other PRAGMA). The cipher fork is structurally identical to `better-sqlite3` at runtime — repos see the same `Database` type via a single cast at the `openDatabase()` boundary, no repo changes anywhere else.
+**Optional encryption-at-rest** via `ROUTER_DB_KEY` (read by `getDbKey()` in `src/util/env.ts`). When set, `openDb()` swaps to `better-sqlite3-multiple-ciphers` and issues `PRAGMA key = '...'` as the FIRST statement on the fresh handle (SQLCipher requires the key before any other PRAGMA). The cipher fork is structurally identical to `better-sqlite3` at runtime; repos see the same `Database` type via a single cast at the `openDatabase()` boundary, no repo changes anywhere else.
 
-**Fresh-deploy-only policy.** Setting `ROUTER_DB_KEY` against an existing unencrypted file refuses to start with a clear error; no in-place `--rekey` migration. The detection signal is the raw 16-byte SQLite header (the `cipher_version` pragma is unreliable in this fork — returns `[]` regardless of state). New deploys created under the key are encrypted from byte 0.
+**Fresh-deploy-only policy.** Setting `ROUTER_DB_KEY` against an existing unencrypted file refuses to start with a clear error; no in-place `--rekey` migration. The detection signal is the raw 16-byte SQLite header. The `cipher_version` pragma is unreliable in this fork and returns `[]` regardless of state. New deploys created under the key are encrypted from byte 0.
 
-## Provider layer — Anthropic-SSE assembly
+## Provider layer: Anthropic-SSE assembly
 
 `src/providers/common/SseAssemblerBase.ts` is an abstract template-method base for Anthropic Messages-SSE emitters. Generic over `<TInput, TOutput = AnthropicEvent>`. Owns the shared state machine (`ensureStart` / `closeBlock` / `openBlock`) plus an async-iteration queue; subclasses implement five hooks:
 
-- `createStartEvent()` — emit the `message_start` payload
-- `createBlockEvent(input): BlockSpec | null` — describe a new `content_block_start` (or return null to skip)
-- `createDeltaEvent(input): AnthropicEvent | null` — emit one `content_block_delta` (or null if no delta)
-- `createFinishEvent(): AnthropicEvent[]` — emit `message_delta` + `message_stop`
-- `getErrorEvent(err): AnthropicEvent` — wrap an upstream error
+- `createStartEvent()`: emit the `message_start` payload
+- `createBlockEvent(input): BlockSpec | null`: describe a new `content_block_start` (or return null to skip)
+- `createDeltaEvent(input): AnthropicEvent | null`: emit one `content_block_delta` (or null if no delta)
+- `createFinishEvent(): AnthropicEvent[]`: emit `message_delta` + `message_stop`
+- `getErrorEvent(err): AnthropicEvent`: wrap an upstream error
 
 Concrete subclasses:
 
-- **`KiroAnthropicAssembler`** (`src/providers/kiro/anthropicSse.ts`, `TInput = KiroEvent`) — translates decoded Kiro event-stream frames to Anthropic SSE; overrides `process()` to route richer Kiro event types (tool-use, metadata, messageStop) through the inherited state machine.
-- **`OpenAIToAnthropicSSEAssembler`** (`src/providers/codebuddy/streamConvert.ts`, `TInput = OpenAIStreamChunk`) — translates aggregated OpenAI chunks to Anthropic SSE; uses the default 1-block-1-delta orchestrator without overriding `process()`. Pioneer reuses this same assembler (and the `aggregateOpenAISSE` / `openaiSSEToAnthropicSSE` bridge) — no Pioneer-specific assembler.
+- **`KiroAnthropicAssembler`** (`src/providers/kiro/anthropicSse.ts`, `TInput = KiroEvent`): translates decoded Kiro event-stream frames to Anthropic SSE; overrides `process()` to route richer Kiro event types (tool-use, metadata, messageStop) through the inherited state machine.
+- **`OpenAIToAnthropicSSEAssembler`** (`src/providers/codebuddy/streamConvert.ts`, `TInput = OpenAIStreamChunk`): translates aggregated OpenAI chunks to Anthropic SSE; uses the default 1-block-1-delta orchestrator without overriding `process()`. Pioneer reuses this same assembler and the `aggregateOpenAISSE` / `openaiSSEToAnthropicSSE` bridge. No Pioneer-specific assembler.
 
-**Not in scope.** `KiroAssembler` (`src/providers/kiro/assembler.ts`, → OpenAI SSE) does NOT extend the base — its I/O type is OpenAI chunks, not Anthropic events, and it predates the template-method. Leaving it untouched keeps the base generic for Anthropic-SSE only.
+**Not in scope.** `KiroAssembler` (`src/providers/kiro/assembler.ts`, → OpenAI SSE) does NOT extend the base. Its I/O type is OpenAI chunks, not Anthropic events, and it predates the template-method. Leaving it untouched keeps the base generic for Anthropic-SSE only.
 
 ## Key invariants
 

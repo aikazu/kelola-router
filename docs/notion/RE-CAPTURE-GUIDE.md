@@ -1,4 +1,4 @@
-# Notion Desktop AI Chat — RE Capture Guide
+# Notion Desktop AI Chat: RE Capture Guide
 
 **Goal:** Capture Notion desktop AI chat traffic so we can reverse-engineer the endpoints, headers, body schema, SSE shape, and token lifecycle. Output: `docs/notion/capture-notes.md` + `tests/fixtures/notion/sample-stream.har`.
 
@@ -93,11 +93,11 @@ Settings → Network → Network Proxy → Manual → HTTP and HTTPS proxy: `127
 ### Option A: Notion desktop
 
 1. Launch Notion desktop (should connect via system proxy)
-2. Sign in (mitmweb will show the login POST — **this is the OTP endpoint we need**, watch for `/login/sendOtp` or similar)
+2. Sign in (mitmweb will show the login POST. **This is the OTP endpoint we need**. Watch for `/login/sendOtp` or similar)
 3. Open any page → press `/` → start typing "ai" → select the AI block option
 4. Or: in any page, type text → select → right-click → "Ask AI"
 5. Send 2-3 messages in the chat panel. Wait for one streaming response to complete.
-6. Sign out and back in (forces a token refresh attempt — capture if it exists)
+6. Sign out and back in (forces a token refresh attempt; capture if it exists)
 
 ### Option B: Browser fallback
 
@@ -115,7 +115,7 @@ mitmweb will show requests to `*.notion.com` and `*.notion.so`.
 
 In mitmweb:
 
-1. Use the search/filter box to scope to `notion.com` or `notion.so` — this hides telemetry/static asset noise
+1. Use the search/filter box to scope to `notion.com` or `notion.so`. This hides telemetry/static asset noise.
 2. Identify the key requests (see "What to look for" below)
 3. Click each → verify it shows the AI chat request/response, not login page assets
 4. File → **Export** → save as `sample-stream.har` to `tests/fixtures/notion/` in the kelola-router repo
@@ -147,8 +147,8 @@ In mitmweb, after triggering AI chat, you should see entries like:
 
 | URL pattern | Method | Why we need it |
 |---|---|---|
-| `/v1/login/sendOtp` or `/api/v3/login/sendOtp` | POST | OTP send endpoint — body `{ email }` |
-| `/v1/login/verify` or similar | POST | OTP exchange — returns `token`, possibly `refresh_token`, `user_id`, `workspace_id` |
+| `/v1/login/sendOtp` or `/api/v3/login/sendOtp` | POST | OTP send endpoint; body `{ email }` |
+| `/v1/login/verify` or similar | POST | OTP exchange; returns `token`, possibly `refresh_token`, `user_id`, `workspace_id` |
 | `/v1/ai/chat` or `/api/ai/chat` | POST | The actual AI chat call. **This is the main one.** |
 | `/v1/users/me` or similar | GET | Workspace/user lookup (may or may not exist) |
 | Any URL with `/refresh` or `/token` | POST | Refresh endpoint (may or may not exist) |
@@ -157,21 +157,21 @@ For the AI chat request, capture:
 
 - **Full URL** (exact path, exact subdomain)
 - **All request headers** (especially `authorization`, `notion-client-version`, `notion-version`, `x-notion-*`)
-- **Request body** (paste the JSON verbatim — field names, nesting)
+- **Request body** (paste the JSON verbatim; field names, nesting)
 - **Response status code**
-- **Response headers** (especially `content-type` — should be `text/event-stream`)
-- **First 3-5 SSE chunks** (raw bytes — they look like `data: {...}\n\n` or `event: ...\ndata: ...\n\n`)
+- **Response headers** (especially `content-type`; should be `text/event-stream`)
+- **First 3-5 SSE chunks** (raw bytes; they look like `data: {...}\n\n` or `event: ...\ndata: ...\n\n`)
 - **Last chunk** (the one with `finish_reason` / `message_stop` / `[DONE]`)
 
-If you see 401/403 after the chat succeeds once, that's the token expiry signal — copy the response body. If you see the chat auto-retry successfully, that's a refresh endpoint.
+If you see 401/403 after the chat succeeds once, that's the token expiry signal; copy the response body. If you see the chat auto-retry successfully, that's a refresh endpoint.
 
 ---
 
 ## Step 8: Write `docs/notion/capture-notes.md`
 
-Open the repo at `docs/notion/capture-notes.md` (file does not exist yet — create it).
+Open the repo at `docs/notion/capture-notes.md` (file does not exist yet; create it).
 
-Use this template — fill in from your capture, do NOT copy from memory:
+Use this template; fill in from your capture, do NOT copy from memory:
 
 ```markdown
 # Notion Desktop Capture Notes
@@ -236,8 +236,8 @@ Use this template — fill in from your capture, do NOT copy from memory:
 <first SSE event, byte-exact>
 ```
 - Event types observed:
-  - `<name>` — fields: `<list>`
-  - `<name>` — fields: `<list>`
+  - `<name>`: fields: `<list>`
+  - `<name>`: fields: `<list>`
 - Conversation ID extraction: <which field, in which event>
 - Stream terminator: `<[DONE] / empty event / message_stop / etc.>`
 
@@ -284,16 +284,16 @@ Once committed, tell the assistant: **"capture done"** or paste the path to `cap
 
 ### "Notion shows 'network error' or won't load"
 - Cert not trusted. Re-check Step 3.
-- Try `http://mitm.it` in a fresh tab — if it warns about cert, trust is broken.
+- Try `http://mitm.it` in a fresh tab; if it warns about cert, trust is broken.
 
 ### "AI chat returns 402 Payment Required"
 - Subscription tier doesn't include AI. Upgrade or use a different account. Without AI access, we can't capture the chat endpoint.
 
 ### "HAR export is empty / broken"
-- Use mitmdump + custom export script (Step 6 alternative) — more reliable than mitmweb's HAR export.
+- Use mitmdump + custom export script (Step 6 alternative), which is more reliable than mitmweb's HAR export.
 
 ### "I don't see a refresh endpoint anywhere"
-- Notion may not have one. That's fine — auth module will handle 401 by emitting `notion_reauth_required` and the user re-runs the OTP flow. Document this finding in capture-notes.md Token Lifecycle section.
+- Notion may not have one. That's fine. The auth module will handle 401 by emitting `notion_reauth_required` and the user re-runs the OTP flow. Document this finding in capture-notes.md Token Lifecycle section.
 
 ---
 

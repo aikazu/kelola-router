@@ -1,4 +1,4 @@
-# Models page (prefix display, fetch, delete, copy) — Implementation Plan
+# Models page (prefix display, fetch, delete, copy): Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
@@ -31,39 +31,39 @@ TanStack Query + Vite, Biome.
 
 ## File Structure
 
-**Backend — create:**
-- `src/db/migrations/009-pioneer-anthropic-dedup.ts` — dedup the 64 leaked rows.
-- `src/db/migrations/010-model-context-output.ts` — additive `context_output` column.
+**Backend, create:**
+- `src/db/migrations/009-pioneer-anthropic-dedup.ts`, dedup the 64 leaked rows.
+- `src/db/migrations/010-model-context-output.ts`, additive `context_output` column.
 
-**Backend — modify:**
-- `src/db/migrations/index.ts` — register migrations 009 + 010.
-- `src/providers/pioneer/models.ts` — strip `anthropic/pioneer/` before dedup; seed
-  `context_output`.
-- `src/db/repos/models.ts` — add `context_output` to `Model` type + `upsertModel` INSERT.
-- `src/api/admin/models.ts` — new routes: `fetch/:provider`, `:name/refs`, `DELETE :name`,
-  `PATCH :name`; extend list response with `contextOutput` + `comboCount`.
+**Backend, modify:**
+- `src/db/migrations/index.ts`, register migrations 009 + 010.
+- `src/providers/pioneer/models.ts`, strip `anthropic/pioneer/` before dedup; seed
+`context_output`.
+- `src/db/repos/models.ts`, add `context_output` to `Model` type + `upsertModel` INSERT.
+- `src/api/admin/models.ts`, new routes: `fetch/:provider`, `:name/refs`, `DELETE :name`,
+`PATCH :name`; extend list response with `contextOutput` + `comboCount`.
 
-**Client — create:**
-- `client/src/lib/providerPrefix.ts` — prefix map + `callName()`.
+**Client, create:**
+- `client/src/lib/providerPrefix.ts`, prefix map + `callName()`.
 
-**Client — modify:**
-- `client/src/components/models/types.ts` — add `contextOutput`, `comboCount` to `Model`;
-  extend `AddModelForm` (no — Edit uses a separate form; leave AddModelForm as-is).
-- `client/src/components/models/ProviderModelsSection.tsx` — add `provider` prop, new
-  columns (ID/NAME/CONTEXT IN/CONTEXT OUT/Combo), Copy/Edit/Delete actions, conditional
-  Fetch button.
-- `client/src/pages/Models.tsx` — pass `provider` prop.
-- `client/src/components/models/EditModelModal.tsx` (new) — edit modal for PATCH.
+**Client, modify:**
+- `client/src/components/models/types.ts`, add `contextOutput`, `comboCount` to `Model`;
+extend `AddModelForm` (no, Edit uses a separate form; leave AddModelForm as-is).
+- `client/src/components/models/ProviderModelsSection.tsx`, add `provider` prop, new
+columns (ID/NAME/CONTEXT IN/CONTEXT OUT/Combo), Copy/Edit/Delete actions, conditional
+Fetch button.
+- `client/src/pages/Models.tsx`, pass `provider` prop.
+- `client/src/components/models/EditModelModal.tsx` (new), edit modal for PATCH.
 
-**Tests — create:**
-- `src/providers/pioneer/models.test.ts` — seeder dedup case (new file).
-- `src/db/migrations/009-pioneer-anthropic-dedup.test.ts` — migration cleans 139→75.
+**Tests, create:**
+- `src/providers/pioneer/models.test.ts`, seeder dedup case (new file).
+- `src/db/migrations/009-pioneer-anthropic-dedup.test.ts`, migration cleans 139→75.
 - `src/api/admin/models.partB.test.ts` is NOT this plan (Part B = console).
 - `client/src/__tests__/ProviderModelsSection.test.tsx` (or extend existing client tests).
 
 ---
 
-## Task 1: Seeder fix — strip `anthropic/pioneer/`
+## Task 1: Seeder fix: strip `anthropic/pioneer/`
 
 **Files:**
 - Modify: `src/providers/pioneer/models.ts:59-71`
@@ -144,7 +144,7 @@ describe('fetchAndSeedPioneerModels', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/providers/pioneer/models.test.ts`
-Expected: FAIL — first test expects 3 rows but gets 5 (seeder does not strip
+Expected: FAIL, first test expects 3 rows but gets 5 (seeder does not strip
 `anthropic/pioneer/`); second test fails on `context_output` (column does not exist yet).
 Note: the `context_output` column does not exist until Task 3. If the second test blocks,
 run only the first: `npx vitest run src/providers/pioneer/models.test.ts -t "dedups"`.
@@ -170,7 +170,7 @@ with:
 const bareId = m.id.replace(/^anthropic\/pioneer\//, '').replace(/^pioneer\//, '');
 ```
 
-- [ ] **Step 4: Commit (seeder strip only — context_output comes in Task 3)**
+- [ ] **Step 4: Commit (seeder strip only, context_output comes in Task 3)**
 
 ```bash
 git add src/providers/pioneer/models.ts src/providers/pioneer/models.test.ts
@@ -179,7 +179,7 @@ git commit -m "fix(pioneer): strip anthropic/pioneer/ dup prefix in model seeder
 
 ---
 
-## Task 2: Migration 009 — dedup existing DB rows
+## Task 2: Migration 009: dedup existing DB rows
 
 **Files:**
 - Create: `src/db/migrations/009-pioneer-anthropic-dedup.ts`
@@ -238,7 +238,7 @@ import { migration_009 } from './009-pioneer-anthropic-dedup.js';
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/db/migrations/index.test.ts -t "migration 009"`
-Expected: FAIL — `migration_009` is not exported (file does not exist yet).
+Expected: FAIL, `migration_009` is not exported (file does not exist yet).
 
 - [ ] **Step 3: Create the migration file**
 
@@ -303,7 +303,7 @@ export const migration_009 = {
 
 > Note on the string concatenation: SQLite `LIKE 'anthropic/pioneer/%'` uses single
 > quotes inside a `.ts` string joined by `+`. An equivalent cleaner form is a template
-> literal with escaped quotes — use whichever Biome keeps readable. The functional
+> literal with escaped quotes, use whichever Biome keeps readable. The functional
 > requirement: the SQL string contains `substr(upstream_model, 19)` (length of
 > `anthropic/pioneer/` is 18, so substr starts at char 19) and the LIKE patterns.
 
@@ -323,7 +323,7 @@ const ALL_MIGRATIONS: Array<{ id: number; name: string; sql: string }> = [
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run src/db/migrations/index.test.ts -t "migration 009"`
-Expected: PASS — 2 rows remain, both canonical.
+Expected: PASS, 2 rows remain, both canonical.
 
 - [ ] **Step 6: Commit**
 
@@ -334,7 +334,7 @@ git commit -m "feat(db): migration 009 dedup pioneer anthropic/pioneer model row
 
 ---
 
-## Task 3: Migration 010 — context_output column + repo wiring
+## Task 3: Migration 010: context_output column + repo wiring
 
 **Files:**
 - Create: `src/db/migrations/010-model-context-output.ts`
@@ -413,7 +413,7 @@ statement:
 ```
 
 (The UPDATE branch already iterates over `Object.keys(m)`, so it picks up
-`context_output` automatically — no change there.)
+`context_output` automatically, no change there.)
 
 - [ ] **Step 4: Seed context_output in the Pioneer seeder**
 
@@ -452,13 +452,13 @@ interface PioneerModelEntry {
 - [ ] **Step 5: Run the seeder tests (both now pass)**
 
 Run: `npx vitest run src/providers/pioneer/models.test.ts`
-Expected: PASS — dedup case yields 3 rows; context_output case yields 4096.
+Expected: PASS, dedup case yields 3 rows; context_output case yields 4096.
 
 - [ ] **Step 6: Run full server suite + typecheck**
 
 Run: `npm test && npm run typecheck`
 Expected: PASS (no regressions; the `Model` type change may surface type errors in
-callers that construct `ModelUpsert` — fix by leaving `context_output` optional via
+callers that construct `ModelUpsert`, fix by leaving `context_output` optional via
 `Partial<Model>`; it already is, since `ModelUpsert = Pick<...> & Partial<Model>`).
 
 - [ ] **Step 7: Commit**
@@ -470,7 +470,7 @@ git commit -m "feat(models): add context_output column + seed from pioneer max_t
 
 ---
 
-## Task 4: Endpoint — `POST /api/admin/models/fetch/:provider`
+## Task 4: Endpoint: `POST /api/admin/models/fetch/:provider`
 
 **Files:**
 - Modify: `src/api/admin/models.ts` (replace the placeholder `/fetch` route)
@@ -567,13 +567,13 @@ describe('POST /api/admin/models/fetch/:provider', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/api/admin/models.fetch.test.ts`
-Expected: FAIL — route `/api/admin/models/fetch/:provider` does not exist (404 for all
+Expected: FAIL, route `/api/admin/models/fetch/:provider` does not exist (404 for all
 cases).
 
 - [ ] **Step 3: Implement the route**
 
 In `src/api/admin/models.ts`, replace the placeholder `modelRoutes.post('/fetch', ...)`
-block (currently lines 133–142) with a parameterized route. Add imports at the top:
+block (currently lines 133-142) with a parameterized route. Add imports at the top:
 
 ```ts
 import { fetchModels } from '../../providers/listModels.js';
@@ -633,7 +633,7 @@ Note: `listModels` is already imported in `models.ts`. `first.base_url` is nulla
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/api/admin/models.fetch.test.ts`
-Expected: PASS — all four cases.
+Expected: PASS, all four cases.
 
 - [ ] **Step 5: Commit**
 
@@ -644,7 +644,7 @@ git commit -m "feat(api): per-provider POST /api/admin/models/fetch/:provider"
 
 ---
 
-## Task 5: Endpoint — `GET /api/admin/models/:name/refs` + `DELETE`
+## Task 5: Endpoint: `GET /api/admin/models/:name/refs` + `DELETE`
 
 **Files:**
 - Modify: `src/api/admin/models.ts`
@@ -760,7 +760,7 @@ describe('DELETE /api/admin/models/:name', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/api/admin/models.refs.test.ts`
-Expected: FAIL — routes do not exist.
+Expected: FAIL, routes do not exist.
 
 - [ ] **Step 3: Add a repo helper for refs**
 
@@ -776,7 +776,7 @@ export function deleteModel(db: Database.Database, name: string): boolean {
 
 > Alias refs come from `model_aliases` (target = `upstream_model`). Combo refs come from
 > parsing `combos.models` JSON. Do NOT put those joins in the models repo (keeps the
-> repo single-purpose) — resolve them in the route handler using the existing
+> repo single-purpose), resolve them in the route handler using the existing
 > `listAliasesForTargets` and `listCombos` repos.
 
 - [ ] **Step 4: Implement the refs + delete routes**
@@ -847,7 +847,7 @@ modelRoutes.delete('/:name', (c) => {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run src/api/admin/models.refs.test.ts`
-Expected: PASS — all five cases.
+Expected: PASS, all five cases.
 
 - [ ] **Step 6: Commit**
 
@@ -858,11 +858,11 @@ git commit -m "feat(api): GET /api/admin/models/:name/refs + DELETE with refs sa
 
 ---
 
-## Task 6: Endpoint — `PATCH /api/admin/models/:name` + list response fields
+## Task 6: Endpoint: `PATCH /api/admin/models/:name` + list response fields
 
 **Files:**
 - Modify: `src/api/admin/models.ts` (PATCH route; extend list response with
-  `contextOutput` + `comboCount`)
+`contextOutput` + `comboCount`)
 - Modify: `src/db/repos/models.ts` (add `updateModel`)
 - Test: `src/api/admin/models.patch.test.ts` (create)
 
@@ -934,7 +934,7 @@ describe('GET /api/admin/models list response', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/api/admin/models.patch.test.ts`
-Expected: FAIL — PATCH route + response fields absent.
+Expected: FAIL, PATCH route + response fields absent.
 
 - [ ] **Step 3: Add `updateModel` repo helper**
 
@@ -1018,7 +1018,7 @@ modelRoutes.patch('/:name', async (c) => {
 });
 ```
 
-Extend the list response in `modelRoutes.get('/')` — compute combo membership counts.
+Extend the list response in `modelRoutes.get('/')`, compute combo membership counts.
 Replace the existing list handler body with:
 
 ```ts
@@ -1068,7 +1068,7 @@ Expected: PASS.
 
 Run: `npm test && npm run typecheck`
 Expected: PASS. Fix any type errors from the `getModel`/`listModels`/`upsertModel`
-duplicate imports (the file already imports these — merge into one import statement).
+duplicate imports (the file already imports these, merge into one import statement).
 
 - [ ] **Step 7: Commit**
 
@@ -1079,7 +1079,7 @@ git commit -m "feat(api): PATCH /api/admin/models/:name + contextOutput/comboCou
 
 ---
 
-## Task 7: Client — providerPrefix lib + Model type
+## Task 7: Client: providerPrefix lib + Model type
 
 **Files:**
 - Create: `client/src/lib/providerPrefix.ts`
@@ -1151,7 +1151,7 @@ git commit -m "feat(client): providerPrefix lib + contextOutput/comboCount on Mo
 
 ---
 
-## Task 8: Client — ProviderModelsSection columns + actions
+## Task 8: Client: ProviderModelsSection columns + actions
 
 **Files:**
 - Modify: `client/src/components/models/ProviderModelsSection.tsx`
@@ -1513,18 +1513,18 @@ import type { Model, Provider } from '../components/models/types';
 - [ ] **Step 3: Typecheck the client**
 
 Run: `cd client && npm run typecheck`
-Expected: PASS (the `editTarget` state is consumed in Task 9; unused-var lint may warn —
+Expected: PASS (the `editTarget` state is consumed in Task 9; unused-var lint may warn
 Task 9 wires the modal. If the lint blocks, temporarily prefix with `// biome-ignore` or
 land Task 9 in the same commit).
 
 > To avoid a broken intermediate commit, combine Step 2 of this task with Task 9 into a
 > single commit if the typecheck fails on `editTarget` unused.
 
-- [ ] **Step 4: Commit (with Task 9 — see below)**
+- [ ] **Step 4: Commit (with Task 9, see below)**
 
 ---
 
-## Task 9: Client — EditModelModal
+## Task 9: Client: EditModelModal
 
 **Files:**
 - Create: `client/src/components/models/EditModelModal.tsx`
@@ -1650,7 +1650,7 @@ Expected: PASS.
 - [ ] **Step 4: Run client tests**
 
 Run: `cd client && npm test`
-Expected: PASS (existing tests; new components have no dedicated test — covered by the
+Expected: PASS (existing tests; new components have no dedicated test, covered by the
 manual smoke in Task 10. If a snapshot/render test breaks on the column change, update it).
 
 - [ ] **Step 5: Commit (Tasks 8 + 9 together to avoid broken intermediate)**
@@ -1673,13 +1673,13 @@ Expected: PASS with zero warnings.
 
 Run: `npm run dev` (server :20137 + client :5173).
 - Open `/admin/models`. Confirm each card shows ID (`mx/…`, `pio/…`), separate
-  Context In/Out, Combo count, Copy/Edit/Delete buttons.
+Context In/Out, Combo count, Copy/Edit/Delete buttons.
 - Confirm Fetch button shows only on MiniMax + Pioneer cards.
 - Add a Pioneer account; confirm the seeder yields ~75 (not 139).
 - Copy a row → paste elsewhere → confirm `pio/<id>`.
 - Edit a row → change price → reload → confirm persisted.
 - Delete an unreferenced model → confirm gone. Delete a referenced one → confirm blocked
-  toast naming the alias/combo.
+toast naming the alias/combo.
 
 - [ ] **Step 3: Sync docs (optional follow-up)**
 
@@ -1697,12 +1697,12 @@ git commit -m "docs: sync models page endpoint + pioneer seed count"
 
 ## Self-Review Notes (for the implementer)
 
-- **Spec coverage:** Part A — seeder (T1), migration 009 (T2), migration 010 + repo
-  (T3), fetch endpoint (T4), refs + delete (T5), patch + list fields (T6), client lib +
-  type (T7), table + actions (T8), edit modal (T9), verification (T10). All Part A
-  spec sections covered.
+- **Spec coverage:** Part A, seeder (T1), migration 009 (T2), migration 010 + repo
+(T3), fetch endpoint (T4), refs + delete (T5), patch + list fields (T6), client lib +
+type (T7), table + actions (T8), edit modal (T9), verification (T10). All Part A
+spec sections covered.
 - **Type consistency:** `Model.contextOutput` + `Model.comboCount` (client + server),
-  `callName(provider, name)` used identically in section + modal. `updateModel` /
-  `deleteModel` repo signatures match their route usage.
+`callName(provider, name)` used identically in section + modal. `updateModel` /
+`deleteModel` repo signatures match their route usage.
 - **CSRF:** `csrfGuard` already covers PATCH + DELETE (non-GET). No middleware change.
 - **No placeholders** in this plan.

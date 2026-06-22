@@ -14,20 +14,20 @@
 
 ## File Structure
 
-- **Create** `client/src/lib/decodeBody.ts` — pure decode functions + types. Single responsibility: turn DB body strings into typed views.
-- **Create** `client/src/lib/decodeBody.test.ts` — vitest unit tests for all decode functions.
-- **Create** `client/src/lib/__fixtures__/decodeFixtures.ts` — real-ish body strings (openai completion, anthropic message, anthropic SSE multi-event, SSE partial, error object, plain error) as test inputs.
-- **Create** `client/src/components/CollapsibleText.tsx` — `<details>`-style text block that auto-collapses >2 KB with "show more".
-- **Create** `client/src/components/HeadersTable.tsx` — key-value table with sensitive-value masking, replacing inline `HeadersView`.
-- **Modify** `client/src/pages/RequestDetail.tsx` — wire decoded views into tabs, add Response sub-tabs, use new components.
-- **Create** `client/src/pages/RequestDetail.test.tsx` — render tests per tab + Raw fallback.
+- **Create** `client/src/lib/decodeBody.ts`, pure decode functions + types. Single responsibility: turn DB body strings into typed views.
+- **Create** `client/src/lib/decodeBody.test.ts`, vitest unit tests for all decode functions.
+- **Create** `client/src/lib/__fixtures__/decodeFixtures.ts`, real-ish body strings (openai completion, anthropic message, anthropic SSE multi-event, SSE partial, error object, plain error) as test inputs.
+- **Create** `client/src/components/CollapsibleText.tsx`, `<details>`-style text block that auto-collapses >2 KB with "show more".
+- **Create** `client/src/components/HeadersTable.tsx`, key-value table with sensitive-value masking, replacing inline `HeadersView`.
+- **Modify** `client/src/pages/RequestDetail.tsx`, wire decoded views into tabs, add Response sub-tabs, use new components.
+- **Create** `client/src/pages/RequestDetail.test.tsx`, render tests per tab + Raw fallback.
 
 Conventions to follow (verified in repo):
 - Test pattern: `import { describe, expect, it, vi } from 'vitest'` + `@testing-library/preact` (`render, screen, fireEvent`). Use `.toBeInTheDocument()` / `.toBeTruthy()` as in `client/src/__tests__/Button.test.tsx`.
-- Test environment: `happy-dom`, `globals: true`, setup `./src/__tests__/setup.ts` (imports `@testing-library/jest-dom/vitest`). Config lives in `client/vite.config.ts` `test` block — NO separate `vitest.config.ts`.
-- Provider tests: wrap in `QueryClientProvider` with `retry:false` QueryClient (see `client/src/__tests__/Overview.test.tsx:23-30`). Mock `../lib/api` via `vi.mock` OR `vi.spyOn(globalThis,'fetch')` — prefer fetch spy for detail queries to avoid module mock complexity.
+- Test environment: `happy-dom`, `globals: true`, setup `./src/__tests__/setup.ts` (imports `@testing-library/jest-dom/vitest`). Config lives in `client/vite.config.ts` `test` block, NO separate `vitest.config.ts`.
+- Provider tests: wrap in `QueryClientProvider` with `retry:false` QueryClient (see `client/src/__tests__/Overview.test.tsx:23-30`). Mock `../lib/api` via `vi.mock` OR `vi.spyOn(globalThis,'fetch')`, prefer fetch spy for detail queries to avoid module mock complexity.
 - Type definition: inline `interface` near consumer (no `client/src/types/` dir exists).
-- Component styling: inline `style` objects + CSS vars (`var(--ink)`, `var(--obsidian-3)`, `var(--grid)`, `var(--gold)`, `var(--ink-dim)`, `var(--radius-sm)`, `var(--font-mono)`), classes `mono`, `card-eyebrow`, `card-sub`, `specsheet`/`specsheet-row`/`specsheet-label`/`specsheet-value` — match `RequestDetail.tsx`.
+- Component styling: inline `style` objects + CSS vars (`var(--ink)`, `var(--obsidian-3)`, `var(--grid)`, `var(--gold)`, `var(--ink-dim)`, `var(--radius-sm)`, `var(--font-mono)`), classes `mono`, `card-eyebrow`, `card-sub`, `specsheet`/`specsheet-row`/`specsheet-label`/`specsheet-value`, match `RequestDetail.tsx`.
 - TS config: `strict: true`, `noImplicitAny`, jsx `react-jsx` (jsxImportSource `preact`). Import types at top of file, not inline `import('...')` in JSX.
 - Lint: `biome check .` (script `lint`). No prettier. Run `npm run lint` before claiming done.
 
@@ -64,9 +64,9 @@ describe('isTruncated', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd client && npx vitest run src/lib/decodeBody.test.ts`
-Expected: FAIL — module `./decodeBody` not found.
+Expected: FAIL, module `./decodeBody` not found.
 
-- [ ] **Step 3: Write minimal implementation — types + isTruncated**
+- [ ] **Step 3: Write minimal implementation, types + isTruncated**
 
 ```ts
 // client/src/lib/decodeBody.ts
@@ -205,7 +205,7 @@ describe('detectFormat', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd client && npx vitest run src/lib/decodeBody.test.ts`
-Expected: FAIL — `detectFormat` is not exported.
+Expected: FAIL, `detectFormat` is not exported.
 
 - [ ] **Step 3: Implement detectFormat**
 
@@ -247,7 +247,7 @@ git commit -m "feat(decode): add detectFormat with content-type hint"
 
 ---
 
-## Task 3: decodeRequestBody — messages + system + tools
+## Task 3: decodeRequestBody: messages + system + tools
 
 **Files:**
 - Modify: `client/src/lib/decodeBody.ts`
@@ -320,7 +320,7 @@ describe('decodeRequestBody', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd client && npx vitest run src/lib/decodeBody.test.ts`
-Expected: FAIL — `decodeRequestBody` not exported.
+Expected: FAIL, `decodeRequestBody` not exported.
 
 - [ ] **Step 3: Implement decodeRequestBody**
 
@@ -445,7 +445,7 @@ git commit -m "feat(decode): add decodeRequestBody — messages, system, tools"
 
 ---
 
-## Task 4: decodeResponseBody — non-stream (openai + anthropic) + error + plain
+## Task 4: decodeResponseBody: non-stream (openai + anthropic) + error + plain
 
 **Files:**
 - Modify: `client/src/lib/decodeBody.ts`
@@ -578,7 +578,7 @@ describe('decodeResponseBody non-stream', () => {
 - [ ] **Step 3: Run tests to verify they fail**
 
 Run: `cd client && npx vitest run src/lib/decodeBody.test.ts`
-Expected: FAIL — `decodeResponseBody` not exported.
+Expected: FAIL, `decodeResponseBody` not exported.
 
 - [ ] **Step 4: Implement non-stream + error + plain branches**
 
@@ -662,9 +662,9 @@ function decodeErrorObject(raw: string): ResponseView {
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cd client && npx vitest run src/lib/decodeBody.test.ts`
-Expected: PASS — all non-stream/error/plain tests green. (SSE tests added in Task 5, not yet present.)
+Expected: PASS, all non-stream/error/plain tests green. (SSE tests added in Task 5, not yet present.)
 
-- [ ] **Step 6: Commit (green — SSE deferred to Task 5)**
+- [ ] **Step 6: Commit (green, SSE deferred to Task 5)**
 
 ```bash
 git add client/src/lib/decodeBody.ts client/src/lib/decodeBody.test.ts client/src/lib/__fixtures__/decodeFixtures.ts
@@ -675,7 +675,7 @@ git commit -m "feat(decode): add non-stream + error + plain response decode"
 
 ---
 
-## Task 5: decodeResponseBody — SSE branch (events + reconstruction)
+## Task 5: decodeResponseBody: SSE branch (events + reconstruction)
 
 **Files:**
 - Modify: `client/src/lib/decodeBody.ts`
@@ -726,7 +726,7 @@ describe('decodeResponseBody sse', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd client && npx vitest run src/lib/decodeBody.test.ts`
-Expected: FAIL — `decodeAnthropicSse` not defined.
+Expected: FAIL, `decodeAnthropicSse` not defined.
 
 - [ ] **Step 3: Implement decodeAnthropicSse**
 
@@ -865,7 +865,7 @@ describe('CollapsibleText', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd client && npx vitest run src/components/CollapsibleText.test.tsx`
-Expected: FAIL — module not found.
+Expected: FAIL, module not found.
 
 - [ ] **Step 3: Implement CollapsibleText**
 
@@ -964,7 +964,7 @@ describe('HeadersTable', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd client && npx vitest run src/components/HeadersTable.test.tsx`
-Expected: FAIL — module not found.
+Expected: FAIL, module not found.
 
 - [ ] **Step 3: Implement HeadersTable**
 
@@ -1026,7 +1026,7 @@ git commit -m "feat(ui): add HeadersTable with sensitive-value masking"
 
 ---
 
-## Task 8: Wire decode into RequestDetail — Request tab + Headers tab
+## Task 8: Wire decode into RequestDetail: Request tab + Headers tab
 
 **Files:**
 - Modify: `client/src/pages/RequestDetail.tsx:27` (Tab type), `:301-312` (request tab), `:78-97` (HeadersView usage)
@@ -1098,9 +1098,9 @@ describe('RequestDetail request tab', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd client && npx vitest run src/pages/RequestDetail.test.tsx`
-Expected: FAIL — Request tab still renders raw JsonView, "Unparseable" message absent.
+Expected: FAIL, Request tab still renders raw JsonView, "Unparseable" message absent.
 
-- [ ] **Step 3: Update RequestDetail.tsx — imports + Request tab + Headers**
+- [ ] **Step 3: Update RequestDetail.tsx, imports + Request tab + Headers**
 
 Edit the imports block (top of file):
 
@@ -1117,7 +1117,7 @@ import { decodeRequestBody, decodeResponseBody, isTruncated } from '../lib/decod
 import type { ContentBlock, MessageCard, ResponseView } from '../lib/decodeBody';
 ```
 
-Replace the `JsonView` function (lines 45-76) — keep it as a Raw-only renderer (rename usage but keep function for Raw):
+Replace the `JsonView` function (lines 45-76), keep it as a Raw-only renderer (rename usage but keep function for Raw):
 
 ```tsx
 function RawView({ data }: { data: string | null | undefined }) {
@@ -1154,7 +1154,7 @@ function RawView({ data }: { data: string | null | undefined }) {
 }
 ```
 
-Delete the old `HeadersView` function (lines 78-97) — replaced by `<HeadersTable>`.
+Delete the old `HeadersView` function (lines 78-97), replaced by `<HeadersTable>`.
 
 Add a `ContentBlockView` + `MessageCard` renderer above the `RequestDetail` component:
 
@@ -1289,10 +1289,10 @@ git commit -m "feat(ui): decode request body into chat timeline in modal"
 
 ---
 
-## Task 9: Response tab — sub-tabs (Reconstructed / Events / Raw) + non-stream + error
+## Task 9: Response tab: sub-tabs (Reconstructed / Events / Raw) + non-stream + error
 
 **Files:**
-- Modify: `client/src/pages/RequestDetail.tsx:27` (Tab type — add 'response'), `:314-325` (response tab)
+- Modify: `client/src/pages/RequestDetail.tsx:27` (Tab type, add 'response'), `:314-325` (response tab)
 - Test: `client/src/pages/RequestDetail.test.tsx`
 
 - [ ] **Step 1: Write the failing tests**
@@ -1344,7 +1344,7 @@ describe('RequestDetail response tab', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd client && npx vitest run src/pages/RequestDetail.test.tsx`
-Expected: FAIL — response tab still uses old `JsonView`.
+Expected: FAIL, response tab still uses old `JsonView`.
 
 - [ ] **Step 3: Implement ResponsePanel with sub-tabs**
 
@@ -1481,9 +1481,9 @@ Run: `cd client && npm run dev` (background) + the proxy server per project skil
 - [ ] **Step 2: Open Usage page, click rows covering each case**
 
 Verify in the modal:
-- **Non-stream success** (row id=927 shape — OpenAI completion): Request tab shows message timeline; Response → Content shows assistant text + reasoning.
-- **Stream success** (id=973 shape — SSE): Response → Reconstructed shows concatenated text; Events shows per-event list; Raw shows original SSE.
-- **Error** (id=826 shape — "fetch failed"): Response → Raw shows "fetch failed"; Error tab (existing) still works.
+- **Non-stream success** (row id=927 shape, OpenAI completion): Request tab shows message timeline; Response → Content shows assistant text + reasoning.
+- **Stream success** (id=973 shape, SSE): Response → Reconstructed shows concatenated text; Events shows per-event list; Raw shows original SSE.
+- **Error** (id=826 shape, "fetch failed"): Response → Raw shows "fetch failed"; Error tab (existing) still works.
 - **Headers tab**: sensitive headers masked; content-type shown plain.
 - **Truncation badge**: appears for 100KB bodies.
 
@@ -1499,7 +1499,7 @@ git add -A
 git commit -m "test(decode): verified against real request_logs rows"
 ```
 
-> If no cleanup needed, skip — verification only.
+> If no cleanup needed, skip, verification only.
 
 ---
 
@@ -1519,8 +1519,8 @@ git commit -m "test(decode): verified against real request_logs rows"
 - Render tests per tab → Tasks 8-9 ✓
 - Manual verification → Task 10 ✓
 
-**Placeholder scan:** none — every step has real code/commands.
+**Placeholder scan:** none, every step has real code/commands.
 
 **Type consistency:** `ResponseView.kind` values (`nonstream`, `sse`, `error`, `plain-text`) match `detectFormat` outputs used in `decodeResponseBody` switch and ResponsePanel sub-tab logic. `ContentBlock` shape consistent across decode + render. `MessageCard` consistent. ✓
 
-**Note:** Task 4 leaves SSE tests failing until Task 5 — execute back-to-back, do not stop between.
+**Note:** Task 4 leaves SSE tests failing until Task 5, execute back-to-back, do not stop between.

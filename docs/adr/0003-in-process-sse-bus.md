@@ -12,10 +12,10 @@ For the Live Console page (added in v0.17.0), the dashboard renders per-request 
 
 The transport from server to dashboard was an open question. Options:
 
-1. **In-process EventEmitter + SSE** — the server publishes to an in-process `consoleBus`, the dashboard opens an `EventSource` over `GET /api/admin/console/stream` which subscribes to the bus. The bus has a 200-event ring buffer for backfill on new connections.
-2. **WebSocket** — bidirectional, but the dashboard only needs server→client. WebSocket adds framing overhead + a separate upgrade handshake.
-3. **Redis pub-sub** — works across multiple server instances, but the project is single-tenant self-host. Redis would be a heavyweight dependency for one feature.
-4. **File-tail** — server writes events to a JSONL file, dashboard tails it. Awkward (polling vs inotify), laggy, doesn't compose with the rest of the dashboard.
+1. **In-process EventEmitter + SSE**: the server publishes to an in-process `consoleBus`, the dashboard opens an `EventSource` over `GET /api/admin/console/stream` which subscribes to the bus. The bus has a 200-event ring buffer for backfill on new connections.
+2. **WebSocket**: bidirectional, but the dashboard only needs server→client. WebSocket adds framing overhead + a separate upgrade handshake.
+3. **Redis pub-sub**: works across multiple server instances, but the project is single-tenant self-host. Redis would be a heavyweight dependency for one feature.
+4. **File-tail**: server writes events to a JSONL file, dashboard tails it. Awkward (polling vs inotify), laggy, doesn't compose with the rest of the dashboard.
 
 ## Decision
 
@@ -23,7 +23,7 @@ Option 1. `src/console/bus.ts` exports a singleton `consoleBus` (a typed `EventE
 
 The bus also has an optional stdout sink (`src/console/sink.ts:attachStdoutSink`) gated by `CONSOLE_FLOW=0` (off by default). When enabled, the server prints colored ANSI versions of the events to stdout for tail-without-dashboard scenarios.
 
-The proxy handlers emit via `consoleBus.emit('start', { reqId, ... })`, `consoleBus.emit('account', ...)`, etc. — 5 emit sites per proxy handler.
+The proxy handlers emit via `consoleBus.emit('start', { reqId, ... })`, `consoleBus.emit('account', ...)`, etc. (5 emit sites per proxy handler).
 
 ## Consequences
 
@@ -37,7 +37,7 @@ The proxy handlers emit via `consoleBus.emit('start', { reqId, ... })`, `console
 ### Negative
 
 - **Single-process only.** The ring buffer is in-memory. If the user runs multiple router instances (not currently supported), each has its own console.
-- **No persistence.** Events are lost on restart. The `request_logs` table is the persisted equivalent — see `requestLogs` schema for the durable view.
+- **No persistence.** Events are lost on restart. The `request_logs` table is the persisted equivalent. See `requestLogs` schema for the durable view.
 - **The 200-event limit means fast-fire bursts may drop history.** The dashboard's "Pause" button is the workaround: pause → bus still buffers, dashboard doesn't render → resume.
 
 ### Neutral
@@ -60,12 +60,12 @@ Rejected because: SSE is strictly better for the in-memory, real-time case. File
 
 ## References
 
-- `src/console/bus.ts` — `consoleBus` singleton + ring buffer
-- `src/console/types.ts` — `FlowEvent` discriminated union
-- `src/console/flow.ts` — 5 `build*` helpers + `genReqId`
-- `src/console/sink.ts` — `attachStdoutSink` (env-gated)
-- `src/console/format.ts` — ANSI renderer + `stripAnsi` for tests
-- `src/api/admin/console/` — SSE endpoint
-- `client/src/pages/Console.tsx` — dashboard consumer
-- `CHANGELOG.md` v0.17.0 — Live Console entry
-- `docs/architecture/.claude/docs/data-flow.md` — pipeline (see Phase 5)
+- `src/console/bus.ts`: `consoleBus` singleton + ring buffer
+- `src/console/types.ts`: `FlowEvent` discriminated union
+- `src/console/flow.ts`: 5 `build*` helpers + `genReqId`
+- `src/console/sink.ts`: `attachStdoutSink` (env-gated)
+- `src/console/format.ts`: ANSI renderer + `stripAnsi` for tests
+- `src/api/admin/console/`: SSE endpoint
+- `client/src/pages/Console.tsx`: dashboard consumer
+- `CHANGELOG.md` v0.17.0: Live Console entry
+- `docs/architecture/.claude/docs/data-flow.md`: pipeline (see Phase 5)
