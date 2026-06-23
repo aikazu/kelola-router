@@ -261,7 +261,14 @@ interface ZaiModel {
  * glm-5 / glm-5-turbo / glm-4.7 / glm-5v-turbo / glm-4.6v). The "Cached Input
  * Storage" column on the pricing page is the cache-write leg, currently
  * listed as "Limited-time Free" — stored as 0 to match the published state.
- * Flash variants are free per the pricing page (0 across the row).
+ * Flash variants are free per the pricing page (0 across the row). GLM-4.5
+ * family context/max-output from the glm-4.5 guide page (128K / 96K); the
+ * X/Air/AirX variants share the family specs. GLM-4.6 context expanded to
+ * 200K per its guide page. GLM-4.5V max-output is 16K per its guide page;
+ * its context length is not published, so we use the family 128K default.
+ * GLM-OCR context/output are not published; we use the family 128K default
+ * and leave output null. GLM-4-32B-0414-128K context is 128K (from its id);
+ * max output and cache pricing are not published (`-` on the pricing page).
  */
 const ZAI_MODELS: ZaiModel[] = [
   // Text: GLM-4.7 family
@@ -285,6 +292,58 @@ const ZAI_MODELS: ZaiModel[] = [
     context: 200000,
     contextOutput: 128000,
     pricing: { input: 0.07, output: 0.4, cacheRead: 0.01 },
+  },
+  // Text: GLM-4.6
+  {
+    upstream: 'glm-4.6',
+    display: 'GLM-4.6',
+    context: 200000,
+    contextOutput: 128000,
+    pricing: { input: 0.6, output: 2.2, cacheRead: 0.11 },
+  },
+  // Text: GLM-4.5 family — context 128K, max output 96K per guide page
+  {
+    upstream: 'glm-4.5',
+    display: 'GLM-4.5',
+    context: 128000,
+    contextOutput: 96000,
+    pricing: { input: 0.6, output: 2.2, cacheRead: 0.11 },
+  },
+  {
+    upstream: 'glm-4.5-x',
+    display: 'GLM-4.5 X',
+    context: 128000,
+    contextOutput: 96000,
+    pricing: { input: 2.2, output: 8.9, cacheRead: 0.45 },
+  },
+  {
+    upstream: 'glm-4.5-air',
+    display: 'GLM-4.5 Air',
+    context: 128000,
+    contextOutput: 96000,
+    pricing: { input: 0.2, output: 1.1, cacheRead: 0.03 },
+  },
+  {
+    upstream: 'glm-4.5-airx',
+    display: 'GLM-4.5 AirX',
+    context: 128000,
+    contextOutput: 96000,
+    pricing: { input: 1.1, output: 4.5, cacheRead: 0.22 },
+  },
+  {
+    upstream: 'glm-4.5-flash',
+    display: 'GLM-4.5 Flash',
+    context: 128000,
+    contextOutput: 96000,
+    pricing: { input: 0, output: 0, cacheRead: 0 },
+  },
+  // Text: GLM-4-32B-0414-128K — older open-weight model, cache not supported
+  {
+    upstream: 'glm-4-32b-0414-128k',
+    display: 'GLM-4-32B-0414-128K',
+    context: 128000,
+    contextOutput: null,
+    pricing: { input: 0.1, output: 0.1, cacheRead: 0 },
   },
   // Text: GLM-5 family
   {
@@ -338,6 +397,25 @@ const ZAI_MODELS: ZaiModel[] = [
     context: 128000,
     contextOutput: null,
     pricing: { input: 0.04, output: 0.4, cacheRead: 0.004 },
+  },
+  // Vision: GLM-4.5V — max output 16K per guide page; context unpublished,
+  // uses family 128K default
+  {
+    upstream: 'glm-4.5v',
+    display: 'GLM-4.5V',
+    context: 128000,
+    contextOutput: 16000,
+    pricing: { input: 0.6, output: 1.8, cacheRead: 0.11 },
+  },
+  // Vision: GLM-OCR — lightweight OCR specialist (0.9B params). Context and
+  // max output are not published; uses family 128K default, output null.
+  // Cache pricing not applicable (`\` on the pricing page).
+  {
+    upstream: 'glm-ocr',
+    display: 'GLM-OCR',
+    context: 128000,
+    contextOutput: null,
+    pricing: { input: 0.03, output: 0.03, cacheRead: 0 },
   },
   // Vision: GLM-5V family
   {

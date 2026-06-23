@@ -11,19 +11,22 @@ beforeEach(() => {
 });
 
 function seedMiniMaxForPricing(db: ReturnType<typeof openDb>): void {
-  // Old builtin pricing values for MiniMax models (recovered from HEAD:src/db/autoSeed.ts).
+  // MiniMax pricing from platform.minimax.io/docs/guides/pricing-payg.
+  // M3 has a permanent 50% discount: ≤512k input uses the discounted base
+  // tier ($0.30/$1.20/$0.06), >512k uses the high tier ($0.60/$2.40/$0.12).
+  // M2.7 publishes flat pricing with a cache-write column.
   upsertModel(db, {
     name: 'MiniMax-M3',
     upstream_model: 'MiniMax-M3',
     display_name: 'MiniMax M3',
     family: 'm3',
     context_window: 1_000_000,
-    pricing_input: 0.6,
-    pricing_output: 2.4,
-    pricing_cache_read: 0.12,
+    pricing_input: 0.3,
+    pricing_output: 1.2,
+    pricing_cache_read: 0.06,
     pricing_cache_write: null,
     pricing_tiers:
-      '{"base":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null},"high":{"input":1.20,"output":4.80,"cacheRead":0.24,"cacheWrite":null},"promotional":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null}}',
+      '{"base":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null},"high":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null}}',
     source: 'builtin',
   });
   upsertModel(db, {
@@ -41,22 +44,22 @@ function seedMiniMaxForPricing(db: ReturnType<typeof openDb>): void {
 }
 
 describe('resolvePricing', () => {
-  it('M3 ≤ 512k → base pricing', () => {
+  it('M3 ≤ 512k → base pricing (discounted)', () => {
     const db = openDb();
     seedMiniMaxForPricing(db);
     const p = resolvePricing(db, 'MiniMax-M3', 100_000);
-    expect(p?.input).toBe(0.6);
-    expect(p?.output).toBe(2.4);
-    expect(p?.cacheRead).toBe(0.12);
+    expect(p?.input).toBe(0.3);
+    expect(p?.output).toBe(1.2);
+    expect(p?.cacheRead).toBe(0.06);
   });
 
-  it('M3 > 512k → high pricing (2x)', () => {
+  it('M3 > 512k → high pricing (2x base)', () => {
     const db = openDb();
     seedMiniMaxForPricing(db);
     const p = resolvePricing(db, 'MiniMax-M3', 600_000);
-    expect(p?.input).toBe(1.2);
-    expect(p?.output).toBe(4.8);
-    expect(p?.cacheRead).toBe(0.24);
+    expect(p?.input).toBe(0.6);
+    expect(p?.output).toBe(2.4);
+    expect(p?.cacheRead).toBe(0.12);
   });
 
   it('M2.7 → flat pricing', () => {
@@ -111,7 +114,8 @@ describe('calculateCost', () => {
       cache_creation_tokens: 1000,
       cache_read_tokens: 0,
     });
-    const expected = (1000 / 1e6) * 0.6 + (500 / 1e6) * 2.4;
+    // ≤512k base tier: input $0.30 / output $1.20 per 1M tokens.
+    const expected = (1000 / 1e6) * 0.3 + (500 / 1e6) * 1.2;
     expect(c).toBeCloseTo(expected, 8);
   });
 

@@ -45,6 +45,47 @@ describe('fetchModels', () => {
     expect(m.source).toBe('fetched');
   });
 
+  it('fills pricing fields for known MiniMax models from the static table', async () => {
+    const db = openDb();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ id: 'MiniMax-M3' }, { id: 'MiniMax-M2.7' }] }), {
+        status: 200,
+      })
+    );
+    const result = await fetchModels(db, 'mm_test');
+    expect(result.ok).toBe(true);
+
+    const m3 = listModels(db, { includeDisabled: true }).find((x) => x.name === 'MiniMax-M3')!;
+    // M3 ≤512k tier: permanent 50% discount → effective $0.30 / $1.20 / $0.06.
+    expect(m3.pricing_input).toBe(0.3);
+    expect(m3.pricing_output).toBe(1.2);
+    expect(m3.pricing_cache_read).toBe(0.06);
+    expect(m3.pricing_cache_write).toBeNull();
+    expect(m3.context_window).toBe(1_000_000);
+    // Tiered pricing JSON populates the >512k high tier (2x base).
+    expect(m3.pricing_tiers).toContain('"high"');
+    expect(m3.pricing_tiers).toContain('1.20');
+
+    const m27 = listModels(db, { includeDisabled: true }).find((x) => x.name === 'MiniMax-M2.7')!;
+    expect(m27.pricing_input).toBe(0.3);
+    expect(m27.pricing_output).toBe(1.2);
+    expect(m27.pricing_cache_read).toBe(0.06);
+    expect(m27.pricing_cache_write).toBe(0.375);
+    expect(m27.pricing_tiers).toBeNull();
+  });
+
+  it('leaves pricing null for unknown MiniMax model ids', async () => {
+    const db = openDb();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ id: 'MiniMax-newmodel' }] }), { status: 200 })
+    );
+    const result = await fetchModels(db, 'mm_test');
+    expect(result.ok).toBe(true);
+    const m = listModels(db, { includeDisabled: true }).find((x) => x.name === 'MiniMax-newmodel')!;
+    expect(m.pricing_input).toBeNull();
+    expect(m.pricing_tiers).toBeNull();
+  });
+
   it('returns structured error on non-2xx', async () => {
     const db = openDb();
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('err', { status: 500 }));
