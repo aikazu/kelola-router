@@ -7,7 +7,7 @@
 [![Hono](https://img.shields.io/badge/hono-server-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![SQLite (WAL)](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/wal.html)
 [![License MIT](https://img.shields.io/badge/license-MIT-c9a352)](#license)
-[![Release v0.22.0](https://img.shields.io/badge/release-v0.22.0-c9a352?logo=github)](https://github.com/aikazu/kelola-router/releases/tag/v0.22.0)
+[![Release v0.22.1](https://img.shields.io/badge/release-v0.22.1-c9a352?logo=github)](https://github.com/aikazu/kelola-router/releases/tag/v0.22.1)
 [![Tests 1000+](https://img.shields.io/badge/tests-1000%2B-22c55e)](./tests)
 [![UI Obsidian Gold](https://img.shields.io/badge/ui-obsidian%20gold-c9a352)](#dashboard)
 
@@ -76,7 +76,7 @@ All six upstreams live behind a single OpenAI-compatible or Anthropic-compatible
 - **Built-in Preact dashboard**: Obsidian-Gold-themed SPA (Vite) with Overview, Usage, Client keys, Upstream accounts, Models, Aliases, Combos, Quota, Transports, Console, and Settings.
 - **Transport flexibility**: direct / SOCKS proxy / HTTP proxy / upstream relay, per-account assignment with geoip-aware defaulting, dispatcher cache.
 - **Docker-ready**: multi-stage Dockerfile, `docker-compose.yml`, bind-mount friendly, `recover-db.ts` for WAL race recovery.
-- **1000+ tests** across server (Vitest, 160 files), client (Vitest, 83 tests), and the audit-fixes suite (14 new tests).
+- **1000+ tests** across server (Vitest, 160 files), client (Vitest, 121 tests), and the audit-fixes suite (14 new tests).
 - **Audit-fixes v0.22.0**: quota uses `Promise.allSettled` for parallel per-account fetch with per-account error shape, settings GET returns `null` for missing keys (client merges UI defaults), admin cache 250ms TTL with explicit `bumpAdminCacheVersion` invalidation from `flushDb`, combo/alias name uniqueness enforced both directions (`checkComboConflict` exported), and `upsertAlias` UPDATE branch now sets `source`.
 
 ---
@@ -114,7 +114,7 @@ Open the dashboard at `http://localhost:5173`, set the admin password on first r
 ### Send a request
 
 ```bash
-curl http://localhost:8787/v1/chat/completions \
+curl http://localhost:20137/v1/chat/completions \
   -H "Authorization: Bearer <client_key>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -312,9 +312,9 @@ Built-in Preact SPA (Vite). Sidebar order is fixed; pages route via the hash rou
 
 | Var                              | Purpose                                                              |
 | -------------------------------- | -------------------------------------------------------------------- |
-| `HOST` / `PORT`                  | Bind address (default `0.0.0.0:8787`)                                |
+| `HOST` / `PORT`                  | Bind address (default `127.0.0.1:20137`)                           |
 | `REGION`                         | `intl` vs `cn` for `providers/baseUrl.ts`                            |
-| `DB_PATH`                        | SQLite file path (default `./data/router.db`)                        |
+| `ROUTER_DB_PATH`                 | SQLite file path (default `./data/router.db`)                        |
 | `ROUTER_DB_KEY`                  | SQLCipher encryption key (optional)                                  |
 | `LOG_LEVEL`                      | pino level (`debug` / `info` / `warn` / `error`)                     |
 | `ROUTER_UPSTREAM_FORMAT`         | Force `openai` or `anthropic` wire format                            |
@@ -326,7 +326,7 @@ Built-in Preact SPA (Vite). Sidebar order is fixed; pages route via the hash rou
 
 ```bash
 npm run dev                # server + client in parallel
-npm run dev:server         # Hono on :8787 only
+npm run dev:server         # Hono on :20137 only
 npm run dev:client         # Vite on :5173 only
 npm run build              # tsc + Vite build
 npm run start              # node dist/server.js
@@ -386,10 +386,10 @@ docker compose logs -f router
 ## VPS deploy
 
 1. Provision a small VPS (1 vCPU / 1 GB is enough for personal use).
-2. Clone the repo and `cp .env.example .env`. Fill in `HOST`, `PORT`, `DB_PATH`, `LOG_LEVEL`, and `ROUTER_DB_KEY` (if encrypting at rest).
+2. Clone the repo and `cp .env.example .env`. Fill in `HOST`, `PORT`, `ROUTER_DB_PATH`, `LOG_LEVEL`, and `ROUTER_DB_KEY` (if encrypting at rest).
 3. `npm ci && npm run build`.
-4. On first boot, open the dashboard at `http://<vps>:8787` and **enter the dashboard password you set** (password mode + session cookie; the legacy open-mode `admin_key` flow is gone). The password is hashed with scrypt and stored in `settings`.
-5. Put Caddy (or your reverse proxy of choice) in front of port `8787` for TLS, then point your local OpenAI/Anthropic client at `https://router.example.com`.
+4. On first boot, open the dashboard at `http://<vps>:20137` and **enter the dashboard password you set** (password mode + session cookie; the legacy open-mode `admin_key` flow is gone). The password is hashed with scrypt and stored in `settings`.
+5. Put Caddy (or your reverse proxy of choice) in front of port `20137` for TLS, then point your local OpenAI/Anthropic client at `https://router.example.com`.
 
 If you ever forget the password, the only recovery is to wipe `settings` from the DB and re-bootstrap; there is no backdoor.
 
