@@ -191,6 +191,16 @@ export function Models() {
             onAddModel={() => setAddOpen('zai')}
             onEditModel={(m) => setEditTarget(m)}
           />
+          <ProviderModelsSection
+            title="TabiToken"
+            provider="tabi"
+            models={filtered.filter((m) => m.provider === 'tabi')}
+            selected={selected}
+            onSelectChange={setSelected}
+            shadowedNames={shadowedNames}
+            onAddModel={() => setAddOpen('tabi')}
+            onEditModel={(m) => setEditTarget(m)}
+          />
         </>
       )}
 

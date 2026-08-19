@@ -33,6 +33,12 @@ export interface ZaiForm {
   base_url: string;
 }
 
+export interface TabiForm {
+  label: string;
+  api_key: string;
+  base_url: string;
+}
+
 export interface NotionForm {
   email: string;
   label: string;
@@ -41,7 +47,7 @@ export interface NotionForm {
 export interface AddAccountModalProps {
   open: boolean;
   onClose: () => void;
-  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai';
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi';
   // Minimax form state (owned by parent so resetForms can clear it).
   form: MinimaxForm;
   onFormChange: (next: MinimaxForm) => void;
@@ -56,6 +62,9 @@ export interface AddAccountModalProps {
   // Z.AI form state (owned by parent for resetForms closure).
   zaiForm: ZaiForm;
   onZaiFormChange: (next: ZaiForm) => void;
+  // TabiToken form state (owned by parent for resetForms closure).
+  tabiForm: TabiForm;
+  onTabiFormChange: (next: TabiForm) => void;
   // Notion form state (owned by parent for resetForms closure).
   notionForm: NotionForm;
   onNotionFormChange: (next: NotionForm) => void;
@@ -96,6 +105,8 @@ export function AddAccountModal({
   notionSuccess,
   autoImport,
   deviceFlow,
+  tabiForm,
+  onTabiFormChange,
   onCreate,
   isCreating,
 }: AddAccountModalProps) {
@@ -103,6 +114,7 @@ export function AddAccountModal({
     provider === 'minimax' ||
     provider === 'pioneer' ||
     provider === 'zai' ||
+    provider === 'tabi' ||
     (provider === 'kiro' && kiroMethod === 'token');
   // Notion auth form carries its own action button — no footer needed.
 
@@ -123,7 +135,9 @@ export function AddAccountModal({
                   ? !pioneerForm.label || !pioneerForm.api_key
                   : provider === 'zai'
                     ? !zaiForm.label || !zaiForm.api_key
-                    : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
+                    : provider === 'tabi'
+                      ? !tabiForm.label || !tabiForm.api_key
+                      : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
             }
           >
             {isCreating ? 'Adding…' : 'Add'}
@@ -271,6 +285,55 @@ export function AddAccountModal({
               >
                 Defaults to api.z.ai: Anthropic Messages at <code>/v1/messages</code>, OpenAI Chat
                 at <code>/chat/completions</code>.
+              </span>
+            </label>
+          </>
+        ) : provider === 'tabi' ? (
+          <>
+            <label htmlFor="add-tabi-label">
+              Label{' '}
+              <input
+                id="add-tabi-label"
+                name="tabi-label"
+                value={tabiForm.label}
+                onInput={(e) =>
+                  onTabiFormChange({ ...tabiForm, label: (e.target as HTMLInputElement).value })
+                }
+                class="input"
+                autocomplete="off"
+                aria-required="true"
+              />
+            </label>
+            <label htmlFor="add-tabi-api-key">
+              TabiToken API key{' '}
+              <input
+                id="add-tabi-api-key"
+                name="tabi-api-key"
+                value={tabiForm.api_key}
+                onInput={(e) =>
+                  onTabiFormChange({ ...tabiForm, api_key: (e.target as HTMLInputElement).value })
+                }
+                placeholder="sk-…"
+                class="input"
+                autocomplete="off"
+                aria-required="true"
+              />
+            </label>
+            <label>
+              Base URL (optional){' '}
+              <input
+                value={tabiForm.base_url}
+                onInput={(e) =>
+                  onTabiFormChange({ ...tabiForm, base_url: (e.target as HTMLInputElement).value })
+                }
+                placeholder="leave blank for tabitoken.com"
+                class="input"
+              />
+              <span
+                style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}
+              >
+                Defaults to tabitoken.com: OpenAI Chat Completions at{' '}
+                <code>/v1/chat/completions</code> with Bearer auth.
               </span>
             </label>
           </>

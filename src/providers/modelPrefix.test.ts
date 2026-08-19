@@ -86,6 +86,22 @@ describe('parseModelPrefix', () => {
     });
   });
 
+  it('parses tabi prefix to tabi', () => {
+    expect(parseModelPrefix('tabi/claude-opus-5')).toEqual({
+      provider: 'tabi',
+      modelName: 'claude-opus-5',
+      prefixed: true,
+    });
+  });
+
+  it('parses tabi prefix with a slashed upstream id (first slash only)', () => {
+    expect(parseModelPrefix('tabi/deepseek-ai/DeepSeek-V4-Pro')).toEqual({
+      provider: 'tabi',
+      modelName: 'deepseek-ai/DeepSeek-V4-Pro',
+      prefixed: true,
+    });
+  });
+
   it('treats an empty string as bare (validated downstream)', () => {
     expect(parseModelPrefix('')).toEqual({
       provider: null,

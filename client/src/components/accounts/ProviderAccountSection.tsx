@@ -6,7 +6,7 @@ import { SelectionControls } from '../SelectionControls';
 
 export interface ProviderAccountSectionProps {
   title: string;
-  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai';
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi';
   accounts: Account[];
   transports: Transport[];
   onAdd: () => void;

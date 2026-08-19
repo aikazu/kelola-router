@@ -272,6 +272,7 @@ export { handleKiroProxy } from './proxy/kiro.js';
 export { handleProxy } from './proxy/minimax.js';
 export { handleNotionProxy } from './proxy/notion.js';
 export { handlePioneerProxy } from './proxy/pioneer.js';
+export { handleTabiProxy } from './proxy/tabi.js';
 export { app };
 
 export function resetDb(): void {

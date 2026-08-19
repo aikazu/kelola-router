@@ -8,6 +8,7 @@ export const PREFIX_BY_PROVIDER: Record<string, string> = {
   pioneer: 'pio',
   notion: 'nt',
   zai: 'zai',
+  tabi: 'tabi',
 };
 
 /**
@@ -23,6 +24,7 @@ export const PROVIDERS_WITH_FETCH = new Set([
   'codebuddy',
   'zai',
   'notion',
+  'tabi',
 ]);
 
 /**
@@ -32,6 +34,11 @@ export const PROVIDERS_WITH_FETCH = new Set([
 export function callName(provider: string, dbName: string): string {
   const prefix = PREFIX_BY_PROVIDER[provider];
   if (!prefix) return dbName;
-  const bare = provider === 'pioneer' ? dbName.replace(/^pioneer\//, '') : dbName;
+  const bare =
+    provider === 'pioneer'
+      ? dbName.replace(/^pioneer\//, '')
+      : provider === 'tabi'
+        ? dbName.replace(/^tabi\//, '')
+        : dbName;
   return `${prefix}/${bare}`;
 }

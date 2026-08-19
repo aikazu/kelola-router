@@ -51,6 +51,7 @@ import { handleNotionProxy } from './notion.js';
 import { handlePioneerProxy } from './pioneer.js';
 import type { Db } from './pipeline.js';
 import { applyErrorState, buildAccountStates, buildLogRow, clearErrorState } from './pipeline.js';
+import { handleTabiProxy } from './tabi.js';
 import { handleZaiProxy } from './zai.js';
 
 export async function handleProxy(
@@ -178,6 +179,20 @@ export async function handleProxy(
       );
       rrCursorRef.value = zaiCursorRef.value;
       return zaiResp;
+    }
+    if (peek.provider === 'tabi') {
+      const tabiCursorRef: CursorRef = { value: rrCursorRef.value };
+      const tabiResp = await handleTabiProxy(
+        c,
+        format,
+        upstreamPath,
+        body,
+        db,
+        tabiCursorRef,
+        stickyMap
+      );
+      rrCursorRef.value = tabiCursorRef.value;
+      return tabiResp;
     }
   } catch {
     /* unknown model — defer to the MiniMax path for the canonical error */

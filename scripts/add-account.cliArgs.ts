@@ -63,11 +63,24 @@ export interface ZaiArgs {
   baseUrl?: string;
 }
 
+export interface TabiArgs {
+  provider: 'tabi';
+  apiKey: string;
+  label?: string;
+  baseUrl?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Discriminated union
 // ---------------------------------------------------------------------------
 
-export type AddAccountArgs = MinimaxArgs | KiroArgs | CodeBuddyArgs | PioneerArgs | ZaiArgs;
+export type AddAccountArgs =
+  | MinimaxArgs
+  | KiroArgs
+  | CodeBuddyArgs
+  | PioneerArgs
+  | ZaiArgs
+  | TabiArgs;
 
 // ---------------------------------------------------------------------------
 // Valibot schemas (one per provider)
@@ -119,6 +132,15 @@ const PioneerSchema = v.intersect([
 
 const ZaiSchema = v.intersect([
   v.object({ provider: v.literal('zai') }),
+  v.object({
+    apiKey: v.string('Missing required --api-key'),
+    label: v.optional(v.string()),
+    baseUrl: v.optional(v.string()),
+  }),
+]);
+
+const TabiSchema = v.intersect([
+  v.object({ provider: v.literal('tabi') }),
   v.object({
     apiKey: v.string('Missing required --api-key'),
     label: v.optional(v.string()),
@@ -242,6 +264,20 @@ export function parseArgs(argv: string[]): AddAccountArgs {
         'Invalid zai arguments'
       ) as ZaiArgs;
 
+    case 'tabi':
+      return v.parse(
+        TabiSchema,
+        Object.fromEntries(
+          [
+            ['provider', 'tabi'],
+            ['apiKey', getArg(argv, 'api-key')],
+            ['label', getOptionalFlag(argv, 'label')],
+            ['baseUrl', getOptionalFlag(argv, 'base-url')],
+          ].filter(([, v]) => v !== undefined)
+        ),
+        'Invalid tabi arguments'
+      ) as TabiArgs;
+
     default:
       throw new v.ValiError([
         {
@@ -252,7 +288,8 @@ export function parseArgs(argv: string[]): AddAccountArgs {
               type: 'property',
               input: {},
               key: 'provider',
-              message: 'Missing required --provider (minimax | kiro | codebuddy | pioneer | zai)',
+              message:
+                'Missing required --provider (minimax | kiro | codebuddy | pioneer | zai | tabi)',
             },
           ],
         },

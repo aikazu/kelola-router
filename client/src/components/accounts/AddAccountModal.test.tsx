@@ -50,6 +50,8 @@ const baseProps: AddAccountModalProps = {
   onPioneerFormChange: vi.fn(),
   zaiForm: { label: '', api_key: '', base_url: '' },
   onZaiFormChange: vi.fn(),
+  tabiForm: { label: '', api_key: '', base_url: '' },
+  onTabiFormChange: vi.fn(),
   notionForm: { email: '', label: '' },
   onNotionFormChange: vi.fn(),
   notionSuccess: vi.fn(),

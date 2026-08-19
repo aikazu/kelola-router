@@ -75,7 +75,15 @@ accountRoutes.get('/', (c) => {
   }
 });
 
-const PROVIDER_ALLOWLIST = ['minimax', 'kiro', 'codebuddy', 'pioneer', 'notion', 'zai'] as const;
+const PROVIDER_ALLOWLIST = [
+  'minimax',
+  'kiro',
+  'codebuddy',
+  'pioneer',
+  'notion',
+  'zai',
+  'tabi',
+] as const;
 type ManualProvider = (typeof PROVIDER_ALLOWLIST)[number];
 
 accountRoutes.post('/', (c) => {
@@ -103,9 +111,9 @@ accountRoutes.post('/', (c) => {
           }
           const db = c.get('db') as Database.Database;
           const creditType = (body.credit_type ??
-            (provider === 'pioneer' || provider === 'zai' ? 'payg' : 'token-plan')) as
-            | 'payg'
-            | 'token-plan';
+            (provider === 'pioneer' || provider === 'zai' || provider === 'tabi'
+              ? 'payg'
+              : 'token-plan')) as 'payg' | 'token-plan';
           const acc = createAccount(db, {
             id: ulid(),
             label: body.label,

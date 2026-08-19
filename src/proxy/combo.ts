@@ -52,6 +52,7 @@ import {
   clearErrorState,
   type Db,
 } from './pipeline.js';
+import { handleTabiProxy } from './tabi.js';
 
 export async function handleComboProxy(
   c: Context,
@@ -317,6 +318,51 @@ export async function handleComboProxy(
         log.warn(
           { combo: combo.name, model: modelName, error: msg },
           'combo: pioneer model failed, trying next'
+        );
+        lastErrorResponse = c.json({ error: msg }, 502);
+        continue;
+      }
+    }
+
+    // TabiToken provider: delegate to handleTabiProxy for this model
+    if (resolved.provider === 'tabi') {
+      try {
+        const tabiBody = { ...body, model: modelName };
+        const tabiCursorRef: CursorRef = { value: cursorRef.value };
+        const tabiResp = await handleTabiProxy(
+          c,
+          format,
+          upstreamPath,
+          tabiBody,
+          db,
+          tabiCursorRef,
+          stickyMap,
+          reqId
+        );
+        cursorRef.value = tabiCursorRef.value;
+        if (
+          tabiResp.status === 429 ||
+          tabiResp.status === 502 ||
+          tabiResp.status === 503 ||
+          tabiResp.status === 504 ||
+          tabiResp.status === 401 ||
+          tabiResp.status === 402 ||
+          tabiResp.status === 403
+        ) {
+          log.info(
+            { combo: combo.name, model: modelName, status: tabiResp.status },
+            'combo: tabi retryable error, trying next model'
+          );
+          lastErrorResponse = tabiResp;
+          continue;
+        }
+        log.info({ combo: combo.name, model: modelName, index: i }, 'combo: tabi success on model');
+        return tabiResp;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        log.warn(
+          { combo: combo.name, model: modelName, error: msg },
+          'combo: tabi model failed, trying next'
         );
         lastErrorResponse = c.json({ error: msg }, 502);
         continue;

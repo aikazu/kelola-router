@@ -72,7 +72,15 @@ modelRoutes.post('/', async (c) => {
     if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
       return c.json({ error: 'invalid_body', message: 'Nama model wajib diisi' }, 400);
     }
-    const ALLOWED_PROVIDERS = ['minimax', 'kiro', 'codebuddy', 'pioneer', 'notion', 'zai'] as const;
+    const ALLOWED_PROVIDERS = [
+      'minimax',
+      'kiro',
+      'codebuddy',
+      'pioneer',
+      'notion',
+      'zai',
+      'tabi',
+    ] as const;
     if (!body.provider || !(ALLOWED_PROVIDERS as readonly string[]).includes(body.provider)) {
       return c.json(
         {
@@ -249,7 +257,15 @@ modelRoutes.post('/bulk-toggle', async (c) => {
   }
 });
 
-const FETCH_PROVIDERS = ['minimax', 'pioneer', 'kiro', 'codebuddy', 'zai', 'notion'] as const;
+const FETCH_PROVIDERS = [
+  'minimax',
+  'pioneer',
+  'kiro',
+  'codebuddy',
+  'zai',
+  'notion',
+  'tabi',
+] as const;
 type FetchProvider = (typeof FETCH_PROVIDERS)[number];
 
 modelRoutes.post('/fetch/:provider', async (c) => {

@@ -11,6 +11,7 @@ import {
   fetchAndSeedPioneerModels,
   type SeedPioneerModelsResult,
 } from '../providers/pioneer/models.js';
+import { seedTabiBuiltins } from '../providers/tabi/models.js';
 import { log } from '../util/log.js';
 import { type ModelUpsert, upsertModel } from './repos/models.js';
 
@@ -455,7 +456,14 @@ export function seedZaiBuiltins(db: Database.Database): SeedResult {
 
 // ── Dispatcher ─────────────────────────────────────────────────────────────
 
-export type SeedableProvider = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer' | 'notion' | 'zai';
+export type SeedableProvider =
+  | 'minimax'
+  | 'kiro'
+  | 'codebuddy'
+  | 'pioneer'
+  | 'notion'
+  | 'zai'
+  | 'tabi';
 
 export interface SeedProviderOptions {
   apiKey?: string;
@@ -507,6 +515,11 @@ export async function seedModelsForProvider(
 
   if (provider === 'codebuddy') {
     const result = seedCodebuddyBuiltins(db);
+    return { ok: true, added: result.added };
+  }
+
+  if (provider === 'tabi') {
+    const result = seedTabiBuiltins(db);
     return { ok: true, added: result.added };
   }
 

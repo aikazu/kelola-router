@@ -5,6 +5,7 @@ const PREFIX_TO_PROVIDER: Readonly<Record<string, string>> = {
   pio: 'pioneer',
   nt: 'notion',
   zai: 'zai',
+  tabi: 'tabi',
 };
 
 export interface ParsedModel {

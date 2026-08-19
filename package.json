@@ -34,8 +34,10 @@
     "notion-add-account:docker": "cross-env ROUTER_DB_PATH=./data/router.db tsx scripts/notion-add-account.ts",
     "seed-notion-models": "tsx scripts/seed-notion-models.ts",
     "seed-notion-models:docker": "cross-env ROUTER_DB_PATH=./data/router.db tsx scripts/seed-notion-models.ts",
-    "seed-all": "npm run seed-models && npm run seed-kiro-models && npm run seed-codebuddy-models && npm run seed-zai-models && npm run seed-notion-models",
-    "seed-all:docker": "npm run seed-models:docker && npm run seed-kiro-models:docker && npm run seed-codebuddy-models:docker && npm run seed-zai-models:docker && npm run seed-notion-models:docker",
+    "seed-tabi-models": "tsx scripts/seed-tabi-models.ts",
+    "seed-tabi-models:docker": "cross-env ROUTER_DB_PATH=./data/router.db tsx scripts/seed-tabi-models.ts",
+    "seed-all": "npm run seed-models && npm run seed-kiro-models && npm run seed-codebuddy-models && npm run seed-zai-models && npm run seed-notion-models && npm run seed-tabi-models",
+    "seed-all:docker": "npm run seed-models:docker && npm run seed-kiro-models:docker && npm run seed-codebuddy-models:docker && npm run seed-zai-models:docker && npm run seed-notion-models:docker && npm run seed-tabi-models:docker",
     "reset": "tsx scripts/reset.ts",
     "reset:docker": "cross-env ROUTER_DB_PATH=./data/router.db tsx scripts/reset.ts",
     "typecheck": "tsc --noEmit"

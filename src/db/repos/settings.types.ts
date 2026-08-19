@@ -161,6 +161,7 @@ export const SETTINGS_SCHEMAS = {
   'selection.pioneer': selectionSchema,
   'selection.notion': selectionSchema,
   'selection.zai': selectionSchema,
+  'selection.tabi': selectionSchema,
 } as const satisfies Record<string, v.GenericSchema>;
 
 /**

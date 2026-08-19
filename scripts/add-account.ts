@@ -47,6 +47,7 @@ import {
   type MinimaxArgs,
   type PioneerArgs,
   parseArgs,
+  type TabiArgs,
   type ZaiArgs,
 } from './add-account.cliArgs.js';
 
@@ -209,6 +210,32 @@ export function runZai(db: Database.Database, args: ZaiArgs): Account {
   return account;
 }
 
+/**
+ * TabiToken runner — Bearer API key auth. Defaults to the OpenAI-compatible
+ * gateway base URL `https://tabitoken.com` (`/v1/chat/completions`); a custom
+ * `--base-url` lets users point at a mirror / alternate gateway.
+ */
+export function runTabi(db: Database.Database, args: TabiArgs): Account {
+  const id = `acc_${ulid()}`;
+  const label = args.label ?? `tabi-${id.slice(4, 12).toLowerCase()}`;
+  const baseUrl = args.baseUrl ?? 'https://tabitoken.com';
+
+  const account = createAccount(db, {
+    id,
+    label,
+    credit_type: 'payg',
+    api_key: args.apiKey,
+    base_url: baseUrl,
+    provider: 'tabi',
+    enabled: true,
+  });
+
+  console.log(`✓ Added TabiToken account: ${label} (${id})`);
+  console.log(`  Base URL: ${baseUrl}`);
+  console.log('  TabiToken is an OpenAI-compatible reseller gateway; clients call tabi/<model>.');
+  return account;
+}
+
 export async function dispatch(db: Database.Database, args: AddAccountArgs): Promise<Account> {
   let account: Account;
   let apiKey: string | undefined;
@@ -232,6 +259,11 @@ export async function dispatch(db: Database.Database, args: AddAccountArgs): Pro
       break;
     case 'zai':
       account = runZai(db, args);
+      apiKey = args.apiKey;
+      baseUrl = args.baseUrl;
+      break;
+    case 'tabi':
+      account = runTabi(db, args);
       apiKey = args.apiKey;
       baseUrl = args.baseUrl;
       break;
@@ -260,6 +292,8 @@ const USAGE_PIONEER =
   '  pioneer:   add-account --provider pioneer --api-key <k> [--label <l>] [--base-url <u>]';
 const USAGE_ZAI =
   '  zai:       add-account --provider zai --api-key <k> [--label <l>] [--base-url <u>]';
+const USAGE_TABI =
+  '  tabi:      add-account --provider tabi --api-key <k> [--label <l>] [--base-url <u>]';
 
 export async function main(argv: string[]): Promise<void> {
   let args: AddAccountArgs;
@@ -278,6 +312,7 @@ export async function main(argv: string[]): Promise<void> {
       console.error(USAGE_CODEBUDDY);
       console.error(USAGE_PIONEER);
       console.error(USAGE_ZAI);
+      console.error(USAGE_TABI);
     } else {
       console.error('Unexpected error parsing arguments:', err);
     }
