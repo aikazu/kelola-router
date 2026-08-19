@@ -33,13 +33,32 @@ export function checkFallbackError(
   baseRespCode: number | undefined,
   backoffLevel: number,
   windowResetMs?: number,
-  retryAfterHeader?: number
+  retryAfterHeader?: number,
+  errorCode?: string
 ): FallbackDecision {
   if (status === 429 && retryAfterHeader && retryAfterHeader > 0) {
     return { shouldFallback: true, cooldownMs: retryAfterHeader * 1000, source: 'rule' };
   }
   if ((baseRespCode === 2056 || baseRespCode === 2061) && windowResetMs && windowResetMs > 0) {
     return { shouldFallback: true, cooldownMs: windowResetMs, source: 'window-reset' };
+  }
+
+  // OpenAI / New-API error codes (TabiToken, and any OpenAI-compatible gateway).
+  // Priority 2.5 — semantic codes override text matching, mirroring the MiniMax
+  // base_resp.status_code block below.
+  if (errorCode) {
+    // insufficient_user_quota: prepaid credit exhausted — permanent disable.
+    if (errorCode === 'insufficient_user_quota') {
+      return { shouldFallback: false, cooldownMs: 0, source: 'balance' };
+    }
+    // invalid_api_key / authentication_error: credential problem — no cooldown.
+    if (errorCode === 'invalid_api_key' || errorCode === 'authentication_error') {
+      return { shouldFallback: true, cooldownMs: 0, source: 'rule' };
+    }
+    // context_length_exceeded: caller error, don't back off.
+    if (errorCode === 'context_length_exceeded') {
+      return { shouldFallback: true, cooldownMs: 0, source: 'token-limit' };
+    }
   }
 
   // MiniMax base_resp.status_code priority 2.5 — semantic codes override text matching.

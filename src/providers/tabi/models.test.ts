@@ -15,11 +15,26 @@ afterEach(() => {
 });
 
 describe('seedTabiBuiltins', () => {
-  it('seeds the expected number of models', () => {
+  it('seeds the real TabiToken catalogue (4 models from /v1/models + /api/pricing)', () => {
     const db = openDb();
     const result = seedTabiBuiltins(db);
-    expect(result.total).toBeGreaterThan(5);
+    expect(result.total).toBe(4);
     expect(result.added).toBe(result.total);
+    const models = listModels(db, { includeDisabled: true }).filter((m) => m.provider === 'tabi');
+    const byName = new Map(models.map((m) => [m.name, m]));
+    expect(byName.has('tabi/claude-opus-5')).toBe(true);
+    expect(byName.has('tabi/claude-opus-5-thinking')).toBe(true);
+    expect(byName.has('tabi/claude-opus-4-8')).toBe(true);
+    expect(byName.has('tabi/claude-opus-4-8-thinking')).toBe(true);
+    // Prices are Anthropic official list prices (docs.anthropic.com, 2026-08-19):
+    // $5 input / $25 output / $0.50 cache hit / $6.25 5m cache write per 1M.
+    expect(byName.get('tabi/claude-opus-5')?.pricing_input).toBe(5);
+    expect(byName.get('tabi/claude-opus-5')?.pricing_output).toBe(25);
+    expect(byName.get('tabi/claude-opus-5')?.pricing_cache_read).toBe(0.5);
+    expect(byName.get('tabi/claude-opus-5')?.pricing_cache_write).toBe(6.25);
+    expect(byName.get('tabi/claude-opus-5-thinking')?.pricing_input).toBe(5);
+    expect(byName.get('tabi/claude-opus-4-8')?.pricing_input).toBe(5);
+    expect(byName.get('tabi/claude-opus-4-8-thinking')?.pricing_input).toBe(5);
   });
 
   it('is idempotent — re-running only upserts', () => {

@@ -5,8 +5,11 @@ API key** (`sk-…`) on every `/v1/*` request.
 
 ## Key lifecycle
 
-1. Sign up at `tabitoken.com` (free credit promo, check-in bonus) and copy the
-   API key from the console.
+1. Sign up / purchase at `tabitoken.com` (marketing site; `register_enabled`
+   is off on the API so access is by invitation or ticket). The console and
+   API live at `tabitoken.cc` — copy the API key (`sk-…`) from the console
+   there. Credit is prepaid USD (`quota_display_type: USD`); the gateway
+   pre-deducts the whole model price per request.
 2. Store it on the account row: dashboard **Upstream → TabiToken → + Add**,
    or CLI:
    ```bash

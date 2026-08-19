@@ -48,6 +48,78 @@ describe('checkFallbackError', () => {
   });
 });
 
+describe('OpenAI / New-API error code mapping (TabiToken et al.)', () => {
+  it('insufficient_user_quota → permanent disable (cooldown 0, source=balance)', () => {
+    const d = checkFallbackError(
+      403,
+      '预扣费额度失败',
+      undefined,
+      0,
+      undefined,
+      undefined,
+      'insufficient_user_quota'
+    );
+    expect(d.cooldownMs).toBe(0);
+    expect(d.source).toBe('balance');
+  });
+
+  it('invalid_api_key → no cooldown, source=rule', () => {
+    const d = checkFallbackError(
+      401,
+      'Incorrect API key',
+      undefined,
+      0,
+      undefined,
+      undefined,
+      'invalid_api_key'
+    );
+    expect(d.cooldownMs).toBe(0);
+    expect(d.source).toBe('rule');
+  });
+
+  it('authentication_error → no cooldown, source=rule', () => {
+    const d = checkFallbackError(
+      401,
+      'auth expired',
+      undefined,
+      0,
+      undefined,
+      undefined,
+      'authentication_error'
+    );
+    expect(d.cooldownMs).toBe(0);
+    expect(d.source).toBe('rule');
+  });
+
+  it('context_length_exceeded → no cooldown, source=token-limit', () => {
+    const d = checkFallbackError(
+      400,
+      'This model maximum context length is 200000 tokens',
+      undefined,
+      0,
+      undefined,
+      undefined,
+      'context_length_exceeded'
+    );
+    expect(d.cooldownMs).toBe(0);
+    expect(d.source).toBe('token-limit');
+  });
+
+  it('unknown errorCode with status 403 → falls through to default 5s (no regression)', () => {
+    const d = checkFallbackError(
+      403,
+      'something else',
+      undefined,
+      0,
+      undefined,
+      undefined,
+      'some_other_code'
+    );
+    expect(d.cooldownMs).toBe(5000);
+    expect(d.source).toBe('default');
+  });
+});
+
 describe('MiniMax base_resp.status_code mapping', () => {
   it('1002 (rate limit) → exponential backoff', () => {
     const d = checkFallbackError(200, '', 1002, 0);

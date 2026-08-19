@@ -405,7 +405,8 @@ export async function handleComboProxy(
           parsed.baseRespCode,
           acc.backoff_level,
           parsed.windowResetMs,
-          parsed.retryAfterSec ? parsed.retryAfterSec * 1000 : undefined
+          parsed.retryAfterSec ? parsed.retryAfterSec * 1000 : undefined,
+          parsed.errorCode
         );
 
         // Apply account error state

@@ -10,10 +10,16 @@ interface TabiModel {
   context: number;
   contextOutput: number | null;
   /**
-   * USD per 1M tokens. TabiToken is a reseller gateway (New-API fork) that
-   * does not publish per-model pricing. These are the underlying provider's
-   * standard public list prices. Override per-row from the dashboard edit
-   * modal if your TabiToken tier prices differently.
+   * USD per 1M tokens — **Anthropic official list prices** (docs.anthropic.com
+   * pricing page, verified 2026-08-19). Standard rate for Claude Opus 5 and
+   * Opus 4.8 (also Opus 4.6/4.7/4.5): $5 input / $25 output, cache hits
+   * $0.50, 5-minute cache write $6.25 (the router defaults to short-TTL
+   * cache_control breakpoints; the 1h cache write is $10). The -thinking
+   * variants bill at the same rate.
+   *
+   * Note: TabiToken's own billing is far lower ($0.8 / $0.5 per 1M input,
+   * from its public /api/pricing, output free per completion_ratio=0) — the
+   * dashboard reports official list prices for realistic cost estimates.
    */
   pricing: {
     input: number;
@@ -24,10 +30,16 @@ interface TabiModel {
 }
 
 const TABI_MODELS: TabiModel[] = [
-  // Anthropic Claude family
   {
     id: 'claude-opus-5',
     display: 'Claude Opus 5',
+    context: 1000000,
+    contextOutput: 128000,
+    pricing: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+  },
+  {
+    id: 'claude-opus-5-thinking',
+    display: 'Claude Opus 5 Thinking',
     context: 1000000,
     contextOutput: 128000,
     pricing: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
@@ -40,63 +52,11 @@ const TABI_MODELS: TabiModel[] = [
     pricing: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
   },
   {
-    id: 'claude-sonnet-4-6',
-    display: 'Claude Sonnet 4.6',
+    id: 'claude-opus-4-8-thinking',
+    display: 'Claude Opus 4.8 Thinking',
     context: 1000000,
-    contextOutput: 64000,
-    pricing: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 },
-  },
-  {
-    id: 'claude-haiku-4-5',
-    display: 'Claude Haiku 4.5',
-    context: 200000,
-    contextOutput: 64000,
-    pricing: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
-  },
-  // OpenAI GPT family
-  {
-    id: 'gpt-5.5',
-    display: 'GPT-5.5',
-    context: 1000000,
-    contextOutput: 64000,
-    pricing: { input: 1.25, output: 10, cacheRead: 0.125, cacheWrite: 0 },
-  },
-  {
-    id: 'gpt-5',
-    display: 'GPT-5',
-    context: 1000000,
-    contextOutput: 64000,
-    pricing: { input: 1.25, output: 10, cacheRead: 0.125, cacheWrite: 0 },
-  },
-  {
-    id: 'gpt-4o-mini',
-    display: 'GPT-4o Mini',
-    context: 128000,
-    contextOutput: 16384,
-    pricing: { input: 0.15, output: 0.6, cacheRead: 0.075, cacheWrite: 0 },
-  },
-  // DeepSeek
-  {
-    id: 'deepseek-3.2',
-    display: 'DeepSeek V3.2',
-    context: 64000,
-    contextOutput: 8000,
-    pricing: { input: 0.27, output: 1.1, cacheRead: 0.07, cacheWrite: 0 },
-  },
-  // Google Gemini
-  {
-    id: 'gemini-3.5-pro',
-    display: 'Gemini 3.5 Pro',
-    context: 200000,
-    contextOutput: 8192,
-    pricing: { input: 1.25, output: 5, cacheRead: 0.31, cacheWrite: 0.31 },
-  },
-  {
-    id: 'gemini-3.5-flash',
-    display: 'Gemini 3.5 Flash',
-    context: 1000000,
-    contextOutput: 8192,
-    pricing: { input: 0.075, output: 0.3, cacheRead: 0.01875, cacheWrite: 0 },
+    contextOutput: 128000,
+    pricing: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
   },
 ];
 

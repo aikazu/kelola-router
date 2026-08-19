@@ -326,13 +326,13 @@ export function AddAccountModal({
                 onInput={(e) =>
                   onTabiFormChange({ ...tabiForm, base_url: (e.target as HTMLInputElement).value })
                 }
-                placeholder="leave blank for tabitoken.com"
+                placeholder="leave blank for tabitoken.cc"
                 class="input"
               />
               <span
                 style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}
               >
-                Defaults to tabitoken.com: OpenAI Chat Completions at{' '}
+                Defaults to tabitoken.cc: OpenAI Chat Completions at{' '}
                 <code>/v1/chat/completions</code> with Bearer auth.
               </span>
             </label>

@@ -5,7 +5,7 @@ import { prepareTabiBody } from './transform.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-export const TABI_BASE_URL = 'https://tabitoken.com';
+export const TABI_BASE_URL = 'https://tabitoken.cc';
 export const TABI_CHAT_ENDPOINT = '/v1/chat/completions';
 
 // ─── Execute ─────────────────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ describe('executeTabi', () => {
       upstreamModel: 'claude-opus-5',
     });
     const [url, init] = spy.mock.calls[0];
-    expect(String(url)).toBe('https://tabitoken.com/v1/chat/completions');
+    expect(String(url)).toBe('https://tabitoken.cc/v1/chat/completions');
     const headers = (init as RequestInit).headers as Record<string, string>;
     // TabiToken authenticates with Bearer — never X-API-Key / anthropic-version.
     expect(headers.Authorization).toBe('Bearer sk-test-key');

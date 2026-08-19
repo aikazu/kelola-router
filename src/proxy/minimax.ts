@@ -372,7 +372,8 @@ export async function handleProxy(
         parsed.baseRespCode,
         acc.backoff_level,
         parsed.windowResetMs,
-        parsed.retryAfterSec ? parsed.retryAfterSec * 1000 : undefined
+        parsed.retryAfterSec ? parsed.retryAfterSec * 1000 : undefined,
+        parsed.errorCode
       );
       applyErrorState(stateDb, account, decision, errBody, {
         status: resp.status,

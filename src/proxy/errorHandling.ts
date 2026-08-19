@@ -51,7 +51,8 @@ export function handleUpstreamError(
     parsed.baseRespCode,
     input.acc.backoffLevel,
     parsed.windowResetMs,
-    parsed.retryAfterSec
+    parsed.retryAfterSec,
+    parsed.errorCode
   );
   applyErrorState(stateDb, input.acc, decision, input.errBody, {
     status: input.status,

@@ -211,14 +211,15 @@ export function runZai(db: Database.Database, args: ZaiArgs): Account {
 }
 
 /**
- * TabiToken runner — Bearer API key auth. Defaults to the OpenAI-compatible
- * gateway base URL `https://tabitoken.com` (`/v1/chat/completions`); a custom
+ * TabiToken runner — Bearer API key auth. Defaults to the gateway's API
+ * server `https://tabitoken.cc` (`/v1/chat/completions`) — the `.com` front
+ * is Cloudflare-WAF'd and blocks non-browser user agents; a custom
  * `--base-url` lets users point at a mirror / alternate gateway.
  */
 export function runTabi(db: Database.Database, args: TabiArgs): Account {
   const id = `acc_${ulid()}`;
   const label = args.label ?? `tabi-${id.slice(4, 12).toLowerCase()}`;
-  const baseUrl = args.baseUrl ?? 'https://tabitoken.com';
+  const baseUrl = args.baseUrl ?? 'https://tabitoken.cc';
 
   const account = createAccount(db, {
     id,
