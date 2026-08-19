@@ -2,6 +2,11 @@
 
 > Newest first. The latest shipped version sits at the top under its version heading.
 
+## Unreleased
+
+**TabiToken upstream provider.**
+- **TabiToken (`tabi/`).** Seventh upstream: New-API-fork reseller gateway at `tabitoken.cc` (the `.com` front WAF-blocks non-browser user agents) — OpenAI Chat Completions + native Anthropic `/v1/messages` on the same base, Bearer `sk-` key auth. Builtin catalogue mirrors the live gateway (4-model Claude-Opus catalogue: `claude-opus-5(-thinking)`, `claude-opus-4-8(-thinking)`); New-API error envelope mapped (`insufficient_user_quota` → balance disable). CLI: `add-account --provider tabi` + `npm run seed-tabi-models`.
+
 ## v0.22.1: 2026-06-21
 
 **Migration consolidation into a single fresh-deploy schema.**
@@ -10,7 +15,8 @@
 
 ## v0.21.0: 2026-06-19
 
-**Models dashboard rewrite, the Models admin API, and console-flow parity.**
+**Z.AI upstream provider, the Models dashboard rewrite, the Models admin API, and console-flow parity.**
+- **Z.AI upstream provider (`zai/`).** Sixth upstream alongside MiniMax / Kiro / CodeBuddy / Pioneer / Notion. Two parallel APIs picked by client body format: Anthropic Messages at `https://api.z.ai/api/anthropic`, OpenAI Chat Completions at `https://api.z.ai/api/coding/paas/v4` (GLM Coding Plan). Single Bearer API key — no OAuth, no migration. `selection.zai` setting, ZaiCard in Accounts + Z.AI section in Models + ZaiForm in AddAccountModal. Curated 12-row seed list with real per-token pricing; wire format + auth docs at `docs/zai/{wire-format,auth}.md`. CLI: `add-account --provider zai` + `npm run seed-zai-models`.
 - **Models dashboard rewrite (`/admin/models`).** Card table now surfaces the client call string. New **ID** column renders `callName(provider, name)` (`mx/MiniMax-M3`, `pio/claude-opus-4-8`, `kr/…`, `cb/…`, `nt/…`) via a client-side `client/src/lib/provider-prefix.ts` (`PREFIX_BY_PROVIDER`, provider→prefix, the inverse of the server's `PREFIX_TO_PROVIDER`). Columns reworked to **ID / Name / Context In / Context Out / In $/M / Out $/M / Aliases / Combo / Status / Test / Actions**. Row actions: **Toggle**, **Copy** (clipboard with `execCommand` fallback), **Test** (existing), **Edit**, **Delete**. **Per-card Fetch from upstream** now calls `POST /api/admin/models/fetch/:provider` and is hidden on providers without an upstream list endpoint (Kiro, CodeBuddy, Notion). New `EditModelModal` PATCHes editable fields. The shared `Model` client type carries the new `contextOutput` + `comboCount` fields.
 - **Models admin API.** New JSON routes on `modelRoutes` (`src/api/admin/models.ts`): `POST /api/admin/models/fetch/:provider` (minimax + pioneer only; 404 for others; 400 when no active account; 502 on upstream failure), `GET /api/admin/models/:name/refs` (alias + combo references), `DELETE /api/admin/models/:name` (409 `has_refs` when referenced by an alias or combo, else delete), `PATCH /api/admin/models/:name` (rejects unknown fields, wrong types, empty patches; name + upstream_model immutable). `GET /api/admin/models` list response now includes `contextOutput` and `comboCount` per row. Repo helpers `updateModel(db, name, patch)` + `deleteModel(db, name)` added.
 - **`context_output` column (migration 010).** Additive `ALTER TABLE models ADD COLUMN context_output INTEGER`; `user_version = 10`. Pioneer seeder seeds `context_output` from the upstream catalogue's `max_tokens`; `max_input_tokens` continues to populate `context_window`.
