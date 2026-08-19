@@ -43,6 +43,7 @@ A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview +
 │  • Pioneer  (api.pioneer.ai)  OpenAI-compatible HTTP-JSON    │
 │  • Notion    (app.notion.com) cookie auth + JSON/NDJSON       │
 │  • Z.AI      (api.z.ai) Bearer + Anthropic/OpenAI HTTP-JSON  │
+│  • TabiToken (tabitoken.cc)  OpenAI + Anthropic HTTP-JSON    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -80,6 +81,7 @@ src/
 │   ├── pioneer.ts            handlePioneerProxy — Pioneer pipeline (~363 LOC)
 │   ├── notion.ts             handleNotionProxy — Notion pipeline (~445 LOC)
 │   ├── zai.ts                handleZaiProxy — Z.AI pipeline (~367 LOC)
+│   ├── tabi.ts               handleTabiProxy — TabiToken pipeline (~351 LOC)
 │   ├── combo.ts              handleComboProxy — combo routing (~429 LOC)
 │   ├── pipeline.ts           Pure helpers extracted from the proxy handlers (buildLogRow, applyErrorState, …)
 │   ├── capture.ts            Request/response body capture (truncate + headersToJson)
@@ -137,6 +139,11 @@ src/
 │   │   ├── index.ts          execute orchestrator
 │   │   ├── transform.ts      client → upstream body (Anthropic or OpenAI)
 │   │   └── models.ts         zai/ namespaced model catalogue
+│   ├── tabi/                 TabiToken protocol (New-API gateway: OpenAI CC
+│   │                         + native Anthropic /v1/messages, Bearer sk- key)
+│   │   ├── index.ts          execute orchestrator
+│   │   ├── transform.ts      client → upstream body (OpenAI or Anthropic)
+│   │   └── models.ts         tabi/ namespaced model catalogue
 │   ├── alias.ts              resolveModel — alias/combo/prefix → upstreamModel
 │   ├── alias-cache.ts         in-process alias cache (per-request ctx)
 │   ├── model-prefix.ts        parseModelPrefix — <prefix>/<name> split + PREFIX_TO_PROVIDER map
@@ -279,7 +286,7 @@ csrfGuard (admin only) → requireApiKey (proxy) / requireAdmin (admin)
 parseBody (c.req.json / c.req.parseBody)
   ↓
 model resolution
-  • parseModelPrefix(model): mx/|kr/|cb/|pio/|nt/|zai/ selects provider via literal,
+  • parseModelPrefix(model): mx/|kr/|cb/|pio/|nt/|zai/|tabi/ selects provider via literal,
     provider-matched lookup; unprefixed resolves only via combos/aliases (strict)
   • aliasCache.lookup(model) → upstream_model
   • -thinking / -agentic suffix handling
@@ -291,6 +298,8 @@ provider routing (resolved.provider)
   • 'codebuddy'     → handleCodeBuddyProxy
   • 'pioneer'       → handlePioneerProxy
   • 'zai'           → handleZaiProxy
+  • 'notion'        → handleNotionProxy
+  • 'tabi'          → handleTabiProxy
   • else (minimax)  → continue MiniMax path
   ↓
 consoleBus.emit('start', { reqId, model, endpoint })
