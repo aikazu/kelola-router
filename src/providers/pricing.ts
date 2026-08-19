@@ -47,14 +47,25 @@ export function resolvePricing(
 }
 
 export function calculateCost(db: Database.Database, modelName: string, usage: Usage): number {
+  const b = calculateCostBreakdown(db, modelName, usage);
+  return b.input + b.output + b.cacheRead + b.cacheWrite;
+}
+
+export function calculateCostBreakdown(
+  db: Database.Database,
+  modelName: string,
+  usage: Usage
+): { input: number; output: number; cacheRead: number; cacheWrite: number } {
   const pricing = resolvePricing(db, modelName, usage.prompt_tokens);
-  if (!pricing) return 0;
+  if (!pricing) {
+    return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  }
 
   const input = (usage.prompt_tokens / 1_000_000) * pricing.input;
   const output = (usage.completion_tokens / 1_000_000) * pricing.output;
-  const cacheCreate =
+  const cacheWrite =
     pricing.cacheWrite != null ? (usage.cache_creation_tokens / 1_000_000) * pricing.cacheWrite : 0;
   const cacheRead = (usage.cache_read_tokens / 1_000_000) * pricing.cacheRead;
 
-  return input + output + cacheCreate + cacheRead;
+  return { input, output, cacheRead, cacheWrite };
 }

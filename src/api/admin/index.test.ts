@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../db/index.js';
 import { createAccount } from '../../db/repos/accounts.js';
 import { app, resetDb } from '../../server.js';
+import { clearAdminCache } from './cache.js';
 
 describe('POST /admin/models/fetch', () => {
   beforeEach(() => {
@@ -71,6 +72,10 @@ describe('SPA admin API endpoints', () => {
   beforeEach(() => {
     process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'api-')), 't.db');
     resetDb();
+    // The admin response cache is module-level and survives between tests in
+    // the same worker. Clear it so a cached payload from one test never leaks
+    // into another that queries the same key (e.g. /api/admin/usage?days=0).
+    clearAdminCache();
   });
 
   it('/api/admin/overview returns 200 JSON', async () => {
@@ -93,6 +98,40 @@ describe('SPA admin API endpoints', () => {
     expect(body.page).toHaveProperty('page');
     expect(body.page).toHaveProperty('pageSize');
     expect(body.page).toHaveProperty('totalPages');
+    // Cost/token breakdown fields present with number type.
+    const s: Record<string, unknown> = body.summary;
+    for (const key of ['inputTokens', 'outputTokens', 'inputCost', 'outputCost', 'cacheCost']) {
+      expect(typeof s[key]).toBe('number');
+    }
+  });
+
+  it('/api/admin/usage exposes recomputed cost/token breakdown', async () => {
+    const db = openDb();
+    createAccount(db, { id: 'a', label: 'L', credit_type: 'payg', api_key: 'k' });
+    db.prepare(
+      `INSERT INTO models (name, upstream_model, display_name, family, context_window, pricing_input, pricing_output, pricing_cache_read, pricing_cache_write, pricing_tiers, source)
+       VALUES ('MiniMax-M3','MiniMax-M3','MiniMax M3','m3',1000000,0.3,1.2,0.06,NULL,'{"base":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null},"high":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null}}','builtin')`
+    ).run();
+    db.prepare(
+      `INSERT INTO request_logs (created_at, model, endpoint, format, prompt_tokens, completion_tokens, cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, latency_ms, status_code, stream, rtk_bytes_saved)
+       VALUES (?, 'MiniMax-M3', '/v1/messages', 'anthropic', 1000000, 400000, 0, 2000000, 1400000, 1.8, 1, 200, 0, 0)`
+    ).run(new Date(Date.now()).toISOString());
+    const res = await app.request('/api/admin/usage?days=0');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const s = body.summary as {
+      inputTokens: number;
+      outputTokens: number;
+      inputCost: number;
+      outputCost: number;
+      cacheCost: number;
+    };
+    // M3 with 1M prompt >512k → high tier (0.6/2.4/0.12).
+    expect(s.inputTokens).toBe(1_000_000);
+    expect(s.outputTokens).toBe(400_000);
+    expect(s.inputCost).toBeCloseTo(0.6, 6);
+    expect(s.outputCost).toBeCloseTo(0.96, 6);
+    expect(s.cacheCost).toBeCloseTo(0.24, 6);
   });
 
   it('/api/admin/usage?days=0 returns all-time with null deltas', async () => {

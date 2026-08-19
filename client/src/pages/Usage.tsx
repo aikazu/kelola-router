@@ -35,6 +35,11 @@ interface UsageSummary {
   totalCost: number;
   totalRequests: number;
   totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  inputCost: number;
+  outputCost: number;
+  cacheCost: number;
   deltaCostPct: number | null;
   deltaRequestsPct: number | null;
   deltaTokensPct: number | null;
@@ -293,7 +298,18 @@ export function Usage() {
             <Stat
               label="Total cost"
               value={`$${data.summary.totalCost.toFixed(4)}`}
-              sub={<Delta pct={data.summary.deltaCostPct} label="vs prev period" />}
+              sub={
+                <>
+                  <div class="mono" style={{ fontSize: 11, color: 'var(--ink-dim)' }}>
+                    In ${data.summary.inputCost.toFixed(4)} · Out $
+                    {data.summary.outputCost.toFixed(4)}
+                    {data.summary.cacheCost > 0
+                      ? ` · Cache $${data.summary.cacheCost.toFixed(4)}`
+                      : ''}
+                  </div>
+                  <Delta pct={data.summary.deltaCostPct} label="vs prev period" />
+                </>
+              }
             />
             <Stat
               label="Requests"
@@ -301,9 +317,22 @@ export function Usage() {
               sub={<Delta pct={data.summary.deltaRequestsPct} label="vs prev period" />}
             />
             <Stat
-              label="Tokens"
-              value={data.summary.totalTokens.toLocaleString()}
-              sub={<Delta pct={data.summary.deltaTokensPct} label="vs prev period" />}
+              label="Input tokens"
+              value={data.summary.inputTokens.toLocaleString()}
+              sub={
+                <span class="mono" style={{ fontSize: 11, color: 'var(--ink-dim)' }}>
+                  of {data.summary.totalTokens.toLocaleString()} total
+                </span>
+              }
+            />
+            <Stat
+              label="Output tokens"
+              value={data.summary.outputTokens.toLocaleString()}
+              sub={
+                <span class="mono" style={{ fontSize: 11, color: 'var(--ink-dim)' }}>
+                  of {data.summary.totalTokens.toLocaleString()} total
+                </span>
+              }
             />
           </div>
         </div>

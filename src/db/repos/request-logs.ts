@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import type { Statement } from 'better-sqlite3';
+import { calculateCostBreakdown } from '../../providers/pricing.js';
 import { log } from '../../util/log.js';
 import { bumpAdminCacheVersion } from '../hooks.js';
 
@@ -375,6 +376,11 @@ export interface UsageAggregate {
   total_cost: number;
   total_requests: number;
   total_tokens: number;
+  input_tokens: number;
+  output_tokens: number;
+  input_cost: number;
+  output_cost: number;
+  cache_cost: number;
   by_model: { model: string; cost: number; requests: number }[];
 }
 
@@ -405,10 +411,17 @@ export function aggregateUsage(
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const total = db
     .prepare(`
-    SELECT COALESCE(SUM(cost_usd), 0) as cost, COUNT(*) as reqs, COALESCE(SUM(total_tokens), 0) as toks
+    SELECT COALESCE(SUM(cost_usd), 0) as cost, COUNT(*) as reqs, COALESCE(SUM(total_tokens), 0) as toks,
+           COALESCE(SUM(prompt_tokens), 0) as in_toks, COALESCE(SUM(completion_tokens), 0) as out_toks
     FROM request_logs ${whereSql}
   `)
-    .get(...params) as { cost: number; reqs: number; toks: number };
+    .get(...params) as {
+    cost: number;
+    reqs: number;
+    toks: number;
+    in_toks: number;
+    out_toks: number;
+  };
   const byModel = db
     .prepare(`
     SELECT model, SUM(cost_usd) as cost, COUNT(*) as requests
@@ -416,10 +429,46 @@ export function aggregateUsage(
     GROUP BY model ORDER BY cost DESC
   `)
     .all(...params) as { model: string; cost: number; requests: number }[];
+  // Cost breakdown is NOT SQL-pure: pricing tiers depend per-row on
+  // prompt_tokens, so each row is priced independently and then summed.
+  // Mirrors resolvePricing/calculateCost so the recomputed breakdown is
+  // consistent with what calculateCost logged at request time — modulo
+  // historical price drift, since it prices current model config, not past.
+  let input_cost = 0;
+  let output_cost = 0;
+  let cache_cost = 0;
+  const costRows = db
+    .prepare(
+      `SELECT model, prompt_tokens, completion_tokens, cache_creation_tokens, cache_read_tokens
+       FROM request_logs ${whereSql}`
+    )
+    .all(...params) as {
+    model: string;
+    prompt_tokens: number;
+    completion_tokens: number;
+    cache_creation_tokens: number;
+    cache_read_tokens: number;
+  }[];
+  for (const row of costRows) {
+    const b = calculateCostBreakdown(db, row.model, {
+      prompt_tokens: row.prompt_tokens,
+      completion_tokens: row.completion_tokens,
+      cache_creation_tokens: row.cache_creation_tokens,
+      cache_read_tokens: row.cache_read_tokens,
+    });
+    input_cost += b.input;
+    output_cost += b.output;
+    cache_cost += b.cacheRead + b.cacheWrite;
+  }
   return {
     total_cost: total.cost,
     total_requests: total.reqs,
     total_tokens: total.toks,
+    input_tokens: total.in_toks,
+    output_tokens: total.out_toks,
+    input_cost,
+    output_cost,
+    cache_cost,
     by_model: byModel,
   };
 }

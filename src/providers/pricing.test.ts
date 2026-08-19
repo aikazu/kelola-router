@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../db/index.js';
 import { upsertModel } from '../db/repos/models.js';
-import { calculateCost, resolvePricing } from './pricing.js';
+import { calculateCost, calculateCostBreakdown, resolvePricing } from './pricing.js';
 
 beforeEach(() => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'pr-')), 't.db');
@@ -128,5 +128,96 @@ describe('calculateCost', () => {
       cache_read_tokens: 0,
     });
     expect(c).toBe(0);
+  });
+});
+
+describe('calculateCostBreakdown', () => {
+  it('flat pricing → correct input/output/cacheRead/cacheWrite components', () => {
+    const db = openDb();
+    seedMiniMaxForPricing(db);
+    const b = calculateCostBreakdown(db, 'MiniMax-M2.7', {
+      prompt_tokens: 1000,
+      completion_tokens: 500,
+      cache_creation_tokens: 200,
+      cache_read_tokens: 3000,
+    });
+    expect(b.input).toBeCloseTo((1000 / 1e6) * 0.3, 8);
+    expect(b.output).toBeCloseTo((500 / 1e6) * 1.2, 8);
+    expect(b.cacheWrite).toBeCloseTo((200 / 1e6) * 0.375, 8);
+    expect(b.cacheRead).toBeCloseTo((3000 / 1e6) * 0.06, 8);
+  });
+
+  it('tiered pricing > 512k → uses high tier for all components', () => {
+    const db = openDb();
+    seedMiniMaxForPricing(db);
+    const b = calculateCostBreakdown(db, 'MiniMax-M3', {
+      prompt_tokens: 600_000,
+      completion_tokens: 300_000,
+      cache_creation_tokens: 50_000,
+      cache_read_tokens: 700_000,
+    });
+    expect(b.input).toBeCloseTo((600_000 / 1e6) * 0.6, 8);
+    expect(b.output).toBeCloseTo((300_000 / 1e6) * 2.4, 8);
+    expect(b.cacheRead).toBeCloseTo((700_000 / 1e6) * 0.12, 8);
+    // cacheWrite is null in M3 → component is 0
+    expect(b.cacheWrite).toBe(0);
+  });
+
+  it('tiered pricing ≤ 512k → uses discounted base tier', () => {
+    const db = openDb();
+    seedMiniMaxForPricing(db);
+    const b = calculateCostBreakdown(db, 'MiniMax-M3', {
+      prompt_tokens: 100_000,
+      completion_tokens: 50_000,
+      cache_creation_tokens: 0,
+      cache_read_tokens: 10_000,
+    });
+    expect(b.input).toBeCloseTo((100_000 / 1e6) * 0.3, 8);
+    expect(b.output).toBeCloseTo((50_000 / 1e6) * 1.2, 8);
+    expect(b.cacheRead).toBeCloseTo((10_000 / 1e6) * 0.06, 8);
+  });
+
+  it('model without pricing / unknown model → all components 0', () => {
+    const db = openDb();
+    upsertModel(db, {
+      name: 'MiniMax-M2-her',
+      upstream_model: 'MiniMax-M2-her',
+      display_name: 'MiniMax M2-her (roleplay)',
+      family: 'm2-her',
+      context_window: 64000,
+      source: 'builtin',
+    });
+    expect(
+      calculateCostBreakdown(db, 'MiniMax-M2-her', {
+        prompt_tokens: 100,
+        completion_tokens: 100,
+        cache_creation_tokens: 10,
+        cache_read_tokens: 10,
+      })
+    ).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+    expect(
+      calculateCostBreakdown(db, 'nope', {
+        prompt_tokens: 100,
+        completion_tokens: 100,
+        cache_creation_tokens: 10,
+        cache_read_tokens: 10,
+      })
+    ).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+  });
+
+  it('regression guard: sum of components equals calculateCost', () => {
+    const db = openDb();
+    seedMiniMaxForPricing(db);
+    const usage = {
+      prompt_tokens: 1_000_000,
+      completion_tokens: 400_000,
+      cache_creation_tokens: 120_000,
+      cache_read_tokens: 2_000_000,
+    };
+    for (const model of ['MiniMax-M3', 'MiniMax-M2.7']) {
+      const b = calculateCostBreakdown(db, model, usage);
+      const total = b.input + b.output + b.cacheRead + b.cacheWrite;
+      expect(total).toBeCloseTo(calculateCost(db, model, usage), 8);
+    }
   });
 });

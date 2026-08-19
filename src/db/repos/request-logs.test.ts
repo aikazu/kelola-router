@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../index.js';
 import { createAccount } from './accounts.js';
 import { createClientKey } from './client-keys.js';
+import { upsertModel } from './models.js';
 import {
   aggregateUsage,
   cleanupOldLogs,
@@ -179,6 +180,85 @@ describe('requestLogs repo', () => {
     expect(agg.total_requests).toBe(3);
     expect(agg.by_model.length).toBe(2);
     expect(agg.by_model.find((m) => m.model === 'MiniMax-M3')?.cost).toBe(1.2);
+    // Token breakdown: 3 rows × (100 prompt + 50 completion)
+    expect(agg.total_tokens).toBe(450);
+    expect(agg.input_tokens).toBe(300);
+    expect(agg.output_tokens).toBe(150);
+  });
+
+  it('aggregateUsage computes per-component cost breakdown across models', () => {
+    const db = openDb();
+    const ck = createClientKey(db, { label: 'u', key: 'rk_test' });
+    createAccount(db, { id: 'a', label: 'L', credit_type: 'payg', api_key: 'k' });
+    // M3: flat/tiered pricing with cacheRead, cacheWrite=null.
+    upsertModel(db, {
+      name: 'MiniMax-M3',
+      upstream_model: 'MiniMax-M3',
+      display_name: 'MiniMax M3',
+      family: 'm3',
+      context_window: 1_000_000,
+      pricing_input: 0.3,
+      pricing_output: 1.2,
+      pricing_cache_read: 0.06,
+      pricing_cache_write: null,
+      pricing_tiers:
+        '{"base":{"input":0.30,"output":1.20,"cacheRead":0.06,"cacheWrite":null},"high":{"input":0.60,"output":2.40,"cacheRead":0.12,"cacheWrite":null}}',
+      source: 'builtin',
+    });
+    // M2.7: flat pricing with cacheWrite.
+    upsertModel(db, {
+      name: 'MiniMax-M2.7',
+      upstream_model: 'MiniMax-M2.7',
+      display_name: 'MiniMax M2.7',
+      family: 'm2.7',
+      context_window: 204800,
+      pricing_input: 0.3,
+      pricing_output: 1.2,
+      pricing_cache_read: 0.06,
+      pricing_cache_write: 0.375,
+      source: 'builtin',
+    });
+    const ins = (m: string, p: number, c: number, cc: number, cr: number) =>
+      insertRequestLog(db, {
+        client_key_id: ck.id,
+        account_id: 'a',
+        model: m,
+        endpoint: '/v1/messages',
+        format: 'anthropic',
+        prompt_tokens: p,
+        completion_tokens: c,
+        cache_creation_tokens: cc,
+        cache_read_tokens: cr,
+        total_tokens: p + c,
+        cost_usd: 0,
+        latency_ms: 1,
+        status_code: 200,
+        stream: 0,
+        rtk_bytes_saved: 0,
+      });
+    // M3 base tier (≤512k): prompt 1M, completion 400k, cache read 2M.
+    ins('MiniMax-M3', 1_000_000, 400_000, 0, 2_000_000);
+    // M2.7 flat: prompt 500k, completion 100k, cache creation 200k, cache read 100k.
+    ins('MiniMax-M2.7', 500_000, 100_000, 200_000, 100_000);
+
+    const agg = aggregateUsage(db, { days: 7 });
+    // M3: prompt 1M > 512k → HIGH tier (0.6/2.4/0.12) for all components.
+    //   input 1M*0.6 + output 400k*2.4 + cacheRead 2M*0.12, all /1e6.
+    const m3 = (1_000_000 * 0.6 + 400_000 * 2.4 + 2_000_000 * 0.12) / 1e6;
+    const m3Input = (1_000_000 * 0.6) / 1e6;
+    const m3Output = (400_000 * 2.4) / 1e6;
+    const m3Cache = (2_000_000 * 0.12) / 1e6;
+    // M2.7 flat tier: input 0.3, output 1.2, cacheWrite 0.375, cacheRead 0.06.
+    const m27 = (500_000 * 0.3 + 100_000 * 1.2 + 200_000 * 0.375 + 100_000 * 0.06) / 1e6;
+    const m27Input = (500_000 * 0.3) / 1e6;
+    const m27Output = (100_000 * 1.2) / 1e6;
+    const m27Cache = (200_000 * 0.375 + 100_000 * 0.06) / 1e6;
+    expect(agg.input_cost).toBeCloseTo(m3Input + m27Input, 6);
+    expect(agg.output_cost).toBeCloseTo(m3Output + m27Output, 6);
+    expect(agg.cache_cost).toBeCloseTo(m3Cache + m27Cache, 6);
+    expect(agg.input_cost + agg.output_cost + agg.cache_cost).toBeCloseTo(m3 + m27, 6);
+    expect(agg.input_tokens).toBe(1_500_000);
+    expect(agg.output_tokens).toBe(500_000);
   });
 
   it('aggregateUsage filters by client_key_id', () => {
