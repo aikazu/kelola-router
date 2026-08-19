@@ -167,6 +167,8 @@ Kiro = AWS CodeWhisperer / Amazon Q. Branched off `handleProxy` in `src/proxy/ki
 - **Mock upstream fetch** with `vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(...))`. Use `mockImplementation` (not `mockResolvedValueOnce`) when a test calls fetch multiple times. `Response` bodies are single-read.
 - **CSRF**: integration tests for `/admin/*` POSTs must set `Origin` matching `Host` or omit `Origin` entirely. The `csrfGuard` middleware blocks cross-origin POSTs.
 - **Settings cache**: `getSetting` caches for 1s. Call `clearCacheForDb(db)` from `src/db/repos/settings.ts` when changing settings mid-test.
+- **Test layout**: unit tests colocate next to source as `*.test.ts`; integration/bench/console suites live in `tests/` (vitest `include` covers both `src/**/*.test.ts` and `tests/**/*.test.ts`). Test file names are kebab-case: `module-name.test.ts`; variants use a hyphen separator (`models-fetch.test.ts`), never dots or camelCase.
+- **Test pool**: vitest runs on the `forks` pool (`vitest.config.ts`) — the `threads` pool segfaults at teardown with `better-sqlite3` on Windows/Node 24.
 
 ### Commit conventions
 
@@ -199,7 +201,7 @@ These come from the user's global Claude config and apply here unless this file 
 - **Editing**: minimal targeted changes. Mimic existing patterns. Read surrounding context before editing. Reference code in chat as `file_path:line_number`.
 - **TDD**: Red-Green-Refactor. Don't skip the red step. Bug fixes: write a failing test that reproduces the bug first (already covered above).
 - **TypeScript**: `strict: true`, no `any` (already covered). `const` over `let`; never `var`. Early returns. Pure functions; isolate side effects. Branded types for domain IDs.
-- **Naming**: `camelCase` (vars/funcs/methods), `PascalCase` (types/classes/components/files containing them), `UPPER_SNAKE_CASE` (module constants + env vars), `kebab-case` (non-component files / URLs / CLI flags). Booleans: `is*` / `has*` / `can*` / `should*`. Avoid abbreviations (`userId` not `uid`).
+- **Naming**: `camelCase` (vars/funcs/methods), `PascalCase` (types/classes/components/files containing them), `UPPER_SNAKE_CASE` (module constants + env vars), `kebab-case` (non-component files / URLs / CLI flags). Exceptions: React hooks keep `use*` camelCase (ecosystem convention) and client component tests mirror the component name (`Button.test.tsx`). Booleans: `is*` / `has*` / `can*` / `should*`. Avoid abbreviations (`userId` not `uid`).
 - **Functions**: one responsibility, max ~40 lines, max 3-4 params, early returns (already covered).
 - **Comments**: explain WHY, not WHAT. TODO format: `// TODO(username): description — YYYY-MM-DD`. No commented-out code.
 - **Quality gates**: all of `npm test` + `cd client && npm test` + `npm run typecheck` + `cd client && npm run typecheck` + `npm run lint` must pass before claiming "done".
