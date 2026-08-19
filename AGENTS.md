@@ -138,7 +138,7 @@ Kiro = AWS CodeWhisperer / Amazon Q. Branched off `handleProxy` in `src/proxy/ki
 
 ## Dashboard
 
-`client/`: standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (baked in Docker build, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`. Pages: Overview, Usage, ClientKeys, Accounts, Aliases, Models, Combos, Quota, Transports, Settings, Login, RequestDetail, Console, NotFound. Theme: Obsidian Gold (`#0a0a0a` canvas + `#c9a352` accent, Fraunces/Inter/JetBrains Mono).
+`client/`: standalone Preact SPA (Vite + preact-router + @tanstack/react-query), served as static assets from `client/dist/` (baked in Docker build, copied to runtime). NOT server-rendered; the Hono app exposes a JSON API under `/api/admin/*` that the SPA consumes via `client/src/lib/api.ts`. Pages: Overview, Usage, ClientKeys, Accounts, Aliases, Models, Combos, Quota, Transports, Settings, Login, RequestDetail, Console, NotFound. Theme: Obsidian Gold (`#0a0a0a` canvas + `#c9a352` accent, Fraunces/Inter/JetBrains Mono). Shell: grouped sidebar nav (View/Operate/System) with a persisted expandable rail (`kr-nav-expanded` in localStorage), per-route `page-enter` transition, `PageSkeleton` route loading (no bare "Loading…" text), and `TopBar` page subtitles — polish styles live in `client/src/styles/polish.css`, loaded after `components.css`.
 
 ## Project-specific conventions
 
