@@ -1,4 +1,4 @@
-import { proxyAwareFetch } from './proxyFetch.js';
+import { proxyAwareFetch } from './proxy-fetch.js';
 import type { TransportConfig } from './types.js';
 
 export interface GeoResult {

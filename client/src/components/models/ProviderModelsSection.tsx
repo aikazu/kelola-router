@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'preact/hooks';
 import { apiFetch } from '../../lib/api';
-import { callName, PROVIDERS_WITH_FETCH } from '../../lib/providerPrefix';
+import { callName, PROVIDERS_WITH_FETCH } from '../../lib/provider-prefix';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import { confirmDialog } from '../Confirm';

@@ -5,7 +5,7 @@ import { ErrorState } from '../components/ErrorState';
 import { TableSkeleton } from '../components/Skeleton';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
-import { relativeTime } from '../lib/relativeTime';
+import { relativeTime } from '../lib/relative-time';
 import { RequestDetail } from './RequestDetail';
 
 interface OverviewData {

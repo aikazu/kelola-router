@@ -1,5 +1,5 @@
-import { dedupLog } from './filters/dedupLog.js';
-import { smartTruncate } from './filters/smartTruncate.js';
+import { dedupLog } from './filters/dedup-log.js';
+import { smartTruncate } from './filters/smart-truncate.js';
 import type { FilterFn } from './types.js';
 
 const FILTERS: Record<string, FilterFn> = {

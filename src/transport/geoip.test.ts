@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { checkTransportGeo } from './geoip.js';
-import * as proxyFetch from './proxyFetch.js';
+import * as proxyFetch from './proxy-fetch.js';
 import type { TransportConfig } from './types.js';
 
 const cfg: TransportConfig = { relay: null, proxy: { kind: 'http', url: 'http://h:8080' } };

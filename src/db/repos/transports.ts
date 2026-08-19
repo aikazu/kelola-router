@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
-import { invalidateDispatcher } from '../../transport/dispatcherCache.js';
-import { invalidateResolvedTransportCache } from '../../transport/resolvedCache.js';
-import { invalidateSocks } from '../../transport/socksLoader.js';
+import { invalidateDispatcher } from '../../transport/dispatcher-cache.js';
+import { invalidateResolvedTransportCache } from '../../transport/resolved-cache.js';
+import { invalidateSocks } from '../../transport/socks-loader.js';
 
 export type TransportType = 'proxy' | 'relay';
 export type TransportKind = 'http' | 'socks5' | 'vercel' | 'cloudflare';

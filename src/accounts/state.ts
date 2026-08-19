@@ -1,4 +1,4 @@
-import { checkFallbackError, type FallbackDecision } from './errorRules.js';
+import { checkFallbackError, type FallbackDecision } from './error-rules.js';
 import type { AccountState, ModelLock } from './types.js';
 
 interface ApplyErrorResult {

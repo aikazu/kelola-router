@@ -7,7 +7,7 @@ import { migrate } from '../db/migrations/index.js';
 import { upsertAlias } from '../db/repos/aliases.js';
 import { disableModel, upsertModel } from '../db/repos/models.js';
 import { resolveModel } from './alias.js';
-import { clearAliasCache } from './aliasCache.js';
+import { clearAliasCache } from './alias-cache.js';
 
 let db: Database.Database;
 let dir: string;

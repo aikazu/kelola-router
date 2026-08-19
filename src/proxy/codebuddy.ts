@@ -12,22 +12,22 @@ import {
   genReqId,
 } from '../console/flow.js';
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
-import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
+import { insertRequestLogDeferred } from '../db/repos/request-logs.js';
 import { getAllSettings, getSettingT } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import { executeCodeBuddy } from '../providers/codebuddy/index.js';
 import {
   aggregateOpenAISSE,
   openaiSSEToAnthropicSSE,
-} from '../providers/codebuddy/streamConvert.js';
+} from '../providers/codebuddy/stream-convert.js';
 import { responseOpenAIToAnthropic } from '../providers/format/transform.js';
 import { calculateCost } from '../providers/pricing.js';
 import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
-import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
+import { pipeWithUsage } from '../streaming/pipe-with-usage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
 import { augmentRequest } from './augment.js';
-import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
+import { assertModelNotLocked, handleUpstreamError } from './error-handling.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';
 import {

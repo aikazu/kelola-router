@@ -1,7 +1,7 @@
 // src/providers/zai/index.ts
-import type { ProxyFetchOpts } from '../../transport/proxyFetch.js';
+import type { ProxyFetchOpts } from '../../transport/proxy-fetch.js';
 import type { TransportConfig } from '../../transport/types.js';
-import { upstreamFetch } from '../upstreamFetch.js';
+import { upstreamFetch } from '../upstream-fetch.js';
 import { prepareZaiBody } from './transform.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────

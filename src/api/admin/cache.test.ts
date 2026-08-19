@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../../db/index.js';
-import { flushDeferredLogs, insertRequestLogDeferred } from '../../db/repos/requestLogs.js';
+import { flushDeferredLogs, insertRequestLogDeferred } from '../../db/repos/request-logs.js';
 import { bumpAdminCacheVersion, getAdminCached, setAdminCached } from './cache.js';
 
 describe('admin cache invalidation', () => {

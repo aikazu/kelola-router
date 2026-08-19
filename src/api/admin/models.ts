@@ -13,11 +13,11 @@ import {
   updateModel,
   upsertModel,
 } from '../../db/repos/models.js';
-import { seedModelsForProvider } from '../../db/seedBuiltinModels.js';
-import { fetchModels } from '../../providers/listModels.js';
+import { seedModelsForProvider } from '../../db/seed-builtin-models.js';
+import { fetchModels } from '../../providers/list-models.js';
 import { fetchAndSeedPioneerModels } from '../../providers/pioneer/models.js';
 import { ApiError, handleApiError } from './middleware.js';
-import { testModelUpstream } from './modelHealth.js';
+import { testModelUpstream } from './model-health.js';
 
 export const modelRoutes = new Hono();
 

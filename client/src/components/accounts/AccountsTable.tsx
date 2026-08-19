@@ -1,4 +1,4 @@
-import { relativeTime } from '../../lib/relativeTime';
+import { relativeTime } from '../../lib/relative-time';
 import type { Account, Transport } from '../../lib/types';
 import { Badge } from '../Badge';
 import { Button } from '../Button';

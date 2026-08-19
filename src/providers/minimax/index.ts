@@ -1,4 +1,4 @@
-import { getBaseUrl } from '../baseUrl.js';
+import { getBaseUrl } from '../base-url.js';
 import { buildHeaders } from '../headers.js';
 
 export const PROVIDER = 'minimax' as const;

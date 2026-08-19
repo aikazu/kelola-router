@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { discoverProfileArn, ensureProfileArn } from './profile.js';
 
-vi.mock('../../transport/proxyFetch.js', () => ({
+vi.mock('../../transport/proxy-fetch.js', () => ({
   proxyAwareFetch: vi.fn(),
 }));
 vi.mock('../../db/repos/accounts.js', () => ({
@@ -9,7 +9,7 @@ vi.mock('../../db/repos/accounts.js', () => ({
 }));
 
 import { updateAccount } from '../../db/repos/accounts.js';
-import { proxyAwareFetch } from '../../transport/proxyFetch.js';
+import { proxyAwareFetch } from '../../transport/proxy-fetch.js';
 
 const mockFetch = proxyAwareFetch as ReturnType<typeof vi.fn>;
 const mockUpdate = updateAccount as ReturnType<typeof vi.fn>;

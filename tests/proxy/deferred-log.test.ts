@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { openDb } from '../../src/db/index.js';
-import { flushDeferredLogs, insertRequestLogDeferred } from '../../src/db/repos/requestLogs.js';
+import { flushDeferredLogs, insertRequestLogDeferred } from '../../src/db/repos/request-logs.js';
 
 it('writes the log row after a flush', async () => {
   process.env.ROUTER_DB_PATH = join(mkdtempSync(join(tmpdir(), 'dlog-')), 't.db');

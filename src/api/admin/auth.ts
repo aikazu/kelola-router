@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { generateCookie, getCookie } from 'hono/cookie';
 import { SESSION_COOKIE } from '../../auth/index.js';
 import { isPasswordSet, verifyPassword } from '../../auth/password.js';
-import { clearLoginFailures, isLoginLocked, recordLoginFailure } from '../../auth/rateLimit.js';
+import { clearLoginFailures, isLoginLocked, recordLoginFailure } from '../../auth/rate-limit.js';
 import { createSession, destroySession, validateSession } from '../../auth/session.js';
 import { clientIp } from './ip.js';
 import { ApiError, handleApiError } from './middleware.js';

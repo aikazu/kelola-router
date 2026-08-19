@@ -1,5 +1,5 @@
 // src/providers/zai/transform.ts
-import type { AnthropicBody } from '../format/messageTypes.js';
+import type { AnthropicBody } from '../format/message-types.js';
 
 /**
  * Prepare a client request body for the Z.AI upstream.

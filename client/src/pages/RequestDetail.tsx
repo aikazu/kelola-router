@@ -6,8 +6,8 @@ import { ErrorState } from '../components/ErrorState';
 import { HeadersTable } from '../components/HeadersTable';
 import { Modal } from '../components/Modal';
 import { apiFetch } from '../lib/api';
-import type { ContentBlock, MessageCard } from '../lib/decodeBody';
-import { decodeRequestBody, decodeResponseBody, isTruncated } from '../lib/decodeBody';
+import type { ContentBlock, MessageCard } from '../lib/decode-body';
+import { decodeRequestBody, decodeResponseBody, isTruncated } from '../lib/decode-body';
 
 interface RequestLog {
   id: number;

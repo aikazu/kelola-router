@@ -21,7 +21,7 @@ import { createInterface } from 'node:readline/promises';
 import { ulid } from 'ulid';
 import { openDb } from '../src/db/index.js';
 import { createAccount, listEnabledAccountsByProvider } from '../src/db/repos/accounts.js';
-import { seedModelsForProviderBestEffort } from '../src/db/seedBuiltinModels.js';
+import { seedModelsForProviderBestEffort } from '../src/db/seed-builtin-models.js';
 import { NOTION_BASE, NOTION_CLIENT_VERSION } from '../src/providers/notion/constants.js';
 
 function arg(name: string): string | undefined {

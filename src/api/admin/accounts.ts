@@ -10,13 +10,13 @@ import {
   listAccounts,
   updateAccount,
 } from '../../db/repos/accounts.js';
-import { seedModelsForProviderBestEffort } from '../../db/seedBuiltinModels.js';
+import { seedModelsForProviderBestEffort } from '../../db/seed-builtin-models.js';
 import {
   buildKiroAccountFields,
   type KiroImportInput,
-} from '../../providers/kiro/accountImport.js';
-import { autoImportFromSsoCache } from '../../providers/kiro/autoImport.js';
-import { pollDeviceToken, startDeviceCodeFlow } from '../../providers/kiro/deviceCode.js';
+} from '../../providers/kiro/account-import.js';
+import { autoImportFromSsoCache } from '../../providers/kiro/auto-import.js';
+import { pollDeviceToken, startDeviceCodeFlow } from '../../providers/kiro/device-code.js';
 import {
   getLoginOptions,
   loginWithEmail,

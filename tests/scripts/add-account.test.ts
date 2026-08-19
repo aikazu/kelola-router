@@ -14,8 +14,8 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CodeBuddyArgs, KiroArgs, MinimaxArgs } from '../../scripts/add-account.cliArgs.js';
 import { dispatch, main, runCodeBuddy, runKiro, runMinimax } from '../../scripts/add-account.js';
+import type { CodeBuddyArgs, KiroArgs, MinimaxArgs } from '../../scripts/add-account-cli-args.js';
 import { openDb } from '../../src/db/index.js';
 import { getAccount, listAccounts } from '../../src/db/repos/accounts.js';
 

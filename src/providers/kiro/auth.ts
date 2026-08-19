@@ -11,7 +11,7 @@ import type Database from 'better-sqlite3';
 import type { Account } from '../../db/repos/accounts.js';
 import { updateAccount } from '../../db/repos/accounts.js';
 import type { TransportConfig } from '../../transport/types.js';
-import { type KiroProviderData, refreshKiroToken } from './tokenRefresh.js';
+import { type KiroProviderData, refreshKiroToken } from './token-refresh.js';
 
 /** Refresh when the cached token expires within this window. */
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;

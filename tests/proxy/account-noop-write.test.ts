@@ -5,7 +5,7 @@ import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../src/db/index.js';
 import { createAccount, updateAccount } from '../../src/db/repos/accounts.js';
-import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
+import { createClientKey, genClientKey } from '../../src/db/repos/client-keys.js';
 import { upsertModel } from '../../src/db/repos/models.js';
 import { app, resetDb } from '../../src/server.js';
 

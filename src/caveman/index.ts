@@ -1,7 +1,7 @@
 import type {
   ContentBlock,
   AnthropicMessage as Message,
-} from '../providers/format/messageTypes.js';
+} from '../providers/format/message-types.js';
 import type { CavemanLevel } from './prompts.js';
 import { CAVEMAN_PROMPTS } from './prompts.js';
 

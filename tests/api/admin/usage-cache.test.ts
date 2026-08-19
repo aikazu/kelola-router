@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { clearAdminCache } from '../../../src/api/admin/cache.js';
 import { openDb } from '../../../src/db/index.js';
 import { createAccount } from '../../../src/db/repos/accounts.js';
-import { createClientKey } from '../../../src/db/repos/client_keys.js';
-import { insertRequestLog } from '../../../src/db/repos/requestLogs.js';
+import { createClientKey } from '../../../src/db/repos/client-keys.js';
+import { insertRequestLog } from '../../../src/db/repos/request-logs.js';
 import { clearCache as clearSettingsCache } from '../../../src/db/repos/settings.js';
 import { app, resetDb } from '../../../src/server.js';
 

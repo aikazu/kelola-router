@@ -9,7 +9,7 @@ import { SESSION_COOKIE } from '../../../src/auth/index.js';
 import { setPassword } from '../../../src/auth/password.js';
 import { createSession } from '../../../src/auth/session.js';
 import { migrate } from '../../../src/db/migrations/index.js';
-import { createClientKey, genClientKey, getClientKey } from '../../../src/db/repos/client_keys.js';
+import { createClientKey, genClientKey, getClientKey } from '../../../src/db/repos/client-keys.js';
 import { getModel, upsertModel } from '../../../src/db/repos/models.js';
 
 let db: Database.Database;

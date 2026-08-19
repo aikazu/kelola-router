@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { cachedStmt } from '../cachedStmt.js';
+import { cachedStmt } from '../cached-stmt.js';
 
 export type ProviderName = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer' | 'notion' | 'zai' | 'tabi';
 

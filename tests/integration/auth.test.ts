@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashPassword } from '../../src/auth/password.js';
-import { _resetRateLimitForTests as resetRateLimit } from '../../src/auth/rateLimit.js';
+import { _resetRateLimitForTests as resetRateLimit } from '../../src/auth/rate-limit.js';
 import { openDb } from '../../src/db/index.js';
 import { createAccount, getAccount } from '../../src/db/repos/accounts.js';
-import { createClientKey, getClientKey } from '../../src/db/repos/client_keys.js';
+import { createClientKey, getClientKey } from '../../src/db/repos/client-keys.js';
 import { clearCache as clearSettingsCache } from '../../src/db/repos/settings.js';
 import { app, resetDb } from '../../src/server.js';
 

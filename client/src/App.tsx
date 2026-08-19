@@ -4,7 +4,7 @@ import { ConfirmHost } from './components/Confirm';
 import { ToastProvider } from './components/ToastProvider';
 import { AppShell } from './layout/AppShell';
 import { apiFetch } from './lib/api';
-import { queryClient } from './lib/queryClient';
+import { queryClient } from './lib/query-client';
 
 /** Prime the cache once at app start so Sidebar/Page see data without duplicate fetches. */
 function PrimeCache() {

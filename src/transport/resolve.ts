@@ -6,7 +6,7 @@ import {
   getResolvedTransportCache,
   setResolvedTransportCache,
   setResolvedTransportPoolCache,
-} from './resolvedCache.js';
+} from './resolved-cache.js';
 import type { ProxyKind, RelayKind, TransportConfig } from './types.js';
 
 interface ActiveProxyTransport {

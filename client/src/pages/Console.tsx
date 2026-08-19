@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Button } from '../components/Button';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
-import { relativeTime } from '../lib/relativeTime';
+import { relativeTime } from '../lib/relative-time';
 
 /* ============================================================================
    Signature page — rack-mount request flow console.

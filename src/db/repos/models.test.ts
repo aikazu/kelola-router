@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../index.js';
-import { seedCodebuddyBuiltins, seedKiroBuiltins } from '../seedBuiltinModels.js';
+import { seedCodebuddyBuiltins, seedKiroBuiltins } from '../seed-builtin-models.js';
 import { disableModel, getModel, listModels, upsertModel } from './models.js';
 
 beforeEach(() => {

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import DatabaseWithCipher from 'better-sqlite3-multiple-ciphers';
 import { getDbKey } from '../util/env.js';
-import { applyPragmas } from './migratePragmas.js';
+import { applyPragmas } from './migrate-pragmas.js';
 import { migrate } from './migrations/index.js';
 
 /**

@@ -4,12 +4,12 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../src/db/index.js';
 import { createAccount } from '../../src/db/repos/accounts.js';
-import { createClientKey, genClientKey } from '../../src/db/repos/client_keys.js';
+import { createClientKey, genClientKey } from '../../src/db/repos/client-keys.js';
 import { createCombo } from '../../src/db/repos/combos.js';
 import { upsertModel } from '../../src/db/repos/models.js';
-import { flushDeferredLogs, recentLogs } from '../../src/db/repos/requestLogs.js';
+import { flushDeferredLogs, recentLogs } from '../../src/db/repos/request-logs.js';
 import { setSetting } from '../../src/db/repos/settings.js';
-import { clearAliasCache } from '../../src/providers/aliasCache.js';
+import { clearAliasCache } from '../../src/providers/alias-cache.js';
 import { app, resetDb } from '../../src/server.js';
 
 let key: string;

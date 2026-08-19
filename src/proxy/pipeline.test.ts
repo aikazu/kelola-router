@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { FallbackDecision } from '../accounts/errorRules.js';
+import type { FallbackDecision } from '../accounts/error-rules.js';
 import type { AccountState } from '../accounts/types.js';
 import type { Account } from '../db/repos/accounts.js';
 

@@ -7,7 +7,7 @@
  */
 
 import type { KiroEvent } from './eventstream.js';
-import { consumeKiroFrames } from './streamConsumer.js';
+import { consumeKiroFrames } from './stream-consumer.js';
 
 export interface OpenAIToolCallDelta {
   index: number;

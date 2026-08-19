@@ -8,7 +8,7 @@
  *   200 → { nextDateReset, subscriptionInfo, usageBreakdownList, overageConfiguration, userInfo }
  */
 import { randomUUID } from 'node:crypto';
-import { proxyAwareFetch } from '../../transport/proxyFetch.js';
+import { proxyAwareFetch } from '../../transport/proxy-fetch.js';
 import type { TransportConfig } from '../../transport/types.js';
 import {
   KIRO_DEFAULT_REGION,

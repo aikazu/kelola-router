@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { type Account, listAccounts } from '../../db/repos/accounts.js';
 import { ensureAccessToken } from '../../providers/kiro/auth.js';
 import { fetchKiroUsage } from '../../providers/kiro/usage.js';
-import { tickQuotaOnce } from '../../scheduler/quotaPull.js';
+import { tickQuotaOnce } from '../../scheduler/quota-pull.js';
 import { handleApiError } from './middleware.js';
 
 export const quotaRoutes = new Hono();

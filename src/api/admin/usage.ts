@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { listAccounts } from '../../db/repos/accounts.js';
-import { aggregateUsage, type PagedLogFilter, pagedLogs } from '../../db/repos/requestLogs.js';
+import { aggregateUsage, type PagedLogFilter, pagedLogs } from '../../db/repos/request-logs.js';
 import { getAdminCached, setAdminCached } from './cache.js';
 import { handleApiError } from './middleware.js';
 

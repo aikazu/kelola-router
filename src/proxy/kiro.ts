@@ -13,20 +13,20 @@ import {
   genReqId,
 } from '../console/flow.js';
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
-import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
+import { insertRequestLogDeferred } from '../db/repos/request-logs.js';
 import { getAllSettings, getSettingT } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import { bodyAnthropicToOpenAI, responseOpenAIToAnthropic } from '../providers/format/transform.js';
-import { kiroResponseToAnthropicSSE } from '../providers/kiro/anthropicSse.js';
+import { kiroResponseToAnthropicSSE } from '../providers/kiro/anthropic-sse.js';
 import { kiroResponseToOpenAISSE } from '../providers/kiro/assembler.js';
 import { executeKiro } from '../providers/kiro/index.js';
 import { calculateCost } from '../providers/pricing.js';
 import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
-import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
+import { pipeWithUsage } from '../streaming/pipe-with-usage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
 import { augmentRequest } from './augment.js';
-import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
+import { assertModelNotLocked, handleUpstreamError } from './error-handling.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import { buildAccountStates, buildLogRow, clearErrorState, type Db } from './pipeline.js';
 

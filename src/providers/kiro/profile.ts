@@ -18,7 +18,7 @@ import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { Account } from '../../db/repos/accounts.js';
 import { updateAccount } from '../../db/repos/accounts.js';
-import { proxyAwareFetch } from '../../transport/proxyFetch.js';
+import { proxyAwareFetch } from '../../transport/proxy-fetch.js';
 import type { TransportConfig } from '../../transport/types.js';
 import type { KiroAuth } from './auth.js';
 import {

@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import * as v from 'valibot';
-import { SETTINGS_SCHEMAS, type SettingKey, type SettingsMap } from './settings.types.js';
+import { SETTINGS_SCHEMAS, type SettingKey, type SettingsMap } from './settings-types.js';
 
 const DEFAULT_TTL_MS = 1000;
 const TTL_OVERRIDES: Record<string, number> = {

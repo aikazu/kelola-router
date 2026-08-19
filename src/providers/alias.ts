@@ -1,9 +1,9 @@
 import type Database from 'better-sqlite3';
 import { getModel, type Model } from '../db/repos/models.js';
 import { getSetting } from '../db/repos/settings.js';
-import { resolveAlias } from './aliasCache.js';
-import type { AnthropicBody, OpenAIBody } from './format/messageTypes.js';
-import { parseModelPrefix } from './modelPrefix.js';
+import { resolveAlias } from './alias-cache.js';
+import type { AnthropicBody, OpenAIBody } from './format/message-types.js';
+import { parseModelPrefix } from './model-prefix.js';
 
 /**
  * Models that the MiniMax reference docs (docs/minimax-reference/) list as

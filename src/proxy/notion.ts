@@ -15,7 +15,7 @@ import { consoleBus } from '../console/bus.js';
 import { buildAccount, buildDone, buildError, buildStart, genReqId } from '../console/flow.js';
 import type { Account } from '../db/repos/accounts.js';
 import { listEnabledAccountsByProvider, updateAccount } from '../db/repos/accounts.js';
-import { insertRequestLogDeferred } from '../db/repos/requestLogs.js';
+import { insertRequestLogDeferred } from '../db/repos/request-logs.js';
 import { getAllSettings } from '../db/repos/settings.js';
 import { resolveModel } from '../providers/alias.js';
 import {
@@ -30,7 +30,7 @@ import { buildNotionPayload } from '../providers/notion/transform.js';
 import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
 import { log } from '../util/log.js';
 import { augmentRequest } from './augment.js';
-import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
+import { assertModelNotLocked, handleUpstreamError } from './error-handling.js';
 import { errorMessage, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';
 import { buildLogRow, type LogRowContext } from './pipeline.js';

@@ -10,7 +10,7 @@ import { setPassword } from '../../../src/auth/password.js';
 import { createSession } from '../../../src/auth/session.js';
 import { migrate } from '../../../src/db/migrations/index.js';
 import { upsertModel } from '../../../src/db/repos/models.js';
-import { clearAliasCache } from '../../../src/providers/aliasCache.js';
+import { clearAliasCache } from '../../../src/providers/alias-cache.js';
 
 let db: Database.Database;
 let dir: string;

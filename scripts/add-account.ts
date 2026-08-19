@@ -38,7 +38,7 @@ import {
   listAccounts,
   listEnabledAccountsByProvider,
 } from '../src/db/repos/accounts.js';
-import { seedModelsForProviderBestEffort } from '../src/db/seedBuiltinModels.js';
+import { seedModelsForProviderBestEffort } from '../src/db/seed-builtin-models.js';
 import { log } from '../src/util/log.js';
 import {
   type AddAccountArgs,
@@ -49,7 +49,7 @@ import {
   parseArgs,
   type TabiArgs,
   type ZaiArgs,
-} from './add-account.cliArgs.js';
+} from './add-account-cli-args.js';
 
 // ---------------------------------------------------------------------------
 // Per-provider dispatchers

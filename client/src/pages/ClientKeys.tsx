@@ -9,7 +9,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
 import { ApiError, apiFetch } from '../lib/api';
-import { relativeTime } from '../lib/relativeTime';
+import { relativeTime } from '../lib/relative-time';
 
 interface ClientKey {
   id: number;

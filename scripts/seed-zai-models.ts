@@ -7,7 +7,7 @@
  * (z.ai is a flat-rate subscription — see docs/zai/auth.md).
  */
 import { openDb } from '../src/db/index.js';
-import { seedZaiBuiltins } from '../src/db/seedBuiltinModels.js';
+import { seedZaiBuiltins } from '../src/db/seed-builtin-models.js';
 import { log } from '../src/util/log.js';
 
 const db = openDb();

@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../../src/db/index.js';
 import { createAccount } from '../../src/db/repos/accounts.js';
-import { createClientKey } from '../../src/db/repos/client_keys.js';
+import { createClientKey } from '../../src/db/repos/client-keys.js';
 import { upsertModel } from '../../src/db/repos/models.js';
 import { clearCache, setSetting } from '../../src/db/repos/settings.js';
-import { clearAliasCache } from '../../src/providers/aliasCache.js';
+import { clearAliasCache } from '../../src/providers/alias-cache.js';
 import { _resetSelectionCursorForTests, app, resetDb } from '../../src/server.js';
 
 /**

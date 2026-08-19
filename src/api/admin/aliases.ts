@@ -8,7 +8,7 @@ import {
   type ModelAlias,
   upsertAlias,
 } from '../../db/repos/aliases.js';
-import { clearAliasCache } from '../../providers/aliasCache.js';
+import { clearAliasCache } from '../../providers/alias-cache.js';
 import { ApiError, handleApiError } from './middleware.js';
 
 export const aliasRoutes = new Hono();

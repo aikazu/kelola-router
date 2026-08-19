@@ -6,7 +6,7 @@ import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authRoutes } from '../../../src/api/admin/auth.js';
 import { hashPassword } from '../../../src/auth/password.js';
-import { _resetRateLimitForTests } from '../../../src/auth/rateLimit.js';
+import { _resetRateLimitForTests } from '../../../src/auth/rate-limit.js';
 import { migrate } from '../../../src/db/migrations/index.js';
 
 let db: Database.Database;

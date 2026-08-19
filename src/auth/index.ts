@@ -1,8 +1,8 @@
 import type { Context, Next } from 'hono';
 import type { openDb } from '../db/index.js';
-import { type ClientKey, getClientKeyByKey } from '../db/repos/client_keys.js';
+import { type ClientKey, getClientKeyByKey } from '../db/repos/client-keys.js';
 import { isPasswordSet, setPassword, verifyPassword } from './password.js';
-import { clearLoginFailures, isLoginLocked, recordLoginFailure } from './rateLimit.js';
+import { clearLoginFailures, isLoginLocked, recordLoginFailure } from './rate-limit.js';
 import { createSession, destroySession, validateSession } from './session.js';
 
 // Re-exports for use by routes/handlers

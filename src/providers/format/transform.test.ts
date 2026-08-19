@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { OpenAIResponse } from './messageTypes.js';
+import type { OpenAIResponse } from './message-types.js';
 import {
   bodyAddsOpenAIStreamUsage,
   bodyAnthropicToOpenAI,

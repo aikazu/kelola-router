@@ -1,5 +1,5 @@
 import type { CavemanLevel } from '../caveman/prompts.js';
-import type { AnthropicBody, ContentBlock } from '../providers/format/messageTypes.js';
+import type { AnthropicBody, ContentBlock } from '../providers/format/message-types.js';
 
 export type { AnthropicBody, ContentBlock };
 

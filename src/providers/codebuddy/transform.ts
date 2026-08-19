@@ -1,5 +1,5 @@
 // src/providers/codebuddy/transform.ts
-import type { AnthropicBody } from '../format/messageTypes.js';
+import type { AnthropicBody } from '../format/message-types.js';
 import { bodyAnthropicToOpenAI } from '../format/transform.js';
 import { CODEBUDDY_DEFAULT_SYSTEM } from './index.js';
 

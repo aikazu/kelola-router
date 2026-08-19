@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchKiroUsage } from './usage.js';
 
 // Mock proxyAwareFetch
-vi.mock('../../transport/proxyFetch.js', () => ({
+vi.mock('../../transport/proxy-fetch.js', () => ({
   proxyAwareFetch: vi.fn(),
 }));
 
-import { proxyAwareFetch } from '../../transport/proxyFetch.js';
+import { proxyAwareFetch } from '../../transport/proxy-fetch.js';
 
 const mockFetch = proxyAwareFetch as ReturnType<typeof vi.fn>;
 

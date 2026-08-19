@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb } from '../db/index.js';
 import { createAccount } from '../db/repos/accounts.js';
-import { latestQuotaByAccount } from '../db/repos/quotaSnapshots.js';
+import { latestQuotaByAccount } from '../db/repos/quota-snapshots.js';
 import { pullQuota } from './quota.js';
 
 beforeEach(() => {

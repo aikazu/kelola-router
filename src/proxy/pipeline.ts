@@ -5,7 +5,7 @@
  * They are shared between minimax, kiro, codebuddy, and combo handlers.
  */
 
-import type { FallbackDecision } from '../accounts/errorRules.js';
+import type { FallbackDecision } from '../accounts/error-rules.js';
 import type { AccountState } from '../accounts/types.js';
 import type { Account } from '../db/repos/accounts.js';
 import { headersToJson, truncateBody } from './capture.js';

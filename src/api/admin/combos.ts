@@ -7,7 +7,7 @@ import {
   listCombos,
   updateCombo,
 } from '../../db/repos/combos.js';
-import { parseModelPrefix } from '../../providers/modelPrefix.js';
+import { parseModelPrefix } from '../../providers/model-prefix.js';
 import { ApiError, handleApiError } from './middleware.js';
 
 export const comboRoutes = new Hono();

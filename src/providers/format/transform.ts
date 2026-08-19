@@ -16,7 +16,7 @@ import type {
   OpenAIBody,
   OpenAIResponse,
   OpenAIToolCall,
-} from './messageTypes.js';
+} from './message-types.js';
 
 const OPENAI_ONLY_PARAMS = [
   'n',

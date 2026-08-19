@@ -8,7 +8,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import { Stat } from '../components/Stat';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
-import { relativeTime } from '../lib/relativeTime';
+import { relativeTime } from '../lib/relative-time';
 import { RequestDetail } from './RequestDetail';
 
 interface ClientKey {

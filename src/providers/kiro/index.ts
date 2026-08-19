@@ -6,7 +6,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { Account } from '../../db/repos/accounts.js';
-import { type ProxyFetchOpts, proxyAwareFetch } from '../../transport/proxyFetch.js';
+import { type ProxyFetchOpts, proxyAwareFetch } from '../../transport/proxy-fetch.js';
 import type { TransportConfig } from '../../transport/types.js';
 import { kiroResponseToOpenAIJson, type OpenAICompletion } from './assembler.js';
 import { ensureAccessToken, type KiroAuth } from './auth.js';
@@ -19,7 +19,7 @@ import {
   resolveKiroPersona,
 } from './constants.js';
 import { ensureProfileArn } from './profile.js';
-import type { KiroProviderData } from './tokenRefresh.js';
+import type { KiroProviderData } from './token-refresh.js';
 import { buildKiroPayload, type OpenAIChatBody } from './transform.js';
 
 const KIRO_SDK_VERSION = '1.0.0';

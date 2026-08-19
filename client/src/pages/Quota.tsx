@@ -7,7 +7,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
-import { forwardDuration, relativeTime } from '../lib/relativeTime';
+import { forwardDuration, relativeTime } from '../lib/relative-time';
 import type { QuotaWindow } from '../lib/types';
 
 interface AccountQuota {

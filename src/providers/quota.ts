@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import type { Account } from '../db/repos/accounts.js';
-import { insertQuotaSnapshot } from '../db/repos/quotaSnapshots.js';
-import { getBaseUrl } from './baseUrl.js';
+import { insertQuotaSnapshot } from '../db/repos/quota-snapshots.js';
+import { getBaseUrl } from './base-url.js';
 import { buildHeaders } from './headers.js';
 
 // Real MiniMax shape (both token_plan and coding_plan endpoints return this):

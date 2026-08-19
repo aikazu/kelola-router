@@ -21,7 +21,7 @@ describe('handleProxy emits flow events', () => {
     resetDb();
     const { openDb } = await import('../../src/db/index.js');
     const { createAccount } = await import('../../src/db/repos/accounts.js');
-    const { createClientKey, genClientKey } = await import('../../src/db/repos/client_keys.js');
+    const { createClientKey, genClientKey } = await import('../../src/db/repos/client-keys.js');
     const db = openDb();
     const key = genClientKey();
     createClientKey(db, { label: 'test', key });
@@ -62,7 +62,7 @@ describe('handleProxy emits flow events', () => {
       },
       body: JSON.stringify({ model: 'mx/MiniMax-M2', messages: [{ role: 'user', content: 'hi' }] }),
     });
-    const { flushDeferredLogs } = await import('../../src/db/repos/requestLogs.js');
+    const { flushDeferredLogs } = await import('../../src/db/repos/request-logs.js');
     await flushDeferredLogs();
     off();
     expect(seen).toContain('start');

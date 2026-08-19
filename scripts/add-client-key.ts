@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { openDb } from '../src/db/index.js';
-import { createClientKey, genClientKey } from '../src/db/repos/client_keys.js';
+import { createClientKey, genClientKey } from '../src/db/repos/client-keys.js';
 import { log } from '../src/util/log.js';
 
 function arg(name: string): string | null {

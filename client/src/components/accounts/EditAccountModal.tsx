@@ -1,4 +1,4 @@
-import { relativeTime } from '../../lib/relativeTime';
+import { relativeTime } from '../../lib/relative-time';
 import type { Account, ModelLock, Transport, TransportState } from '../../lib/types';
 import { Button } from '../Button';
 import { Field } from '../Field';

@@ -1,5 +1,5 @@
 import { log } from '../util/log.js';
-import { safeApply } from './applyFilter.js';
+import { safeApply } from './apply-filter.js';
 import { autoDetectFilter } from './autodetect.js';
 import { MIN_COMPRESS_SIZE, RAW_CAP } from './constants.js';
 import type { CompressStats } from './types.js';
