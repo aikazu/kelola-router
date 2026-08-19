@@ -3,7 +3,7 @@ import type { Account, ModelLock, Transport, TransportState } from '../../lib/ty
 import { Button } from '../Button';
 import { Field } from '../Field';
 import { Modal } from '../Modal';
-import { TransportAssignment } from '../TransportAssignment';
+import { TransportAssignment } from './TransportAssignment';
 
 /** Shape of a partial account update sent to PATCH /api/admin/accounts/:id. */
 export interface EditPayload {

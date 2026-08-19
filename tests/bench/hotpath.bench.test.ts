@@ -12,7 +12,7 @@ import {
   disableHotPathMetrics,
   enableHotPathMetrics,
   readHotPathMetrics,
-} from '../../src/runtime/hotPathMetrics.js';
+} from '../../src/providers/minimax/hotPathMetrics.js';
 import { app, resetDb } from '../../src/server.js';
 
 const statementMethods = ['run', 'get', 'all'] as const;

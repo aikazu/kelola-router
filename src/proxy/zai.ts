@@ -2,7 +2,6 @@ import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
 import { selectAccount } from '../accounts/selection.js';
 import type { SelectionMode } from '../accounts/types.js';
-import { augmentRequest } from '../cache-injection.js';
 import { consoleBus } from '../console/bus.js';
 import {
   buildAccount,
@@ -23,6 +22,7 @@ import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { log } from '../util/log.js';
+import { augmentRequest } from './augment.js';
 import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';

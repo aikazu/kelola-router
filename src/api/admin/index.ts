@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { csrfGuard } from '../../auth.js';
+import { csrfGuard } from '../../auth/index.js';
 import { accountRoutes } from './accounts.js';
 import { aliasRoutes } from './aliases.js';
 import { authRoutes } from './auth.js';

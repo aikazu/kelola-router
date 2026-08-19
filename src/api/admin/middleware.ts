@@ -1,9 +1,9 @@
 import type Database from 'better-sqlite3';
 import type { Context, Next } from 'hono';
 import { getCookie } from 'hono/cookie';
+import { SESSION_COOKIE } from '../../auth/index.js';
 import { isPasswordSet } from '../../auth/password.js';
 import { validateSession } from '../../auth/session.js';
-import { SESSION_COOKIE } from '../../auth.js';
 
 export async function requireAdminJson(c: Context, next: Next): Promise<Response | undefined> {
   const db = c.get('db') as Database.Database;

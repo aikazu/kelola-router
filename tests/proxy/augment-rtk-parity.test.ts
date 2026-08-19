@@ -268,7 +268,7 @@ describe('augment/RTK parity (notion)', () => {
     // Spy BEFORE the request so the call is observed. Notion's wire payload
     // shape is opaque NDJSON, so we cannot assert on body strings here —
     // augmentRequest being called is the canonical signal.
-    const cacheMod = await import('../../src/cache-injection.js');
+    const cacheMod = await import('../../src/proxy/augment.js');
     const augSpy = vi.spyOn(cacheMod, 'augmentRequest');
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       async () =>

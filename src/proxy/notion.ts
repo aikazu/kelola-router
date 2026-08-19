@@ -11,7 +11,6 @@
 import type Database from 'better-sqlite3';
 import type { Context } from 'hono';
 import type { AccountState } from '../accounts/types.js';
-import { augmentRequest } from '../cache-injection.js';
 import { consoleBus } from '../console/bus.js';
 import { buildAccount, buildDone, buildError, buildStart, genReqId } from '../console/flow.js';
 import type { Account } from '../db/repos/accounts.js';
@@ -30,6 +29,7 @@ import { extractNotionStream } from '../providers/notion/extract.js';
 import { buildNotionPayload } from '../providers/notion/transform.js';
 import { compressMessages, rtkBytesSaved } from '../rtk/index.js';
 import { log } from '../util/log.js';
+import { augmentRequest } from './augment.js';
 import { assertModelNotLocked, handleUpstreamError } from './errorHandling.js';
 import { errorMessage, stringValue } from './helpers.js';
 import type { CursorRef } from './kiro.js';

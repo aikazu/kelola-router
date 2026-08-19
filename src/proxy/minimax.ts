@@ -5,7 +5,6 @@ import { clearExpiredModelLocks, getModelLock, setModelLock } from '../accounts/
 import { selectAccount } from '../accounts/selection.js';
 import { isModelLockActive } from '../accounts/state.js';
 import type { SelectionMode } from '../accounts/types.js';
-import { augmentRequest } from '../cache-injection.js';
 import { consoleBus } from '../console/bus.js';
 import {
   buildAccount,
@@ -33,16 +32,17 @@ import {
   responseAnthropicToOpenAI,
   responseOpenAIToAnthropic,
 } from '../providers/format/transform.js';
-import { PROVIDER, upstreamHeaders, upstreamUrl } from '../providers/minimax.js';
+import { markHotPath } from '../providers/minimax/hotPathMetrics.js';
+import { PROVIDER, upstreamHeaders, upstreamUrl } from '../providers/minimax/index.js';
 import { parseError } from '../providers/parseError.js';
 import { calculateCost } from '../providers/pricing.js';
 import { upstreamFetch } from '../providers/upstreamFetch.js';
 import { compressMessages, formatRtkLog, rtkBytesSaved } from '../rtk/index.js';
-import { markHotPath } from '../runtime/hotPathMetrics.js';
 import { pipeWithUsage } from '../streaming/pipeWithUsage.js';
 import { getProxyFailureMode, resolveTransportForAccount } from '../transport/resolve.js';
 import { getUpstreamFormat as getUpstreamFormatEnv } from '../util/env.js';
 import { log } from '../util/log.js';
+import { augmentRequest } from './augment.js';
 import { handleCodeBuddyProxy } from './codebuddy.js';
 import { handleComboProxy } from './combo.js';
 import { errorMessage, statusCode, stringValue } from './helpers.js';

@@ -3,7 +3,7 @@ import { listEnabledAccountsByProvider, type ProviderName } from '../../db/repos
 import type { Model } from '../../db/repos/models.js';
 import { executeCodeBuddy } from '../../providers/codebuddy/index.js';
 import { executeKiro } from '../../providers/kiro/index.js';
-import { upstreamHeaders, upstreamUrl } from '../../providers/minimax.js';
+import { upstreamHeaders, upstreamUrl } from '../../providers/minimax/index.js';
 import { executePioneer } from '../../providers/pioneer/index.js';
 import { executeTabi } from '../../providers/tabi/index.js';
 import { upstreamFetch } from '../../providers/upstreamFetch.js';

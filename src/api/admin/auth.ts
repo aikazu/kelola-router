@@ -1,10 +1,10 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { generateCookie, getCookie } from 'hono/cookie';
+import { SESSION_COOKIE } from '../../auth/index.js';
 import { isPasswordSet, verifyPassword } from '../../auth/password.js';
 import { clearLoginFailures, isLoginLocked, recordLoginFailure } from '../../auth/rateLimit.js';
 import { createSession, destroySession, validateSession } from '../../auth/session.js';
-import { SESSION_COOKIE } from '../../auth.js';
 import { clientIp } from './ip.js';
 import { ApiError, handleApiError } from './middleware.js';
 

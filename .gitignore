@@ -35,3 +35,6 @@ docs/*.har
 docs/notion/*.har
 docs/notion/*.flow
 docs/notion/__pycache__/
+
+# Graphify scratch output (regenerable)
+graphify-out/

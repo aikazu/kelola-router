@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PROVIDER, upstreamUrl } from './minimax.js';
+import { PROVIDER, upstreamUrl } from './minimax/index.js';
 
 // Regression: openai base previously included /v1, causing upstream path
 // concatenation to produce /v1/v1/chat/completions (404 from MiniMax).

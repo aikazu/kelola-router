@@ -32,7 +32,7 @@ import {
   responseAnthropicToOpenAI,
   responseOpenAIToAnthropic,
 } from '../providers/format/transform.js';
-import { PROVIDER, upstreamHeaders, upstreamUrl } from '../providers/minimax.js';
+import { PROVIDER, upstreamHeaders, upstreamUrl } from '../providers/minimax/index.js';
 import { parseError } from '../providers/parseError.js';
 import { calculateCost } from '../providers/pricing.js';
 import { upstreamFetch } from '../providers/upstreamFetch.js';
@@ -90,7 +90,7 @@ export async function handleComboProxy(
   const cavemanOn = !!caveman?.level && caveman.level !== 'off';
   const cachingOn = !!caching?.autoBreakpoints;
   if (cavemanOn || cachingOn) {
-    const { augmentRequest } = await import('../cache-injection.js');
+    const { augmentRequest } = await import('./augment.js');
     await augmentRequest(body, allSettings as Parameters<typeof augmentRequest>[1]);
   }
   let rtkSaved = 0;

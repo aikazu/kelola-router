@@ -5,14 +5,14 @@ import { type Context, Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { ulid } from 'ulid';
 import { adminApi } from './api/admin/index.js';
-import { setPassword } from './auth/password.js';
 import {
   handleLogin,
   handleLogout,
   requireAdmin,
   requireApiKey,
   verifySameOrigin,
-} from './auth.js';
+} from './auth/index.js';
+import { setPassword } from './auth/password.js';
 import { consoleBus } from './console/bus.js';
 import { attachStdoutSink } from './console/sink.js';
 import { openDb } from './db/index.js';
@@ -35,7 +35,7 @@ import { flushDeferredLogs } from './db/repos/requestLogs.js';
 import { getSettingT, setSetting } from './db/repos/settings.js';
 import { getUpstreamFormat } from './providers/format/negotiate.js';
 import { fetchModels } from './providers/listModels.js';
-import { PROVIDER, upstreamHeaders, upstreamUrl } from './providers/minimax.js';
+import { PROVIDER, upstreamHeaders, upstreamUrl } from './providers/minimax/index.js';
 import { upstreamFetch } from './providers/upstreamFetch.js';
 import { statusCode } from './proxy/helpers.js';
 import { handleProxy } from './proxy/minimax.js';

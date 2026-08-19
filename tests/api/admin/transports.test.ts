@@ -5,9 +5,9 @@ import Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { adminApi } from '../../../src/api/admin/index.js';
+import { SESSION_COOKIE } from '../../../src/auth/index.js';
 import { setPassword } from '../../../src/auth/password.js';
 import { createSession } from '../../../src/auth/session.js';
-import { SESSION_COOKIE } from '../../../src/auth.js';
 import { migrate } from '../../../src/db/migrations/index.js';
 
 // Stub the geoip probe so POST never hits the network in tests. Default: a
