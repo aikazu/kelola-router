@@ -34,7 +34,7 @@ Short-lived (60s) HttpOnly re-auth cookie that gates sensitive reveal operations
 | `GET` | `/api/admin/request-logs/:id` | Single request log row (with bodies + headers) |
 | `GET` | `/api/admin/request-logs/by-req-id/:reqId` | Request log row by console `reqId` (correlates to live console blocks) |
 
-## Client keys (`src/api/admin/clientKeys.ts`)
+## Client keys (`src/api/admin/client-keys.ts`)
 
 | Method | Path | Purpose |
 |---|---|---|

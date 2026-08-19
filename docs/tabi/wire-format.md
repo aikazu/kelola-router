@@ -64,8 +64,8 @@ missing/invalid key yields HTTP 401 `{"error":{"message":"Invalid token …","ty
 ## Errors (New-API envelope)
 
 All failures come back as JSON with a `new_api_error` envelope; messages are
-often in Chinese. `src/providers/parseError.ts` extracts the semantic `code`
-field (`parsed.error.code`) and `src/accounts/errorRules.ts` maps it:
+often in Chinese. `src/providers/parse-error.ts` extracts the semantic `code`
+field (`parsed.error.code`) and `src/accounts/error-rules.ts` maps it:
 
 | code | HTTP | mapping |
 |---|---|---|

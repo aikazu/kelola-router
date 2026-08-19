@@ -25,33 +25,33 @@ When refactoring, the agent needs to know what imports what and who calls whom. 
 ## Server module dependency graph
 
 `server.ts` imports (top-level only; not transitively listed):
-- `hono` + middleware from `src/auth.ts` + `src/api/admin/`
+- `hono` + middleware from `src/auth/index.ts` + `src/api/admin/`
 - The 3 proxy handlers from `src/proxy/{minimax,kiro,combo}.ts`
-- Scheduler: `src/scheduler/quotaPull.ts`
+- Scheduler: `src/scheduler/quota-pull.ts`
 - Transport: `src/transport/resolve.ts` (used by proxy handlers, transitively)
 - DB: `src/db/index.ts`
 
 `src/proxy/minimax.ts` imports:
-- `src/accounts/{selection,state,locks,errorRules,types}`
-- `src/cache-injection.ts` (caveman + cache_control)
+- `src/accounts/{selection,state,locks,error-rules,types}`
+- `src/proxy/augment.ts` (caveman + cache_control)
 - `src/console/{bus,flow}`
-- `src/db/repos/{accounts,combos,requestLogs,settings}`
-- `src/providers/{alias,format/negotiate,format/transform,minimax,parseError,pricing,upstreamFetch}`
+- `src/db/repos/{accounts,combos,request-logs,settings}`
+- `src/providers/{alias,format/negotiate,format/transform,minimax,parse-error,pricing,upstream-fetch}`
 - `src/rtk/`
-- `src/runtime/hotPathMetrics`
-- `src/streaming/pipeWithUsage`
+- `src/providers/minimax/hot-path-metrics`
+- `src/streaming/pipe-with-usage`
 - `src/transport/resolve`
 - `src/util/log`
 - `src/proxy/{capture,helpers}`
 
-`src/proxy/kiro.ts` imports the same minus RTK/cache-injection/alias-negotiation, plus `src/providers/kiro/`.
+`src/proxy/kiro.ts` imports the same minus RTK/proxy/augment/alias-negotiation, plus `src/providers/kiro/`.
 
 `src/accounts/selection.ts` imports:
 - `src/accounts/state` (filter helper)
 - `src/accounts/types`
 
 `src/accounts/state.ts` imports:
-- `src/accounts/errorRules` (decision)
+- `src/accounts/error-rules` (decision)
 - `src/accounts/types`
 
 `src/accounts/locks.ts` imports: `src/util/log` only. Pure SQL.
@@ -66,7 +66,7 @@ When refactoring, the agent needs to know what imports what and who calls whom. 
 - `@tanstack/react-query` (`QueryClientProvider`, `useQueryClient`)
 - `client/src/components/{Confirm,ToastProvider}`
 - `client/src/layout/AppShell`
-- `client/src/lib/{api,queryClient}`
+- `client/src/lib/{api,query-client}`
 
 `AppShell.tsx` imports all page components as `lazy(() => import(...))`. The `KNOWN_ROUTES` array + `switch (current)` are the dispatch.
 
@@ -97,12 +97,12 @@ Each page imports:
 | New DB table | `src/db/migrations/00X-*.ts` + repo at `src/db/repos/<table>.ts` |
 | New dashboard page | `client/src/pages/<Name>.tsx` + register in `AppShell` + entry in `Sidebar` |
 | New shared UI component | `client/src/components/<Name>.tsx` |
-| New error class / state machine | Extend `src/accounts/{state,selection,errorRules,types}.ts` |
+| New error class / state machine | Extend `src/accounts/{state,selection,error-rules,types}.ts` |
 | New console event | Extend `src/console/{types,flow}.ts` (union + builder) |
 
 ## Gotchas
 
-- **Don't import from `src/proxy/*` into `src/server.ts` other than the handler function.** The handlers are the only public surface. The proxy module also imports `runtime/hotPathMetrics`; that's a singleton meant to be imported by proxy handlers only.
+- **Don't import from `src/proxy/*` into `src/server.ts` other than the handler function.** The handlers are the only public surface. The proxy module also imports `providers/minimax/hot-path-metrics`; that's a singleton meant to be imported by proxy handlers only.
 - **Don't add `any` to a repo return type.** If the SQL column is nullable, return `T | null` (not `undefined`); tests rely on this.
 - **Don't add new state machine logic outside `src/accounts/`.** Selection / backoff / lock is one cohesive module; spread it and you lose the invariants.
 - **Don't break the `CursorRef` pattern.** `server.ts` owns the in-memory `rrCursor` and `stickyMap`; the proxy handlers mutate them through a ref. Don't try to lift the state into a module-global; that breaks test isolation.

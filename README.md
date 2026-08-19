@@ -68,7 +68,7 @@ All seven upstreams live behind a single OpenAI-compatible or Anthropic-compatib
 - **Provider-prefix routing**: `mm/MiniMax-M3`, `kr/claude-sonnet-4.5`, `cb/gpt-5`, `pio/...`, `nt/...`, `zai/...`, `tabi/...`. Aliases and combos translate user-facing model names to any of the seven upstreams.
 - **Multi-account pool with state machine**: sticky + round-robin selection per provider, exponential backoff (1s → 4min cap), per-(account, model) cooldown locks, and error rules for 429 / 2056 / 2061 / 5xx cascades.
 - **OpenAI ↔ Anthropic wire-format negotiation**: clients speak either protocol; the router translates per upstream (Kiro EventStream binary, Notion CRDT NDJSON, Z.AI dual API, TabiToken New-API gateway).
-- **RTK compression pipeline**: `compressMessages` with `dedupLog` + `smartTruncate` filters, runtime registry, autodetect, and per-request RTK log surfaced in the console.
+- **RTK compression pipeline**: `compressMessages` with `dedup-log` + `smart-truncate` filters, runtime registry, autodetect, and per-request RTK log surfaced in the console.
 - **Caveman terse system-prompt injection**: optional off / light / strong prompt mutation per request.
 - **Dual cache_control + auto-breakpoints**: Anthropic-style prompt caching, automatic breakpoint insertion when callers omit markers, respects caller-provided markers.
 - **Live request-flow console**: every step (selection, transport, upstream, error) emits a flow event you can tail in the dashboard or via `CONSOLE_FLOW=stdout`.
@@ -134,13 +134,13 @@ Swap `mm/` for `kr/`, `cb/`, `pio/`, `nt/`, `zai/`, or `tabi/` to target a diffe
 1. **Auth**: `client_key` middleware validates the bearer token; `admin_key` is reserved for `/api/admin/*`.
 2. **CSRF**: same-origin guard for state-changing admin requests.
 3. **Rate limit**: 5 failed auth attempts per IP per 15 minutes.
-4. **Model resolution**: `modelPrefix.ts` parses `<provider>/<model>`; aliases and combos are resolved through `providers/alias.ts` + `providers/aliasCache.ts`.
+4. **Model resolution**: `model-prefix.ts` parses `<provider>/<model>`; aliases and combos are resolved through `providers/alias.ts` + `providers/alias-cache.ts`.
 5. **Account selection**: `accounts/selection.ts` chooses per `(provider, model)` with sticky or round-robin strategy, respecting `accounts/locks.ts` cooldowns.
-6. **Transport resolution**: `transport/resolve.ts` picks proxy / relay / direct via `dispatcherCache.ts`; geoip defaults to intl/cn per `providers/baseUrl.ts`.
+6. **Transport resolution**: `transport/resolve.ts` picks proxy / relay / direct via `dispatcher-cache.ts`; geoip defaults to intl/cn per `providers/base-url.ts`.
 7. **Caveman + RTK**: optional terse system-prompt injection and message compression through `caveman/` and `rtk/`.
 8. **Format transform**: `format/transform.ts` + `format/negotiate.ts` convert OpenAI<->Anthropic to whatever the upstream expects (Kiro uses EventStream binary framing, Notion uses an internal JSON shape, etc.).
-9. **Upstream call**: `providers/upstreamFetch.ts` POSTs JSON via `proxyAwareFetch`, with streaming SSE assembled per-provider (Kiro uses `providers/kiro/assembler.ts`, CodeBuddy uses `providers/codebuddy/streamConvert.ts`).
-10. **Streaming + usage**: `streaming/pipeWithUsage.ts` tees the SSE upstream response back to the client while `streaming/extractUsage.ts` parses token usage; `tailBuffer.ts` buffers partial lines.
+9. **Upstream call**: `providers/upstream-fetch.ts` POSTs JSON via `proxyAwareFetch`, with streaming SSE assembled per-provider (Kiro uses `providers/kiro/assembler.ts`, CodeBuddy uses `providers/codebuddy/stream-convert.ts`).
+10. **Streaming + usage**: `streaming/pipe-with-usage.ts` tees the SSE upstream response back to the client while `streaming/extract-usage.ts` parses token usage; `tail-buffer.ts` buffers partial lines.
 
 Every step emits a `console/` flow event for the dashboard Console page and the `request_logs` table.
 
@@ -153,14 +153,14 @@ src/
 ├── server.ts                     # Hono app + listener bootstrap
 ├── auth/                         # client_key + admin_key + CSRF + rate-limit
 │   ├── password.ts               # scrypt hashing + session cookie
-│   ├── rateLimit.ts              # 5 fails / 15min per IP
+│   ├── rate-limit.ts              # 5 fails / 15min per IP
 │   └── csrf.ts                   # same-origin guard
 ├── util/
 │   ├── env.ts                    # typed env getters
 │   └── log.ts                    # pino instance
 ├── accounts/                     # state machine + selection
 │   ├── backoff.ts                # exponential cooldown (1s -> 4min cap)
-│   ├── errorRules.ts             # 429/2056/2061/5xx cascade
+│   ├── error-rules.ts             # 429/2056/2061/5xx cascade
 │   ├── state.ts                  # apply/reset/filter/lock-checks
 │   ├── selection.ts              # sticky + round-robin per provider
 │   ├── locks.ts                  # per-(account, model) cooldown CRUD
@@ -169,25 +169,25 @@ src/
 │   ├── index.ts                  # openDb (WAL, FK, busy_timeout, optional SQLCipher)
 │   ├── hooks.ts                  # bumpAdminCacheVersion re-export
 │   ├── migrations/               # 001-initial only (schema.sql / indexes.sql / seed.sql)
-│   └── repos/                    # accounts, aliases, auditLog, client_keys,
-│                                 #   combos, models, quotaSnapshots,
-│                                 #   requestLogs, requestLogsQueue, settings,
+│   └── repos/                    # accounts, aliases, audit-log, client-keys,
+│                                 #   combos, models, quota-snapshots,
+│                                 #   request-logs, request-logs-queue, settings,
 │                                 #   transports (+ settings.types.ts)
 ├── providers/
 │   ├── minimax.ts                # PROVIDER const, upstreamUrl/Headers
 │   ├── baseUrl.ts                # intl vs cn
 │   ├── headers.ts                # OpenAI Bearer vs Anthropic x-api-key
-│   ├── alias.ts + aliasCache.ts
-│   ├── listModels.ts             # /v1/models fetch + merge
-│   ├── modelPrefix.ts            # mm/kr/cb/pio/nt/zai/tabi parser
+│   ├── alias.ts + alias-cache.ts
+│   ├── list-models.ts             # /v1/models fetch + merge
+│   ├── model-prefix.ts            # mm/kr/cb/pio/nt/zai/tabi parser
 │   ├── pricing.ts                # per-token cost calc (incl cache)
-│   ├── parseError.ts             # base_resp.status_code extraction
+│   ├── parse-error.ts             # base_resp.status_code extraction
 │   ├── quota.ts                  # token-plan quota parser
-│   ├── upstreamFetch.ts          # JSON POST wrapper over proxyAwareFetch
+│   ├── upstream-fetch.ts          # JSON POST wrapper over proxyAwareFetch
 │   ├── common/                   # SseAssemblerBase.ts template-method
-│   ├── format/                   # transform.ts + negotiate.ts + messageTypes.ts
+│   ├── format/                   # transform.ts + negotiate.ts + message-types.ts
 │   ├── kiro/                     # AWS CodeWhisperer / Amazon Q
-│   ├── codebuddy/                # index, transform, streamConvert
+│   ├── codebuddy/                # index, transform, stream-convert
 │   ├── notion/                   # auth, constants, extract, transform, manifest.json
 │   ├── pioneer/                  # index, models, transform
 │   ├── zai/                      # index, transform
@@ -195,21 +195,21 @@ src/
 ├── proxy/                        # per-provider request proxies
 │   ├── minimax.ts, kiro.ts, codebuddy.ts, pioneer.ts, notion.ts, zai.ts, tabi.ts
 ├── rtk/                          # RTK compression pipeline
-│   ├── index.ts, applyFilter.ts, autodetect.ts, registry.ts, constants.ts, types.ts
-│   └── filters/                  # dedupLog, smartTruncate
+│   ├── index.ts, apply-filter.ts, autodetect.ts, registry.ts, constants.ts, types.ts
+│   └── filters/                  # dedup-log, smart-truncate
 ├── caveman/                      # terse system-prompt injection
-├── cache-injection.ts            # dual cache_control + auto-breakpoints
+├── proxy/augment.ts            # dual cache_control + auto-breakpoints
 ├── streaming/
-│   ├── extractUsage.ts           # parse SSE -> usage
-│   ├── pipeWithUsage.ts          # tee upstream SSE
-│   └── tailBuffer.ts             # SSE partial-line buffering
+│   ├── extract-usage.ts           # parse SSE -> usage
+│   ├── pipe-with-usage.ts          # tee upstream SSE
+│   └── tail-buffer.ts             # SSE partial-line buffering
 ├── transport/                    # proxy / relay resolution
-│   ├── proxyFetch.ts, dispatcherCache.ts, socksLoader.ts, types.ts
+│   ├── proxy-fetch.ts, dispatcher-cache.ts, socks-loader.ts, types.ts
 │   ├── geoip.ts                  # ipapi.co country probe
 │   ├── resolve.ts                # resolveTransportForAccount
-│   └── resolvedCache.ts
+│   └── resolved-cache.ts
 ├── scheduler/
-│   └── quotaPull.ts              # periodic /v1/token_plan/remains puller
+│   └── quota-pull.ts              # periodic /v1/token_plan/remains puller
 ├── console/                      # flow event bus
 └── security/status.ts            # GET /api/admin/security/status
 
@@ -231,13 +231,13 @@ client/                           # Preact SPA dashboard (Vite)
 │   │                             #   TransportsTable
 │   ├── hooks/                    # useKiroAutoImport, useKiroDeviceFlow, useNotionAuth
 │   ├── layout/                   # AppShell, Sidebar, TopBar
-│   ├── lib/                      # api.ts (fetch wrapper), queryClient,
-│   │                             #   relativeTime, types, providerPrefix
+│   ├── lib/                      # api.ts (fetch wrapper), query-client,
+│   │                             #   relative-time, types, provider-prefix
 │   ├── pages/                    # 15 pages (see Dashboard below)
 │   └── styles/                   # base.css (tokens+fonts), components.css, polish.css, animations.css
 
 scripts/                          # CLI scripts
-├── add-account.ts + add-account.cliArgs.ts
+├── add-account.ts + add-account-cli-args.ts
 ├── add-client-key.ts
 ├── notion-add-account.ts
 ├── recover-db.ts                 # WAL race recovery
@@ -291,7 +291,7 @@ Built-in Preact SPA (Vite). Sidebar nav is grouped (View / Operate / System) wit
     "enabled": true,
     "minCompressSize": 500,
     "rawCap": 10485760,
-    "filters": ["dedupLog", "smartTruncate"]
+    "filters": ["dedup-log", "smart-truncate"]
   },
   "minimax":  { "upstreamFormat": "auto", "m3DefaultMaxCompletionTokens": 131072 },
   "version":  "<auto>"
@@ -317,7 +317,7 @@ Built-in Preact SPA (Vite). Sidebar nav is grouped (View / Operate / System) wit
 | Var                              | Purpose                                                              |
 | -------------------------------- | -------------------------------------------------------------------- |
 | `HOST` / `PORT`                  | Bind address (default `127.0.0.1:20137`)                           |
-| `REGION`                         | `intl` vs `cn` for `providers/baseUrl.ts`                            |
+| `REGION`                         | `intl` vs `cn` for `providers/base-url.ts`                            |
 | `ROUTER_DB_PATH`                 | SQLite file path (default `./data/router.db`)                        |
 | `ROUTER_DB_KEY`                  | SQLCipher encryption key (optional)                                  |
 | `LOG_LEVEL`                      | pino level (`debug` / `info` / `warn` / `error`)                     |
@@ -407,11 +407,11 @@ If you ever forget the password, the only recovery is to wipe `settings` from th
 | Mode     | Settings key                          | Env override  | Notes                                                |
 | -------- | ------------------------------------- | ------------- | ---------------------------------------------------- |
 | Direct   | `transport.proxy = null`              | (n/a)         | Default; uses local NIC                              |
-| SOCKS    | `transport.proxy = "socks5h://..."`   | `ALL_PROXY`   | Lazy-loaded via `transport/socksLoader.ts`           |
+| SOCKS    | `transport.proxy = "socks5h://..."`   | `ALL_PROXY`   | Lazy-loaded via `transport/socks-loader.ts`           |
 | HTTP     | `transport.proxy = "http://..."`      | `HTTP_PROXY`  | Standard HTTP CONNECT                                |
 | Relay    | `transport.relay = "https://relay.example.com"` | (n/a) | Hand-off to a remote proxy that fans out to upstreams |
 
-`resolveTransportForAccount` caches the resolved dispatcher per account in `transport/resolvedCache.ts`. Geoip defaults to `intl` vs `cn` via `transport/geoip.ts` (ipapi.co country probe) and `providers/baseUrl.ts`.
+`resolveTransportForAccount` caches the resolved dispatcher per account in `transport/resolved-cache.ts`. Geoip defaults to `intl` vs `cn` via `transport/geoip.ts` (ipapi.co country probe) and `providers/base-url.ts`.
 
 ---
 
@@ -420,8 +420,8 @@ If you ever forget the password, the only recovery is to wipe `settings` from th
 - **Open mode (default, dev-only)**: no admin auth. Set a dashboard password before exposing the service.
 - **Password mode**: scrypt-hashed admin password, session cookie with CSRF guard. This is the production default after first boot.
 - **Encryption-at-rest**: set `ROUTER_DB_KEY` and the SQLite file is opened via SQLCipher. Losing the key loses the DB.
-- **Rate limit**: 5 failed auth attempts per IP per 15 minutes (`auth/rateLimit.ts`).
-- **Audit log**: every admin mutation is appended to `audit_log` (repos in `db/repos/auditLog.ts`); readable on the Settings page.
+- **Rate limit**: 5 failed auth attempts per IP per 15 minutes (`auth/rate-limit.ts`).
+- **Audit log**: every admin mutation is appended to `audit_log` (repos in `db/repos/audit-log.ts`); readable on the Settings page.
 - **Security banner**: top-of-dashboard warning when running in open mode or with no DB encryption (`components/SecurityBanner`).
 - **Security status endpoint**: `GET /api/admin/security/status` (`security/status.ts`) reports mode, key presence, and last audit entries.
 

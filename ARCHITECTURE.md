@@ -60,7 +60,7 @@ src/
 │   ├── accounts.ts           CRUD: accounts, provider fields, refresh token
 │   ├── aliases.ts            CRUD: model aliases (+ combo conflict check)
 │   ├── auth.ts               POST /login, /logout, /check-password, /set-password
-│   ├── clientKeys.ts         CRUD: client_keys (bearer tokens)
+│   ├── client-keys.ts         CRUD: client_keys (bearer tokens)
 │   ├── models.ts             GET /models + seed; POST create/update
 │   ├── overview.ts           GET / (provider health, usage sparkline)
 │   ├── usage.ts              GET usage stats (request count, token sums)
@@ -68,8 +68,8 @@ src/
 │   ├── combos.ts             CRUD: combo models (fallback chains)
 │   ├── transports.ts         CRUD: transports (relay/proxy/SOCKS config)
 │   ├── settings.ts           GET /settings, POST key/value store
-│   ├── requestLogs.ts        GET request logs (paginated, filterable)
-│   ├── modelHealth.ts        GET model health (per-account lock status)
+│   ├── request-logs.ts        GET request logs (paginated, filterable)
+│   ├── model-health.ts        GET model health (per-account lock status)
 │   ├── cache.ts              POST /clear-cache (settings cache burst)
 │   └── middleware.ts         Shared middleware for /api/admin/* routes
 ├── proxy/
@@ -83,42 +83,42 @@ src/
 │   ├── combo.ts              handleComboProxy — combo routing (~429 LOC)
 │   ├── pipeline.ts           Pure helpers extracted from the proxy handlers (buildLogRow, applyErrorState, …)
 │   ├── capture.ts            Request/response body capture (truncate + headersToJson)
-│   └── errorHandling.ts      Shared error response shaping
+│   └── error-handling.ts      Shared error response shaping
 ├── accounts/                 Account selection state machine
 │   ├── selection.ts          sticky / round-robin / lowest-backoff picker
 │   ├── state.ts              applyAccountError, isModelLockActive
 │   ├── locks.ts              per-model locks (TTL)
 │   ├── backoff.ts            exponential backoff level helpers
-│   ├── errorRules.ts         base_resp / HTTP status → decision
+│   ├── error-rules.ts         base_resp / HTTP status → decision
 │   └── types.ts              AccountState, ModelLock, SelectionOpts
 ├── providers/
 │   ├── format/               OpenAI ↔ Anthropic body + stream conversion
 │   │   ├── transform.ts      bodyOpenAIToAnthropic + bodyAnthropicToOpenAI + response counterparts
 │   │   ├── negotiate.ts      client format detection + per-provider upstreamFormat override
-│   │   └── messageTypes.ts   shared body/message types
+│   │   └── message-types.ts   shared body/message types
 │   ├── common/               shared provider internals
 │   │   └── SseAssemblerBase.ts  abstract template-method for Anthropic-SSE emitters
 │   │                           (shared by Kiro + CodeBuddy; see "Provider layer" below)
 │   ├── kiro/                 Kiro protocol stack
 │   │   ├── auth.ts           ensureAccessToken (refresh + persist)
-│   │   ├── tokenRefresh.ts   AWS SSO OIDC vs Kiro social refresh
+│   │   ├── token-refresh.ts   AWS SSO OIDC vs Kiro social refresh
 │   │   ├── transform.ts      buildKiroPayload (OpenAI → CodeWhisperer)
 │   │   ├── eventstream.ts    binary frame decoder
 │   │   ├── assembler.ts      → OpenAI SSE chunks (own I/O type; not SseAssemblerBase)
-│   │   ├── anthropicSse.ts   → Anthropic Messages SSE (extends SseAssemblerBase<KiroEvent>)
+│   │   ├── anthropic-sse.ts   → Anthropic Messages SSE (extends SseAssemblerBase<KiroEvent>)
 │   │   ├── index.ts          executeKiro (orchestrator)
-│   │   ├── deviceCode.ts     AWS Builder ID / IDC device code flow
-│   │   ├── accountImport.ts  buildKiroAccountFields (token / idc / social)
-│   │   ├── autoImport.ts     one-click import from ~/.aws/sso/cache
+│   │   ├── device-code.ts     AWS Builder ID / IDC device code flow
+│   │   ├── account-import.ts  buildKiroAccountFields (token / idc / social)
+│   │   ├── auto-import.ts     one-click import from ~/.aws/sso/cache
 │   │   ├── profile.ts        Kiro profile/region resolution
-│   │   ├── chunkAccumulator.ts  stream chunk aggregation
-│   │   ├── streamConsumer.ts NDJSON → OpenAI delta assembly
+│   │   ├── chunk-accumulator.ts  stream chunk aggregation
+│   │   ├── stream-consumer.ts NDJSON → OpenAI delta assembly
 │   │   ├── constants.ts      Kiro-specific constants
 │   │   └── usage.ts          Kiro usage extraction
 │   ├── codebuddy/            CodeBuddy protocol stack
 │   │   ├── index.ts          executeCodeBuddy orchestrator
 │   │   ├── transform.ts      prepareCodeBuddyBody (client → OpenAI upstream)
-│   │   └── streamConvert.ts  aggregate + OpenAI SSE → Anthropic SSE
+│   │   └── stream-convert.ts  aggregate + OpenAI SSE → Anthropic SSE
 │   │                         (extends SseAssemblerBase<OpenAIStreamChunk>)
 │   ├── pioneer/             Pioneer protocol (OpenAI CC + X-API-Key;
 │   │                         reuses CodeBuddy SSE bridge)
@@ -138,26 +138,26 @@ src/
 │   │   ├── transform.ts      client → upstream body (Anthropic or OpenAI)
 │   │   └── models.ts         zai/ namespaced model catalogue
 │   ├── alias.ts              resolveModel — alias/combo/prefix → upstreamModel
-│   ├── aliasCache.ts         in-process alias cache (per-request ctx)
-│   ├── modelPrefix.ts        parseModelPrefix — <prefix>/<name> split + PREFIX_TO_PROVIDER map
+│   ├── alias-cache.ts         in-process alias cache (per-request ctx)
+│   ├── model-prefix.ts        parseModelPrefix — <prefix>/<name> split + PREFIX_TO_PROVIDER map
 │   ├── minimax.ts            MiniMax provider constants + URL/header builders
 │   ├── baseUrl.ts            MiniMax region switch (intl/cn)
 │   ├── headers.ts            upstream auth/header builders
-│   ├── parseError.ts         base_resp.status_code extractor
+│   ├── parse-error.ts         base_resp.status_code extractor
 │   ├── pricing.ts            per-model USD pricing
 │   ├── quota.ts              quota pull
-│   ├── upstreamFetch.ts      fetch w/ transport (proxy/relay/direct)
-│   └── listModels.ts         MiniMax /v1/models fetcher
+│   ├── upstream-fetch.ts      fetch w/ transport (proxy/relay/direct)
+│   └── list-models.ts         MiniMax /v1/models fetcher
 ├── caveman/                  System-prompt compression (wired in step 5)
 ├── rtk/                      Runtime filter compression (wired in step 6)
-├── streaming/                pipeWithUsage, extractUsage
+├── streaming/                pipe-with-usage, extract-usage
 ├── transport/                undici dispatcher cache + SOCKS proxy loader
 │   ├── resolve.ts            resolveTransportForAccount — per-account transport
 │   ├── geoip.ts              country probe via ipapi.co on transport add
-│   ├── proxyFetch.ts         undici Agent builder w/ proxy settings
-│   ├── dispatcherCache.ts    per-transport dispatcher cache
-│   ├── socksLoader.ts        SockSocket factory (socks5/socks4 client)
-│   ├── resolvedCache.ts      resolved transport cache
+│   ├── proxy-fetch.ts         undici Agent builder w/ proxy settings
+│   ├── dispatcher-cache.ts    per-transport dispatcher cache
+│   ├── socks-loader.ts        SockSocket factory (socks5/socks4 client)
+│   ├── resolved-cache.ts      resolved transport cache
 │   └── types.ts              TransportConfig discriminated union
 ├── console/                  Live flow event bus
 │   ├── bus.ts                ring buffer + SSE subscribe
@@ -165,8 +165,8 @@ src/
 │   ├── format.ts             ANSI renderer
 │   ├── sink.ts               stdout sink (CONSOLE_FLOW env gate)
 │   └── types.ts              FlowEvent discriminated union
-├── scheduler/quotaPull.ts    Background tick: quota pull + log prune
-├── cache-injection.ts        caveman system prompt + cache_control dual breakpoints
+├── scheduler/quota-pull.ts    Background tick: quota pull + log prune
+├── proxy/augment.ts        caveman system prompt + cache_control dual breakpoints
 ├── runtime/                  per-request context (rrCursor, stickyMap, getDb)
 ├── db/
 │   ├── index.ts              openDb() — branches on getDbKey(): plaintext via better-sqlite3,
@@ -177,8 +177,8 @@ src/
 │   │                         split across schema.sql / indexes.sql / seed.sql). No incremental
 │   │                         ALTERs; user_version = 1. (Notion: provider_data JSON carries
 │   │                         cookies + spaceId, no schema migration)
-│   └── repos/                One file per table: accounts, client_keys, models,
-│                             aliases, combos, requestLogs, quotaSnapshots,
+│   └── repos/                One file per table: accounts, client-keys, models,
+│                             aliases, combos, request-logs, quota-snapshots,
 │                             transports, settings (1s cache).
 │                             `src/db/repos/settings.types.ts` is the valibot
 │                             schema registry (`SETTINGS_SCHEMAS`); the typed
@@ -203,7 +203,7 @@ client/src/
 ├── components/               Card, Stat, Badge, Button, Modal, Toast,
 │                             CommandPalette, ErrorState, Skeleton, Confirm, …
 ├── hooks/                    useKiroDeviceFlow, useKiroAutoImport
-├── lib/                      api.ts (apiFetch), queryClient, relativeTime
+├── lib/                      api.ts (apiFetch), query-client, relative-time
 └── styles/                   base.css (Obsidian Gold tokens), components.css,
                               animations.css
 ```
@@ -309,7 +309,7 @@ resolveTransportForAccount(account) → TransportConfig
   ↓
 upstreamFetch(url, body, headers, transport)
   ↓
-  • streaming → pipeWithUsage → extractUsage
+  • streaming → pipe-with-usage → extract-usage
   • buffered  → resp.json/text
   ↓
 response transform back to client format
@@ -353,8 +353,8 @@ The `emit('start' | 'done' | 'error')` lines above are conceptual; the actual bu
 
 Concrete subclasses:
 
-- **`KiroAnthropicAssembler`** (`src/providers/kiro/anthropicSse.ts`, `TInput = KiroEvent`): translates decoded Kiro event-stream frames to Anthropic SSE; overrides `process()` to route richer Kiro event types (tool-use, metadata, messageStop) through the inherited state machine.
-- **`OpenAIToAnthropicSSEAssembler`** (`src/providers/codebuddy/streamConvert.ts`, `TInput = OpenAIStreamChunk`): translates aggregated OpenAI chunks to Anthropic SSE; uses the default 1-block-1-delta orchestrator without overriding `process()`. Pioneer reuses this same assembler and the `aggregateOpenAISSE` / `openaiSSEToAnthropicSSE` bridge. No Pioneer-specific assembler.
+- **`KiroAnthropicAssembler`** (`src/providers/kiro/anthropic-sse.ts`, `TInput = KiroEvent`): translates decoded Kiro event-stream frames to Anthropic SSE; overrides `process()` to route richer Kiro event types (tool-use, metadata, messageStop) through the inherited state machine.
+- **`OpenAIToAnthropicSSEAssembler`** (`src/providers/codebuddy/stream-convert.ts`, `TInput = OpenAIStreamChunk`): translates aggregated OpenAI chunks to Anthropic SSE; uses the default 1-block-1-delta orchestrator without overriding `process()`. Pioneer reuses this same assembler and the `aggregateOpenAISSE` / `openaiSSEToAnthropicSSE` bridge. No Pioneer-specific assembler.
 
 **Not in scope.** `KiroAssembler` (`src/providers/kiro/assembler.ts`, → OpenAI SSE) does NOT extend the base. Its I/O type is OpenAI chunks, not Anthropic events, and it predates the template-method. Leaving it untouched keeps the base generic for Anthropic-SSE only.
 

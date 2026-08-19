@@ -74,7 +74,7 @@ The corresponding assistant message has `tool_use` blocks (not tool_calls). See 
 
 ## Streaming chunks
 
-The streaming conversion is more involved because each chunk is partial. See `src/streaming/pipeWithUsage.ts` for the SSE pipe. Key invariants:
+The streaming conversion is more involved because each chunk is partial. See `src/streaming/pipe-with-usage.ts` for the SSE pipe. Key invariants:
 
 - `chat.completion.chunk` with delta.content → `content_block_start` + `content_block_delta` (text)
 - `chat.completion.chunk` with delta.tool_calls → `content_block_start` (tool_use) + `content_block_delta` (input_json_delta)
@@ -86,7 +86,7 @@ The streaming conversion is more involved because each chunk is partial. See `sr
 Anthropic has `cache_control: {type: 'ephemeral'}` on content blocks. OpenAI has no equivalent. The router:
 - Passes `cache_control` through to Anthropic (upstream)
 - Strips `cache_control` from the body when converting Anthropic → OpenAI (it would be ignored anyway)
-- The router's own cache injection (`src/cache-injection.ts`) adds `cache_control` to the system + last user message if `settings.caching.autoBreakpoints` is on
+- The router's own cache injection (`src/proxy/augment.ts`) adds `cache_control` to the system + last user message if `settings.caching.autoBreakpoints` is on
 
 ## Code map
 

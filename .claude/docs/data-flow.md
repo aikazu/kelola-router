@@ -50,7 +50,7 @@ The Console page renders this so the user can see which account was selected.
 
 ## 7. `augmentRequest(body)`: caveman + cache_control
 
-`src/cache-injection.ts`:
+`src/proxy/augment.ts`:
 - If `caveman.level` is `'lite'` or `'full'`, prepend a system prompt that compresses the conversation
 - If `caching.autoBreakpoints` is on, inject `cache_control: { type: 'ephemeral' }` on the system message and the last user message
 
@@ -71,9 +71,9 @@ Skipped if `rtk.enabled` is false (the default).
 
 `consoleBus.emit('transport', { reqId, kind: 'relay' | 'proxy' | 'direct', label: <url> })` (only when transport is non-null).
 
-## 10. `upstreamFetch(url, body, headers, transport)`
+## 10. `upstream-fetch(url, body, headers, transport)`
 
-`src/providers/upstreamFetch.ts`:
+`src/providers/upstream-fetch.ts`:
 - Builds the URL from the account's `base_url` + `upstreamPath`
 - Headers: provider + format-specific (see `src/providers/headers.ts`)
 - If `transport` is set, uses `proxyAwareFetch`. Otherwise global `fetch`.
@@ -84,8 +84,8 @@ Skipped if `rtk.enabled` is false (the default).
 ## 11. SSE pipe OR buffered response
 
 If `body.stream`:
-- `pipeWithUsage(stream, c)` reads the stream, forwards to the client, and extracts usage
-- `extractUsage` parses the last chunk for `usage` info (OpenAI streaming) or `message_delta` (Anthropic)
+- `pipe-with-usage(stream, c)` reads the stream, forwards to the client, and extracts usage
+- `extract-usage` parses the last chunk for `usage` info (OpenAI streaming) or `message_delta` (Anthropic)
 - Returns the assembled response
 
 If not streaming:
@@ -105,7 +105,7 @@ Emitted on success. `ttft_ms` is the time to first byte (streaming only). `token
 
 ## 14. `insertRequestLog(row)`
 
-`src/db/repos/requestLogs.ts:insertRequestLogDeferred` (deferred for buffered) or `insertRequestLog` (immediate for streaming). The row has 29 columns including `request_body`, `response_body`, `request_headers`, `response_headers` (bodies are stored for debugging; see `INSERT_REQUEST_LOG_BODY_RETENTION_DAYS` in scheduler).
+`src/db/repos/request-logs.ts:insertRequestLogDeferred` (deferred for buffered) or `insertRequestLog` (immediate for streaming). The row has 29 columns including `request_body`, `response_body`, `request_headers`, `response_headers` (bodies are stored for debugging; see `INSERT_REQUEST_LOG_BODY_RETENTION_DAYS` in scheduler).
 
 ## 15. `applyAccountError` (on failure)
 
@@ -119,11 +119,11 @@ The proxy still returns an HTTP response. The error is logged, not thrown.
 
 ## 16. Kiro-specific path
 
-`handleKiroProxy` is structurally similar but uses `executeKiro` instead of `upstreamFetch`. The Kiro path:
+`handleKiroProxy` is structurally similar but uses `executeKiro` instead of `upstream-fetch`. The Kiro path:
 - Builds the payload via `buildKiroPayload` (CodeWhisperer `conversationState` shape)
 - `executeKiro` calls `ensureAccessToken` (refresh if needed)
 - Decodes the AWS event-stream binary frames
-- Re-emits as OpenAI SSE (`assembler.ts`) or Anthropic SSE (`anthropicSse.ts`)
+- Re-emits as OpenAI SSE (`assembler.ts`) or Anthropic SSE (`anthropic-sse.ts`)
 - The 10-step console emit sequence is the same
 
 ## 17. Combo path

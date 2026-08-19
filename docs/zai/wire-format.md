@@ -37,7 +37,7 @@ introduction page).
 ## Model catalogue
 
 The router ships with a curated seed list at
-`src/db/seedBuiltinModels.ts → seedZaiBuiltins`. All entries carry real
+`src/db/seed-builtin-models.ts → seedZaiBuiltins`. All entries carry real
 per-token pricing (USD / 1M tokens) sourced from
 <https://docs.z.ai/guides/overview/pricing>. Pricing-free Flash variants
 have zero rows.
@@ -125,7 +125,7 @@ multimodal blocks pass through unchanged.
 ## Response shape
 
 Both endpoints stream standard OpenAI SSE (`data: { ... }\n\n`) when
-`stream:true`. The router's existing `codebuddy/streamConvert` helpers handle
+`stream:true`. The router's existing `codebuddy/stream-convert` helpers handle
 conversion back to Anthropic Messages SSE for `anthropic` clients via the
 shared `OpenAIToAnthropicSSEAssembler`.
 
@@ -154,7 +154,7 @@ either an OpenAI `chat.completion` JSON object or converted via
 
 Z.AI returns standard HTTP status codes; the body shape mirrors OpenAI's
 `{"error":{"message":"...","type":"..."}}` envelope. `checkFallbackError` in
-`src/accounts/errorRules.ts` already maps the canonical set:
+`src/accounts/error-rules.ts` already maps the canonical set:
 
 - `401` → auth fail (cooldown 0, account disabled)
 - `429` → backoff

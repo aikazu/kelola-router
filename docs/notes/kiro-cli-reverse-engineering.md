@@ -40,7 +40,7 @@ src/providers/kiro/
 │                    #   calls ensureProfileArn() for cli
 ├── profile.ts       # discoverProfileArn() + ensureProfileArn() (ListAvailableProfiles)
 ├── auth.ts          # ensureAccessToken(): token refresh + DB cache
-├── tokenRefresh.ts  # KiroProviderData type (persona, profileArn, clientId, ...)
+├── token-refresh.ts  # KiroProviderData type (persona, profileArn, clientId, ...)
 └── *.test.ts        # unit tests; profile.test.ts + transform/constants persona tests
 src/api/admin/accounts.ts   # PATCH accepts {persona, profileArn} → merged into provider_data
 client/src/pages/Accounts.tsx  # persona dropdown in Edit modal + IDE/CLI badge

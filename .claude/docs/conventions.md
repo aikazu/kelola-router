@@ -26,7 +26,7 @@ When an agent writes a single line of code, the line should pass `biome check` +
 
 | Item | Convention | Example |
 |---|---|---|
-| Files (server) | `kebab-case.ts` (one per concept) | `errorRules.ts`, `pipeWithUsage.ts` |
+| Files (server) | `kebab-case.ts` (one per concept) | `error-rules.ts`, `pipe-with-usage.ts` |
 | Files (client) | `PascalCase.tsx` (one per component) | `AccountsTable.tsx`, `KiroAuthForm.tsx` |
 | React components | `PascalCase`, default export matching filename | `export function Accounts() {}` |
 | Functions | `camelCase`, verb-first | `selectAccount`, `applyAccountError` |

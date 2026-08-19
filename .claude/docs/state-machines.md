@@ -42,7 +42,7 @@ The proxy handler reads `account` + `nextCursor` and writes `nextCursor` back to
 - The legacy `settings.selection` key is no longer read. If a user upgrades from pre-0.13 and the old key is still in their DB, they get default behavior (lowest-backoff) silently. No migration.
 - Round-robin cursor reset on restart is by design. Persisting it would add a DB write per request.
 
-## 2. Error → backoff (`src/accounts/errorRules.ts` + `state.ts`)
+## 2. Error → backoff (`src/accounts/error-rules.ts` + `state.ts`)
 
 ### Decision flow
 
@@ -129,4 +129,4 @@ Lock TTL is short, `getQuotaCooldown(level+1)` typically. Cleared by `clearExpir
 - [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md): state-machine diagrams
 - [`../../docs/reference/error-codes.md`](../../docs/reference/error-codes.md): error → decision table
 - [`../../docs/guides/debug-a-failed-request.md`](../../docs/guides/debug-a-failed-request.md): debug ladder
-- `src/accounts/{selection,state,locks,backoff,errorRules,types}.ts`: source of truth
+- `src/accounts/{selection,state,locks,backoff,error-rules,types}.ts`: source of truth

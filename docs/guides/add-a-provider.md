@@ -28,7 +28,7 @@ src/
 │       ├── auth.ts                ensure + refresh credentials (mirror kiro/auth.ts)
 │       ├── transform.ts           build outbound body (client format → foo format)
 │       ├── stream.ts              parse foo stream → OpenAI/Anthropic SSE
-│       ├── upstreamFetch.ts       fetch w/ provider-specific quirks
+│       ├── upstream-fetch.ts       fetch w/ provider-specific quirks
 │       └── index.ts               executeFoo (orchestrator)
 ├── proxy/
 │   └── foo.ts                     NEW: handleFooProxy, parallel to kiro.ts
@@ -135,7 +135,7 @@ Things to handle:
 
 **File:** `src/providers/foo/stream.ts` (new)
 
-If foo speaks SSE, parse it into OpenAI chunks and a buffered `chat.completion`. If foo speaks a binary protocol (like Kiro's event-stream), see `src/providers/kiro/eventstream.ts` + `assembler.ts` + `anthropicSse.ts` for the three-stage pattern: raw frames → OpenAI SSE → optional Anthropic SSE.
+If foo speaks SSE, parse it into OpenAI chunks and a buffered `chat.completion`. If foo speaks a binary protocol (like Kiro's event-stream), see `src/providers/kiro/eventstream.ts` + `assembler.ts` + `anthropic-sse.ts` for the three-stage pattern: raw frames → OpenAI SSE → optional Anthropic SSE.
 
 The exported functions should be:
 ```ts

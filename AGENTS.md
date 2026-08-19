@@ -71,7 +71,7 @@ Per-request path inside `handleProxy` (see `src/proxy/minimax.ts` + `proxy/kiro.
 4. `augment`: caveman system-prompt + `cache_control` dual breakpoints
 5. RTK compression if enabled
 6. `bodyOpenAIToAnthropic` or `bodyAnthropicToOpenAI` per `settings.minimax.upstreamFormat`
-7. `upstreamFetch` → SSE pipe via `streaming/pipeWithUsage` or buffered response
+7. `upstreamFetch` → SSE pipe via `streaming/pipe-with-usage` or buffered response
 8. Format-convert response back to client format
 9. `insertRequestLog` (cost, tokens, latency, account_id, client_key_id, `requested_model`)
 10. `applyAccountError`: `base_resp.status_code` mapping, backoff, model lock
@@ -89,7 +89,7 @@ Deep-dive (module map, state machines, data flow): see [`ARCHITECTURE.md`](ARCHI
 - **Pioneer** (api.pioneer.ai): OpenAI-compatible Chat Completions, X-API-Key bearer. Reuses CodeBuddy's OpenAI→Anthropic SSE bridge. Routed via pio/ prefix; models namespaced under pioneer/ to avoid global-unique id collisions. See src/proxy/pioneer.ts + src/providers/pioneer/.
 - **Notion** (app.notion.com): reverse-engineered Notion desktop AI chat. 3-step temp-password login (email + 6-char temp password emailed), cookie-based session (11 cookies required), CRDT-style JSON request body + NDJSON patch-stream response. Routed via nt/ prefix; OpenAI streaming format. See src/proxy/notion.ts + src/providers/notion/ + docs/notion/wire-format.md.
 - **Z.AI** (api.z.ai): sixth upstream provider. Single Bearer API-key auth (no OAuth, no migration). Two parallel APIs picked by client body format: Anthropic Messages at `https://api.z.ai/api/anthropic` (Claude-Code-compatible) and OpenAI Chat Completions at `https://api.z.ai/api/coding/paas/v4` (GLM Coding Plan). Routed via zai/ prefix. See src/proxy/zai.ts + src/providers/zai/ + docs/zai/{wire-format,auth}.md.
-- **TabiToken** (tabitoken.cc): seventh upstream provider. New-API-fork reseller gateway, OpenAI-compatible endpoint (`/v1/chat/completions`; Anthropic also native at `/v1/messages`), Bearer API-key auth (sk-…). 4-model Claude-Opus catalogue (verified live `/v1/models` + `/api/pricing`); New-API error codes mapped in errorRules (`insufficient_user_quota` → balance disable). Client bodies bridged to OpenAI and back (OpenAI SSE → Anthropic SSE assembler), mirror of the Pioneer pattern. Routed via tabi/ prefix; model rows namespaced `tabi/<id>`. See src/proxy/tabi.ts + src/providers/tabi/ + docs/tabi/{wire-format,auth}.md.
+- **TabiToken** (tabitoken.cc): seventh upstream provider. New-API-fork reseller gateway, OpenAI-compatible endpoint (`/v1/chat/completions`; Anthropic also native at `/v1/messages`), Bearer API-key auth (sk-…). 4-model Claude-Opus catalogue (verified live `/v1/models` + `/api/pricing`); New-API error codes mapped in `error-rules` (`insufficient_user_quota` → balance disable). Client bodies bridged to OpenAI and back (OpenAI SSE → Anthropic SSE assembler), mirror of the Pioneer pattern. Routed via tabi/ prefix; model rows namespaced `tabi/<id>`. See src/proxy/tabi.ts + src/providers/tabi/ + docs/tabi/{wire-format,auth}.md.
 
 ## Two-tier separation
 
@@ -104,7 +104,7 @@ Never mix these. Client never sees upstream keys; upstream never sees client bea
 2. `x-admin-key` header matching `ROUTER_ADMIN_KEY` env (for scripts)
 3. Open mode: if no password is set, anyone with the URL gets in
 
-`POST /login` is rate-limited at `src/auth/rateLimit.ts` (5/15min/IP, in-memory bucket). Set password via dashboard `/admin/settings` (scrypt-hashed, stored in `settings.admin_password`). Sessions in `sessions` table (7-day TTL).
+`POST /login` is rate-limited at `src/auth/rate-limit.ts` (5/15min/IP, in-memory bucket). Set password via dashboard `/admin/settings` (scrypt-hashed, stored in `settings.admin_password`). Sessions in `sessions` table (7-day TTL).
 
 ## Model prefix routing
 
@@ -124,17 +124,17 @@ Requests select a provider by an explicit prefix on `body.model`:
 - **Unprefixed** names resolve **only** as a combo name or an alias (strict). A bare raw model name is rejected with 400. Add an alias or use a prefix.
 - An unknown prefix (`xx/...`) is a 400 (`unknown model prefix`).
 - `requested_model` logs the full prefixed string verbatim.
-- Parser: `src/providers/modelPrefix.ts`; enforcement: `resolveModel` in `src/providers/alias.ts`.
+- Parser: `src/providers/model-prefix.ts`; enforcement: `resolveModel` in `src/providers/alias.ts`.
 
 ## MiniMax quirks
 
-- `base_resp.status_code` lives inside the JSON body, not the HTTP status. `src/providers/parseError.ts` extracts it. `src/accounts/errorRules.ts` maps: 1002→backoff, 1008→balance-permanent, 1013→5s, 1027→backoff, 1039→token-limit, 2013→param.
-- `MINIMAX_REGION=intl|cn` switches base URL (`src/providers/baseUrl.ts`).
+- `base_resp.status_code` lives inside the JSON body, not the HTTP status. `src/providers/parse-error.ts` extracts it. `src/accounts/error-rules.ts` maps: 1002→backoff, 1008→balance-permanent, 1013→5s, 1027→backoff, 1039→token-limit, 2013→param.
+- `MINIMAX_REGION=intl|cn` switches base URL (`src/providers/base-url.ts`).
 - `reasoning_split` (settings.minimax): when on, M3 returns structured `reasoning_content` instead of `<think>` tags in content.
 
 ## Kiro provider
 
-Kiro = AWS CodeWhisperer / Amazon Q. Branched off `handleProxy` in `src/proxy/kiro.ts` when the resolved model's `provider === 'kiro'`. Auth via OAuth refresh token (stored in `accounts.api_key`); short-lived bearer cached in `accounts.access_token` and refreshed by `providers/kiro/auth.ts`. Request/response go through an AWS event-stream binary framing layer (`providers/kiro/eventstream.ts` → `assembler.ts` for OpenAI SSE, `anthropicSse.ts` for native Anthropic Messages SSE). Account import supports device code (Builder ID / IDC), auto-import from Kiro IDE (`~/.aws/sso/cache`), or manual paste. See `docs/notes/kiro-cli-reverse-engineering.md` for the wire format reverse-engineering notes.
+Kiro = AWS CodeWhisperer / Amazon Q. Branched off `handleProxy` in `src/proxy/kiro.ts` when the resolved model's `provider === 'kiro'`. Auth via OAuth refresh token (stored in `accounts.api_key`); short-lived bearer cached in `accounts.access_token` and refreshed by `providers/kiro/auth.ts`. Request/response go through an AWS event-stream binary framing layer (`providers/kiro/eventstream.ts` → `assembler.ts` for OpenAI SSE, `anthropic-sse.ts` for native Anthropic Messages SSE). Account import supports device code (Builder ID / IDC), auto-import from Kiro IDE (`~/.aws/sso/cache`), or manual paste. See `docs/notes/kiro-cli-reverse-engineering.md` for the wire format reverse-engineering notes.
 
 ## Dashboard
 
@@ -186,7 +186,7 @@ git commit -m "fix bug"
 
 ### Refactor conventions
 
-- Extract helpers to the same directory before the file grows past ~500 LOC. The codebase already follows this pattern. See `src/proxy/{helpers,minimax,kiro,combo}.ts` and `src/accounts/{selection,state,locks,backoff,errorRules}.ts`.
+- Extract helpers to the same directory before the file grows past ~500 LOC. The codebase already follows this pattern. See `src/proxy/{helpers,minimax,kiro,combo}.ts` and `src/accounts/{selection,state,locks,backoff,error-rules}.ts`.
 - When extracting a function, move the related tests with it. Never leave tests against the old path.
 - Refactor commits must keep `npm test` + `npm run typecheck` green at every commit. No "wip: refactor halfway" commits.
 

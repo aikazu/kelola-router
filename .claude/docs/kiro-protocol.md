@@ -90,7 +90,7 @@ For each event, the assembler (`src/providers/kiro/assembler.ts`) re-emits as Op
 | `messageStopEvent` | `chat.completion.chunk` with finish_reason |
 | `metadataEvent` (usage) | (no chunk, just captured for cost) |
 
-For Anthropic clients, `anthropicSse.ts` re-emits as native Messages SSE:
+For Anthropic clients, `anthropic-sse.ts` re-emits as native Messages SSE:
 - `message_start` → `content_block_start` (text/thinking/tool_use) → `content_block_delta` (×N) → `content_block_stop` → `message_delta` (stop_reason) → `message_stop`
 
 ## `profileArn` discovery (CLI persona only)
@@ -120,13 +120,13 @@ src/providers/kiro/
 ├── index.ts         executeKiro(): picks endpoint + headers per persona
 ├── profile.ts       discoverProfileArn() + ensureProfileArn()
 ├── auth.ts          ensureAccessToken(): token refresh + DB cache
-├── tokenRefresh.ts  KiroProviderData type (persona, profileArn, clientId, ...)
+├── token-refresh.ts  KiroProviderData type (persona, profileArn, clientId, ...)
 ├── eventstream.ts   binary frame decoder
 ├── assembler.ts     → OpenAI SSE chunks
-├── anthropicSse.ts  → native Anthropic Messages SSE
-├── deviceCode.ts    AWS Builder ID / IDC device code flow
-├── accountImport.ts buildKiroAccountFields (token / idc / social)
-├── deviceCode.test.ts
+├── anthropic-sse.ts  → native Anthropic Messages SSE
+├── device-code.ts    AWS Builder ID / IDC device code flow
+├── account-import.ts buildKiroAccountFields (token / idc / social)
+├── device-code.test.ts
 ├── constants.test.ts
 ├── profile.test.ts
 └── transform.test.ts

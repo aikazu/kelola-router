@@ -1,6 +1,6 @@
 # Error Codes
 
-How the router decides whether to backoff / lock / block on a given error. Source: `src/accounts/errorRules.ts`. Two layers: (1) MiniMax `base_resp.status_code` (in the JSON body), then (2) HTTP status + error text matching.
+How the router decides whether to backoff / lock / block on a given error. Source: `src/accounts/error-rules.ts`. Two layers: (1) MiniMax `base_resp.status_code` (in the JSON body), then (2) HTTP status + error text matching.
 
 ## Priority 1: `Retry-After` header (HTTP 429)
 
@@ -58,4 +58,4 @@ error response
    └─ none  → cooldownMs = 5000 (default)
 ```
 
-Regenerate when `errorRules.ts` adds codes or HTTP statuses. Source: `src/accounts/errorRules.ts`.
+Regenerate when `error-rules.ts` adds codes or HTTP statuses. Source: `src/accounts/error-rules.ts`.

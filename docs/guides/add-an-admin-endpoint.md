@@ -120,7 +120,7 @@ Mirror an existing repo like `src/db/repos/models.ts`:
 
 ```ts
 import type Database from 'better-sqlite3';
-import { cachedStmt } from '../cachedStmt.js';
+import { cachedStmt } from '../cached-stmt.js';
 import { ulid } from 'ulid';
 
 export interface Widget {

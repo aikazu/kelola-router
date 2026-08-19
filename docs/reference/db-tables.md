@@ -58,9 +58,9 @@ Unique partial index `idx_client_keys_active_key` on `key WHERE enabled = 1`. A 
 
 ## `request_logs` (`001-initial`)
 
-Per-request telemetry. 29 columns. Full schema in `src/db/repos/requestLogs.ts` (the `RequestLog` interface). Key columns: `id`, `client_key_id`, `account_id`, `model`, `requested_model` (alias if any), `endpoint`, `format` (`openai` / `anthropic`), `prompt_tokens`, `completion_tokens`, `cache_creation_tokens`, `cache_read_tokens`, `total_tokens`, `cost_usd`, `latency_ms`, `ttft_ms`, `status_code`, `base_resp_code`, `stream` (0/1), `relay_path`, `proxy_path`, `rtk_bytes_saved`, `caveman_level`, `error_message`, `request_body`, `response_body`, `request_headers`, `response_headers`, `error`, `req_id`, `created_at`.
+Per-request telemetry. 29 columns. Full schema in `src/db/repos/request-logs.ts` (the `RequestLog` interface). Key columns: `id`, `client_key_id`, `account_id`, `model`, `requested_model` (alias if any), `endpoint`, `format` (`openai` / `anthropic`), `prompt_tokens`, `completion_tokens`, `cache_creation_tokens`, `cache_read_tokens`, `total_tokens`, `cost_usd`, `latency_ms`, `ttft_ms`, `status_code`, `base_resp_code`, `stream` (0/1), `relay_path`, `proxy_path`, `rtk_bytes_saved`, `caveman_level`, `error_message`, `request_body`, `response_body`, `request_headers`, `response_headers`, `error`, `req_id`, `created_at`.
 
-Retention: pruned at `REQUEST_LOG_RETENTION_DAYS` (default 30) by `src/scheduler/quotaPull.ts`.
+Retention: pruned at `REQUEST_LOG_RETENTION_DAYS` (default 30) by `src/scheduler/quota-pull.ts`.
 
 ## `quota_snapshots` (`001-initial`)
 
@@ -133,7 +133,7 @@ Proxy / relay endpoints.
 
 ## `sessions` (`001-initial`)
 
-Dashboard session cookies (when password is set). Columns: `id` (PK), `user_agent`, `ip`, `created_at`, `expires_at` (7-day TTL), `last_seen`. Cleaned by `cleanupExpiredSessions` in `src/scheduler/quotaPull.ts`.
+Dashboard session cookies (when password is set). Columns: `id` (PK), `user_agent`, `ip`, `created_at`, `expires_at` (7-day TTL), `last_seen`. Cleaned by `cleanupExpiredSessions` in `src/scheduler/quota-pull.ts`.
 
 ## `audit_log` (`001-initial`)
 
@@ -150,7 +150,7 @@ Security-relevant admin actions (key reveals, future: logins/settings changes). 
 
 Indexes: `idx_audit_log_event_created` on `(event, created_at DESC)`, `idx_audit_log_key_created` on `(client_key_id, created_at DESC)`.
 
-Inserted from `src/api/admin/clientKeys.ts` on every successful `GET /api/admin/client-keys/:id/key`. Wrapped in try/catch so an audit failure never blocks the reveal.
+Inserted from `src/api/admin/client-keys.ts` on every successful `GET /api/admin/client-keys/:id/key`. Wrapped in try/catch so an audit failure never blocks the reveal.
 
 ## `settings` (`001-initial`)
 
