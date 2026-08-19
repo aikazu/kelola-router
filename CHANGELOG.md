@@ -4,6 +4,22 @@ All notable changes to **kelola-router** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **TabiToken upstream provider.** Seventh upstream: New-API-fork reseller gateway at `tabitoken.cc` — OpenAI Chat Completions (+ native Anthropic `/v1/messages` on the same base), Bearer key auth. Routed via `tabi/` prefix; builtin catalogue mirrors the live gateway (4 models: `claude-opus-5(-thinking)`, `claude-opus-4-8(-thinking)`, verified against `/v1/models` + `/api/pricing`); dashboard card, CLI runner (`npm run add-account -- --provider tabi`) and `npm run seed-tabi-models`.
+- **Live-gateway validation (domain back after Cloudflare Registrar suspension).** Default base URL corrected from `tabitoken.com` (the `.com` front WAF-blocks non-browser user agents) to the API server `tabitoken.cc`. New-API error envelope mapped: `parseError` extracts `error.code`, `errorRules` maps `insufficient_user_quota` → balance-permanent disable (previously fell into a 5s retry loop), `invalid_api_key`/`authentication_error` → no cooldown, `context_length_exceeded` → token-limit. Dashboard pricing uses Anthropic official list prices ($5/$25, cache $0.50/$6.25 per 1M), per user preference.
+
+### Changed
+
+- **Dashboard UI/UX overhaul (same Obsidian Gold theme).** Sidebar nav grouped into View / Operate / System with a persisted expandable rail (`kr-nav-expanded` in localStorage); route loading replaced the bare "Loading…" text with a branded `PageSkeleton` + subtle `page-enter` transition; `TopBar` gains an optional page `subtitle`. Polish styles live in `client/src/styles/polish.css` (loaded after `components.css`).
+
+### Verification
+
+- Server **1004 tests** (164 files), client **121 tests** — run server suite with `--pool=forks` (better-sqlite3 teardown segfault under the default threads pool on Windows is pre-existing and unrelated).
+- `npm run typecheck` clean (root + client). `npm run lint` clean. `npm run build` green.
+
 ## [0.22.1] — 2026-06-21
 
 ### Changed

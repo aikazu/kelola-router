@@ -1,6 +1,6 @@
 # Kelola Router
 
-> Local-first API router for **MiniMax**, **Kiro (AWS CodeWhisperer / Amazon Q)**, **CodeBuddy**, **Pioneer**, **Notion**, and **Z.AI**: provider-prefix routing, multi-account pool, combo fallback, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in Preact dashboard.
+> Local-first API router for **MiniMax**, **Kiro (AWS CodeWhisperer / Amazon Q)**, **CodeBuddy**, **Pioneer**, **Notion**, **Z.AI**, and **TabiToken**: provider-prefix routing, multi-account pool, combo fallback, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in Preact dashboard.
 
 [![Node >=20](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript 5.x](https://img.shields.io/badge/typescript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -46,7 +46,7 @@
         +---------------+                        |
                                                  v
                             +----------------------------------+
-                            |   Upstream providers (6)         |
+                            |   Upstream providers (7)         |
                             |                                  |
                             |   🟧 MiniMax        (mx/)         |
                             |   🟣 Kiro (AWS Q)   (kr/)        |
@@ -54,19 +54,20 @@
                             |   🟢 Pioneer        (pio/)       |
                             |   🌸 Notion         (nt/)        |
                             |   ⚪  Z.AI          (zai/)       |
+                            |   🟡 TabiToken     (tabi/)      |
                             +----------------------------------+
 ```
 
-All six upstreams live behind a single OpenAI-compatible or Anthropic-compatible endpoint. Account selection, transport, prompt caching, RTK + Caveman compression, and live request-flow events are handled inside the router.
+All seven upstreams live behind a single OpenAI-compatible or Anthropic-compatible endpoint. Account selection, transport, prompt caching, RTK + Caveman compression, and live request-flow events are handled inside the router.
 
 ---
 
 ## Features
 
-- **Six upstream providers**: MiniMax, Kiro (AWS CodeWhisperer / Amazon Q), CodeBuddy, Pioneer, Notion, and Z.AI behind a single URL.
-- **Provider-prefix routing**: `mm/MiniMax-M3`, `kr/claude-sonnet-4.5`, `cb/gpt-5`, `pio/...`, `nt/...`, `zai/...`. Aliases and combos translate user-facing model names to any of the six upstreams.
+- **Seven upstream providers**: MiniMax, Kiro (AWS CodeWhisperer / Amazon Q), CodeBuddy, Pioneer, Notion, Z.AI, and TabiToken behind a single URL.
+- **Provider-prefix routing**: `mm/MiniMax-M3`, `kr/claude-sonnet-4.5`, `cb/gpt-5`, `pio/...`, `nt/...`, `zai/...`, `tabi/...`. Aliases and combos translate user-facing model names to any of the seven upstreams.
 - **Multi-account pool with state machine**: sticky + round-robin selection per provider, exponential backoff (1s → 4min cap), per-(account, model) cooldown locks, and error rules for 429 / 2056 / 2061 / 5xx cascades.
-- **OpenAI ↔ Anthropic wire-format negotiation**: clients speak either protocol; the router translates per upstream (Kiro EventStream binary, Notion CRDT NDJSON, Z.AI dual API).
+- **OpenAI ↔ Anthropic wire-format negotiation**: clients speak either protocol; the router translates per upstream (Kiro EventStream binary, Notion CRDT NDJSON, Z.AI dual API, TabiToken New-API gateway).
 - **RTK compression pipeline**: `compressMessages` with `dedupLog` + `smartTruncate` filters, runtime registry, autodetect, and per-request RTK log surfaced in the console.
 - **Caveman terse system-prompt injection**: optional off / light / strong prompt mutation per request.
 - **Dual cache_control + auto-breakpoints**: Anthropic-style prompt caching, automatic breakpoint insertion when callers omit markers, respects caller-provided markers.
@@ -76,7 +77,7 @@ All six upstreams live behind a single OpenAI-compatible or Anthropic-compatible
 - **Built-in Preact dashboard**: Obsidian-Gold-themed SPA (Vite) with Overview, Usage, Client keys, Upstream accounts, Models, Aliases, Combos, Quota, Transports, Console, and Settings.
 - **Transport flexibility**: direct / SOCKS proxy / HTTP proxy / upstream relay, per-account assignment with geoip-aware defaulting, dispatcher cache.
 - **Docker-ready**: multi-stage Dockerfile, `docker-compose.yml`, bind-mount friendly, `recover-db.ts` for WAL race recovery.
-- **1000+ tests** across server (Vitest, 160 files), client (Vitest, 121 tests), and the audit-fixes suite (14 new tests).
+- **1000+ tests** across server (Vitest, 164 files), client (Vitest, 121 tests), and the audit-fixes suite (14 new tests).
 - **Audit-fixes v0.22.0**: quota uses `Promise.allSettled` for parallel per-account fetch with per-account error shape, settings GET returns `null` for missing keys (client merges UI defaults), admin cache 250ms TTL with explicit `bumpAdminCacheVersion` invalidation from `flushDb`, combo/alias name uniqueness enforced both directions (`checkComboConflict` exported), and `upsertAlias` UPDATE branch now sets `source`.
 
 ---
@@ -94,6 +95,7 @@ All six upstreams live behind a single OpenAI-compatible or Anthropic-compatible
   - **Pioneer**: Pioneer API key (Anthropic-compatible)
   - **Notion**: Notion internal integration token
   - **Z.AI**: Z.AI API key (OpenAI-compatible)
+  - **TabiToken**: TabiToken reseller API key (Bearer `sk-…`, prepaid credit; API lives at `tabitoken.cc`)
 
 ### Bootstrap
 
@@ -107,7 +109,7 @@ npm run dev          # starts Hono server + Vite dashboard in parallel
 
 Open the dashboard at `http://localhost:5173`, set the admin password on first run, and add at least one account per provider you plan to use:
 
-- `Upstream -> Accounts -> + Add` (MiniMax / CodeBuddy / Pioneer / Z.AI)
+- `Upstream -> Accounts -> + Add` (MiniMax / CodeBuddy / Pioneer / Z.AI / TabiToken)
 - `Upstream -> Accounts -> + Add (Kiro)` for Kiro social or device-flow
 - `Upstream -> Accounts -> + Add (Notion)` for Notion internal integration
 
@@ -123,7 +125,7 @@ curl http://localhost:20137/v1/chat/completions \
   }'
 ```
 
-Swap `mm/` for `kr/`, `cb/`, `pio/`, `nt/`, or `zai/` to target a different upstream.
+Swap `mm/` for `kr/`, `cb/`, `pio/`, `nt/`, `zai/`, or `tabi/` to target a different upstream.
 
 ---
 
@@ -177,7 +179,7 @@ src/
 │   ├── headers.ts                # OpenAI Bearer vs Anthropic x-api-key
 │   ├── alias.ts + aliasCache.ts
 │   ├── listModels.ts             # /v1/models fetch + merge
-│   ├── modelPrefix.ts            # mm/kr/cb/pio/nt/zai parser
+│   ├── modelPrefix.ts            # mm/kr/cb/pio/nt/zai/tabi parser
 │   ├── pricing.ts                # per-token cost calc (incl cache)
 │   ├── parseError.ts             # base_resp.status_code extraction
 │   ├── quota.ts                  # token-plan quota parser
@@ -188,9 +190,10 @@ src/
 │   ├── codebuddy/                # index, transform, streamConvert
 │   ├── notion/                   # auth, constants, extract, transform, manifest.json
 │   ├── pioneer/                  # index, models, transform
-│   └── zai/                      # index, transform
+│   ├── zai/                      # index, transform
+│   └── tabi/                     # index, models, transform
 ├── proxy/                        # per-provider request proxies
-│   ├── minimax.ts, kiro.ts, codebuddy.ts, pioneer.ts, notion.ts, zai.ts
+│   ├── minimax.ts, kiro.ts, codebuddy.ts, pioneer.ts, notion.ts, zai.ts, tabi.ts
 ├── rtk/                          # RTK compression pipeline
 │   ├── index.ts, applyFilter.ts, autodetect.ts, registry.ts, constants.ts, types.ts
 │   └── filters/                  # dedupLog, smartTruncate
@@ -213,10 +216,10 @@ src/
 client/                           # Preact SPA dashboard (Vite)
 ├── src/
 │   ├── App.tsx, main.tsx
-│   ├── __tests__/                # 11 test files + setup
+│   ├── __tests__/                # 18 test files + setup
 │   ├── components/               # Card, Stat, Badge, Button, Modal, Toast,
 │   │                             #   CommandPalette, Icon, Pagination, Progress,
-│   │                             #   SelectionControls, SecurityBanner,
+│   │                             #   SelectionControls, SecurityBanner, Skeleton,
 │   │                             #   TransportAssignment, ToastProvider
 │   ├── components/accounts/      # AddAccountModal, EditAccountModal, KiroUsageModal,
 │   │                             #   ProviderAccountSection, AccountsTable,
@@ -231,7 +234,7 @@ client/                           # Preact SPA dashboard (Vite)
 │   ├── lib/                      # api.ts (fetch wrapper), queryClient,
 │   │                             #   relativeTime, types, providerPrefix
 │   ├── pages/                    # 15 pages (see Dashboard below)
-│   └── styles/                   # base.css (tokens+fonts), components.css, animations.css
+│   └── styles/                   # base.css (tokens+fonts), components.css, polish.css, animations.css
 
 scripts/                          # CLI scripts
 ├── add-account.ts + add-account.cliArgs.ts
@@ -254,7 +257,7 @@ docs/roadmap.md, docs/zai/, docs/notion/
 
 ## Dashboard
 
-Built-in Preact SPA (Vite). Sidebar order is fixed; pages route via the hash router. Theme accent: `#c9a352` (Obsidian Gold).
+Built-in Preact SPA (Vite). Sidebar nav is grouped (View / Operate / System) with a persisted expandable rail (`kr-nav-expanded`); pages route via the hash router with per-route `PageSkeleton` loading and a subtle enter transition. Theme accent: `#c9a352` (Obsidian Gold); polish layer in `client/src/styles/polish.css`.
 
 | Page              | Route                  | Purpose                                                                      |
 | ----------------- | ---------------------- | ---------------------------------------------------------------------------- |
@@ -262,7 +265,7 @@ Built-in Preact SPA (Vite). Sidebar order is fixed; pages route via the hash rou
 | Overview          | `#/`                   | Counts, health, recent request log                                           |
 | Usage             | `#/usage`              | Per-model token + cost rollups                                               |
 | Client keys       | `#/client-keys`        | Issue / rotate bearer tokens for downstream callers                          |
-| Upstream          | `#/accounts`           | Add / edit / disable accounts per provider (incl. Kiro auth flows)          |
+| Upstream          | `#/accounts`           | Add / edit / disable accounts per provider (incl. Kiro auth flows, TabiToken reseller keys) |
 | Models            | `#/models`             | Catalog + custom model registry, `family` field (audit-fix A4)              |
 | Aliases           | `#/aliases`            | User-facing name -> upstream model (e.g. `mm-fast` -> `mm/MiniMax-M3`)      |
 | Combos            | `#/combos`             | Ordered fallback lists across providers (symmetric uniqueness, audit-fix B1) |
@@ -307,6 +310,7 @@ Built-in Preact SPA (Vite). Sidebar order is fixed; pages route via the hash rou
 | `pioneer`  | sticky       | Round-robin available                                              |
 | `notion`   | sticky       | Notion internal integration only; no rotation across workspaces    |
 | `zai`      | sticky       | Round-robin available                                              |
+| `tabi`     | sticky       | Round-robin available                                              |
 
 ### Environment variables (selected)
 
@@ -350,6 +354,7 @@ Each script has a `:docker` variant that runs the same command inside the compos
 | `npm run seed-kiro-models`    | Seed Kiro-specific models                            |
 | `npm run seed-codebuddy-models` | Seed CodeBuddy models                             |
 | `npm run seed-zai-models`     | Seed Z.AI models                                     |
+| `npm run seed-tabi-models`    | Seed TabiToken models (Claude-Opus catalogue)        |
 | `npm run seed-notion-models`  | Seed Notion models                                   |
 | `npm run seed-all`            | Run every `seed-*` script                            |
 | `npm run reset`               | Wipe DB and reseed (destructive)                     |
@@ -426,6 +431,7 @@ If you ever forget the password, the only recovery is to wipe `settings` from th
 
 | Version  | Theme                                                                                          | Status   |
 | -------- | ---------------------------------------------------------------------------------------------- | -------- |
+| v0.22.1  | TabiToken provider (live-gateway validated) + dashboard UI/UX overhaul (grouped nav, PageSkeleton, subtitles) | Shipped  |
 | v0.22.0  | Audit-fixes batch: quota parallel + per-account errors, settings null + client merge, admin cache TTL + explicit invalidation, combo/alias symmetry, upsertAlias source tracking | Shipped  |
 | v0.21.0  | Z.AI provider + provider-prefix model routing (`mm/`, `kr/`, `cb/`, `pio/`, `nt/`, `zai/`)    | Shipped  |
 | v0.20.0  | Pioneer provider, combo cross-provider fallback, Kiro quota snapshots                           | Shipped  |
