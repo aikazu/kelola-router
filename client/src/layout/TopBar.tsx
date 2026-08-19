@@ -31,12 +31,15 @@ function PoolHealthIndicator() {
 export function TopBar({
   title,
   eyebrow,
+  subtitle,
   actions,
   meta,
   hidePoolHealth,
 }: {
   title: ComponentChildren;
   eyebrow?: string;
+  /** One-line page description rendered under the title (dim mono). */
+  subtitle?: string;
   actions?: ComponentChildren;
   /** Right-side status row (e.g. pool-health LED). Renders before actions. */
   meta?: ComponentChildren;
@@ -49,6 +52,7 @@ export function TopBar({
       <div class="topbar-head">
         <span class="topbar-eyebrow">{eyebrow ?? 'kelola-router'}</span>
         <h1 class="topbar-title">{title}</h1>
+        {subtitle && <span class="topbar-subtitle">{subtitle}</span>}
       </div>
       {(indicator || actions) && (
         <div class="topbar-actions">

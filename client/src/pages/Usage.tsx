@@ -166,6 +166,7 @@ export function Usage() {
           </>
         }
         eyebrow="Request log / analytics"
+        subtitle="Per-model cost and request logs — filter, sort and drill in"
         actions={
           <select
             value={days}

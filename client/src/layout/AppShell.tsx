@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
 import { CommandPalette } from '../components/CommandPalette';
 import { SecurityBanner } from '../components/SecurityBanner';
+import { PageSkeleton } from '../components/Skeleton';
 import { apiFetch } from '../lib/api';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -56,7 +57,7 @@ function Page({ current }: { current: string }) {
       <>
         <TopBar title="Loading…" />
         <div aria-live="polite" aria-busy="true">
-          <p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p>
+          <PageSkeleton />
         </div>
       </>
     );
@@ -198,11 +199,15 @@ export function AppShell() {
           <Suspense
             fallback={
               <div aria-live="polite" aria-busy="true">
-                <p style={{ padding: 36, color: 'var(--text-3)' }}>Loading…</p>
+                <PageSkeleton />
               </div>
             }
           >
-            <Page current={current} />
+            {/* key={current} re-mounts on route change so the enter animation
+                plays per navigation (reduced-motion disables it in CSS). */}
+            <div key={current} class="page-enter">
+              <Page current={current} />
+            </div>
           </Suspense>
         </main>
         <CommandPalette

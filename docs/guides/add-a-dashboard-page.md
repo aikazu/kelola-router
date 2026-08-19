@@ -44,6 +44,7 @@ import { useState } from 'preact/hooks';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { ErrorState } from '../components/ErrorState';
+import { PageSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
@@ -83,7 +84,11 @@ export function Widgets() {
 
   return (
     <>
-      <TopBar title="Widgets" />
+      <TopBar
+        title="Widgets"
+        eyebrow="Catalog / widgets"
+        subtitle="One-line description of what this page does"
+      />
       <div style={{ padding: 24, display: 'grid', gap: 16 }}>
         <Card title="Create">
           <form
@@ -108,7 +113,7 @@ export function Widgets() {
         </Card>
 
         <Card title="All widgets">
-          {isLoading && <p>Loading…</p>}
+                  {isLoading && <PageSkeleton />}
           {isError && <ErrorState error={error} onRetry={refetch} />}
           {!isLoading && !isError && widgets.length === 0 && (
             <p style={{ color: 'var(--text-3)' }}>No widgets yet.</p>
@@ -167,15 +172,22 @@ case 'widgets':
 
 **File:** `client/src/layout/Sidebar.tsx`
 
-Find the array of nav items (likely `const NAV` or `const ITEMS`; search for the existing routes). Add:
+Navigation lives in `NAV_SECTIONS` — an array of `{ caption, items }` groups
+(**View** / **Operate** / **System**). Pick the group that fits the new page
+and add a `{ key, label, href, icon }` item to its `items` array:
 
 ```tsx
-{ to: '/admin/widgets', label: 'Widgets', icon: <SomeIcon />, hotkey: 'w' }
+{ key: 'widgets', label: 'Widgets', href: '/admin/widgets', icon: 'widgets' }
 ```
 
-Use an existing icon from `client/src/components/Icon.tsx` if one fits. The `hotkey` field powers the `g w` jump (the `KNOWN_ROUTES` list mirrors the available letters).
+Use an existing icon from `client/src/components/Icon.tsx` if one fits (add a
+new case to `IconName`'s union + switch only if you need a custom glyph). The
+sidebar is a desktop rail that expands to a full nav; section captions only
+render when expanded, and the expand state persists to `localStorage`
+(`kr-nav-expanded`).
 
-**Why:** Sidebar is the primary navigation. Command palette (`⌘K`) also reads this list.
+**Why:** Sidebar is the primary navigation. Command palette (`⌘K`) also reads
+this list.
 
 ### 4. (Optional) extract a sub-component
 

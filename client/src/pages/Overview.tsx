@@ -98,6 +98,7 @@ export function Overview() {
           </>
         }
         eyebrow={`Operations / ${range}`}
+        subtitle="Pool status, spend and traffic at a glance"
         actions={
           <select
             aria-label="Select date range"

@@ -1,0 +1,331 @@
+/* ============================================================================
+   Obsidian Gold — UI/UX polish layer (2026-08-19 overhaul)
+   Same theme, sharper experience: grouped expandable sidebar, route
+   transitions, branded page skeletons, page subtitles, refined empty states,
+   subtle hover/zebra details. Loaded AFTER components.css so overrides win.
+   ============================================================================ */
+
+/* --- Expanded sidebar (desktop, default) --------------------------------- */
+.sidebar-expanded {
+  width: 236px;
+}
+.sidebar-expanded .brand {
+  align-items: flex-start;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.sidebar-expanded .brand-mark-full {
+  display: inline;
+  font-size: 16px;
+}
+.sidebar-expanded .brand-mark-mini {
+  display: none;
+}
+.sidebar-expanded .brand-tag {
+  writing-mode: horizontal-tb;
+  transform: none;
+  margin-top: 3px;
+  letter-spacing: 0.18em;
+}
+.sidebar-expanded .nav {
+  padding: 8px 10px;
+  gap: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sidebar-expanded .nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.sidebar-expanded .nav-section:last-child {
+  margin-bottom: 0;
+}
+.sidebar-expanded .nav-caption {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 10px 12px 4px;
+}
+.sidebar-expanded .nav-item {
+  justify-content: flex-start;
+  height: 38px;
+  padding: 0 12px;
+  margin: 0 2px;
+  border-radius: var(--radius-sm);
+}
+/* Expanded labels are inline text, not hover tooltips. */
+.sidebar-expanded .nav-label {
+  position: static;
+  transform: none;
+  opacity: 1;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 0;
+  z-index: auto;
+  pointer-events: none;
+}
+.sidebar-expanded .user-card {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+}
+.sidebar-expanded .user-card button {
+  writing-mode: horizontal-tb;
+  transform: none;
+  letter-spacing: 0.14em;
+}
+
+/* --- Rail expand/collapse toggle (desktop only) -------------------------- */
+.rail-toggle {
+  display: none;
+}
+@media (min-width: 769px) {
+  .rail-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 4px 10px 8px;
+    padding: 7px 10px;
+    background: none;
+    border: 1px solid var(--grid);
+    border-radius: var(--radius-sm);
+    color: var(--ink-faint);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    transition:
+      color 0.15s,
+      border-color 0.15s,
+      background 0.15s;
+  }
+  .rail-toggle:hover {
+    color: var(--gold);
+    border-color: var(--gold-dim);
+    background: var(--gold-glow);
+  }
+  .sidebar:not(.sidebar-expanded) .rail-toggle {
+    padding: 8px;
+  }
+  .sidebar:not(.sidebar-expanded) .rail-toggle-label {
+    display: none;
+  }
+  .rail-toggle-chevron {
+    transition: transform 0.2s;
+  }
+  .rail-toggle-chevron.is-collapsed {
+    transform: rotate(180deg);
+  }
+}
+
+/* --- Route transition ---------------------------------------------------- */
+.page-enter {
+  animation: page-in 0.22s ease-out;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+}
+
+/* --- Page-level skeleton scaffold ---------------------------------------- */
+.page-skeleton {
+  width: 100%;
+}
+.ps-topbar {
+  margin-bottom: 20px;
+}
+.ps-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 0;
+  align-items: baseline;
+  padding: 14px 20px;
+  background: var(--obsidian-2);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--gold-dim);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+}
+.ps-stat {
+  padding: 0 18px;
+  min-width: 118px;
+}
+.ps-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.ps-card {
+  margin-bottom: 0;
+}
+@media (min-width: 760px) {
+  .ps-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* --- TopBar page subtitle ------------------------------------------------ */
+.topbar-subtitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-subtitle::before {
+  content: "·";
+  margin-right: 8px;
+  color: var(--gold-dim);
+}
+@media (max-width: 640px) {
+  .topbar-subtitle {
+    display: none;
+  }
+}
+
+/* --- Empty states -------------------------------------------------------- */
+.empty {
+  position: relative;
+  overflow: hidden;
+}
+.empty::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--gold-dim);
+}
+.empty h3 {
+  color: var(--text-2);
+}
+.empty p {
+  color: var(--text-3);
+}
+
+/* --- Card hover lift (powered modules) ----------------------------------- */
+.surface {
+  transition:
+    border-color 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.module--active:hover {
+  transform: translateY(-1px);
+  border-color: var(--gold-dim);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+.stat:hover {
+  border-color: var(--gold-dim);
+}
+
+/* --- Table zebra (subtle instrument banding) ------------------------------ */
+.tbl tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.014);
+}
+.tbl tbody tr:hover {
+  background: var(--obsidian-3);
+}
+
+/* --- Mobile: drawer always behaves expanded regardless of toggle ---------- */
+@media (max-width: 768px) {
+  .sidebar,
+  .sidebar.sidebar-expanded {
+    width: 248px;
+  }
+  .sidebar .brand,
+  .sidebar.sidebar-expanded .brand {
+    align-items: flex-start;
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+  .sidebar .brand-mark-full,
+  .sidebar.sidebar-expanded .brand-mark-full {
+    display: inline;
+  }
+  .sidebar .brand-mark-mini,
+  .sidebar.sidebar-expanded .brand-mark-mini {
+    display: none;
+  }
+  .sidebar .brand-tag,
+  .sidebar.sidebar-expanded .brand-tag {
+    writing-mode: horizontal-tb;
+    transform: none;
+    margin-top: 3px;
+  }
+  .sidebar .nav,
+  .sidebar.sidebar-expanded .nav {
+    padding: 8px 10px;
+    gap: 0;
+  }
+  .sidebar .nav-caption,
+  .sidebar.sidebar-expanded .nav-caption {
+    display: block;
+    padding: 10px 12px 4px;
+  }
+  .sidebar .nav-label,
+  .sidebar.sidebar-expanded .nav-label {
+    position: static;
+    transform: none;
+    opacity: 1;
+    background: none;
+    border: 0;
+    color: inherit;
+    font-family: var(--font-sans);
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    padding: 0;
+    pointer-events: none;
+  }
+  .sidebar .nav-item,
+  .sidebar.sidebar-expanded .nav-item {
+    justify-content: flex-start;
+    height: 40px;
+    padding: 0 14px;
+    margin: 0 2px;
+    border-radius: var(--radius-sm);
+  }
+  .sidebar .user-card,
+  .sidebar.sidebar-expanded .user-card {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+  }
+  .sidebar .user-card button,
+  .sidebar.sidebar-expanded .user-card button {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+  .rail-toggle {
+    display: none;
+  }
+}
