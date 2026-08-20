@@ -102,6 +102,22 @@ describe('parseModelPrefix', () => {
     });
   });
 
+  it('parses qctp prefix to qwencloud', () => {
+    expect(parseModelPrefix('qctp/qwen3.8-max')).toEqual({
+      provider: 'qwencloud',
+      modelName: 'qwen3.8-max',
+      prefixed: true,
+    });
+  });
+
+  it('parses qctp prefix with a model id containing hyphens (first slash only)', () => {
+    expect(parseModelPrefix('qctp/deepseek-v4-pro-0813')).toEqual({
+      provider: 'qwencloud',
+      modelName: 'deepseek-v4-pro-0813',
+      prefixed: true,
+    });
+  });
+
   it('treats an empty string as bare (validated downstream)', () => {
     expect(parseModelPrefix('')).toEqual({
       provider: null,

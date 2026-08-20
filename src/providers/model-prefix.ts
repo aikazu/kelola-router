@@ -6,6 +6,7 @@ const PREFIX_TO_PROVIDER: Readonly<Record<string, string>> = {
   nt: 'notion',
   zai: 'zai',
   tabi: 'tabi',
+  qctp: 'qwencloud',
 };
 
 export interface ParsedModel {

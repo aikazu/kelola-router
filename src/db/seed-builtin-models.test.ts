@@ -7,6 +7,7 @@ import {
   seedCodebuddyBuiltins,
   seedKiroBuiltins,
   seedModelsForProvider,
+  seedQwenCloudBuiltins,
   seedZaiBuiltins,
 } from './seed-builtin-models.js';
 
@@ -101,6 +102,13 @@ describe('seedModelsForProvider', () => {
     expect(result.ok).toBe(true);
     expect(result.added).toBeGreaterThan(0);
   });
+
+  it('returns ok:true for qwencloud always', async () => {
+    const db = openDb();
+    const result = await seedModelsForProvider(db, 'qwencloud');
+    expect(result.ok).toBe(true);
+    expect(result.added).toBe(3);
+  });
 });
 
 describe('seedZaiBuiltins', () => {
@@ -180,5 +188,42 @@ describe('seedZaiBuiltins', () => {
       (r) => r.name
     );
     expect(rows).toContain('pioneer/claude-opus-4-8');
+  });
+});
+
+describe('seedQwenCloudBuiltins', () => {
+  it('seeds 3 confirmed qwencloud models with provider=qwencloud', () => {
+    const db = openDb();
+    const result = seedQwenCloudBuiltins(db);
+    expect(result.total).toBe(3);
+    expect(result.added).toBe(result.total);
+
+    const rows = db
+      .prepare(
+        'SELECT name, provider, display_name, pricing_input, context_window FROM models WHERE provider = ?'
+      )
+      .all('qwencloud') as Array<{
+      name: string;
+      provider: string;
+      display_name: string;
+      pricing_input: number;
+      context_window: number;
+    }>;
+    const byName = new Map(rows.map((r) => [r.name, r]));
+    expect(byName.has('qwen3.8-max')).toBe(true);
+    expect(byName.has('deepseek-v4-flash-0731')).toBe(true);
+    expect(byName.has('deepseek-v4-pro-0813')).toBe(true);
+    expect(byName.get('qwen3.8-max')?.provider).toBe('qwencloud');
+    expect(byName.get('qwen3.8-max')?.display_name).toBe('Qwen 3.8 Max');
+    // qwencloud pricing ($/M input): qwen3.8-max = 2, deepseek-v4-flash = 0.44.
+    expect(byName.get('qwen3.8-max')?.pricing_input).toBe(2);
+  });
+
+  it('is idempotent on second call', () => {
+    const db = openDb();
+    seedQwenCloudBuiltins(db);
+    const second = seedQwenCloudBuiltins(db);
+    expect(second.added).toBe(0);
+    expect(second.total).toBe(3);
   });
 });

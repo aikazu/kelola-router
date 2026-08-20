@@ -11,9 +11,14 @@ import {
   fetchAndSeedPioneerModels,
   type SeedPioneerModelsResult,
 } from '../providers/pioneer/models.js';
+import { seedQwenCloudBuiltins } from '../providers/qwencloud/models.js';
 import { seedTabiBuiltins } from '../providers/tabi/models.js';
 import { log } from '../util/log.js';
 import { type ModelUpsert, upsertModel } from './repos/models.js';
+
+// Re-export so seed-builtin-models.test.ts can exercise the qwencloud seed
+// alongside the other builtin seeders.
+export { seedQwenCloudBuiltins } from '../providers/qwencloud/models.js';
 
 export interface SeedResult {
   added: number;
@@ -463,7 +468,8 @@ export type SeedableProvider =
   | 'pioneer'
   | 'notion'
   | 'zai'
-  | 'tabi';
+  | 'tabi'
+  | 'qwencloud';
 
 export interface SeedProviderOptions {
   apiKey?: string;
@@ -520,6 +526,11 @@ export async function seedModelsForProvider(
 
   if (provider === 'tabi') {
     const result = seedTabiBuiltins(db);
+    return { ok: true, added: result.added };
+  }
+
+  if (provider === 'qwencloud') {
+    const result = seedQwenCloudBuiltins(db);
     return { ok: true, added: result.added };
   }
 
