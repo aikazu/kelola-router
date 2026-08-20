@@ -38,15 +38,23 @@ export function Accounts() {
   const notionAccounts = accounts.filter((a) => a.provider === 'notion');
   const zaiAccounts = accounts.filter((a) => a.provider === 'zai');
   const tabiAccounts = accounts.filter((a) => a.provider === 'tabi');
+  const qwencloudAccounts = accounts.filter((a) => a.provider === 'qwencloud');
   const minimaxAccounts = accounts.filter((a) => {
     const p = a.provider ?? 'minimax';
-    return p !== 'kiro' && p !== 'pioneer' && p !== 'notion' && p !== 'zai' && p !== 'tabi';
+    return (
+      p !== 'kiro' &&
+      p !== 'pioneer' &&
+      p !== 'notion' &&
+      p !== 'zai' &&
+      p !== 'tabi' &&
+      p !== 'qwencloud'
+    );
   });
 
   // Add-account modal state.
   const [open, setOpen] = useState(false);
   const [provider, setProvider] = useState<
-    'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi'
+    'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi' | 'qwencloud'
   >('minimax');
   const [form, setForm] = useState<MinimaxForm>({ label: '', credit_type: 'payg', api_key: '' });
   const [kiroMethod, setKiroMethod] = useState<KiroMethod>('builder-id');
@@ -57,6 +65,15 @@ export function Accounts() {
     base_url: '',
   });
   const [tabiForm, setTabiForm] = useState<{ label: string; api_key: string; base_url: string }>({
+    label: '',
+    api_key: '',
+    base_url: '',
+  });
+  const [qwencloudForm, setQwencloudForm] = useState<{
+    label: string;
+    api_key: string;
+    base_url: string;
+  }>({
     label: '',
     api_key: '',
     base_url: '',
@@ -158,6 +175,7 @@ export function Accounts() {
     setPioneerForm({ label: '', api_key: '' });
     setZaiForm({ label: '', api_key: '', base_url: '' });
     setTabiForm({ label: '', api_key: '', base_url: '' });
+    setQwencloudForm({ label: '', api_key: '', base_url: '' });
     setKiroMethod('builder-id');
     setKiroForm({ label: '', credentialJson: '', refreshToken: '', region: '', startUrl: '' });
     autoImport.reset();
@@ -209,10 +227,20 @@ export function Accounts() {
                     ...(tabiForm.base_url ? { base_url: tabiForm.base_url } : {}),
                   },
                 })
-              : apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', {
-                  method: 'POST',
-                  json: form,
-                }),
+              : provider === 'qwencloud'
+                ? apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', {
+                    method: 'POST',
+                    json: {
+                      label: qwencloudForm.label,
+                      api_key: qwencloudForm.api_key,
+                      provider: 'qwencloud',
+                      ...(qwencloudForm.base_url ? { base_url: qwencloudForm.base_url } : {}),
+                    },
+                  })
+                : apiFetch<{ modelsSeeded?: number }>('/api/admin/accounts', {
+                    method: 'POST',
+                    json: form,
+                  }),
     onSuccess: (res) => {
       setOpen(false);
       resetForms();
@@ -448,6 +476,26 @@ export function Accounts() {
               }}
               onDelete={handleDelete}
             />
+            <ProviderAccountSection
+              title="QwenCloud"
+              provider="qwencloud"
+              accounts={qwencloudAccounts}
+              transports={transports}
+              onAdd={() => {
+                setProvider('qwencloud');
+                setOpen(true);
+              }}
+              onUsage={setUsageAccount}
+              onEdit={(a, editFormInitialState) => {
+                setEditing(a);
+                setEditForm(editFormInitialState);
+              }}
+              onLoadTransportState={loadTransportState}
+              onToggle={(id, enabled) => {
+                toggleMut.mutate({ id, enabled });
+              }}
+              onDelete={handleDelete}
+            />
           </>
         )}
       </div>
@@ -478,6 +526,8 @@ export function Accounts() {
         onZaiFormChange={setZaiForm}
         tabiForm={tabiForm}
         onTabiFormChange={setTabiForm}
+        qwencloudForm={qwencloudForm}
+        onQwencloudFormChange={setQwencloudForm}
         autoImport={autoImport}
         deviceFlow={deviceFlow}
         onCreate={() => createMut.mutate()}

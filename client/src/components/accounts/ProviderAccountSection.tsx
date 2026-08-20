@@ -6,7 +6,7 @@ import { AccountsTable } from './AccountsTable';
 
 export interface ProviderAccountSectionProps {
   title: string;
-  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi';
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi' | 'qwencloud';
   accounts: Account[];
   transports: Transport[];
   onAdd: () => void;

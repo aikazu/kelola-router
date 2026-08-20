@@ -201,6 +201,16 @@ export function Models() {
             onAddModel={() => setAddOpen('tabi')}
             onEditModel={(m) => setEditTarget(m)}
           />
+          <ProviderModelsSection
+            title="QwenCloud"
+            provider="qwencloud"
+            models={filtered.filter((m) => m.provider === 'qwencloud')}
+            selected={selected}
+            onSelectChange={setSelected}
+            shadowedNames={shadowedNames}
+            onAddModel={() => setAddOpen('qwencloud')}
+            onEditModel={(m) => setEditTarget(m)}
+          />
         </>
       )}
 

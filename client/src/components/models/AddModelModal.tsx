@@ -71,7 +71,9 @@ export function AddModelModal({ open, onClose, provider }: AddModelModalProps) {
                 ? 'Z.AI'
                 : provider === 'tabi'
                   ? 'TabiToken'
-                  : 'MiniMax'
+                  : provider === 'qwencloud'
+                    ? 'QwenCloud'
+                    : 'MiniMax'
       } model`}
       footer={
         <>

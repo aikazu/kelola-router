@@ -9,6 +9,7 @@ export const PREFIX_BY_PROVIDER: Record<string, string> = {
   notion: 'nt',
   zai: 'zai',
   tabi: 'tabi',
+  qwencloud: 'qctp',
 };
 
 /**
@@ -25,6 +26,7 @@ export const PROVIDERS_WITH_FETCH = new Set([
   'zai',
   'notion',
   'tabi',
+  'qwencloud',
 ]);
 
 /**

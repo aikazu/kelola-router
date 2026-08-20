@@ -17,7 +17,15 @@ export interface Model {
   comboCount: number;
 }
 
-export type Provider = 'minimax' | 'kiro' | 'codebuddy' | 'pioneer' | 'notion' | 'zai' | 'tabi';
+export type Provider =
+  | 'minimax'
+  | 'kiro'
+  | 'codebuddy'
+  | 'pioneer'
+  | 'notion'
+  | 'zai'
+  | 'tabi'
+  | 'qwencloud';
 
 export type TestState =
   | { state: 'loading' }

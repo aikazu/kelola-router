@@ -52,6 +52,8 @@ const baseProps: AddAccountModalProps = {
   onZaiFormChange: vi.fn(),
   tabiForm: { label: '', api_key: '', base_url: '' },
   onTabiFormChange: vi.fn(),
+  qwencloudForm: { label: '', api_key: '', base_url: '' },
+  onQwencloudFormChange: vi.fn(),
   notionForm: { email: '', label: '' },
   onNotionFormChange: vi.fn(),
   notionSuccess: vi.fn(),
@@ -286,6 +288,57 @@ describe('AddAccountModal', () => {
       });
       const btn = screen.getByRole('button', { name: 'Adding…' });
       expect(btn).toBeDisabled();
+    });
+  });
+
+  describe('qwencloud provider', () => {
+    it('shows label + api-key fields and the footer Add button', () => {
+      renderModal({ provider: 'qwencloud' });
+      expect(screen.getByText('Label', { exact: true })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('sk-sp-…')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+    });
+
+    it('disables the footer Add button until label + api_key are filled', () => {
+      const { rerender } = renderModal({ provider: 'qwencloud' });
+      expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+
+      rerender(
+        <AddAccountModal
+          {...baseProps}
+          provider="qwencloud"
+          qwencloudForm={{ label: 'main', api_key: 'sk-sp-xxx', base_url: '' }}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
+    });
+
+    it('shows the correct Aliyun token-plan helper text and placeholder', () => {
+      renderModal({ provider: 'qwencloud' });
+
+      // Accurate base-url guidance (Anthropic-native, NOT OpenAI / qwen.cloud).
+      expect(
+        screen.getByPlaceholderText('leave blank for Aliyun token-plan default')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Aliyun token-plan: Anthropic Messages at/)
+      ).toBeInTheDocument();
+
+      // The previously wrong OpenAI / qwen.cloud copy must be gone.
+      expect(screen.queryByPlaceholderText(/qwen\.cloud/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/OpenAI Chat Completions/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/chat\/completions/i)).not.toBeInTheDocument();
+    });
+
+    it('fires onCreate when the enabled Add button is clicked', () => {
+      const onCreate = vi.fn();
+      renderModal({
+        provider: 'qwencloud',
+        qwencloudForm: { label: 'main', api_key: 'sk-sp-xxx', base_url: '' },
+        onCreate,
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      expect(onCreate).toHaveBeenCalledTimes(1);
     });
   });
 });

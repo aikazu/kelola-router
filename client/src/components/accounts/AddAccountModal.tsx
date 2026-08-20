@@ -39,6 +39,12 @@ export interface TabiForm {
   base_url: string;
 }
 
+export interface QwenCloudForm {
+  label: string;
+  api_key: string;
+  base_url: string;
+}
+
 export interface NotionForm {
   email: string;
   label: string;
@@ -47,7 +53,7 @@ export interface NotionForm {
 export interface AddAccountModalProps {
   open: boolean;
   onClose: () => void;
-  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi';
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi' | 'qwencloud';
   // Minimax form state (owned by parent so resetForms can clear it).
   form: MinimaxForm;
   onFormChange: (next: MinimaxForm) => void;
@@ -65,6 +71,9 @@ export interface AddAccountModalProps {
   // TabiToken form state (owned by parent for resetForms closure).
   tabiForm: TabiForm;
   onTabiFormChange: (next: TabiForm) => void;
+  // QwenCloud form state (owned by parent for resetForms closure).
+  qwencloudForm: QwenCloudForm;
+  onQwencloudFormChange: (next: QwenCloudForm) => void;
   // Notion form state (owned by parent for resetForms closure).
   notionForm: NotionForm;
   onNotionFormChange: (next: NotionForm) => void;
@@ -107,6 +116,8 @@ export function AddAccountModal({
   deviceFlow,
   tabiForm,
   onTabiFormChange,
+  qwencloudForm,
+  onQwencloudFormChange,
   onCreate,
   isCreating,
 }: AddAccountModalProps) {
@@ -115,6 +126,7 @@ export function AddAccountModal({
     provider === 'pioneer' ||
     provider === 'zai' ||
     provider === 'tabi' ||
+    provider === 'qwencloud' ||
     (provider === 'kiro' && kiroMethod === 'token');
   // Notion auth form carries its own action button — no footer needed.
 
@@ -137,7 +149,9 @@ export function AddAccountModal({
                     ? !zaiForm.label || !zaiForm.api_key
                     : provider === 'tabi'
                       ? !tabiForm.label || !tabiForm.api_key
-                      : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
+                      : provider === 'qwencloud'
+                        ? !qwencloudForm.label || !qwencloudForm.api_key
+                        : !kiroForm.credentialJson.trim() && !kiroForm.refreshToken.trim())
             }
           >
             {isCreating ? 'Adding…' : 'Add'}
@@ -334,6 +348,64 @@ export function AddAccountModal({
               >
                 Defaults to tabitoken.cc: OpenAI Chat Completions at{' '}
                 <code>/v1/chat/completions</code> with Bearer auth.
+              </span>
+            </label>
+          </>
+        ) : provider === 'qwencloud' ? (
+          <>
+            <label htmlFor="add-qwencloud-label">
+              Label{' '}
+              <input
+                id="add-qwencloud-label"
+                name="qwencloud-label"
+                value={qwencloudForm.label}
+                onInput={(e) =>
+                  onQwencloudFormChange({
+                    ...qwencloudForm,
+                    label: (e.target as HTMLInputElement).value,
+                  })
+                }
+                class="input"
+                autocomplete="off"
+                aria-required="true"
+              />
+            </label>
+            <label htmlFor="add-qwencloud-api-key">
+              QwenCloud API key{' '}
+              <input
+                id="add-qwencloud-api-key"
+                name="qwencloud-api-key"
+                value={qwencloudForm.api_key}
+                onInput={(e) =>
+                  onQwencloudFormChange({
+                    ...qwencloudForm,
+                    api_key: (e.target as HTMLInputElement).value,
+                  })
+                }
+                placeholder="sk-sp-…"
+                class="input"
+                autocomplete="off"
+                aria-required="true"
+              />
+            </label>
+            <label>
+              Base URL (optional){' '}
+              <input
+                value={qwencloudForm.base_url}
+                onInput={(e) =>
+                  onQwencloudFormChange({
+                    ...qwencloudForm,
+                    base_url: (e.target as HTMLInputElement).value,
+                  })
+                }
+                placeholder="leave blank for Aliyun token-plan default"
+                class="input"
+              />
+              <span
+                style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4, display: 'block' }}
+              >
+                Defaults to Aliyun token-plan: Anthropic Messages at{' '}
+                <code>/apps/anthropic/v1/messages</code> with Bearer auth.
               </span>
             </label>
           </>

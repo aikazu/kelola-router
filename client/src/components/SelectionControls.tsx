@@ -11,7 +11,7 @@ export interface SelectionSettings {
 export function SelectionControls({
   provider,
 }: {
-  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi';
+  provider: 'minimax' | 'kiro' | 'pioneer' | 'notion' | 'zai' | 'tabi' | 'qwencloud';
 }) {
   const qc = useQueryClient();
   const toast = useToast();
