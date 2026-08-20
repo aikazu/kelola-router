@@ -51,6 +51,7 @@ import { handleNotionProxy } from './notion.js';
 import { handlePioneerProxy } from './pioneer.js';
 import type { Db } from './pipeline.js';
 import { applyErrorState, buildAccountStates, buildLogRow, clearErrorState } from './pipeline.js';
+import { handleQwenCloudProxy } from './qwencloud.js';
 import { handleTabiProxy } from './tabi.js';
 import { handleZaiProxy } from './zai.js';
 
@@ -193,6 +194,20 @@ export async function handleProxy(
       );
       rrCursorRef.value = tabiCursorRef.value;
       return tabiResp;
+    }
+    if (peek.provider === 'qwencloud') {
+      const qcCursorRef: CursorRef = { value: rrCursorRef.value };
+      const qcResp = await handleQwenCloudProxy(
+        c,
+        format,
+        upstreamPath,
+        body,
+        db,
+        qcCursorRef,
+        stickyMap
+      );
+      rrCursorRef.value = qcCursorRef.value;
+      return qcResp;
     }
   } catch {
     /* unknown model — defer to the MiniMax path for the canonical error */

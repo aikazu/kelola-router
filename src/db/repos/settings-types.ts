@@ -162,6 +162,7 @@ export const SETTINGS_SCHEMAS = {
   'selection.notion': selectionSchema,
   'selection.zai': selectionSchema,
   'selection.tabi': selectionSchema,
+  'selection.qwencloud': selectionSchema,
 } as const satisfies Record<string, v.GenericSchema>;
 
 /**
