@@ -33,12 +33,14 @@ Every `scripts/<name>.ts` has two npm-script entries: a bare one for local use a
 | Add account (CodeBuddy) | `npm run add-account -- --provider codebuddy --label <name> --api-key <key>` | yes (label) | Add a CodeBuddy account (API key) |
 | Add account (Pioneer) | `npm run add-account -- --provider pioneer --label <name> --api-key <key>` | yes (label) | Add a Pioneer account (X-API-Key); models live-seed on add |
 | Add account (Notion) | `npm run notion-add-account` | yes (label) | Interactive 3-step OTP login (email → temp password → cookies persisted in `provider_data` JSON) |
+| Add account (QwenCloud) | `npm run add-account -- --provider qwencloud --label <name> --api-key sk-sp-...` | yes (label) | Add a QwenCloud account (Aliyun token-plan `sk-sp-` key); models live-seed on add |
 | Seed MiniMax models | `npm run seed-models` | yes (upsert by `upstream_model`) | Live-fetch + upsert MiniMax models from `/v1/models` |
 | Seed Kiro models | `npm run seed-kiro-models` | yes | Upsert builtin Kiro (Claude / AWS) models |
 | Seed CodeBuddy models | `npm run seed-codebuddy-models` | yes | Upsert builtin CodeBuddy models |
 | Seed Z.AI models | `npm run seed-zai-models` | yes | Upsert builtin Z.AI models (12-row curated list, real per-token pricing) |
 | Seed Notion models | `npm run seed-notion-models` | yes | Upsert builtin Notion models (20-row catalogue from `src/providers/notion/manifest.json`) |
-| Seed all | `npm run seed-all` | yes | Chain all five `seed-*` scripts |
+| Seed QwenCloud models | `npm run seed-qwencloud-models` | yes | Upsert builtin QwenCloud models (3-model Aliyun token-plan catalogue from `src/providers/qwencloud/models.ts`) |
+| Seed all | `npm run seed-all` | yes | Chain all `seed-*` scripts |
 | Reset | `npm run reset` | **destructive** | Remove `router.db` + WAL/SHM sidecars. Wipes all data |
 
 ### Docker variants
@@ -51,8 +53,9 @@ npm run seed-models:docker
 npm run seed-kiro-models:docker
 npm run seed-codebuddy-models:docker
 npm run seed-zai-models:docker
-npm run notion-add-account:docker
 npm run seed-notion-models:docker
+npm run seed-tabi-models:docker
+npm run seed-qwencloud-models:docker
 npm run seed-all:docker
 npm run reset:docker
 ```

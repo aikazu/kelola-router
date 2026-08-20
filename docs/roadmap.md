@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+**QwenCloud upstream provider.**
+- **QwenCloud (`qctp/`).** Eighth upstream: Aliyun Model Studio **token-plan** (`credit_type='token-plan'`), a single **native Anthropic-Messages** endpoint at `token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic/v1/messages`, Bearer `sk-sp-` key auth — no OAuth, no migration. Transform forces `stream:true` upstream; non-stream clients re-aggregate native Anthropic SSE (`aggregateAnthropicSSE` → `message`; OpenAI-format non-stream via `responseAnthropicToOpenAI`); **OpenAI streaming rejected with 501**. Aliyun error envelope (`request_id`/`code`/`message`): `InvalidApiKey` → 401, `InvalidParameter` → 400. 3-model builtin catalogue (1M input / 128K output; per-M $2/$6, $0.44/$1.32, $1.32/$3.96). CLI: `add-account --provider qwencloud` + `npm run seed-qwencloud-models` (also in `seed-all`). Wire + auth docs at `docs/qwencloud/{wire-format,auth}.md`.
+
 **TabiToken upstream provider.**
 - **TabiToken (`tabi/`).** Seventh upstream: New-API-fork reseller gateway at `tabitoken.cc` (the `.com` front WAF-blocks non-browser user agents) — OpenAI Chat Completions + native Anthropic `/v1/messages` on the same base, Bearer `sk-` key auth. Builtin catalogue mirrors the live gateway (4-model Claude-Opus catalogue: `claude-opus-5(-thinking)`, `claude-opus-4-8(-thinking)`); New-API error envelope mapped (`insufficient_user_quota` → balance disable). CLI: `add-account --provider tabi` + `npm run seed-tabi-models`.
 

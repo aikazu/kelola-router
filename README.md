@@ -1,6 +1,6 @@
 # Kelola Router
 
-> Local-first API router for **MiniMax**, **Kiro (AWS CodeWhisperer / Amazon Q)**, **CodeBuddy**, **Pioneer**, **Notion**, **Z.AI**, and **TabiToken**: provider-prefix routing, multi-account pool, combo fallback, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in Preact dashboard.
+> Local-first API router for **MiniMax**, **Kiro (AWS CodeWhisperer / Amazon Q)**, **CodeBuddy**, **Pioneer**, **Notion**, **Z.AI**, **TabiToken**, and **QwenCloud**: provider-prefix routing, multi-account pool, combo fallback, prompt caching, RTK + Caveman compression, live request-flow console, and a built-in Preact dashboard.
 
 [![Node >=20](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript 5.x](https://img.shields.io/badge/typescript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -46,7 +46,7 @@
         +---------------+                        |
                                                  v
                             +----------------------------------+
-                            |   Upstream providers (7)         |
+                            |   Upstream providers (8)         |
                             |                                  |
                             |   🟧 MiniMax        (mx/)         |
                             |   🟣 Kiro (AWS Q)   (kr/)        |
@@ -55,19 +55,20 @@
                             |   🌸 Notion         (nt/)        |
                             |   ⚪  Z.AI          (zai/)       |
                             |   🟡 TabiToken     (tabi/)      |
+                            |   🔶 QwenCloud     (qctp/)      |
                             +----------------------------------+
 ```
 
-All seven upstreams live behind a single OpenAI-compatible or Anthropic-compatible endpoint. Account selection, transport, prompt caching, RTK + Caveman compression, and live request-flow events are handled inside the router.
+All eight upstreams live behind a single OpenAI-compatible or Anthropic-compatible endpoint. Account selection, transport, prompt caching, RTK + Caveman compression, and live request-flow events are handled inside the router.
 
 ---
 
 ## Features
 
-- **Seven upstream providers**: MiniMax, Kiro (AWS CodeWhisperer / Amazon Q), CodeBuddy, Pioneer, Notion, Z.AI, and TabiToken behind a single URL.
-- **Provider-prefix routing**: `mm/MiniMax-M3`, `kr/claude-sonnet-4.5`, `cb/gpt-5`, `pio/...`, `nt/...`, `zai/...`, `tabi/...`. Aliases and combos translate user-facing model names to any of the seven upstreams.
+- **Eight upstream providers**: MiniMax, Kiro (AWS CodeWhisperer / Amazon Q), CodeBuddy, Pioneer, Notion, Z.AI, TabiToken, and QwenCloud behind a single URL.
+- **Provider-prefix routing**: `mm/MiniMax-M3`, `kr/claude-sonnet-4.5`, `cb/gpt-5`, `pio/...`, `nt/...`, `zai/...`, `tabi/...`, `qctp/...`. Aliases and combos translate user-facing model names to any of the eight upstreams.
 - **Multi-account pool with state machine**: sticky + round-robin selection per provider, exponential backoff (1s → 4min cap), per-(account, model) cooldown locks, and error rules for 429 / 2056 / 2061 / 5xx cascades.
-- **OpenAI ↔ Anthropic wire-format negotiation**: clients speak either protocol; the router translates per upstream (Kiro EventStream binary, Notion CRDT NDJSON, Z.AI dual API, TabiToken New-API gateway).
+- **OpenAI ↔ Anthropic wire-format negotiation**: clients speak either protocol; the router translates per upstream (Kiro EventStream binary, Notion CRDT NDJSON, Z.AI dual API, TabiToken New-API gateway, QwenCloud Anthropic-native).
 - **RTK compression pipeline**: `compressMessages` with `dedup-log` + `smart-truncate` filters, runtime registry, autodetect, and per-request RTK log surfaced in the console.
 - **Caveman terse system-prompt injection**: optional off / light / strong prompt mutation per request.
 - **Dual cache_control + auto-breakpoints**: Anthropic-style prompt caching, automatic breakpoint insertion when callers omit markers, respects caller-provided markers.
@@ -96,6 +97,7 @@ All seven upstreams live behind a single OpenAI-compatible or Anthropic-compatib
   - **Notion**: Notion internal integration token
   - **Z.AI**: Z.AI API key (OpenAI-compatible)
   - **TabiToken**: TabiToken reseller API key (Bearer `sk-…`, prepaid credit; API lives at `tabitoken.cc`)
+  - **QwenCloud**: Aliyun Model Studio token-plan API key (Bearer `sk-sp-…`; Anthropic-native endpoint at `token-plan.ap-southeast-1.maas.aliyuncs.com`)
 
 ### Bootstrap
 
@@ -109,7 +111,7 @@ npm run dev          # starts Hono server + Vite dashboard in parallel
 
 Open the dashboard at `http://localhost:5173`, set the admin password on first run, and add at least one account per provider you plan to use:
 
-- `Upstream -> Accounts -> + Add` (MiniMax / CodeBuddy / Pioneer / Z.AI / TabiToken)
+- `Upstream -> Accounts -> + Add` (MiniMax / CodeBuddy / Pioneer / Z.AI / TabiToken / QwenCloud)
 - `Upstream -> Accounts -> + Add (Kiro)` for Kiro social or device-flow
 - `Upstream -> Accounts -> + Add (Notion)` for Notion internal integration
 
@@ -125,7 +127,7 @@ curl http://localhost:20137/v1/chat/completions \
   }'
 ```
 
-Swap `mm/` for `kr/`, `cb/`, `pio/`, `nt/`, `zai/`, or `tabi/` to target a different upstream.
+Swap `mm/` for `kr/`, `cb/`, `pio/`, `nt/`, `zai/`, `tabi/`, or `qctp/` to target a different upstream.
 
 ---
 
@@ -179,7 +181,7 @@ src/
 │   ├── headers.ts                # OpenAI Bearer vs Anthropic x-api-key
 │   ├── alias.ts + alias-cache.ts
 │   ├── list-models.ts             # /v1/models fetch + merge
-│   ├── model-prefix.ts            # mm/kr/cb/pio/nt/zai/tabi parser
+│   ├── model-prefix.ts            # mm/kr/cb/pio/nt/zai/tabi/qctp parser
 │   ├── pricing.ts                # per-token cost calc (incl cache)
 │   ├── parse-error.ts             # base_resp.status_code extraction
 │   ├── quota.ts                  # token-plan quota parser
@@ -191,9 +193,10 @@ src/
 │   ├── notion/                   # auth, constants, extract, transform, manifest.json
 │   ├── pioneer/                  # index, models, transform
 │   ├── zai/                      # index, transform
-│   └── tabi/                     # index, models, transform
+│   ├── tabi/                     # index, transform
+│   └── qwencloud/                # index, transform
 ├── proxy/                        # per-provider request proxies
-│   ├── minimax.ts, kiro.ts, codebuddy.ts, pioneer.ts, notion.ts, zai.ts, tabi.ts
+│   ├── minimax.ts, kiro.ts, codebuddy.ts, pioneer.ts, notion.ts, zai.ts, tabi.ts, qwencloud.ts
 ├── rtk/                          # RTK compression pipeline
 │   ├── index.ts, apply-filter.ts, autodetect.ts, registry.ts, constants.ts, types.ts
 │   └── filters/                  # dedup-log, smart-truncate
@@ -246,11 +249,13 @@ scripts/                          # CLI scripts
 ├── seed-kiro-models.ts
 ├── seed-codebuddy-models.ts
 ├── seed-notion-models.ts
+├── seed-tabi-models.ts
+├── seed-qwencloud-models.ts
 └── seed-zai-models.ts
 
 tests/                            # integration + API + console + DB + provider + proxy + bench
 docker-compose.yml, Dockerfile, Caddyfile, .env.example
-docs/roadmap.md, docs/zai/, docs/notion/
+docs/roadmap.md, docs/zai/, docs/notion/, docs/qwencloud/
 ```
 
 ---
@@ -265,7 +270,7 @@ Built-in Preact SPA (Vite). Sidebar nav is grouped (View / Operate / System) wit
 | Overview          | `#/`                   | Counts, health, recent request log                                           |
 | Usage             | `#/usage`              | Per-model token + cost rollups                                               |
 | Client keys       | `#/client-keys`        | Issue / rotate bearer tokens for downstream callers                          |
-| Upstream          | `#/accounts`           | Add / edit / disable accounts per provider (incl. Kiro auth flows, TabiToken reseller keys) |
+| Upstream          | `#/accounts`           | Add / edit / disable accounts per provider (incl. Kiro auth flows, TabiToken reseller keys, QwenCloud token-plan keys) |
 | Models            | `#/models`             | Catalog + custom model registry, `family` field (audit-fix A4)              |
 | Aliases           | `#/aliases`            | User-facing name -> upstream model (e.g. `mm-fast` -> `mm/MiniMax-M3`)      |
 | Combos            | `#/combos`             | Ordered fallback lists across providers (symmetric uniqueness, audit-fix B1) |
@@ -311,6 +316,7 @@ Built-in Preact SPA (Vite). Sidebar nav is grouped (View / Operate / System) wit
 | `notion`   | sticky       | Notion internal integration only; no rotation across workspaces    |
 | `zai`      | sticky       | Round-robin available                                              |
 | `tabi`     | sticky       | Round-robin available                                              |
+| `qwencloud`| sticky       | Round-robin available                                              |
 
 ### Environment variables (selected)
 
@@ -355,6 +361,7 @@ Each script has a `:docker` variant that runs the same command inside the compos
 | `npm run seed-codebuddy-models` | Seed CodeBuddy models                             |
 | `npm run seed-zai-models`     | Seed Z.AI models                                     |
 | `npm run seed-tabi-models`    | Seed TabiToken models (Claude-Opus catalogue)        |
+| `npm run seed-qwencloud-models` | Seed QwenCloud models (Aliyun token-plan, 3-model)  |
 | `npm run seed-notion-models`  | Seed Notion models                                   |
 | `npm run seed-all`            | Run every `seed-*` script                            |
 | `npm run reset`               | Wipe DB and reseed (destructive)                     |
@@ -431,6 +438,7 @@ If you ever forget the password, the only recovery is to wipe `settings` from th
 
 | Version  | Theme                                                                                          | Status   |
 | -------- | ---------------------------------------------------------------------------------------------- | -------- |
+| Unreleased| QwenCloud provider (Aliyun token-plan, Anthropic-native)                                         | In-progress |
 | v0.22.1  | TabiToken provider (live-gateway validated) + dashboard UI/UX overhaul (grouped nav, PageSkeleton, subtitles) | Shipped  |
 | v0.22.0  | Audit-fixes batch: quota parallel + per-account errors, settings null + client merge, admin cache TTL + explicit invalidation, combo/alias symmetry, upsertAlias source tracking | Shipped  |
 | v0.21.0  | Z.AI provider + provider-prefix model routing (`mm/`, `kr/`, `cb/`, `pio/`, `nt/`, `zai/`)    | Shipped  |

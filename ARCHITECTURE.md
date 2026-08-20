@@ -19,7 +19,7 @@ A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview +
     │  /v1/chat/completions | /v1/messages | /v1/messages/count_tokens | /v1/models
     ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ handleProxy (minimax.ts + kiro/cb/pioneer/zai/combo helpers) │
+│ handleProxy (minimax.ts + kiro/cb/pioneer/zai/tabi/qwencloud/combo helpers) │
 │                                                              │
 │  1. parseBody                                                │
 │  2. resolve model: alias → upstream_model                    │
@@ -44,6 +44,8 @@ A deep-dive into how `kelola-router` is wired. Pair with `AGENTS.md` (overview +
 │  • Notion    (app.notion.com) cookie auth + JSON/NDJSON       │
 │  • Z.AI      (api.z.ai) Bearer + Anthropic/OpenAI HTTP-JSON  │
 │  • TabiToken (tabitoken.cc)  OpenAI + Anthropic HTTP-JSON    │
+│  • QwenCloud (token-plan.ap-southeast-1.maas.aliyuncs.com)    │
+│              Anthropic-native HTTP-JSON                      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,6 +84,7 @@ src/
 │   ├── notion.ts             handleNotionProxy — Notion pipeline (~445 LOC)
 │   ├── zai.ts                handleZaiProxy — Z.AI pipeline (~367 LOC)
 │   ├── tabi.ts               handleTabiProxy — TabiToken pipeline (~351 LOC)
+│   ├── qwencloud.ts          handleQwenCloudProxy — QwenCloud pipeline (Anthropic-native, ~501 on openai-stream)
 │   ├── combo.ts              handleComboProxy — combo routing (~429 LOC)
 │   ├── pipeline.ts           Pure helpers extracted from the proxy handlers (buildLogRow, applyErrorState, …)
 │   ├── capture.ts            Request/response body capture (truncate + headersToJson)
@@ -144,6 +147,12 @@ src/
 │   │   ├── index.ts          execute orchestrator
 │   │   ├── transform.ts      client → upstream body (OpenAI or Anthropic)
 │   │   └── models.ts         tabi/ namespaced model catalogue
+│   ├── qwencloud/            QwenCloud (Aliyun token-plan) protocol
+│   │                         (single native Anthropic /v1/messages; Bearer sk-sp- key;
+│   │                         always `stream:true` upstream → native Anthropic SSE)
+│   │   ├── index.ts          execute orchestrator (forces stream:true)
+│   │   ├── transform.ts      client → upstream body (Anthropic or OpenAI)
+│   │   └── models.ts         qwencloud/ namespaced model catalogue
 │   ├── alias.ts              resolveModel — alias/combo/prefix → upstreamModel
 │   ├── alias-cache.ts         in-process alias cache (per-request ctx)
 │   ├── model-prefix.ts        parseModelPrefix — <prefix>/<name> split + PREFIX_TO_PROVIDER map
@@ -286,7 +295,7 @@ csrfGuard (admin only) → requireApiKey (proxy) / requireAdmin (admin)
 parseBody (c.req.json / c.req.parseBody)
   ↓
 model resolution
-  • parseModelPrefix(model): mx/|kr/|cb/|pio/|nt/|zai/|tabi/ selects provider via literal,
+  • parseModelPrefix(model): mx/|kr/|cb/|pio/|nt/|zai/|tabi/|qctp/ selects provider via literal,
     provider-matched lookup; unprefixed resolves only via combos/aliases (strict)
   • aliasCache.lookup(model) → upstream_model
   • -thinking / -agentic suffix handling
@@ -300,6 +309,7 @@ provider routing (resolved.provider)
   • 'zai'           → handleZaiProxy
   • 'notion'        → handleNotionProxy
   • 'tabi'          → handleTabiProxy
+  • 'qwencloud'     → handleQwenCloudProxy
   • else (minimax)  → continue MiniMax path
   ↓
 consoleBus.emit('start', { reqId, model, endpoint })
@@ -364,6 +374,7 @@ Concrete subclasses:
 
 - **`KiroAnthropicAssembler`** (`src/providers/kiro/anthropic-sse.ts`, `TInput = KiroEvent`): translates decoded Kiro event-stream frames to Anthropic SSE; overrides `process()` to route richer Kiro event types (tool-use, metadata, messageStop) through the inherited state machine.
 - **`OpenAIToAnthropicSSEAssembler`** (`src/providers/codebuddy/stream-convert.ts`, `TInput = OpenAIStreamChunk`): translates aggregated OpenAI chunks to Anthropic SSE; uses the default 1-block-1-delta orchestrator without overriding `process()`. Pioneer reuses this same assembler and the `aggregateOpenAISSE` / `openaiSSEToAnthropicSSE` bridge. No Pioneer-specific assembler.
+- **`aggregateAnthropicSSE`** (`src/proxy/qwencloud.ts`): not a `SseAssemblerBase` subclass — QwenCloud's upstream is already native Anthropic Messages SSE, so the stream passes through verbatim for streaming clients; the helper only re-aggregates the canonical event order message_start → content_block_* → message_delta → message_stop back into a single `message` JSON for non-stream clients (and for OpenAI-format non-stream via `responseAnthropicToOpenAI`). OpenAI streaming is rejected with 501 (no Anthropic-SSE → OpenAI-SSE converter).
 
 **Not in scope.** `KiroAssembler` (`src/providers/kiro/assembler.ts`, → OpenAI SSE) does NOT extend the base. Its I/O type is OpenAI chunks, not Anthropic events, and it predates the template-method. Leaving it untouched keeps the base generic for Anthropic-SSE only.
 

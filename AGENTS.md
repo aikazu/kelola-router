@@ -90,11 +90,12 @@ Deep-dive (module map, state machines, data flow): see [`ARCHITECTURE.md`](ARCHI
 - **Notion** (app.notion.com): reverse-engineered Notion desktop AI chat. 3-step temp-password login (email + 6-char temp password emailed), cookie-based session (11 cookies required), CRDT-style JSON request body + NDJSON patch-stream response. Routed via nt/ prefix; OpenAI streaming format. See src/proxy/notion.ts + src/providers/notion/ + docs/notion/wire-format.md.
 - **Z.AI** (api.z.ai): sixth upstream provider. Single Bearer API-key auth (no OAuth, no migration). Two parallel APIs picked by client body format: Anthropic Messages at `https://api.z.ai/api/anthropic` (Claude-Code-compatible) and OpenAI Chat Completions at `https://api.z.ai/api/coding/paas/v4` (GLM Coding Plan). Routed via zai/ prefix. See src/proxy/zai.ts + src/providers/zai/ + docs/zai/{wire-format,auth}.md.
 - **TabiToken** (tabitoken.cc): seventh upstream provider. New-API-fork reseller gateway, OpenAI-compatible endpoint (`/v1/chat/completions`; Anthropic also native at `/v1/messages`), Bearer API-key auth (sk-…). 4-model Claude-Opus catalogue (verified live `/v1/models` + `/api/pricing`); New-API error codes mapped in `error-rules` (`insufficient_user_quota` → balance disable). Client bodies bridged to OpenAI and back (OpenAI SSE → Anthropic SSE assembler), mirror of the Pioneer pattern. Routed via tabi/ prefix; model rows namespaced `tabi/<id>`. See src/proxy/tabi.ts + src/providers/tabi/ + docs/tabi/{wire-format,auth}.md.
+- **QwenCloud** (Aliyun Model Studio token-plan): eighth upstream provider. Anthropic-Messages-native endpoint at `https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic/v1/messages`, single Bearer API-key auth (`sk-sp-…`/`sk-cp-…`), `credit_type=token-plan`. Client anthropic bodies pass through (stream + non-stream); client openai non-stream is bridged via a local Anthropic-SSE aggregator (`aggregateAnthropicSSE`), and openai streaming is rejected with 501 (no Anthropic→OpenAI SSE converter). Error envelope is Aliyun-shape (`{request_id, code, message}`: 401 `InvalidApiKey`, 400 `InvalidParameter`), handled in `src/proxy/qwencloud.ts`. 3-model catalogue (`qwen3.8-max`, `deepseek-v4-flash-0731`, `deepseek-v4-pro-0813`; 1M context / 128K output). Routed via qctp/ prefix; model rows stored bare (no namespace). See src/proxy/qwencloud.ts + src/providers/qwencloud/ + docs/qwencloud/{wire-format,auth}.md.
 
 ## Two-tier separation
 
 - **`client_keys`**: bearer credentials for clients (Claude Code, hermes-agent). One per app. Per-key usage.
-- **`accounts`**: upstream MiniMax/Kiro/CodeBuddy/Pioneer keys. Pool of N for fallback + quota. Each has `credit_type` (`payg` or `token-plan`) + `provider`.
+- **`accounts`**: upstream MiniMax/Kiro/CodeBuddy/Pioneer/Notion/Z.AI/TabiToken/QwenCloud keys. Pool of N for fallback + quota. Each has `credit_type` (`payg` or `token-plan`) + `provider`.
 
 Never mix these. Client never sees upstream keys; upstream never sees client bearers.
 
@@ -119,6 +120,7 @@ Requests select a provider by an explicit prefix on `body.model`:
 | `nt/`  | Notion      | `nt/<model>`             |
 | `zai/` | Z.AI        | `zai/<model>`            |
 | `tabi/`| TabiToken   | `tabi/<model>`           |
+| `qctp/`| QwenCloud   | `qctp/qwen3.8-max`       |
 
 - Prefixed names are looked up **literally** (no alias expansion) and the model's `provider` column MUST match the prefix, else 400.
 - **Unprefixed** names resolve **only** as a combo name or an alias (strict). A bare raw model name is rejected with 400. Add an alias or use a prefix.
