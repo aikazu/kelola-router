@@ -80,6 +80,7 @@ modelRoutes.post('/', async (c) => {
       'notion',
       'zai',
       'tabi',
+      'qwencloud',
     ] as const;
     if (!body.provider || !(ALLOWED_PROVIDERS as readonly string[]).includes(body.provider)) {
       return c.json(
@@ -265,6 +266,7 @@ const FETCH_PROVIDERS = [
   'zai',
   'notion',
   'tabi',
+  'qwencloud',
 ] as const;
 type FetchProvider = (typeof FETCH_PROVIDERS)[number];
 
@@ -283,7 +285,7 @@ modelRoutes.post('/fetch/:provider', async (c) => {
     // Builtin providers: re-run the static seed (no upstream call, no account
     // needed). Kiro/CodeBuddy/Z.AI/Notion all use `seedXxxBuiltins` which is
     // idempotent and only touches rows for that provider.
-    if (p === 'kiro' || p === 'codebuddy' || p === 'zai' || p === 'notion') {
+    if (p === 'kiro' || p === 'codebuddy' || p === 'zai' || p === 'notion' || p === 'qwencloud') {
       const result = await seedModelsForProvider(db, p);
       if (!result.ok) {
         return c.json({ error: 'reseed_failed', message: result.error ?? 'seed error' }, 500);

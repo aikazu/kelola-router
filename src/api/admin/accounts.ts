@@ -83,6 +83,7 @@ const PROVIDER_ALLOWLIST = [
   'notion',
   'zai',
   'tabi',
+  'qwencloud',
 ] as const;
 type ManualProvider = (typeof PROVIDER_ALLOWLIST)[number];
 

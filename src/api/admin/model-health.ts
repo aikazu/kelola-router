@@ -5,6 +5,7 @@ import { executeCodeBuddy } from '../../providers/codebuddy/index.js';
 import { executeKiro } from '../../providers/kiro/index.js';
 import { upstreamHeaders, upstreamUrl } from '../../providers/minimax/index.js';
 import { executePioneer } from '../../providers/pioneer/index.js';
+import { executeQwenCloud } from '../../providers/qwencloud/index.js';
 import { executeTabi } from '../../providers/tabi/index.js';
 import { upstreamFetch } from '../../providers/upstream-fetch.js';
 import { executeZai } from '../../providers/zai/index.js';
@@ -121,6 +122,25 @@ export async function testModelUpstream(
         account: { api_key: account.api_key, base_url: account.base_url },
         transport,
         clientFormat: 'openai',
+        upstreamModel: model.upstream_model,
+      });
+      const latencyMs = Date.now() - started;
+      if (!resp.ok) {
+        const text = await resp.text();
+        return { ok: false, latencyMs, error: text.slice(0, 200) || `HTTP ${resp.status}` };
+      }
+      return { ok: true, latencyMs };
+    }
+
+    if (provider === 'qwencloud') {
+      // QwenCloud is Anthropic-native; executeQwenCloud speaks /v1/messages.
+      const resp = await executeQwenCloud({
+        body: {
+          model: model.upstream_model,
+          messages: [{ role: 'user', content: 'ping' }],
+        },
+        account: { api_key: account.api_key, base_url: account.base_url },
+        transport,
         upstreamModel: model.upstream_model,
       });
       const latencyMs = Date.now() - started;

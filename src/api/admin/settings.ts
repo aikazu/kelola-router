@@ -38,7 +38,15 @@ settingsRoutes.post('/rtk', post('rtk'));
 settingsRoutes.post('/caching', post('caching'));
 settingsRoutes.post('/minimax', post('minimax'));
 
-const SELECTION_PROVIDERS = ['minimax', 'kiro', 'codebuddy', 'pioneer', 'notion', 'zai'] as const;
+const SELECTION_PROVIDERS = [
+  'minimax',
+  'kiro',
+  'codebuddy',
+  'pioneer',
+  'notion',
+  'zai',
+  'qwencloud',
+] as const;
 type SelectionProvider = (typeof SELECTION_PROVIDERS)[number];
 const SELECTION_MODES = ['lowest-backoff', 'round-robin', 'sticky'] as const;
 
