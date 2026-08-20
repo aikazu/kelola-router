@@ -14,8 +14,21 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { dispatch, main, runCodeBuddy, runKiro, runMinimax } from '../../scripts/add-account.js';
-import type { CodeBuddyArgs, KiroArgs, MinimaxArgs } from '../../scripts/add-account-cli-args.js';
+import {
+  dispatch,
+  main,
+  runCodeBuddy,
+  runKiro,
+  runMinimax,
+  runQwenCloud,
+} from '../../scripts/add-account.js';
+import {
+  type CodeBuddyArgs,
+  type KiroArgs,
+  type MinimaxArgs,
+  parseArgs,
+  type QwenCloudArgs,
+} from '../../scripts/add-account-cli-args.js';
 import { openDb } from '../../src/db/index.js';
 import { getAccount, listAccounts } from '../../src/db/repos/accounts.js';
 
@@ -166,6 +179,61 @@ describe('runCodeBuddy (ports scripts/add-codebuddy-account.ts)', () => {
   });
 });
 
+describe('runQwenCloud', () => {
+  const args: QwenCloudArgs = {
+    provider: 'qwencloud',
+    apiKey: 'sk-sp-test',
+  };
+
+  it('inserts provider=qwencloud, credit_type=token-plan, default base URL null, enabled', () => {
+    const account = runQwenCloud(db, args);
+    const row = getAccount(db, account.id)!;
+
+    expect(row.provider).toBe('qwencloud');
+    expect(row.credit_type).toBe('token-plan');
+    expect(row.api_key).toBe('sk-sp-test');
+    expect(row.base_url).toBeNull();
+    expect(row.enabled).toBe(1);
+  });
+
+  it('default label falls back to qwencloud-<8 lowercase hex from ulid>', () => {
+    const account = runQwenCloud(db, args);
+    // Mirror zai/tabi: `qwencloud-${id.slice(4, 12).toLowerCase()}` where id = `acc_<ulid>`.
+    const expectedSuffix = account.id.slice(4, 12).toLowerCase();
+    expect(account.label).toBe(`qwencloud-${expectedSuffix}`);
+  });
+
+  it('honors explicit --label and --base-url', () => {
+    const account = runQwenCloud(db, {
+      ...args,
+      label: 'my-qc',
+      baseUrl: 'https://custom.gateway.example',
+    });
+    const row = getAccount(db, account.id)!;
+    expect(row.label).toBe('my-qc');
+    expect(row.base_url).toBe('https://custom.gateway.example');
+  });
+
+  it('parseArgs accepts qwencloud with --api-key / --label / --base-url', () => {
+    const parsed = parseArgs([
+      '--provider',
+      'qwencloud',
+      '--api-key',
+      'sk-sp-test',
+      '--label',
+      'qc-cli',
+      '--base-url',
+      'https://custom.gateway.example',
+    ]);
+    expect(parsed).toEqual({
+      provider: 'qwencloud',
+      apiKey: 'sk-sp-test',
+      label: 'qc-cli',
+      baseUrl: 'https://custom.gateway.example',
+    });
+  });
+});
+
 describe('dispatch', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -192,8 +260,14 @@ describe('dispatch', () => {
   });
 
   it('routes codebuddy', async () => {
-    const a = await dispatch(db, { provider: 'codebuddy', apiKey: 'k' });
+    const a = await dispatch(db, { provider: 'codebuddy', apiKey: 'cb_d' });
     expect(getAccount(db, a.id)!.provider).toBe('codebuddy');
+  });
+
+  it('routes qwencloud', async () => {
+    const a = await dispatch(db, { provider: 'qwencloud', apiKey: 'sk-sp-d' });
+    expect(getAccount(db, a.id)!.provider).toBe('qwencloud');
+    expect(getAccount(db, a.id)!.credit_type).toBe('token-plan');
   });
 });
 
@@ -251,5 +325,13 @@ describe('main', () => {
     const cb = listAccounts(db).filter((a) => a.provider === 'codebuddy');
     expect(cb.length).toBe(1);
     expect(cb[0].label).toBe('cli-cb');
+  });
+
+  it('happy path qwencloud: inserts row with credit_type=token-plan', async () => {
+    await main(['--provider', 'qwencloud', '--api-key', 'sk-sp_cli', '--label', 'cli-qc']);
+    expect(process.exitCode).toBe(0);
+    const qc = listAccounts(db).filter((a) => a.provider === 'qwencloud');
+    expect(qc.length).toBe(1);
+    expect(qc[0].credit_type).toBe('token-plan');
   });
 });

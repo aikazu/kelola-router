@@ -47,6 +47,7 @@ import {
   type MinimaxArgs,
   type PioneerArgs,
   parseArgs,
+  type QwenCloudArgs,
   type TabiArgs,
   type ZaiArgs,
 } from './add-account-cli-args.js';
@@ -237,6 +238,36 @@ export function runTabi(db: Database.Database, args: TabiArgs): Account {
   return account;
 }
 
+/**
+ * QwenCloud runner — Bearer API key auth (`sk-sp-…`). QwenCloud is a single
+ * Anthropic-Messages-compatible endpoint at the Aliyun token-plan gateway.
+ * The default base URL is the Anthropic root; a custom `--base-url` lets
+ * users point at an alternate gateway / proxy. Token-plan billing: the
+ * account defaults to `credit_type='token-plan'`.
+ */
+export function runQwenCloud(db: Database.Database, args: QwenCloudArgs): Account {
+  const id = `acc_${ulid()}`;
+  const label = args.label ?? `qwencloud-${id.slice(4, 12).toLowerCase()}`;
+  const baseUrl = args.baseUrl ?? null; // null lets executeQwenCloud fall back to the gateway default
+
+  const account = createAccount(db, {
+    id,
+    label,
+    credit_type: 'token-plan',
+    api_key: args.apiKey,
+    base_url: baseUrl,
+    provider: 'qwencloud',
+    enabled: true,
+  });
+
+  console.log(`✓ Added QwenCloud account: ${label} (${id})`);
+  console.log(
+    `  Base URL: ${baseUrl ?? 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic'}`
+  );
+  console.log('  QwenCloud is an Anthropic-native token-plan gateway; clients call qctp/<model>.');
+  return account;
+}
+
 export async function dispatch(db: Database.Database, args: AddAccountArgs): Promise<Account> {
   let account: Account;
   let apiKey: string | undefined;
@@ -268,6 +299,11 @@ export async function dispatch(db: Database.Database, args: AddAccountArgs): Pro
       apiKey = args.apiKey;
       baseUrl = args.baseUrl;
       break;
+    case 'qwencloud':
+      account = runQwenCloud(db, args);
+      apiKey = args.apiKey;
+      baseUrl = args.baseUrl;
+      break;
   }
 
   // Seed the provider's model catalogue now that the account exists, mirroring
@@ -295,6 +331,8 @@ const USAGE_ZAI =
   '  zai:       add-account --provider zai --api-key <k> [--label <l>] [--base-url <u>]';
 const USAGE_TABI =
   '  tabi:      add-account --provider tabi --api-key <k> [--label <l>] [--base-url <u>]';
+const USAGE_QWENCLOUD =
+  '  qwencloud: add-account --provider qwencloud --api-key <k> [--label <l>] [--base-url <u>]';
 
 export async function main(argv: string[]): Promise<void> {
   let args: AddAccountArgs;
@@ -314,6 +352,7 @@ export async function main(argv: string[]): Promise<void> {
       console.error(USAGE_PIONEER);
       console.error(USAGE_ZAI);
       console.error(USAGE_TABI);
+      console.error(USAGE_QWENCLOUD);
     } else {
       console.error('Unexpected error parsing arguments:', err);
     }
