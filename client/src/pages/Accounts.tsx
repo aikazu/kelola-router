@@ -18,6 +18,7 @@ import { useKiroAutoImport } from '../hooks/useKiroAutoImport';
 import { useKiroDeviceFlow } from '../hooks/useKiroDeviceFlow';
 import { TopBar } from '../layout/TopBar';
 import { apiFetch } from '../lib/api';
+import { friendlyAccountError } from '../lib/account-errors';
 import type { Account, ModelLock, Transport, TransportState } from '../lib/types';
 
 export function Accounts() {
@@ -253,7 +254,7 @@ export function Accounts() {
           : 'Account added'
       );
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyAccountError(e.message)),
   });
 
   const toggleMut = useMutation({
@@ -263,7 +264,7 @@ export function Accounts() {
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Updated');
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyAccountError(e.message)),
   });
   const editMut = useMutation({
     mutationFn: (vars: {
@@ -284,7 +285,7 @@ export function Accounts() {
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Account updated');
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyAccountError(e.message)),
   });
   const deleteMut = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/admin/accounts/${id}`, { method: 'DELETE' }),
@@ -303,7 +304,7 @@ export function Accounts() {
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Model unlocked');
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyAccountError(e.message)),
   });
 
   async function handleDelete(id: string, label: string) {
